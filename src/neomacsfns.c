@@ -709,6 +709,9 @@ neomacs_create_frame_widgets (struct frame *f)
   output->drawing_area = drawing_area;
   output->window_desc = (Window) (intptr_t) window;
 
+  /* Create initial Cairo surface */
+  neomacs_ensure_cr_surface (f, FRAME_PIXEL_WIDTH (f), FRAME_PIXEL_HEIGHT (f));
+
   /* Show the window and grab focus */
   if (0) fprintf (stderr, "DEBUG: Calling gtk_window_present\n");
   gtk_window_present (GTK_WINDOW (window));
