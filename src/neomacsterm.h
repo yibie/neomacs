@@ -151,6 +151,10 @@ struct neomacs_output
   void *container;
   void *drawing_area;
 
+  /* Cairo surface for double buffering */
+  cairo_surface_t *cr_surface;
+  cairo_t *cr_context;
+
   /* Window IDs - for X compatibility */
   Window window_desc;
   Window parent_desc;
@@ -259,6 +263,10 @@ struct neomacs_output
 /* Native window handle */
 #define FRAME_NATIVE_WINDOW(f) (FRAME_X_OUTPUT(f)->window_desc)
 #define FRAME_X_WINDOW(f) (FRAME_X_OUTPUT(f)->window_desc)
+
+/* Cairo context for drawing */
+#define FRAME_CR_SURFACE(f) (FRAME_X_OUTPUT(f)->cr_surface)
+#define FRAME_CR_CONTEXT(f) (FRAME_X_OUTPUT(f)->cr_context)
 
 /* External declarations */
 extern struct neomacs_display_info *neomacs_display_list;

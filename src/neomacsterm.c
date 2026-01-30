@@ -164,6 +164,8 @@ neomacs_initialize_display_info (struct neomacs_display_info *dpyinfo)
       void *handle = dlopen (NULL, RTLD_LAZY);
       const char *type_name = G_OBJECT_TYPE_NAME (gdpy);
 
+      if (0) fprintf (stderr, "DEBUG: GDK display type: %s\n", type_name ? type_name : "NULL");
+
       if (handle && type_name)
 	{
 	  /* Check for X11 display */
@@ -171,9 +173,12 @@ neomacs_initialize_display_info (struct neomacs_display_info *dpyinfo)
 	    {
 	      void *(*get_xdisplay) (GdkDisplay *) = dlsym (handle, "gdk_x11_display_get_xdisplay");
 	      int (*conn_number) (void *) = dlsym (handle, "XConnectionNumber");
+	      if (0) fprintf (stderr, "DEBUG: X11: get_xdisplay=%p, conn_number=%p\n",
+		       (void *) get_xdisplay, (void *) conn_number);
 	      if (get_xdisplay && conn_number)
 		{
 		  void *xdpy = get_xdisplay (gdpy);
+		  if (0) fprintf (stderr, "DEBUG: X11: xdpy=%p\n", xdpy);
 		  if (xdpy)
 		    dpyinfo->connection = conn_number (xdpy);
 		}
@@ -184,14 +189,19 @@ neomacs_initialize_display_info (struct neomacs_display_info *dpyinfo)
 	      struct wl_display *(*get_wl_display) (GdkDisplay *)
 		= dlsym (handle, "gdk_wayland_display_get_wl_display");
 	      int (*get_fd) (struct wl_display *) = dlsym (handle, "wl_display_get_fd");
+	      if (0) fprintf (stderr, "DEBUG: Wayland: get_wl_display=%p, get_fd=%p\n",
+		       (void *) get_wl_display, (void *) get_fd);
 	      if (get_wl_display && get_fd)
 		{
 		  struct wl_display *wl_dpy = get_wl_display (gdpy);
+		  if (0) fprintf (stderr, "DEBUG: Wayland: wl_dpy=%p\n", (void *) wl_dpy);
 		  if (wl_dpy)
 		    dpyinfo->connection = get_fd (wl_dpy);
 		}
 	    }
 	}
+
+      if (0) fprintf (stderr, "DEBUG: Display connection fd: %d\n", dpyinfo->connection);
     }
 }
 
@@ -291,16 +301,30 @@ void
 neomacs_update_end (struct frame *f)
 {
   struct neomacs_display_info *dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
+  struct neomacs_output *output = FRAME_NEOMACS_OUTPUT (f);
 
   if (dpyinfo && dpyinfo->display_handle)
     neomacs_display_end_frame (dpyinfo->display_handle);
+
+  /* Queue a redraw of the drawing area */
+  if (output && output->drawing_area)
+    gtk_widget_queue_draw (GTK_WIDGET (output->drawing_area));
 }
 
 /* Flush pending output to display */
 void
 neomacs_flush_display (struct frame *f)
 {
-  /* The Rust backend handles flushing internally */
+  struct neomacs_output *output;
+
+  if (!FRAME_NEOMACS_P (f))
+    return;
+
+  output = FRAME_NEOMACS_OUTPUT (f);
+
+  /* Queue a redraw of the drawing area */
+  if (output && output->drawing_area)
+    gtk_widget_queue_draw (GTK_WIDGET (output->drawing_area));
 }
 
 /* Get a string resource value (for X resources / defaults) */
@@ -366,46 +390,101 @@ void
 neomacs_draw_glyph_string (struct glyph_string *s)
 {
   struct frame *f = s->f;
-  struct neomacs_display_info *dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
+  struct neomacs_output *output = FRAME_NEOMACS_OUTPUT (f);
+  cairo_t *cr;
 
-  if (!dpyinfo || !dpyinfo->display_handle)
+  if (!output || !output->cr_context)
     return;
+
+  cr = output->cr_context;
+
+  /* Set up clipping if needed */
+  /* TODO: Handle clipping properly */
 
   /* Get face colors */
   unsigned long fg = s->face->foreground;
   unsigned long bg = s->face->background;
 
-  /* Convert Emacs glyphs to Neomacs format */
-  /* For now, iterate through glyph string and add characters */
-  for (int i = 0; i < s->nchars; i++)
+  /* Draw background if needed */
+  if (!s->background_filled_p)
     {
-      struct glyph *g = s->first_glyph + i;
+      double r = RED_FROM_ULONG (bg) / 255.0;
+      double g = GREEN_FROM_ULONG (bg) / 255.0;
+      double b = BLUE_FROM_ULONG (bg) / 255.0;
 
-      switch (g->type)
-        {
-        case CHAR_GLYPH:
-          neomacs_display_add_char_glyph (dpyinfo->display_handle,
-                                          g->u.ch,
-                                          s->face->id,
-                                          g->pixel_width,
-                                          FONT_BASE (s->font),
-                                          FONT_DESCENT (s->font));
-          break;
+      cairo_set_source_rgb (cr, r, g, b);
+      cairo_rectangle (cr, s->x, s->y, s->background_width, s->height);
+      cairo_fill (cr);
+      s->background_filled_p = true;
+    }
 
-        case STRETCH_GLYPH:
-          neomacs_display_add_stretch_glyph (dpyinfo->display_handle,
-                                             g->pixel_width,
-                                             FRAME_LINE_HEIGHT (f),
-                                             s->face->id);
-          break;
+  /* Draw the foreground (text) */
+  switch (s->first_glyph->type)
+    {
+    case CHAR_GLYPH:
+    case COMPOSITE_GLYPH:
+    case GLYPHLESS_GLYPH:
+      {
+	/* Set foreground color */
+	double r = RED_FROM_ULONG (fg) / 255.0;
+	double g = GREEN_FROM_ULONG (fg) / 255.0;
+	double b = BLUE_FROM_ULONG (fg) / 255.0;
+	cairo_set_source_rgb (cr, r, g, b);
 
-        case IMAGE_GLYPH:
-          /* TODO: Handle image glyphs */
-          break;
+	/* Draw using the font */
+	if (s->font && s->nchars > 0 && s->char2b)
+	  {
+	    /* Use font's draw method if available */
+	    struct font *font = s->font;
 
-        default:
-          break;
-        }
+	    if (font->driver && font->driver->draw)
+	      {
+		font->driver->draw (s, 0, s->nchars, s->x, s->ybase, false);
+	      }
+	    else
+	      {
+		/* Fallback: Draw using Cairo text rendering */
+		/* Convert char2b to string */
+		char buf[256];
+		int len = 0;
+		for (int i = 0; i < s->nchars && len < 255; i++)
+		  {
+		    unsigned int c = s->char2b[i];
+		    if (c < 128)
+		      buf[len++] = (char) c;
+		    else if (c < 0x800 && len < 254)
+		      {
+			buf[len++] = 0xC0 | (c >> 6);
+			buf[len++] = 0x80 | (c & 0x3F);
+		      }
+		    /* Skip other multibyte for now */
+		  }
+		buf[len] = '\0';
+
+		if (len > 0)
+		  {
+		    cairo_select_font_face (cr, "monospace",
+					   CAIRO_FONT_SLANT_NORMAL,
+					   CAIRO_FONT_WEIGHT_NORMAL);
+		    cairo_set_font_size (cr, FRAME_LINE_HEIGHT (f) * 0.8);
+		    cairo_move_to (cr, s->x, s->ybase);
+		    cairo_show_text (cr, buf);
+		  }
+	      }
+	  }
+      }
+      break;
+
+    case STRETCH_GLYPH:
+      /* Stretch glyphs are just background - already drawn above */
+      break;
+
+    case IMAGE_GLYPH:
+      /* TODO: Implement image glyph drawing */
+      break;
+
+    default:
+      break;
     }
 }
 
@@ -413,7 +492,23 @@ neomacs_draw_glyph_string (struct glyph_string *s)
 void
 neomacs_clear_frame_area (struct frame *f, int x, int y, int width, int height)
 {
-  /* This would clear an area - for now, the Rust backend handles clearing */
+  struct neomacs_output *output = FRAME_NEOMACS_OUTPUT (f);
+  cairo_t *cr;
+
+  if (!output || !output->cr_context)
+    return;
+
+  cr = output->cr_context;
+
+  /* Get background color */
+  unsigned long bg = output->background_pixel;
+  double r = RED_FROM_ULONG (bg) / 255.0;
+  double g = GREEN_FROM_ULONG (bg) / 255.0;
+  double b = BLUE_FROM_ULONG (bg) / 255.0;
+
+  cairo_set_source_rgb (cr, r, g, b);
+  cairo_rectangle (cr, x, y, width, height);
+  cairo_fill (cr);
 }
 
 /* Draw fringe bitmap */
@@ -436,43 +531,60 @@ neomacs_draw_window_cursor (struct window *w, struct glyph_row *row,
                             int cursor_width, bool on_p, bool active_p)
 {
   struct frame *f = XFRAME (w->frame);
-  struct neomacs_display_info *dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
+  struct neomacs_output *output = FRAME_NEOMACS_OUTPUT (f);
+  cairo_t *cr;
 
-  if (!dpyinfo || !dpyinfo->display_handle || !on_p)
+  if (!output || !output->cr_context || !on_p)
     return;
 
-  /* Convert cursor type to Neomacs style */
-  int style = 0;  /* Box cursor */
+  cr = output->cr_context;
+
+  /* Get cursor dimensions */
+  int char_width = cursor_width > 0 ? cursor_width : FRAME_COLUMN_WIDTH (f);
+  int char_height = FRAME_LINE_HEIGHT (f);
+
+  /* Get cursor color - default to a visible color */
+  unsigned long cursor_color = output->cursor_pixel;
+  if (cursor_color == 0)
+    cursor_color = 0x000000;  /* Black */
+
+  double r = RED_FROM_ULONG (cursor_color) / 255.0;
+  double g = GREEN_FROM_ULONG (cursor_color) / 255.0;
+  double b = BLUE_FROM_ULONG (cursor_color) / 255.0;
+
+  cairo_set_source_rgb (cr, r, g, b);
+
   switch (cursor_type)
     {
     case DEFAULT_CURSOR:
     case FILLED_BOX_CURSOR:
-      style = 0;
+      /* Filled box cursor */
+      cairo_rectangle (cr, x, y, char_width, char_height);
+      cairo_fill (cr);
       break;
+
     case BAR_CURSOR:
-      style = 1;
+      /* Vertical bar cursor */
+      cairo_rectangle (cr, x, y, 2, char_height);
+      cairo_fill (cr);
       break;
+
     case HBAR_CURSOR:
-      style = 2;
+      /* Horizontal bar cursor */
+      cairo_rectangle (cr, x, y + char_height - 2, char_width, 2);
+      cairo_fill (cr);
       break;
+
     case HOLLOW_BOX_CURSOR:
-      style = 3;
+      /* Hollow box cursor */
+      cairo_set_line_width (cr, 1.0);
+      cairo_rectangle (cr, x + 0.5, y + 0.5, char_width - 1, char_height - 1);
+      cairo_stroke (cr);
       break;
+
     case NO_CURSOR:
-      return;
+      break;
     }
-
-  /* Get cursor colors */
-  unsigned long cursor_color = FRAME_NEOMACS_OUTPUT (f)->cursor_pixel;
-
-  /* Set cursor in current window */
-  int char_width = cursor_width > 0 ? cursor_width : FRAME_COLUMN_WIDTH (f);
-  int char_height = FRAME_LINE_HEIGHT (f);
-
-  neomacs_display_set_cursor (dpyinfo->display_handle,
-                              (float) x, (float) y,
-                              (float) char_width, (float) char_height,
-                              style, cursor_color, active_p ? 1 : 0);
 }
 
 
@@ -658,28 +770,26 @@ int
 neomacs_read_socket (struct terminal *terminal, struct input_event *hold_quit)
 {
   GMainContext *context;
-  bool context_acquired = false;
   int count = 0;
+  static int call_count = 0;
+
+  call_count++;
+  if (call_count <= 5 || (call_count % 100 == 0))
+    if (0) fprintf (stderr, "DEBUG: neomacs_read_socket called, count=%d\n", call_count);
 
   /* Get the default GLib main context */
   context = g_main_context_default ();
-  context_acquired = g_main_context_acquire (context);
 
   block_input ();
 
-  if (context_acquired)
+  /* Process pending GTK events using iteration
+     - FALSE means don't block if no events */
+  while (g_main_context_iteration (context, FALSE))
     {
-      /* Process all pending GTK events */
-      while (g_main_context_pending (context))
-	{
-	  g_main_context_dispatch (context);
-	}
+      /* Events were processed */
     }
 
   unblock_input ();
-
-  if (context_acquired)
-    g_main_context_release (context);
 
   return count;
 }

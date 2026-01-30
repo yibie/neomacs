@@ -384,20 +384,61 @@ check_neomacs_display_info (Lisp_Object object)
  * GTK4 Window Management
  * ============================================================================ */
 
+/* Ensure the frame has a Cairo surface of the right size */
+static void
+neomacs_ensure_cr_surface (struct frame *f, int width, int height)
+{
+  struct neomacs_output *output = FRAME_NEOMACS_OUTPUT (f);
+
+  /* Check if we need to recreate the surface */
+  if (output->cr_surface)
+    {
+      int cur_width = cairo_image_surface_get_width (output->cr_surface);
+      int cur_height = cairo_image_surface_get_height (output->cr_surface);
+      if (cur_width == width && cur_height == height)
+	return;  /* Surface is the right size */
+
+      /* Destroy old context and surface */
+      if (output->cr_context)
+	{
+	  cairo_destroy (output->cr_context);
+	  output->cr_context = NULL;
+	}
+      cairo_surface_destroy (output->cr_surface);
+      output->cr_surface = NULL;
+    }
+
+  /* Create new surface */
+  output->cr_surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32,
+						   width, height);
+  output->cr_context = cairo_create (output->cr_surface);
+
+  /* Fill with background color */
+  unsigned long bg = output->background_pixel;
+  double r = RED_FROM_ULONG (bg) / 255.0;
+  double g = GREEN_FROM_ULONG (bg) / 255.0;
+  double b = BLUE_FROM_ULONG (bg) / 255.0;
+  cairo_set_source_rgb (output->cr_context, r, g, b);
+  cairo_paint (output->cr_context);
+}
+
 /* Callback for GTK4 drawing area resize */
 static void
 neomacs_resize_cb (GtkDrawingArea *area, int width, int height,
                    gpointer user_data)
 {
   struct frame *f = (struct frame *) user_data;
-  
+
   if (!FRAME_NEOMACS_P (f))
     return;
 
   struct neomacs_display_info *dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
-  
+
   if (dpyinfo && dpyinfo->display_handle)
     neomacs_display_resize (dpyinfo->display_handle, width, height);
+
+  /* Ensure we have a surface of the right size */
+  neomacs_ensure_cr_surface (f, width, height);
 
   /* Update frame dimensions */
   int old_cols = FRAME_COLS (f);
@@ -417,24 +458,175 @@ neomacs_draw_cb (GtkDrawingArea *area, cairo_t *cr,
                  int width, int height, gpointer user_data)
 {
   struct frame *f = (struct frame *) user_data;
-  
+  struct neomacs_output *output;
+
   if (!FRAME_NEOMACS_P (f))
     return;
 
-  /* For now, fill with background color */
-  struct face *face = FACE_FROM_ID (f, DEFAULT_FACE_ID);
-  if (face)
+  output = FRAME_NEOMACS_OUTPUT (f);
+
+  if (0) fprintf (stderr, "DEBUG: neomacs_draw_cb called, frame %p, size %dx%d\n",
+	   (void *) f, width, height);
+
+  /* Ensure we have a backing surface */
+  neomacs_ensure_cr_surface (f, width, height);
+
+  /* If we have a backing surface, blit it to the widget */
+  if (output->cr_surface)
     {
-      unsigned long bg = face->background;
-      double r = RED_FROM_ULONG (bg) / 255.0;
-      double g = GREEN_FROM_ULONG (bg) / 255.0;
-      double b = BLUE_FROM_ULONG (bg) / 255.0;
+      cairo_set_source_surface (cr, output->cr_surface, 0, 0);
+      cairo_paint (cr);
+    }
+  else
+    {
+      /* Fallback: draw background */
+      double r = 1.0, g = 1.0, b = 1.0;
+      if (FRAME_FACE_CACHE (f))
+	{
+	  struct face *face = FACE_FROM_ID (f, DEFAULT_FACE_ID);
+	  if (face)
+	    {
+	      unsigned long bg = face->background;
+	      r = RED_FROM_ULONG (bg) / 255.0;
+	      g = GREEN_FROM_ULONG (bg) / 255.0;
+	      b = BLUE_FROM_ULONG (bg) / 255.0;
+	    }
+	}
       cairo_set_source_rgb (cr, r, g, b);
       cairo_paint (cr);
     }
 
-  /* Mark frame for redisplay */
-  SET_FRAME_GARBAGED (f);
+  /* Draw a small status indicator in the corner - will be removed later */
+  cairo_set_source_rgba (cr, 0.0, 0.5, 0.0, 0.8);  /* Semi-transparent green */
+  cairo_rectangle (cr, width - 60, 5, 55, 16);
+  cairo_fill (cr);
+  cairo_set_source_rgb (cr, 1.0, 1.0, 1.0);  /* White text */
+  cairo_select_font_face (cr, "monospace", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+  cairo_set_font_size (cr, 10.0);
+  cairo_move_to (cr, width - 55, 16);
+  cairo_show_text (cr, "Neomacs");
+}
+
+/* Convert GDK keyval to Emacs keysym */
+static unsigned int
+neomacs_translate_key (guint keyval, GdkModifierType state)
+{
+  /* Map some common keys */
+  switch (keyval)
+    {
+    case GDK_KEY_Return:
+    case GDK_KEY_KP_Enter:
+      return 0x0D;  /* Return */
+    case GDK_KEY_Tab:
+    case GDK_KEY_KP_Tab:
+    case GDK_KEY_ISO_Left_Tab:
+      return 0x09;  /* Tab */
+    case GDK_KEY_BackSpace:
+      return 0x08;  /* Backspace */
+    case GDK_KEY_Escape:
+      return 0x1B;  /* Escape */
+    case GDK_KEY_Delete:
+      return 0x7F;  /* Delete */
+    default:
+      if (keyval >= 0x20 && keyval <= 0x7E)
+	return keyval;  /* Printable ASCII */
+      else if (keyval >= GDK_KEY_space && keyval <= GDK_KEY_asciitilde)
+	return keyval - GDK_KEY_space + ' ';
+      return 0;
+    }
+}
+
+/* Callback for GTK4 key press events */
+static gboolean
+neomacs_key_pressed_cb (GtkEventControllerKey *controller,
+			guint keyval, guint keycode,
+			GdkModifierType state, gpointer user_data)
+{
+  struct frame *f = (struct frame *) user_data;
+  struct input_event ie;
+  unsigned int c;
+
+  if (!FRAME_LIVE_P (f))
+    return FALSE;
+
+  if (0) fprintf (stderr, "DEBUG: Key pressed: keyval=%u (0x%x), keycode=%u, state=%u\n",
+	   keyval, keyval, keycode, state);
+
+  c = neomacs_translate_key (keyval, state);
+  if (c == 0 && keyval > 0x7F)
+    {
+      /* Function key or special key - convert to symbol */
+      EVENT_INIT (ie);
+      ie.kind = NON_ASCII_KEYSTROKE_EVENT;
+      ie.code = keyval;
+      ie.modifiers = 0;
+      if (state & GDK_CONTROL_MASK)
+	ie.modifiers |= ctrl_modifier;
+      if (state & GDK_ALT_MASK)
+	ie.modifiers |= meta_modifier;
+      if (state & GDK_SHIFT_MASK)
+	ie.modifiers |= shift_modifier;
+      if (state & GDK_SUPER_MASK)
+	ie.modifiers |= super_modifier;
+      ie.timestamp = 0;
+      XSETFRAME (ie.frame_or_window, f);
+      kbd_buffer_store_event (&ie);
+      return TRUE;
+    }
+  else if (c != 0)
+    {
+      /* ASCII character */
+      EVENT_INIT (ie);
+      ie.kind = ASCII_KEYSTROKE_EVENT;
+      ie.code = c;
+      ie.modifiers = 0;
+      if (state & GDK_CONTROL_MASK)
+	ie.modifiers |= ctrl_modifier;
+      if (state & GDK_ALT_MASK)
+	ie.modifiers |= meta_modifier;
+      ie.timestamp = 0;
+      XSETFRAME (ie.frame_or_window, f);
+      kbd_buffer_store_event (&ie);
+      return TRUE;
+    }
+
+  return FALSE;
+}
+
+/* Callback for focus enter */
+static void
+neomacs_focus_enter_cb (GtkEventControllerFocus *controller, gpointer user_data)
+{
+  struct frame *f = (struct frame *) user_data;
+  struct input_event ie;
+
+  if (!FRAME_LIVE_P (f))
+    return;
+
+  if (0) fprintf (stderr, "DEBUG: Focus entered frame %p\n", (void *) f);
+
+  EVENT_INIT (ie);
+  ie.kind = FOCUS_IN_EVENT;
+  XSETFRAME (ie.frame_or_window, f);
+  kbd_buffer_store_event (&ie);
+}
+
+/* Callback for focus leave */
+static void
+neomacs_focus_leave_cb (GtkEventControllerFocus *controller, gpointer user_data)
+{
+  struct frame *f = (struct frame *) user_data;
+  struct input_event ie;
+
+  if (!FRAME_LIVE_P (f))
+    return;
+
+  if (0) fprintf (stderr, "DEBUG: Focus left frame %p\n", (void *) f);
+
+  EVENT_INIT (ie);
+  ie.kind = FOCUS_OUT_EVENT;
+  XSETFRAME (ie.frame_or_window, f);
+  kbd_buffer_store_event (&ie);
 }
 
 /* Callback for GTK4 window close request */
@@ -462,11 +654,17 @@ neomacs_create_frame_widgets (struct frame *f)
 {
   struct neomacs_output *output = FRAME_NEOMACS_OUTPUT (f);
   GtkWidget *window, *drawing_area;
+  GtkEventController *key_controller, *focus_controller;
+
+  if (0) fprintf (stderr, "DEBUG: Creating frame widgets, pixel size %dx%d\n",
+	   FRAME_PIXEL_WIDTH (f), FRAME_PIXEL_HEIGHT (f));
 
   /* Create main window */
   window = gtk_window_new ();
+  if (0) fprintf (stderr, "DEBUG: Window created: %p\n", (void *) window);
+
   gtk_window_set_title (GTK_WINDOW (window), "Emacs");
-  gtk_window_set_default_size (GTK_WINDOW (window), 
+  gtk_window_set_default_size (GTK_WINDOW (window),
                                FRAME_PIXEL_WIDTH (f),
                                FRAME_PIXEL_HEIGHT (f));
 
@@ -477,6 +675,10 @@ neomacs_create_frame_widgets (struct frame *f)
   gtk_drawing_area_set_content_height (GTK_DRAWING_AREA (drawing_area),
                                        FRAME_PIXEL_HEIGHT (f));
 
+  /* Make drawing area focusable to receive keyboard events */
+  gtk_widget_set_focusable (drawing_area, TRUE);
+  gtk_widget_set_can_focus (drawing_area, TRUE);
+
   /* Connect callbacks */
   gtk_drawing_area_set_draw_func (GTK_DRAWING_AREA (drawing_area),
                                   neomacs_draw_cb, f, NULL);
@@ -484,6 +686,20 @@ neomacs_create_frame_widgets (struct frame *f)
                     G_CALLBACK (neomacs_resize_cb), f);
   g_signal_connect (window, "close-request",
                     G_CALLBACK (neomacs_close_request_cb), f);
+
+  /* Add keyboard event controller */
+  key_controller = gtk_event_controller_key_new ();
+  g_signal_connect (key_controller, "key-pressed",
+		    G_CALLBACK (neomacs_key_pressed_cb), f);
+  gtk_widget_add_controller (drawing_area, key_controller);
+
+  /* Add focus event controller */
+  focus_controller = gtk_event_controller_focus_new ();
+  g_signal_connect (focus_controller, "enter",
+		    G_CALLBACK (neomacs_focus_enter_cb), f);
+  g_signal_connect (focus_controller, "leave",
+		    G_CALLBACK (neomacs_focus_leave_cb), f);
+  gtk_widget_add_controller (drawing_area, focus_controller);
 
   /* Set up widget hierarchy */
   gtk_window_set_child (GTK_WINDOW (window), drawing_area);
@@ -493,8 +709,24 @@ neomacs_create_frame_widgets (struct frame *f)
   output->drawing_area = drawing_area;
   output->window_desc = (Window) (intptr_t) window;
 
-  /* Show the window */
+  /* Show the window and grab focus */
+  if (0) fprintf (stderr, "DEBUG: Calling gtk_window_present\n");
   gtk_window_present (GTK_WINDOW (window));
+
+  /* Force window to be realized and shown */
+  gtk_widget_set_visible (window, TRUE);
+  gtk_widget_realize (window);
+
+  /* Process events to ensure window is mapped */
+  while (g_main_context_iteration (NULL, FALSE))
+    ;
+
+  gtk_widget_grab_focus (drawing_area);
+  if (0) fprintf (stderr, "DEBUG: Window visible=%d realized=%d mapped=%d\n",
+	   gtk_widget_get_visible (window),
+	   gtk_widget_get_realized (window),
+	   gtk_widget_get_mapped (window));
+  if (0) fprintf (stderr, "DEBUG: gtk_window_present returned\n");
 }
 
 
@@ -823,7 +1055,7 @@ syms_of_neomacsfns (void)
 {
   /* Frame creation */
   defsubr (&Sx_create_frame);
-  
+
   /* Display functions */
   defsubr (&Sx_display_pixel_width);
   defsubr (&Sx_display_pixel_height);
@@ -831,11 +1063,11 @@ syms_of_neomacsfns (void)
   defsubr (&Sx_display_color_cells);
   defsubr (&Sx_display_visual_class);
   defsubr (&Sx_display_list);
-  
+
   /* Connection functions */
   defsubr (&Sx_open_connection);
   defsubr (&Sx_close_connection);
-  
+
   /* Scroll bar functions */
   defsubr (&Sx_scroll_bar_foreground);
   defsubr (&Sx_scroll_bar_background);
