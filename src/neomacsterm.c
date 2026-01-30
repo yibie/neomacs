@@ -382,6 +382,51 @@ neomacs_defined_color (struct frame *f, const char *color_name,
 
 
 /* ============================================================================
+ * Cairo Helpers for Font Drivers
+ * ============================================================================ */
+
+/* Begin Cairo drawing with clipping */
+cairo_t *
+neomacs_begin_cr_clip (struct frame *f)
+{
+  struct neomacs_output *output = FRAME_NEOMACS_OUTPUT (f);
+
+  if (!output || !output->cr_context)
+    return NULL;
+
+  cairo_save (output->cr_context);
+  return output->cr_context;
+}
+
+/* End Cairo drawing */
+void
+neomacs_end_cr_clip (struct frame *f)
+{
+  struct neomacs_output *output = FRAME_NEOMACS_OUTPUT (f);
+
+  if (output && output->cr_context)
+    cairo_restore (output->cr_context);
+}
+
+/* Set Cairo source color */
+void
+neomacs_set_cr_source_with_color (struct frame *f, unsigned long color,
+				  bool stipple_p)
+{
+  struct neomacs_output *output = FRAME_NEOMACS_OUTPUT (f);
+
+  if (!output || !output->cr_context)
+    return;
+
+  double r = RED_FROM_ULONG (color) / 255.0;
+  double g = GREEN_FROM_ULONG (color) / 255.0;
+  double b = BLUE_FROM_ULONG (color) / 255.0;
+
+  cairo_set_source_rgb (output->cr_context, r, g, b);
+}
+
+
+/* ============================================================================
  * Text Drawing
  * ============================================================================ */
 
@@ -652,42 +697,6 @@ neomacs_focus_frame (struct frame *f, bool raise_flag)
  * ============================================================================ */
 
 #include <cairo.h>
-
-/* Current Cairo context for drawing - thread-local for safety */
-static cairo_t *neomacs_current_cr = NULL;
-
-/* Begin Cairo clip region for drawing.  Returns a Cairo context.  */
-cairo_t *
-neomacs_begin_cr_clip (struct frame *f)
-{
-  /* For now, we return a placeholder - actual implementation will get
-     the Cairo context from the GTK4 drawing area via the Rust FFI.  */
-  /* TODO: Get Cairo context from Rust display engine */
-  return neomacs_current_cr;
-}
-
-/* End Cairo clip region.  */
-void
-neomacs_end_cr_clip (struct frame *f)
-{
-  /* Restore previous clip region if needed */
-}
-
-/* Set Cairo source color for drawing.  */
-void
-neomacs_set_cr_source_with_color (struct frame *f, unsigned long color,
-                                   bool check_alpha)
-{
-  if (!neomacs_current_cr)
-    return;
-
-  /* Extract RGB components from unsigned long color (0xAARRGGBB format) */
-  double r = ((color >> 16) & 0xff) / 255.0;
-  double g = ((color >> 8) & 0xff) / 255.0;
-  double b = (color & 0xff) / 255.0;
-
-  cairo_set_source_rgb (neomacs_current_cr, r, g, b);
-}
 
 
 /* ============================================================================
