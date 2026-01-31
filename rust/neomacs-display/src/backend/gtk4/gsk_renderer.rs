@@ -405,11 +405,11 @@ impl GskRenderer {
                         Some((cached.texture.clone(), cached.width, cached.height, cached.bearing_x, cached.bearing_y))
                     } else {
                         // Rasterize the glyph using cosmic-text
-                        if let Some((w, h, pixels)) = self.text_engine.rasterize_char(c, face.as_ref()) {
+                        if let Some((w, h, pixels, bearing_x, bearing_y)) = self.text_engine.rasterize_char(c, face.as_ref()) {
                             if let Some(tex) = TextEngine::create_texture(w, h, &pixels) {
-                                // Cache it
-                                self.glyph_atlas.insert_texture(key, tex.clone(), w, h, 0, 0);
-                                Some((tex, w, h, 0.0, 0.0))
+                                // Cache it with bearing info
+                                self.glyph_atlas.insert_texture(key, tex.clone(), w, h, bearing_x, bearing_y);
+                                Some((tex, w, h, bearing_x, bearing_y))
                             } else {
                                 None
                             }
@@ -418,12 +418,13 @@ impl GskRenderer {
                         }
                     };
 
-                    // Create texture node at exact position
-                    if let Some((tex, w, h, _bearing_x, bearing_y)) = texture {
-                        // Position: Emacs gives us x for left edge, baseline_y is the baseline
-                        // Glyph should be drawn with top at (baseline_y - ascent + bearing_y)
-                        let glyph_y = baseline_y - (h as f32) + (bearing_y as f32);
-                        let rect = graphene::Rect::new(x, glyph_y, w as f32, h as f32);
+                    // Create texture node positioned within the character cell
+                    if let Some((tex, w, h, bearing_x, bearing_y)) = texture {
+                        // Render at exact texture size
+                        // Position using bearing within Emacs's cell
+                        let glyph_x = x + bearing_x;
+                        let glyph_y = baseline_y - bearing_y;
+                        let rect = graphene::Rect::new(glyph_x, glyph_y, w as f32, h as f32);
                         let texture_node = gsk::TextureNode::new(&tex, &rect);
                         nodes.push(texture_node.upcast());
                     }

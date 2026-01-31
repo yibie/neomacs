@@ -76,13 +76,13 @@ impl GlyphAtlas {
     }
 
     /// Insert a glyph with individual parameters
-    pub fn insert_texture(&mut self, key: GlyphKey, texture: gdk::Texture, width: u32, height: u32, bearing_x: i32, bearing_y: i32) {
+    pub fn insert_texture(&mut self, key: GlyphKey, texture: gdk::Texture, width: u32, height: u32, bearing_x: f32, bearing_y: f32) {
         let glyph = CachedGlyph {
             texture,
             width,
             height,
-            bearing_x: bearing_x as f32,
-            bearing_y: bearing_y as f32,
+            bearing_x,
+            bearing_y,
         };
         self.insert(key, glyph);
     }

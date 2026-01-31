@@ -27,13 +27,15 @@ pub struct TextEngine {
 impl TextEngine {
     /// Create a new text engine
     pub fn new() -> Self {
-        let mut font_system = FontSystem::new();
+        let font_system = FontSystem::new();
 
         Self {
             font_system,
             swash_cache: SwashCache::new(),
             shape_buffer: ShapeBuffer::default(),
-            default_font_size: 14.0,
+            // Use base font size matching Emacs metrics (height=17, ascent=13)
+            // GTK handles HiDPI scaling automatically via scale_factor
+            default_font_size: 13.0,
             default_line_height: 17.0,
         }
     }
@@ -53,12 +55,12 @@ impl TextEngine {
 
     /// Rasterize a single character and return RGBA pixel data
     ///
-    /// Returns (width, height, pixels) where pixels is RGBA data
+    /// Returns (width, height, pixels, bearing_x, bearing_y) where pixels is RGBA data
     pub fn rasterize_char(
         &mut self,
         c: char,
         face: Option<&Face>,
-    ) -> Option<(u32, u32, Vec<u8>)> {
+    ) -> Option<(u32, u32, Vec<u8>, f32, f32)> {
         // Create attributes from face
         let attrs = self.face_to_attrs(face);
 
@@ -83,9 +85,13 @@ impl TextEngine {
                         continue;
                     }
 
+                    // Get bearing for positioning
+                    let bearing_x = image.placement.left as f32;
+                    let bearing_y = image.placement.top as f32;
+
                     // Convert to RGBA (clone image data to avoid borrow conflict)
                     let pixels = image_to_rgba(&image, face);
-                    return Some((width, height, pixels));
+                    return Some((width, height, pixels, bearing_x, bearing_y));
                 }
             }
         }
