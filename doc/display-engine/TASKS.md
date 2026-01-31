@@ -583,12 +583,13 @@ a `GdkPaintable` that can be snapshotted directly into our render tree.
 - [x] Add VIDEO_GLYPH case to BUILD_GLYPH_STRINGS_2
 - [x] Add WEBKIT_GLYPH case to BUILD_GLYPH_STRINGS_2
 
-### 9.6 Rust Renderer Integration ⏳ TODO
-- [ ] Handle VIDEO_GLYPH in gsk_renderer.rs (currently renders blue placeholder)
-- [ ] Handle WEBKIT_GLYPH in gsk_renderer.rs (currently renders blue placeholder)
-- [ ] Look up video paintable from VideoCache by glyph.u.video_id
-- [ ] Look up webkit texture from WebKitCache by glyph.u.webkit_id
-- [ ] Snapshot paintable/texture at glyph position
+### 9.6 Rust Renderer Integration ✅ COMPLETE
+- [x] Handle VIDEO_GLYPH in gsk_renderer.rs - looks up from VideoCache
+- [x] Handle WEBKIT_GLYPH in gsk_renderer.rs - looks up from WebKitCache
+- [x] Look up video paintable from VideoCache by glyph.u.video_id
+- [x] Look up webkit texture from WebKitCache by glyph.u.webkit_id
+- [x] Snapshot paintable/texture at glyph position
+- [x] Fall back to placeholder if no texture available
 
 ### 9.7 Future Enhancements
 - [ ] Dynamic dimension retrieval from cache instead of display property
