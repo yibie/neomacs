@@ -34,7 +34,7 @@ impl DisplayBackend for TtyBackend {
         // 1. Get terminal size
         // 2. Initialize terminfo/termcap
         // 3. Setup alternate screen buffer if available
-        
+
         self.initialized = true;
         Ok(())
     }
@@ -53,7 +53,7 @@ impl DisplayBackend for TtyBackend {
         // 1. Build character buffer
         // 2. Compute diff from previous frame
         // 3. Generate escape sequences
-        
+
         Ok(())
     }
 
@@ -64,7 +64,7 @@ impl DisplayBackend for TtyBackend {
 
         // TODO: Write escape sequences to stdout
         // Flush stdout
-        
+
         Ok(())
     }
 

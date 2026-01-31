@@ -12,7 +12,7 @@ pub struct CachedGlyph {
     pub texture: gdk::Texture,
     /// Width in pixels
     pub width: u32,
-    /// Height in pixels  
+    /// Height in pixels
     pub height: u32,
     /// Bearing X (offset from origin)
     pub bearing_x: f32,
@@ -45,7 +45,7 @@ impl GlyphAtlas {
             max_size: 4096, // Max glyphs to cache
         }
     }
-    
+
     /// Create with custom max size
     pub fn with_max_size(max_size: usize) -> Self {
         Self {
@@ -53,12 +53,12 @@ impl GlyphAtlas {
             max_size,
         }
     }
-    
+
     /// Get a cached glyph
     pub fn get(&self, key: &GlyphKey) -> Option<&CachedGlyph> {
         self.cache.get(key)
     }
-    
+
     /// Insert a glyph into the cache
     pub fn insert(&mut self, key: GlyphKey, glyph: CachedGlyph) {
         // Simple eviction: clear half the cache when full
@@ -71,10 +71,10 @@ impl GlyphAtlas {
                 self.cache.remove(&k);
             }
         }
-        
+
         self.cache.insert(key, glyph);
     }
-    
+
     /// Insert a glyph with individual parameters
     pub fn insert_texture(&mut self, key: GlyphKey, texture: gdk::Texture, width: u32, height: u32, bearing_x: i32, bearing_y: i32) {
         let glyph = CachedGlyph {
@@ -86,22 +86,22 @@ impl GlyphAtlas {
         };
         self.insert(key, glyph);
     }
-    
+
     /// Check if glyph is cached
     pub fn contains(&self, key: &GlyphKey) -> bool {
         self.cache.contains_key(key)
     }
-    
+
     /// Clear the cache
     pub fn clear(&mut self) {
         self.cache.clear();
     }
-    
+
     /// Number of cached glyphs
     pub fn len(&self) -> usize {
         self.cache.len()
     }
-    
+
     /// Check if cache is empty
     pub fn is_empty(&self) -> bool {
         self.cache.is_empty()

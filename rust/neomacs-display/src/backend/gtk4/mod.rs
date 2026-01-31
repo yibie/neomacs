@@ -18,7 +18,7 @@ use crate::backend::DisplayBackend;
 
 pub use renderer::Gtk4Renderer;
 pub use gsk_renderer::GskRenderer;
-pub use widget::NeomacsWidget;
+pub use widget::{NeomacsWidget, set_widget_video_cache, set_widget_image_cache};
 pub use video::VideoCache;
 pub use image::ImageCache;
 
@@ -78,7 +78,7 @@ impl Gtk4Backend {
                 // Update scene dimensions if changed
                 state.scene.width = width as f32;
                 state.scene.height = height as f32;
-                
+
                 // Render the scene
                 state.renderer.render(cr, &state.scene);
                 state.needs_redraw = false;
@@ -178,7 +178,7 @@ impl DisplayBackend for Gtk4Backend {
     fn resize(&mut self, width: u32, height: u32) {
         self.width = width;
         self.height = height;
-        
+
         if let Some(da) = &self.drawing_area {
             da.set_content_width(width as i32);
             da.set_content_height(height as i32);

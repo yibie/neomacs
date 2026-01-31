@@ -18,7 +18,7 @@ pub struct DmaBufExporter {
     egl_display: egl::EGLDisplay,
     /// Function pointer for eglExportDMABUFImageMESA
     export_dmabuf_image: Option<egl::PFNEGLEXPORTDMABUFIMAGEMESAPROC>,
-    /// Function pointer for eglExportDMABUFImageQueryMESA  
+    /// Function pointer for eglExportDMABUFImageQueryMESA
     export_dmabuf_query: Option<egl::PFNEGLEXPORTDMABUFIMAGEQUERYMESAPROC>,
     /// Whether DMA-BUF export is supported
     supported: bool,
@@ -28,7 +28,7 @@ impl DmaBufExporter {
     /// Create a new DMA-BUF exporter for the given EGL display.
     pub fn new(egl_display: *mut libc::c_void) -> Self {
         let egl_display = egl_display as egl::EGLDisplay;
-        
+
         if egl_display.is_null() {
             log::warn!("DmaBufExporter: NULL EGL display");
             return Self {
@@ -50,7 +50,7 @@ impl DmaBufExporter {
         };
 
         let has_export_ext = extensions.contains("EGL_MESA_image_dma_buf_export");
-        
+
         if !has_export_ext {
             log::info!("DmaBufExporter: EGL_MESA_image_dma_buf_export not supported");
             return Self {
@@ -83,7 +83,7 @@ impl DmaBufExporter {
         };
 
         let supported = export_dmabuf_image.is_some() && export_dmabuf_query.is_some();
-        
+
         if supported {
             log::info!("DmaBufExporter: DMA-BUF export initialized successfully");
         } else {

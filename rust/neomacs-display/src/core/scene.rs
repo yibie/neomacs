@@ -245,16 +245,16 @@ pub struct Scene {
 
     /// Dirty region (needs redraw)
     pub dirty: Option<Rect>,
-    
+
     /// Faces used in this scene (face_id -> Face)
     pub faces: HashMap<u32, Face>,
-    
+
     /// Floating videos at screen positions
     pub floating_videos: Vec<FloatingVideo>,
-    
+
     /// Floating images at screen positions
     pub floating_images: Vec<FloatingImage>,
-    
+
     /// Floating WebKit views at screen positions
     pub floating_webkits: Vec<FloatingWebKit>,
 }
@@ -337,65 +337,65 @@ impl Scene {
         self.root = None;
         self.mark_dirty();
     }
-    
+
     /// Add or update a face in the scene
     pub fn set_face(&mut self, face: Face) {
         self.faces.insert(face.id, face);
     }
-    
+
     /// Get a face by ID
     pub fn get_face(&self, id: u32) -> Option<&Face> {
         self.faces.get(&id)
     }
-    
+
     /// Add a floating video at screen position
     pub fn add_floating_video(&mut self, video_id: u32, x: f32, y: f32, width: f32, height: f32) {
         self.floating_videos.push(FloatingVideo { video_id, x, y, width, height });
         self.mark_dirty();
     }
-    
+
     /// Remove floating video by video ID
     pub fn remove_floating_video(&mut self, video_id: u32) {
         self.floating_videos.retain(|v| v.video_id != video_id);
         self.mark_dirty();
     }
-    
+
     /// Clear all floating videos
     pub fn clear_floating_videos(&mut self) {
         self.floating_videos.clear();
         self.mark_dirty();
     }
-    
+
     /// Add a floating image at screen position
     pub fn add_floating_image(&mut self, image_id: u32, x: f32, y: f32, width: f32, height: f32) {
         self.floating_images.push(FloatingImage { image_id, x, y, width, height });
         self.mark_dirty();
     }
-    
+
     /// Remove floating image by image ID
     pub fn remove_floating_image(&mut self, image_id: u32) {
         self.floating_images.retain(|i| i.image_id != image_id);
         self.mark_dirty();
     }
-    
+
     /// Clear all floating images
     pub fn clear_floating_images(&mut self) {
         self.floating_images.clear();
         self.mark_dirty();
     }
-    
+
     /// Add a floating WebKit view at screen position
     pub fn add_floating_webkit(&mut self, webkit_id: u32, x: f32, y: f32, width: f32, height: f32) {
         self.floating_webkits.push(FloatingWebKit { webkit_id, x, y, width, height });
         self.mark_dirty();
     }
-    
+
     /// Remove floating WebKit view by ID
     pub fn remove_floating_webkit(&mut self, webkit_id: u32) {
         self.floating_webkits.retain(|w| w.webkit_id != webkit_id);
         self.mark_dirty();
     }
-    
+
     /// Clear all floating WebKit views
     pub fn clear_floating_webkits(&mut self) {
         self.floating_webkits.clear();
@@ -469,7 +469,7 @@ mod tests {
         let mut scene = Scene::new(800.0, 600.0);
         scene.mark_region_dirty(Rect::new(10.0, 10.0, 100.0, 100.0));
         scene.mark_region_dirty(Rect::new(50.0, 50.0, 100.0, 100.0));
-        
+
         let dirty = scene.dirty.unwrap();
         assert_eq!(dirty.x, 10.0);
         assert_eq!(dirty.y, 10.0);

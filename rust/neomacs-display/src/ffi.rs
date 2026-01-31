@@ -42,7 +42,7 @@ impl NeomacsDisplay {
 // ============================================================================
 
 /// Initialize the display engine
-/// 
+///
 /// # Safety
 /// Returns a pointer to NeomacsDisplay that must be freed with neomacs_display_shutdown.
 #[no_mangle]
@@ -71,7 +71,7 @@ pub unsafe extern "C" fn neomacs_display_init(backend: BackendType) -> *mut Neom
                 eprintln!("Failed to initialize GTK4: {}", e);
                 return ptr::null_mut();
             }
-            
+
             let mut gtk4 = Gtk4Backend::new();
             if let Err(e) = gtk4.init() {
                 eprintln!("Failed to initialize GTK4 backend: {}", e);
@@ -93,7 +93,7 @@ pub unsafe extern "C" fn neomacs_display_init(backend: BackendType) -> *mut Neom
 }
 
 /// Shutdown the display engine
-/// 
+///
 /// # Safety
 /// The handle must have been returned by neomacs_display_init.
 #[no_mangle]
@@ -103,11 +103,11 @@ pub unsafe extern "C" fn neomacs_display_shutdown(handle: *mut NeomacsDisplay) {
     }
 
     let mut display = Box::from_raw(handle);
-    
+
     if let Some(backend) = display.get_backend() {
         backend.shutdown();
     }
-    
+
     // display is dropped here
 }
 
@@ -128,7 +128,7 @@ pub unsafe extern "C" fn neomacs_display_resize(
 
     let display = &mut *handle;
     display.scene = Scene::new(width as f32, height as f32);
-    
+
     if let Some(backend) = display.get_backend() {
         backend.resize(width as u32, height as u32);
     }
@@ -167,10 +167,10 @@ pub unsafe extern "C" fn neomacs_display_add_window(
     }
 
     let display = &mut *handle;
-    
+
     // Track current window
     display.current_window_id = window_id;
-    
+
     // Find or create window - don't clear rows (Emacs does incremental updates)
     if let Some(existing) = display.scene.windows.iter_mut().find(|w| w.window_id == window_id) {
         // Update window properties but keep existing rows
@@ -212,7 +212,7 @@ pub unsafe extern "C" fn neomacs_display_set_cursor(
     }
 
     let display = &mut *handle;
-    
+
     // Use staging scene
     if let Some(window) = display.scene.windows.last_mut() {
         window.cursor = Some(CursorState {
@@ -252,10 +252,10 @@ pub unsafe extern "C" fn neomacs_display_begin_row(
     }
 
     let display = &mut *handle;
-    
+
     // Track current row Y for glyph additions
     display.current_row_y = y;
-    
+
     // Find window by current_window_id
     let window_id = display.current_window_id;
     if let Some(window) = display.scene.windows.iter_mut().find(|w| w.window_id == window_id) {
@@ -304,7 +304,7 @@ pub unsafe extern "C" fn neomacs_display_add_char_glyph(
     let current_y = display.current_row_y;
     let window_id = display.current_window_id;
     let c = char::from_u32(charcode).unwrap_or('\u{FFFD}');
-    
+
     // Find window by current_window_id, then find row by current_row_y
     if let Some(window) = display.scene.windows.iter_mut().find(|w| w.window_id == window_id) {
         if let Some(row) = window.rows.iter_mut().find(|r| r.y == current_y) {
@@ -343,7 +343,7 @@ pub unsafe extern "C" fn neomacs_display_add_stretch_glyph(
     let display = &mut *handle;
     let current_y = display.current_row_y;
     let window_id = display.current_window_id;
-    
+
     // Find window by current_window_id, then find row by current_row_y
     if let Some(window) = display.scene.windows.iter_mut().find(|w| w.window_id == window_id) {
         if let Some(row) = window.rows.iter_mut().find(|r| r.y == current_y) {
@@ -380,7 +380,7 @@ pub unsafe extern "C" fn neomacs_display_add_image_glyph(
     let display = &mut *handle;
     let current_y = display.current_row_y;
     let window_id = display.current_window_id;
-    
+
     // Find window by current_window_id, then find row by current_row_y
     if let Some(window) = display.scene.windows.iter_mut().find(|w| w.window_id == window_id) {
         if let Some(row) = window.rows.iter_mut().find(|r| r.y == current_y) {
@@ -434,9 +434,9 @@ pub unsafe extern "C" fn neomacs_display_set_face(
     if handle.is_null() {
         return;
     }
-    
+
     let display = &mut *handle;
-    
+
     // Convert colors from 0xRRGGBB to Color
     let fg = Color {
         r: ((foreground >> 16) & 0xFF) as f32 / 255.0,
@@ -444,14 +444,14 @@ pub unsafe extern "C" fn neomacs_display_set_face(
         b: (foreground & 0xFF) as f32 / 255.0,
         a: 1.0,
     };
-    
+
     let bg = Color {
         r: ((background >> 16) & 0xFF) as f32 / 255.0,
         g: ((background >> 8) & 0xFF) as f32 / 255.0,
         b: (background & 0xFF) as f32 / 255.0,
         a: if background == 0 { 0.0 } else { 1.0 },
     };
-    
+
     // Build attributes
     let mut attrs = FaceAttributes::empty();
     if font_weight >= 700 {
@@ -466,7 +466,7 @@ pub unsafe extern "C" fn neomacs_display_set_face(
     if box_type != 0 {
         attrs |= FaceAttributes::BOX;
     }
-    
+
     // Underline style
     let ul_style = match underline_style {
         1 => UnderlineStyle::Line,
@@ -476,7 +476,7 @@ pub unsafe extern "C" fn neomacs_display_set_face(
         5 => UnderlineStyle::Dashed,
         _ => UnderlineStyle::None,
     };
-    
+
     // Box type
     let bx_type = match box_type {
         1 => BoxType::Line,
@@ -484,7 +484,7 @@ pub unsafe extern "C" fn neomacs_display_set_face(
         3 => BoxType::Sunken3D,
         _ => BoxType::None,
     };
-    
+
     // Underline color
     let ul_color = if underline_color != 0 {
         Some(Color {
@@ -496,7 +496,7 @@ pub unsafe extern "C" fn neomacs_display_set_face(
     } else {
         None
     };
-    
+
     // Box color
     let bx_color = if box_color != 0 {
         Some(Color {
@@ -508,7 +508,7 @@ pub unsafe extern "C" fn neomacs_display_set_face(
     } else {
         None
     };
-    
+
     let face = Face {
         id: face_id,
         foreground: fg,
@@ -525,7 +525,7 @@ pub unsafe extern "C" fn neomacs_display_set_face(
         box_type: bx_type,
         box_line_width,
     };
-    
+
     // Register face both in the renderer's cache AND in the scene
     // The scene will be cloned to the widget which has its own renderer
     display.scene.set_face(face.clone());
@@ -551,7 +551,7 @@ pub unsafe extern "C" fn neomacs_display_add_video_glyph(
     let display = &mut *handle;
     let current_y = display.current_row_y;
     let window_id = display.current_window_id;
-    
+
     // Find window by current_window_id, then find row by current_row_y
     if let Some(window) = display.scene.windows.iter_mut().find(|w| w.window_id == window_id) {
         if let Some(row) = window.rows.iter_mut().find(|r| r.y == current_y) {
@@ -610,7 +610,7 @@ pub unsafe extern "C" fn neomacs_display_video_play(
     }
 
     let display = &mut *handle;
-    
+
     #[cfg(feature = "video")]
     if let Some(player) = display.video_cache.get_mut(video_id) {
         return match player.play() {
@@ -618,7 +618,7 @@ pub unsafe extern "C" fn neomacs_display_video_play(
             Err(_) => -1,
         };
     }
-    
+
     -1
 }
 
@@ -633,7 +633,7 @@ pub unsafe extern "C" fn neomacs_display_video_pause(
     }
 
     let display = &mut *handle;
-    
+
     #[cfg(feature = "video")]
     if let Some(player) = display.video_cache.get_mut(video_id) {
         return match player.pause() {
@@ -641,7 +641,7 @@ pub unsafe extern "C" fn neomacs_display_video_pause(
             Err(_) => -1,
         };
     }
-    
+
     -1
 }
 
@@ -656,7 +656,7 @@ pub unsafe extern "C" fn neomacs_display_video_stop(
     }
 
     let display = &mut *handle;
-    
+
     #[cfg(feature = "video")]
     if let Some(player) = display.video_cache.get_mut(video_id) {
         return match player.stop() {
@@ -664,7 +664,7 @@ pub unsafe extern "C" fn neomacs_display_video_stop(
             Err(_) => -1,
         };
     }
-    
+
     -1
 }
 
@@ -736,13 +736,13 @@ pub unsafe extern "C" fn neomacs_display_get_image_size(
     }
 
     let display = &mut *handle;
-    
+
     if let Some(img) = display.image_cache.get(image_id) {
         *width = img.width;
         *height = img.height;
         return 0;
     }
-    
+
     -1
 }
 
@@ -780,10 +780,10 @@ pub unsafe extern "C" fn neomacs_display_set_floating_video(
     }
 
     let display = &mut *handle;
-    
+
     // Remove existing floating video for this ID
     display.scene.remove_floating_video(video_id);
-    
+
     // Add new floating video
     display.scene.add_floating_video(
         video_id,
@@ -824,10 +824,10 @@ pub unsafe extern "C" fn neomacs_display_set_floating_image(
     }
 
     let display = &mut *handle;
-    
+
     // Remove existing floating image for this ID
     display.scene.remove_floating_image(image_id);
-    
+
     // Add new floating image
     display.scene.add_floating_image(
         image_id,
@@ -860,21 +860,21 @@ pub unsafe extern "C" fn neomacs_display_end_frame(handle: *mut NeomacsDisplay) 
     }
 
     let display = &mut *handle;
-    
+
     // Reset frame flag
     display.in_frame = false;
-    
+
     // Build scene if it has content
     let scene_rows: usize = display.scene.windows.iter().map(|w| w.rows.len()).sum();
-    
+
     if scene_rows > 0 {
         // Build the scene graph
         display.scene.build();
     }
-    
+
     // Update animations
     display.animations.tick();
-    
+
     // Render - we need to match backend type explicitly to avoid borrow conflict
     let result = match display.backend_type {
         BackendType::Gtk4 => {
@@ -894,19 +894,19 @@ pub unsafe extern "C" fn neomacs_display_end_frame(handle: *mut NeomacsDisplay) 
             }
         }
     };
-    
+
     if let Err(e) = result {
         eprintln!("Render error: {}", e);
         return -1;
     }
-    
+
     display.scene.clear_dirty();
-    
+
     0
 }
 
 /// Render the scene to an external Cairo context
-/// 
+///
 /// # Safety
 /// The cairo_context must be a valid cairo_t pointer from C.
 #[no_mangle]
@@ -919,23 +919,55 @@ pub unsafe extern "C" fn neomacs_display_render_to_cairo(
     }
 
     let display = &mut *handle;
-    
+
     // Convert the C cairo_t pointer to a Rust Cairo context
     // This is safe because we're wrapping an existing context, not creating one
     let cr = match gtk4::cairo::Context::from_raw_borrow(cairo_context as *mut _) {
         cr => cr,
     };
-    
+
     // Build the scene graph from accumulated data
     display.scene.build();
-    
+
     // Render using GSK renderer (GPU-accelerated scene graph) or Cairo renderer
     if display.use_gsk {
-        display.gsk_renderer.render_to_cairo_with_caches(&cr, &display.scene, &display.video_cache, &mut display.image_cache);
+        // Try to get webkit cache from thread-local storage
+        #[cfg(feature = "wpe-webkit")]
+        {
+            WEBKIT_CACHE.with(|cache| {
+                let cache_ref = cache.borrow();
+                if let Some(webkit_cache) = cache_ref.as_ref() {
+                    display.gsk_renderer.render_to_cairo_with_all_caches(
+                        &cr,
+                        &display.scene,
+                        &display.video_cache,
+                        &mut display.image_cache,
+                        webkit_cache,
+                    );
+                } else {
+                    display.gsk_renderer.render_to_cairo_with_caches(
+                        &cr,
+                        &display.scene,
+                        &display.video_cache,
+                        &mut display.image_cache,
+                    );
+                }
+            });
+        }
+
+        #[cfg(not(feature = "wpe-webkit"))]
+        {
+            display.gsk_renderer.render_to_cairo_with_caches(
+                &cr,
+                &display.scene,
+                &display.video_cache,
+                &mut display.image_cache,
+            );
+        }
     } else {
         display.renderer.render(&cr, &display.scene);
     }
-    
+
     0
 }
 
@@ -950,10 +982,10 @@ pub unsafe extern "C" fn neomacs_display_init_pango(
     }
 
     let display = &mut *handle;
-    
+
     // Convert C PangoContext to Rust
     let context: gtk4::pango::Context = gtk4::glib::translate::from_glib_none(pango_context as *mut _);
-    
+
     // Initialize both renderers with the Pango context
     display.renderer.init_with_context(context.clone());
     display.gsk_renderer.init_with_context(context);
@@ -1027,7 +1059,7 @@ pub unsafe extern "C" fn neomacs_display_backend_name(handle: *mut NeomacsDispla
     }
 
     let display = &mut *handle;
-    
+
     match display.get_backend() {
         Some(backend) => backend.name().as_ptr() as *const c_char,
         None => b"none\0".as_ptr() as *const c_char,
@@ -1042,7 +1074,7 @@ pub unsafe extern "C" fn neomacs_display_is_initialized(handle: *mut NeomacsDisp
     }
 
     let display = &mut *handle;
-    
+
     match display.get_backend() {
         Some(backend) => backend.is_initialized() as c_int,
         None => 0,
@@ -1053,10 +1085,10 @@ pub unsafe extern "C" fn neomacs_display_is_initialized(handle: *mut NeomacsDisp
 // GPU-Accelerated Widget (GSK)
 // ============================================================================
 
-use crate::backend::gtk4::NeomacsWidget;
+use crate::backend::gtk4::{NeomacsWidget, set_widget_video_cache, set_widget_image_cache};
 
 /// Create a GPU-accelerated NeomacsWidget
-/// 
+///
 /// # Safety
 /// Returns a pointer to a NeomacsWidget that can be added to a GTK container.
 /// The widget is owned by GTK's reference counting system.
@@ -1064,9 +1096,9 @@ use crate::backend::gtk4::NeomacsWidget;
 pub unsafe extern "C" fn neomacs_display_create_widget() -> *mut c_void {
     use gtk4::glib::translate::ToGlibPtr;
     use gtk4::prelude::{WidgetExt, Cast};
-    
+
     let widget = NeomacsWidget::new();
-    
+
     // Cast to gtk4::Widget first, then get the pointer
     let gtk_widget: gtk4::Widget = widget.upcast();
     let ptr: *mut gtk4::ffi::GtkWidget = gtk_widget.to_glib_full();
@@ -1074,7 +1106,7 @@ pub unsafe extern "C" fn neomacs_display_create_widget() -> *mut c_void {
 }
 
 /// Set the scene on a NeomacsWidget (triggers GPU-accelerated redraw)
-/// 
+///
 /// # Safety
 /// handle must be a valid NeomacsDisplay pointer
 /// widget must be a valid NeomacsWidget pointer
@@ -1084,22 +1116,22 @@ pub unsafe extern "C" fn neomacs_display_widget_set_scene(
     widget: *mut c_void,
 ) -> c_int {
     use gtk4::glib::translate::from_glib_none;
-    
+
     if handle.is_null() || widget.is_null() {
         return -1;
     }
 
     let display = &mut *handle;
     let widget: NeomacsWidget = from_glib_none(widget as *mut _);
-    
+
     // Clone the committed scene and set it on the widget
     widget.set_scene(display.scene.clone());
-    
+
     0
 }
 
 /// Initialize the GSK renderer's Pango context from a NeomacsWidget
-/// 
+///
 /// # Safety
 /// handle must be valid, widget must be a realized NeomacsWidget
 #[no_mangle]
@@ -1109,23 +1141,23 @@ pub unsafe extern "C" fn neomacs_display_widget_init_pango(
 ) {
     use gtk4::glib::translate::from_glib_none;
     use gtk4::prelude::WidgetExt;
-    
+
     if handle.is_null() || widget.is_null() {
         return;
     }
 
     let display = &mut *handle;
     let widget: NeomacsWidget = from_glib_none(widget as *mut _);
-    
+
     // Get Pango context from widget and initialize renderer
     let context = widget.pango_context();
     display.renderer.init_with_context(context);
 }
 
 /// Render scene to a NeomacsWidget using GSK (GPU-accelerated)
-/// 
+///
 /// This renders directly using GSK render nodes for GPU acceleration.
-/// 
+///
 /// # Safety
 /// handle must be valid, widget must be a valid NeomacsWidget
 #[no_mangle]
@@ -1134,37 +1166,32 @@ pub unsafe extern "C" fn neomacs_display_render_to_widget(
     widget: *mut c_void,
 ) -> c_int {
     use gtk4::glib::translate::from_glib_none;
-    
+
     if handle.is_null() || widget.is_null() {
         return -1;
     }
 
     let display = &mut *handle;
     let widget: NeomacsWidget = from_glib_none(widget as *mut _);
-    
+
     // Count glyphs
     let total_glyphs: usize = display.scene.windows.iter()
         .map(|w| w.rows.iter().map(|r| r.glyphs.len()).sum::<usize>())
         .sum();
-    
-    // Show first few chars from the scene
-    let first_chars: String = display.scene.windows.iter()
-        .flat_map(|w| w.rows.iter())
-        .flat_map(|r| r.glyphs.iter())
-        .filter_map(|g| match &g.data {
-            crate::core::glyph::GlyphData::Char { code } => Some(*code),
-            _ => None,
-        })
-        .take(20)
-        .collect();
-    
+
     if total_glyphs > 0 {
         // Build the scene and set it on the widget
         display.scene.build();
         let cloned_scene = display.scene.clone();
+
+        // Set caches for widget rendering (thread-local storage)
+        // The widget's snapshot() method will use these during GTK's draw cycle
+        set_widget_video_cache(&display.video_cache as *const VideoCache);
+        set_widget_image_cache(&mut display.image_cache as *mut ImageCache);
+
         widget.set_scene(cloned_scene);
     }
-    
+
     0
 }
 
@@ -1204,12 +1231,12 @@ pub unsafe extern "C" fn neomacs_display_webkit_init(
                 WPE_BACKEND.with(|wpe| {
                     *wpe.borrow_mut() = Some(backend);
                 });
-                
+
                 // Initialize cache
                 WEBKIT_CACHE.with(|cache| {
                     *cache.borrow_mut() = Some(WebKitCache::new());
                 });
-                
+
                 log::info!("WebKit subsystem initialized");
                 return 0;
             }
@@ -1219,7 +1246,7 @@ pub unsafe extern "C" fn neomacs_display_webkit_init(
             }
         }
     }
-    
+
     #[cfg(not(feature = "wpe-webkit"))]
     {
         let _ = egl_display;
@@ -1247,7 +1274,7 @@ pub unsafe extern "C" fn neomacs_display_webkit_create(
                     return 0;
                 }
             };
-            
+
             WEBKIT_CACHE.with(|cache_cell| {
                 let mut cache_borrow = cache_cell.borrow_mut();
                 if let Some(cache) = cache_borrow.as_mut() {
@@ -1264,7 +1291,7 @@ pub unsafe extern "C" fn neomacs_display_webkit_create(
             })
         });
     }
-    
+
     #[cfg(not(feature = "wpe-webkit"))]
     {
         let _ = (width, height);
@@ -1291,7 +1318,7 @@ pub unsafe extern "C" fn neomacs_display_webkit_destroy(
             -1
         });
     }
-    
+
     #[cfg(not(feature = "wpe-webkit"))]
     {
         let _ = view_id;
@@ -1309,7 +1336,7 @@ pub unsafe extern "C" fn neomacs_display_webkit_load_uri(
     if uri.is_null() {
         return -1;
     }
-    
+
     #[cfg(feature = "wpe-webkit")]
     {
         return WEBKIT_CACHE.with(|cache_cell| {
@@ -1319,7 +1346,7 @@ pub unsafe extern "C" fn neomacs_display_webkit_load_uri(
                     Ok(s) => s,
                     Err(_) => return -1,
                 };
-                
+
                 if let Err(e) = cache.load_uri(view_id, uri_str) {
                     eprintln!("Failed to load URI: {}", e);
                     return -1;
@@ -1329,7 +1356,7 @@ pub unsafe extern "C" fn neomacs_display_webkit_load_uri(
             -1
         });
     }
-    
+
     #[cfg(not(feature = "wpe-webkit"))]
     {
         let _ = view_id;
@@ -1356,7 +1383,7 @@ pub unsafe extern "C" fn neomacs_display_webkit_go_back(
             -1
         });
     }
-    
+
     #[cfg(not(feature = "wpe-webkit"))]
     {
         let _ = view_id;
@@ -1383,7 +1410,7 @@ pub unsafe extern "C" fn neomacs_display_webkit_go_forward(
             -1
         });
     }
-    
+
     #[cfg(not(feature = "wpe-webkit"))]
     {
         let _ = view_id;
@@ -1410,7 +1437,7 @@ pub unsafe extern "C" fn neomacs_display_webkit_reload(
             -1
         });
     }
-    
+
     #[cfg(not(feature = "wpe-webkit"))]
     {
         let _ = view_id;
@@ -1428,7 +1455,7 @@ pub unsafe extern "C" fn neomacs_display_webkit_execute_js(
     if script.is_null() {
         return -1;
     }
-    
+
     #[cfg(feature = "wpe-webkit")]
     {
         return WEBKIT_CACHE.with(|cache_cell| {
@@ -1438,7 +1465,7 @@ pub unsafe extern "C" fn neomacs_display_webkit_execute_js(
                     Ok(s) => s,
                     Err(_) => return -1,
                 };
-                
+
                 if let Err(e) = cache.execute_javascript(view_id, script_str) {
                     eprintln!("Failed to execute JavaScript: {}", e);
                     return -1;
@@ -1448,7 +1475,7 @@ pub unsafe extern "C" fn neomacs_display_webkit_execute_js(
             -1
         });
     }
-    
+
     #[cfg(not(feature = "wpe-webkit"))]
     {
         let _ = view_id;
@@ -1469,12 +1496,12 @@ pub unsafe extern "C" fn neomacs_display_set_floating_webkit(
     if handle.is_null() {
         return;
     }
-    
+
     let display = &mut *handle;
-    
+
     // Remove existing webkit with same ID
     display.scene.floating_webkits.retain(|w| w.webkit_id != webkit_id);
-    
+
     // Add webkit at position
     display.scene.add_floating_webkit(
         webkit_id,
@@ -1494,7 +1521,7 @@ pub unsafe extern "C" fn neomacs_display_hide_floating_webkit(
     if handle.is_null() {
         return;
     }
-    
+
     let display = &mut *handle;
     display.scene.remove_floating_webkit(webkit_id);
 }
@@ -1643,7 +1670,7 @@ pub unsafe extern "C" fn neomacs_display_webkit_get_title(
                 None
             }
         });
-        
+
         match result {
             Some(title) => {
                 match CString::new(title) {
@@ -1677,7 +1704,7 @@ pub unsafe extern "C" fn neomacs_display_webkit_get_url(
                 None
             }
         });
-        
+
         match result {
             Some(url) => {
                 match CString::new(url) {
@@ -1769,7 +1796,7 @@ pub unsafe extern "C" fn neomacs_display_add_wpe_glyph(
     }
 
     let display = &mut *handle;
-    
+
     // Add to the current row
     if let Some(window) = display.scene.windows.last_mut() {
         if let Some(row) = window.rows.last_mut() {

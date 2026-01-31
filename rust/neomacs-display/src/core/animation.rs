@@ -68,7 +68,7 @@ impl Animation {
     /// Get current value at time `now`
     pub fn value_at(&mut self, now: Instant) -> f32 {
         let elapsed = now.duration_since(self.start_time);
-        
+
         if elapsed >= self.duration {
             self.completed = true;
             return self.to;
@@ -76,7 +76,7 @@ impl Animation {
 
         let t = elapsed.as_secs_f32() / self.duration.as_secs_f32();
         let eased_t = self.easing.apply(t);
-        
+
         self.from + (self.to - self.from) * eased_t
     }
 
@@ -141,13 +141,13 @@ impl AnimationManager {
     /// Get current scroll offset for a window (returns None if no animation)
     pub fn get_scroll_offset(&mut self, window_id: i32) -> Option<f32> {
         let now = Instant::now();
-        
+
         for (id, anim) in &mut self.scroll_animations {
             if *id == window_id {
                 return Some(anim.value_at(now));
             }
         }
-        
+
         None
     }
 
@@ -206,16 +206,16 @@ mod tests {
     #[test]
     fn test_animation() {
         let mut anim = Animation::new(0.0, 100.0, Duration::from_millis(100), Easing::Linear);
-        
+
         // At start
         let v1 = anim.current_value();
         assert!(v1 < 50.0);
-        
+
         // Wait and check progress
         sleep(Duration::from_millis(50));
         let v2 = anim.current_value();
         assert!(v2 > v1);
-        
+
         // Wait until complete
         sleep(Duration::from_millis(60));
         let v3 = anim.current_value();

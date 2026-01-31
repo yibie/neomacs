@@ -12,6 +12,29 @@ use gtk4::{glib, graphene, gsk, pango, Snapshot};
 
 use crate::core::scene::Scene;
 use super::gsk_renderer::GskRenderer;
+use super::video::VideoCache;
+use super::image::ImageCache;
+
+// Thread-local caches for widget rendering
+// These are set by the FFI layer before triggering a widget redraw
+thread_local! {
+    pub static WIDGET_VIDEO_CACHE: RefCell<Option<*const VideoCache>> = const { RefCell::new(None) };
+    pub static WIDGET_IMAGE_CACHE: RefCell<Option<*mut ImageCache>> = const { RefCell::new(None) };
+}
+
+/// Set the video cache for widget rendering (called from FFI before queue_draw)
+pub fn set_widget_video_cache(cache: *const VideoCache) {
+    WIDGET_VIDEO_CACHE.with(|c| {
+        *c.borrow_mut() = if cache.is_null() { None } else { Some(cache) };
+    });
+}
+
+/// Set the image cache for widget rendering (called from FFI before queue_draw)
+pub fn set_widget_image_cache(cache: *mut ImageCache) {
+    WIDGET_IMAGE_CACHE.with(|c| {
+        *c.borrow_mut() = if cache.is_null() { None } else { Some(cache) };
+    });
+}
 
 /// Inner state for NeomacsWidget
 #[derive(Default)]
@@ -35,7 +58,7 @@ impl ObjectSubclass for NeomacsWidgetInner {
 impl ObjectImpl for NeomacsWidgetInner {
     fn constructed(&self) {
         self.parent_constructed();
-        
+
         // Request keyboard focus
         self.obj().set_focusable(true);
         self.obj().set_can_focus(true);
@@ -57,10 +80,22 @@ impl WidgetImpl for NeomacsWidgetInner {
 
         // Get the scene to render
         let scene_opt = self.scene.borrow();
-        
+
         if let Some(scene) = scene_opt.as_ref() {
-            // Use GSK renderer for GPU-accelerated rendering
-            self.renderer.borrow_mut().render_to_snapshot(snapshot, scene);
+            // Get video cache from thread-local (set by FFI before queue_draw)
+            let video_cache = WIDGET_VIDEO_CACHE.with(|c| {
+                c.borrow().map(|ptr| unsafe { &*ptr })
+            });
+
+            // Get image cache from thread-local
+            let mut image_cache_ptr = WIDGET_IMAGE_CACHE.with(|c| *c.borrow());
+            let image_cache = image_cache_ptr.as_mut().map(|ptr| unsafe { &mut **ptr });
+
+            // Build render node with caches
+            let mut renderer = self.renderer.borrow_mut();
+            if let Some(node) = renderer.build_render_node(scene, video_cache, image_cache, None) {
+                snapshot.append_node(&node);
+            }
         } else {
             // No scene - draw background
             let rect = graphene::Rect::new(0.0, 0.0, width, height);

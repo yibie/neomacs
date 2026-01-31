@@ -141,15 +141,15 @@ impl Face {
     /// Create a Pango font description string
     pub fn to_pango_font_description(&self) -> String {
         let mut desc = self.font_family.clone();
-        
+
         if self.is_italic() {
             desc.push_str(" Italic");
         }
-        
+
         if self.is_bold() {
             desc.push_str(" Bold");
         }
-        
+
         desc.push_str(&format!(" {}", self.font_size as i32));
         desc
     }
@@ -221,7 +221,7 @@ mod tests {
         face.font_family = "DejaVu Sans Mono".to_string();
         face.font_size = 14.0;
         face.attributes = FaceAttributes::BOLD | FaceAttributes::ITALIC;
-        
+
         let desc = face.to_pango_font_description();
         assert!(desc.contains("DejaVu Sans Mono"));
         assert!(desc.contains("Bold"));

@@ -26,10 +26,10 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub fn init() -> Result<(), DisplayError> {
     env_logger::init();
     log::info!("Neomacs display engine v{} initializing", VERSION);
-    
+
     // Initialize GTK4
     gtk4::init().map_err(|e| DisplayError::InitFailed(e.to_string()))?;
-    
+
     log::info!("GTK4 initialized successfully");
     Ok(())
 }

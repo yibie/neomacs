@@ -21,16 +21,16 @@ use crate::backend::webkit::WebKitCache;
 pub struct GskRenderer {
     /// Pango context for fallback text layout
     pango_context: Option<pango::Context>,
-    
+
     /// Face cache for text styling
     face_cache: FaceCache,
-    
+
     /// Cached font descriptions
     font_cache: HashMap<u32, pango::FontDescription>,
-    
+
     /// Text engine using cosmic-text
     text_engine: TextEngine,
-    
+
     /// Glyph atlas for caching rasterized glyphs as textures
     glyph_atlas: GlyphAtlas,
 }
@@ -56,7 +56,7 @@ impl GskRenderer {
     pub fn init_with_context(&mut self, context: pango::Context) {
         self.pango_context = Some(context);
     }
-    
+
     /// Get mutable access to face cache
     pub fn face_cache_mut(&mut self) -> &mut FaceCache {
         &mut self.face_cache
@@ -77,11 +77,11 @@ impl GskRenderer {
             node.draw(cr);
         }
     }
-    
+
     /// Render scene to Cairo context with video support
     pub fn render_to_cairo_with_video(
-        &mut self, 
-        cr: &gtk4::cairo::Context, 
+        &mut self,
+        cr: &gtk4::cairo::Context,
         scene: &Scene,
         video_cache: &VideoCache,
     ) {
@@ -89,11 +89,11 @@ impl GskRenderer {
             node.draw(cr);
         }
     }
-    
+
     /// Render scene to Cairo context with video and image support
     pub fn render_to_cairo_with_caches(
-        &mut self, 
-        cr: &gtk4::cairo::Context, 
+        &mut self,
+        cr: &gtk4::cairo::Context,
         scene: &Scene,
         video_cache: &VideoCache,
         image_cache: &mut ImageCache,
@@ -102,11 +102,11 @@ impl GskRenderer {
             node.draw(cr);
         }
     }
-    
+
     /// Render scene to Cairo context with all caches (video, image, webkit)
     pub fn render_to_cairo_with_all_caches(
-        &mut self, 
-        cr: &gtk4::cairo::Context, 
+        &mut self,
+        cr: &gtk4::cairo::Context,
         scene: &Scene,
         video_cache: &VideoCache,
         image_cache: &mut ImageCache,
@@ -119,8 +119,8 @@ impl GskRenderer {
 
     /// Build a complete GSK render node tree for the scene
     pub fn build_render_node(
-        &mut self, 
-        scene: &Scene, 
+        &mut self,
+        scene: &Scene,
         video_cache: Option<&VideoCache>,
         mut image_cache: Option<&mut ImageCache>,
         webkit_cache: Option<&WebKitCache>,
@@ -143,7 +143,7 @@ impl GskRenderer {
                 nodes.push(window_node);
             }
         }
-        
+
         // Render floating videos on top
         #[cfg(feature = "video")]
         if let Some(cache) = video_cache {
@@ -184,7 +184,7 @@ impl GskRenderer {
                 }
             }
         }
-        
+
         // Render floating images on top
         if let Some(ref mut cache) = image_cache {
             for floating in &scene.floating_images {
@@ -232,7 +232,7 @@ impl GskRenderer {
                 }
             }
         }
-        
+
         // Fallback for floating_webkits when wpe-webkit is not enabled
         #[cfg(not(feature = "wpe-webkit"))]
         {
@@ -259,9 +259,9 @@ impl GskRenderer {
 
     /// Build render nodes for a window
     fn build_window_node(
-        &mut self, 
-        window: &WindowScene, 
-        scene: &Scene, 
+        &mut self,
+        window: &WindowScene,
+        scene: &Scene,
         video_cache: Option<&VideoCache>,
         mut image_cache: Option<&mut ImageCache>,
         webkit_cache: Option<&WebKitCache>,
@@ -319,11 +319,11 @@ impl GskRenderer {
 
     /// Build render nodes for a row of glyphs using cosmic-text
     fn build_row_nodes(
-        &mut self, 
-        row: &GlyphRow, 
-        base_x: f32, 
-        base_y: f32, 
-        scene: &Scene, 
+        &mut self,
+        row: &GlyphRow,
+        base_x: f32,
+        base_y: f32,
+        scene: &Scene,
         video_cache: Option<&VideoCache>,
         mut image_cache: Option<&mut ImageCache>,
         webkit_cache: Option<&WebKitCache>,
@@ -339,7 +339,7 @@ impl GskRenderer {
             let face = scene.get_face(glyph.face_id)
                 .or_else(|| self.face_cache.get(glyph.face_id))
                 .cloned();
-            
+
             // Draw background if face has one
             if let Some(ref f) = face {
                 if f.background.a > 0.01 {
@@ -349,7 +349,7 @@ impl GskRenderer {
                     nodes.push(bg_node.upcast());
                 }
             }
-            
+
             match glyph.glyph_type {
                 GlyphType::Char => {
                     // Get the character
@@ -361,19 +361,19 @@ impl GskRenderer {
                         x += glyph.pixel_width as f32;
                         continue;
                     };
-                    
+
                     // Skip null/control characters and spaces
                     if c == '\0' || c.is_control() || c == ' ' {
                         x += glyph.pixel_width as f32;
                         continue;
                     }
-                    
+
                     // Check glyph atlas cache first
                     let key = GlyphKey {
                         charcode: glyph.charcode,
                         face_id: glyph.face_id,
                     };
-                    
+
                     let texture = if let Some(cached) = self.glyph_atlas.get(&key) {
                         Some((cached.texture.clone(), cached.width, cached.height, cached.bearing_x, cached.bearing_y))
                     } else {
@@ -390,7 +390,7 @@ impl GskRenderer {
                             None
                         }
                     };
-                    
+
                     // Create texture node at exact position
                     if let Some((tex, w, h, _bearing_x, bearing_y)) = texture {
                         // Position: Emacs gives us x for left edge, baseline_y is the baseline
@@ -400,7 +400,7 @@ impl GskRenderer {
                         let texture_node = gsk::TextureNode::new(&tex, &rect);
                         nodes.push(texture_node.upcast());
                     }
-                    
+
                     // Draw underline if face has one
                     if let Some(ref f) = face {
                         if f.has_underline() {
@@ -416,27 +416,27 @@ impl GskRenderer {
                             let ul_node = gsk::ColorNode::new(&ul_gdk, &ul_rect);
                             nodes.push(ul_node.upcast());
                         }
-                        
+
                         // Draw box if face has one
                         if f.box_type != crate::core::face::BoxType::None && f.box_line_width > 0 {
                             let bx_color = f.box_color.unwrap_or(f.foreground);
                             let bx_gdk = gdk::RGBA::new(bx_color.r, bx_color.g, bx_color.b, bx_color.a);
                             let lw = f.box_line_width as f32;
-                            
+
                             // Top border
                             let top_rect = graphene::Rect::new(x, base_y, glyph.pixel_width as f32, lw);
                             nodes.push(gsk::ColorNode::new(&bx_gdk, &top_rect).upcast());
-                            
+
                             // Bottom border
                             let bottom_rect = graphene::Rect::new(x, base_y + row_height - lw, glyph.pixel_width as f32, lw);
                             nodes.push(gsk::ColorNode::new(&bx_gdk, &bottom_rect).upcast());
-                            
+
                             // Left border (only if first char or left_box_line flag)
                             if glyph.left_box_line {
                                 let left_rect = graphene::Rect::new(x, base_y, lw, row_height);
                                 nodes.push(gsk::ColorNode::new(&bx_gdk, &left_rect).upcast());
                             }
-                            
+
                             // Right border (only if right_box_line flag)
                             if glyph.right_box_line {
                                 let right_rect = graphene::Rect::new(x + glyph.pixel_width as f32 - lw, base_y, lw, row_height);
@@ -444,7 +444,7 @@ impl GskRenderer {
                             }
                         }
                     }
-                    
+
                     // Advance by Emacs's pixel_width (exact positioning)
                     x += glyph.pixel_width as f32;
                 }
@@ -461,7 +461,7 @@ impl GskRenderer {
                             glyph.pixel_width as f32,
                             glyph.ascent as f32,
                         );
-                        
+
                         let mut rendered = false;
                         if let Some(ref mut cache) = image_cache {
                             if let Some(img) = cache.get_mut(image_id) {
@@ -472,7 +472,7 @@ impl GskRenderer {
                                 }
                             }
                         }
-                        
+
                         // Fall back to placeholder if no texture
                         if !rendered {
                             let placeholder_color = gdk::RGBA::new(0.3, 0.3, 0.3, 1.0);
@@ -491,26 +491,38 @@ impl GskRenderer {
                             glyph.pixel_width as f32,
                             glyph.ascent as f32,
                         );
-                        
+
                         // Try to get video frame from cache using paintable (more efficient)
                         #[cfg(feature = "video")]
                         let has_frame = if let Some(cache) = video_cache {
                             if let Some(player) = cache.get(video_id) {
                                 // Prefer paintable for better performance with gtk4paintablesink
                                 if let Some(paintable) = player.get_paintable() {
-                                    let snapshot = gtk4::Snapshot::new();
-                                    snapshot.push_clip(&video_rect);
-                                    snapshot.translate(&graphene::Point::new(x, base_y));
-                                    paintable.snapshot(
-                                        snapshot.upcast_ref::<gdk::Snapshot>(),
-                                        glyph.pixel_width as f64,
-                                        glyph.ascent as f64,
-                                    );
-                                    snapshot.pop();
-                                    if let Some(node) = snapshot.to_node() {
-                                        nodes.push(node);
-                                        true
+                                    let pw = paintable.intrinsic_width();
+                                    let ph = paintable.intrinsic_height();
+
+                                    // Check if paintable has content (dimensions > 0)
+                                    if pw > 0 && ph > 0 {
+                                        // Use snapshot to render paintable into a node
+                                        let snapshot = gtk4::Snapshot::new();
+                                        // Translate to target position first
+                                        snapshot.translate(&graphene::Point::new(x, base_y));
+                                        // Render the paintable at this position
+                                        paintable.snapshot(
+                                            snapshot.upcast_ref::<gdk::Snapshot>(),
+                                            glyph.pixel_width as f64,
+                                            glyph.ascent as f64,
+                                        );
+                                        if let Some(node) = snapshot.to_node() {
+                                            // Clip to video bounds
+                                            let clipped = gsk::ClipNode::new(&node, &video_rect);
+                                            nodes.push(clipped.upcast());
+                                            true
+                                        } else {
+                                            false
+                                        }
                                     } else {
+                                        // Paintable has no content yet, fall back to placeholder
                                         false
                                     }
                                 } else if let Some(texture) = player.get_frame_texture() {
@@ -526,16 +538,16 @@ impl GskRenderer {
                         } else {
                             false
                         };
-                        
+
                         #[cfg(not(feature = "video"))]
                         let has_frame = false;
-                        
+
                         // Fall back to placeholder if no frame
                         if !has_frame {
                             let video_color = gdk::RGBA::new(0.1, 0.2, 0.4, 1.0);
                             let video_node = gsk::ColorNode::new(&video_color, &video_rect);
                             nodes.push(video_node.upcast());
-                            
+
                             let icon_size = (glyph.ascent as f32 * 0.3).min(30.0);
                             let icon_x = x + (glyph.pixel_width as f32 - icon_size) / 2.0;
                             let icon_y = base_y + (glyph.ascent as f32 - icon_size) / 2.0;
@@ -556,7 +568,7 @@ impl GskRenderer {
                             glyph.pixel_width as f32,
                             glyph.ascent as f32,
                         );
-                        
+
                         // Try to get texture from WebKitCache
                         #[cfg(feature = "wpe-webkit")]
                         let has_texture = if let Some(cache) = webkit_cache {
@@ -574,16 +586,16 @@ impl GskRenderer {
                         } else {
                             false
                         };
-                        
+
                         #[cfg(not(feature = "wpe-webkit"))]
                         let has_texture = false;
-                        
+
                         // Fall back to placeholder if no texture
                         if !has_texture {
                             let webkit_color = gdk::RGBA::new(0.1, 0.3, 0.5, 1.0); // Blue-ish
                             let webkit_node = gsk::ColorNode::new(&webkit_color, &webkit_rect);
                             nodes.push(webkit_node.upcast());
-                            
+
                             // Draw a globe icon placeholder
                             let icon_size = (glyph.ascent as f32 * 0.3).min(30.0);
                             let icon_x = x + (glyph.pixel_width as f32 - icon_size) / 2.0;
@@ -619,7 +631,7 @@ impl GskRenderer {
             Some(nodes)
         }
     }
-    
+
     /// Build a render node for a single character at exact position
     fn build_single_char_node(
         &self,
@@ -632,7 +644,7 @@ impl GskRenderer {
         face_id: u32,
     ) -> Option<Vec<gsk::RenderNode>> {
         let mut nodes: Vec<gsk::RenderNode> = Vec::new();
-        
+
         let layout = pango::Layout::new(context);
         let text = c.to_string();
         layout.set_text(&text);
@@ -661,7 +673,7 @@ impl GskRenderer {
         let metrics = context.metrics(Some(&font_desc), None);
         let ascent = metrics.ascent() / pango::SCALE;
         let text_y = baseline_y - ascent as f32;
-        
+
         // Background color node (for selection highlighting)
         if let Some(bg) = bg_color {
             let bg_rect = graphene::Rect::new(x, text_y, char_width, char_height);
@@ -677,15 +689,15 @@ impl GskRenderer {
                 let analysis = item.analysis();
                 let font = analysis.font();
                 let glyphs = run.glyph_string();
-                
+
                 // Position at exact x, baseline_y
                 let offset = graphene::Point::new(x, baseline_y);
-                
+
                 if let Some(text_node) = gsk::TextNode::new(&font, &glyphs, &fg_color, &offset) {
                     nodes.push(text_node.upcast());
                 }
             }
-            
+
             if !iter.next_run() {
                 break;
             }
@@ -760,23 +772,23 @@ impl GskRenderer {
                 let item = run.item();
                 let analysis = item.analysis();
                 let font = analysis.font();
-                
+
                 // Get the glyph string from the run
                 let glyphs = run.glyph_string();
-                
+
                 // Get run extents to position it
                 let (_, logical_rect) = iter.run_extents();
                 let run_x = x + (logical_rect.x() / pango::SCALE) as f32;
-                
+
                 // Create text node with offset (at baseline)
                 let offset = graphene::Point::new(run_x, baseline_y);
-                
+
                 // GskTextNode::new takes font, glyphs, color, offset
                 if let Some(text_node) = gsk::TextNode::new(&font, &glyphs, &fg_color, &offset) {
                     nodes.push(text_node.upcast());
                 }
             }
-            
+
             if !iter.next_run() {
                 break;
             }

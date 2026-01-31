@@ -20,16 +20,16 @@ use super::video::VideoCache;
 pub struct Gtk4Renderer {
     /// Pango context for text layout
     pango_context: Option<pango::Context>,
-    
+
     /// Face cache for text styling
     face_cache: FaceCache,
-    
+
     /// Cached Pango layouts for performance
     layout_cache: HashMap<u32, pango::Layout>,
-    
+
     /// Image cache
     image_cache: ImageCache,
-    
+
     /// Video cache
     video_cache: VideoCache,
 }
@@ -50,12 +50,12 @@ impl Gtk4Renderer {
             video_cache: VideoCache::new(),
         }
     }
-    
+
     /// Get or create a face by ID
     pub fn get_or_create_face(&mut self, face_id: u32) -> &Face {
         self.face_cache.get_or_create(face_id)
     }
-    
+
     /// Register a face
     pub fn register_face(&mut self, face: Face) -> u32 {
         self.face_cache.insert(face)
@@ -125,11 +125,11 @@ impl Gtk4Renderer {
     /// Render sample text to demonstrate text rendering
     fn render_sample_text(&self, cr: &cairo::Context, context: &pango::Context, window: &WindowScene) {
         let layout = pango::Layout::new(context);
-        
+
         // Set font
         let font_desc = pango::FontDescription::from_string("Monospace 14");
         layout.set_font_description(Some(&font_desc));
-        
+
         // Set text
         let text = if window.selected {
             "Welcome to Neomacs Display Engine\n\nThis is a GPU-accelerated display engine\nwritten in Rust using GTK4.\n\n;; Press C-x C-c to quit"
@@ -140,7 +140,7 @@ impl Gtk4Renderer {
 
         // Set color (light text)
         cr.set_source_rgb(0.9, 0.9, 0.85);
-        
+
         // Position and render
         cr.move_to(10.0, 10.0);
         pangocairo::functions::show_layout(cr, &layout);
@@ -356,7 +356,7 @@ impl Gtk4Renderer {
             let font_desc_str = face.to_pango_font_description();
             let font_desc = pango::FontDescription::from_string(&font_desc_str);
             layout.set_font_description(Some(&font_desc));
-            
+
             // Set foreground color
             cr.set_source_rgba(
                 face.foreground.r as f64,
@@ -381,7 +381,7 @@ impl Gtk4Renderer {
                 cr.rectangle(x, baseline_y - ascent as f64, width as f64, height as f64);
                 cr.fill().ok();
                 cr.restore().ok();
-                
+
                 // Reset foreground color
                 cr.set_source_rgba(
                     face.foreground.r as f64,
@@ -397,14 +397,14 @@ impl Gtk4Renderer {
 
         // Position at baseline and render
         cr.save().ok();
-        
+
         // Get font metrics to position correctly
         let metrics = layout.context().metrics(layout.font_description().as_ref(), None);
         let ascent = metrics.ascent() / pango::SCALE;
-        
+
         cr.move_to(x, baseline_y - ascent as f64);
         pangocairo::functions::show_layout(cr, &layout);
-        
+
         cr.restore().ok();
     }
 
@@ -412,17 +412,17 @@ impl Gtk4Renderer {
     fn render_image(&self, cr: &cairo::Context, image_id: u32, x: f32, y: f32, width: i32, height: i32) {
         if let Some(cached_image) = self.image_cache.get(image_id) {
             cr.save().ok();
-            
+
             // Scale image to fit glyph dimensions
             let scale_x = width as f64 / cached_image.width as f64;
             let scale_y = height as f64 / cached_image.height as f64;
-            
+
             cr.translate(x as f64, y as f64);
             cr.scale(scale_x, scale_y);
-            
+
             cr.set_source_surface(&cached_image.surface, 0.0, 0.0).ok();
             cr.paint().ok();
-            
+
             cr.restore().ok();
         } else {
             // Image not loaded, show placeholder
@@ -450,24 +450,24 @@ impl Gtk4Renderer {
         cr.line_to(x as f64, (y as i32 + height) as f64);
         cr.stroke().ok();
     }
-    
+
     /// Render a video glyph
     #[cfg(feature = "video")]
     fn render_video(&self, cr: &cairo::Context, video_id: u32, x: f32, y: f32, width: i32, height: i32) {
         if let Some(player) = self.video_cache.get(video_id) {
             if let Some(surface) = player.get_frame() {
                 cr.save().ok();
-                
+
                 // Scale video to fit glyph dimensions
                 let scale_x = width as f64 / surface.width() as f64;
                 let scale_y = height as f64 / surface.height() as f64;
-                
+
                 cr.translate(x as f64, y as f64);
                 cr.scale(scale_x, scale_y);
-                
+
                 cr.set_source_surface(&surface, 0.0, 0.0).ok();
                 cr.paint().ok();
-                
+
                 cr.restore().ok();
             } else {
                 // No frame available yet, show placeholder
@@ -478,7 +478,7 @@ impl Gtk4Renderer {
             self.render_video_placeholder(cr, x, y, width, height);
         }
     }
-    
+
     /// Render placeholder for video (when no frame available)
     fn render_video_placeholder(&self, cr: &cairo::Context, x: f32, y: f32, width: i32, height: i32) {
         // Dark box with play symbol
@@ -496,7 +496,7 @@ impl Gtk4Renderer {
         let cx = x as f64 + width as f64 / 2.0;
         let cy = y as f64 + height as f64 / 2.0;
         let size = (width.min(height) as f64 * 0.3).min(30.0);
-        
+
         cr.set_source_rgba(0.5, 0.5, 0.5, 1.0);
         cr.move_to(cx - size / 2.0, cy - size / 2.0);
         cr.line_to(cx + size / 2.0, cy);
@@ -504,27 +504,27 @@ impl Gtk4Renderer {
         cr.close_path();
         cr.fill().ok();
     }
-    
+
     /// Get mutable access to image cache
     pub fn image_cache_mut(&mut self) -> &mut ImageCache {
         &mut self.image_cache
     }
-    
+
     /// Get image cache
     pub fn image_cache(&self) -> &ImageCache {
         &self.image_cache
     }
-    
+
     /// Get mutable access to video cache
     pub fn video_cache_mut(&mut self) -> &mut VideoCache {
         &mut self.video_cache
     }
-    
+
     /// Get video cache
     pub fn video_cache(&self) -> &VideoCache {
         &self.video_cache
     }
-    
+
     /// Update all video players (call periodically)
     pub fn update_videos(&mut self) {
         self.video_cache.update_all();

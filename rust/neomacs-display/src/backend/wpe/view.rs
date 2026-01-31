@@ -77,13 +77,13 @@ pub struct WpeWebView {
 
     /// The exportable backend
     exportable: *mut fdo::wpe_view_backend_exportable_fdo,
-    
+
     /// The WebKit web view
     web_view: *mut wk::WebKitWebView,
-    
+
     /// The WebKit view backend wrapper
     view_backend: *mut wk::WebKitWebViewBackend,
-    
+
     /// Callback data (must be boxed and leaked to be stable)
     callback_data: *mut WpeCallbackData,
 
@@ -111,7 +111,7 @@ impl WpeWebView {
 
         // Create DMA-BUF exporter with the EGL display
         let dmabuf_exporter = DmaBufExporter::new(wpe_backend.egl_display());
-        
+
         // Get the GDK display
         let gdk_display = gdk4::Display::default();
 
@@ -150,7 +150,7 @@ impl WpeWebView {
 
             // Get the raw wpe_view_backend
             let wpe_backend_ptr = fdo::wpe_view_backend_exportable_fdo_get_view_backend(exportable);
-            
+
             if wpe_backend_ptr.is_null() {
                 fdo::wpe_view_backend_exportable_fdo_destroy(exportable);
                 let _ = Box::from_raw(callback_data);
@@ -208,7 +208,7 @@ impl WpeWebView {
         self.progress = 0.0;
 
         let c_uri = CString::new(uri).map_err(|_| DisplayError::WebKit("Invalid URI".into()))?;
-        
+
         unsafe {
             wk::webkit_web_view_load_uri(self.web_view, c_uri.as_ptr());
         }
@@ -279,7 +279,7 @@ impl WpeWebView {
     /// Execute JavaScript
     pub fn execute_javascript(&self, script: &str) -> DisplayResult<()> {
         let c_script = CString::new(script).map_err(|_| DisplayError::WebKit("Invalid script".into()))?;
-        
+
         unsafe {
             wk::webkit_web_view_evaluate_javascript(
                 self.web_view,
@@ -292,7 +292,7 @@ impl WpeWebView {
                 ptr::null_mut(), // user_data
             );
         }
-        
+
         log::debug!("WPE: Executing JavaScript");
         Ok(())
     }
@@ -326,7 +326,7 @@ impl WpeWebView {
             if let Some(callback_data) = self.callback_data.as_ref() {
                 if callback_data.frame_available.swap(false, Ordering::Acquire) {
                     self.needs_redraw = true;
-                    
+
                     // Convert EGLImage to GdkTexture using DMA-BUF
                     if let Some(ref frame) = *callback_data.latest_frame.borrow() {
                         if let Some(ref display) = self.gdk_display {
@@ -396,7 +396,7 @@ impl WpeWebView {
     }
 
     /// Send keyboard event to WebKit
-    /// 
+    ///
     /// # Arguments
     /// * `key_code` - XKB keysym (e.g., XK_a, XK_Return)
     /// * `hardware_key_code` - Physical scancode
@@ -540,7 +540,7 @@ unsafe extern "C" fn export_egl_image_callback(
     }
 
     let callback_data = &*(data as *const WpeCallbackData);
-    
+
     let width = fdo::wpe_fdo_egl_exported_image_get_width(image);
     let height = fdo::wpe_fdo_egl_exported_image_get_height(image);
     let egl_image = fdo::wpe_fdo_egl_exported_image_get_egl_image(image);
