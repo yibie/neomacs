@@ -87,15 +87,23 @@
 | **Phase 2** | TTY Backend | ⏳ Pending |
 | **Phase 3** | GTK4 Backend - Basic Rendering | ✅ Complete |
 | **Phase 4** | Image Support | ✅ Complete |
-| **Phase 5** | Video Support (GStreamer) | ✅ Complete |
-| **Phase 6** | WPE WebKit Support | ✅ Complete |
+| **Phase 5** | Video Support (GStreamer) | ✅ Complete (overlay only) |
+| **Phase 6** | WPE WebKit Support | ✅ Complete (overlay only) |
 | **Phase 7** | GPU Zero-Copy Pipeline | ⏳ Pending |
 | **Phase 8** | Animation System | ⏳ Pending |
-| **Phase 9** | Inline Display (`xdisp.c`) | ⏳ Pending |
+| **Phase 9** | Inline Display (`xdisp.c`) | 🔥 **HIGH PRIORITY** |
 | **Phase 10** | Emacs Build Integration | 🔧 Partial |
 | **Phase 11** | Remove Legacy Backends | ⏳ Pending |
 | **Phase 12** | Testing & Documentation | ⏳ Pending |
 | **Phase 13** | Polish & Optimization | ⏳ Pending |
+
+### Inline Display Status
+
+| Type | Overlay/Floating | Inline (display property) |
+|------|------------------|---------------------------|
+| **Image** | ✅ Works | ✅ Works (`(image :file ...)`) |
+| **Video** | ✅ Works | ❌ **NEEDS IMPLEMENTATION** |
+| **WebKit** | ✅ Works | ❌ **NEEDS IMPLEMENTATION** |
 
 ---
 
@@ -504,29 +512,71 @@
 
 ---
 
-## Phase 9: Inline Display Support ⏳
+## Phase 9: Inline Display Support ⏳ (HIGH PRIORITY)
 
-**Goal**: Support `(video :id N)` and `(webkit :id N)` display properties in buffer text.
+**Goal**: Support `(video :id N)` and `(webkit :id N)` display properties in buffer text, just like `(image ...)` works today.
+
+### Current Inline Support Status
+
+| Type | Display Property | xdisp.c | Status |
+|------|------------------|---------|--------|
+| **Image** | `(image :file "x.png")` | ✅ `Qimage`, `produce_image_glyph()` | ✅ **WORKS** |
+| **Video** | `(video :id N)` | ❌ Missing | ❌ **NOT IMPLEMENTED** |
+| **WebKit** | `(webkit :id N)` | ❌ Missing | ❌ **NOT IMPLEMENTED** |
+
+### Usage Example (Target)
+```elisp
+;; Image (already works)
+(put-text-property 1 2 'display '(image :file "/path/to/image.png"))
+
+;; Video (need to implement)
+(let ((id (neomacs-video-load "/path/to/video.mp4")))
+  (put-text-property 1 2 'display `(video :id ,id :width 640 :height 480)))
+
+;; WebKit (need to implement)
+(let ((id (neomacs-webkit-create 800 600)))
+  (neomacs-webkit-load-uri id "https://example.com")
+  (put-text-property 1 2 'display `(webkit :id ,id)))
+```
 
 ### 9.1 Display Property Infrastructure
 - [x] Add WEBKIT_GLYPH to `enum glyph_type` in dispextern.h
 - [x] Add IT_WEBKIT to `enum it_method` in dispextern.h
 - [x] Add webkit_id to glyph union and iterator struct
 - [x] Handle WEBKIT_GLYPH in neomacsterm.c draw functions
-- [ ] Add VIDEO_GLYPH handling (similar to WEBKIT_GLYPH)
+- [ ] Add VIDEO_GLYPH to `enum glyph_type` in dispextern.h
+- [ ] Add IT_VIDEO to `enum it_method` in dispextern.h
+- [ ] Add video_id to glyph union and iterator struct
+- [ ] Handle VIDEO_GLYPH in neomacsterm.c draw functions
 
-### 9.2 xdisp.c Integration
-- [ ] Add `Qvideo` and `Qwebkit` symbols
-- [ ] Add handling in `handle_single_display_spec()`
-- [ ] Implement `produce_video_glyph()` function
-- [ ] Implement `produce_webkit_glyph()` function
-- [ ] Handle glyph dimensions in layout
+### 9.2 xdisp.c Symbols and Parsing
+- [ ] Add `Qvideo` symbol via DEFSYM
+- [ ] Add `Qwebkit` symbol via DEFSYM
+- [ ] Parse `(video :id N :width W :height H)` in `handle_single_display_spec()`
+- [ ] Parse `(webkit :id N)` in `handle_single_display_spec()`
+- [ ] Validate video/webkit IDs exist in cache
+- [ ] Extract width/height properties
 
-### 9.3 Iteration Support
-- [ ] Add `GET_FROM_VIDEO` method
-- [ ] Add `GET_FROM_WEBKIT` method
+### 9.3 Glyph Production Functions
+- [ ] Implement `produce_video_glyph()` (similar to `produce_image_glyph()`)
+- [ ] Implement `produce_webkit_glyph()`
+- [ ] Set glyph dimensions from video/webkit size
+- [ ] Handle ascent/descent calculation
+- [ ] Handle slice (partial display)
+
+### 9.4 Iterator Support
+- [ ] Add `GET_FROM_VIDEO` to `enum it_method`
+- [ ] Add `GET_FROM_WEBKIT` to `enum it_method`
 - [ ] Implement `next_element_from_video()`
 - [ ] Implement `next_element_from_webkit()`
+- [ ] Handle iterator state transitions
+- [ ] Handle `set_iterator_to_next()` for video/webkit
+
+### 9.5 Layout Integration
+- [ ] Handle video/webkit glyph dimensions in `x_produce_glyphs()`
+- [ ] Handle line height calculation with video/webkit
+- [ ] Handle cursor movement over video/webkit glyphs
+- [ ] Handle mouse click on video/webkit glyphs
 
 ---
 
