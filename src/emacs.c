@@ -456,6 +456,9 @@ terminate_due_to_signal (int sig, int backtrace_limit)
           totally_unblock_input ();
           if (sig == SIGTERM || sig == SIGHUP || sig == SIGINT)
 	    {
+	      fprintf (stderr, "DEBUG: Received signal %d (%s), calling kill-emacs\n",
+	               sig, sig == SIGTERM ? "SIGTERM" : 
+	                    sig == SIGHUP ? "SIGHUP" : "SIGINT");
 	      /* Avoid abort in shut_down_emacs if we were interrupted
 		 in noninteractive usage, as in that case we don't
 		 care about the message stack.  */
@@ -2975,6 +2978,32 @@ killed.  */
   (Lisp_Object arg, Lisp_Object restart)
 {
   int exit_code;
+
+  fprintf (stderr, "DEBUG: kill-emacs called! arg=%p, restart=%p\n", 
+           (void*)arg, (void*)restart);
+  /* Print specpdl backtrace to see Lisp call stack */
+  {
+    union specbinding *pdl = specpdl_ptr;
+    int count = 0;
+    fprintf (stderr, "  Lisp backtrace:\n");
+    while (pdl != specpdl && count < 20)
+      {
+        --pdl;
+        switch (pdl->kind)
+          {
+          case SPECPDL_BACKTRACE:
+            fprintf (stderr, "    [%d] %s\n", count, 
+                     STRINGP (SYMBOL_NAME (pdl->bt.function))
+                     ? (char *)SDATA (SYMBOL_NAME (pdl->bt.function))
+                     : "?");
+            count++;
+            break;
+          default:
+            break;
+          }
+      }
+    fprintf (stderr, "  End backtrace.\n");
+  }
 
 #ifndef WINDOWSNT
   /* Do some checking before shutting down Emacs, because errors

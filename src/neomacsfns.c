@@ -537,19 +537,26 @@ neomacs_translate_key (guint keyval, GdkModifierType state)
 }
 
 /* Callback for GTK4 key press events */
+/* IM context commit callback */
+static void
+neomacs_im_commit_cb (GtkIMContext *ctx, const char *str, gpointer user_data)
+{
+  fprintf (stderr, "DEBUG: IM commit: '%s'\n", str);
+}
+
 static gboolean
 neomacs_key_pressed_cb (GtkEventControllerKey *controller,
 			guint keyval, guint keycode,
 			GdkModifierType state, gpointer user_data)
 {
   struct frame *f = (struct frame *) user_data;
-  struct input_event ie;
+  union buffered_input_event inev;
   unsigned int c;
 
   if (!FRAME_LIVE_P (f))
     return FALSE;
 
-  if (0) fprintf (stderr, "DEBUG: Key pressed: keyval=%u (0x%x), keycode=%u, state=%u\n",
+  fprintf (stderr, "DEBUG: Key pressed: keyval=%u (0x%x), keycode=%u, state=%u\n",
 	   keyval, keyval, keycode, state);
 
   /* Ignore modifier-only key presses - they are only used as modifiers */
@@ -584,38 +591,38 @@ neomacs_key_pressed_cb (GtkEventControllerKey *controller,
   if (c == 0 && keyval > 0x7F)
     {
       /* Function key or special key - convert to symbol */
-      EVENT_INIT (ie);
-      ie.kind = NON_ASCII_KEYSTROKE_EVENT;
-      ie.code = keyval;
-      ie.modifiers = 0;
+      EVENT_INIT (inev.ie);
+      inev.ie.kind = NON_ASCII_KEYSTROKE_EVENT;
+      inev.ie.code = keyval;
+      inev.ie.modifiers = 0;
       if (state & GDK_CONTROL_MASK)
-	ie.modifiers |= ctrl_modifier;
+	inev.ie.modifiers |= ctrl_modifier;
       if (state & GDK_ALT_MASK)
-	ie.modifiers |= meta_modifier;
+	inev.ie.modifiers |= meta_modifier;
       if (state & GDK_SHIFT_MASK)
-	ie.modifiers |= shift_modifier;
+	inev.ie.modifiers |= shift_modifier;
       if (state & GDK_SUPER_MASK)
-	ie.modifiers |= super_modifier;
-      ie.timestamp = 0;
-      XSETFRAME (ie.frame_or_window, f);
-      kbd_buffer_store_event (&ie);
+	inev.ie.modifiers |= super_modifier;
+      inev.ie.timestamp = 0;
+      XSETFRAME (inev.ie.frame_or_window, f);
+      neomacs_evq_enqueue (&inev);
       return TRUE;
     }
   else if (c != 0)
     {
       /* ASCII character */
-      EVENT_INIT (ie);
-      ie.kind = ASCII_KEYSTROKE_EVENT;
-      ie.code = c;
-      ie.modifiers = 0;
+      EVENT_INIT (inev.ie);
+      inev.ie.kind = ASCII_KEYSTROKE_EVENT;
+      inev.ie.code = c;
+      inev.ie.modifiers = 0;
       if (state & GDK_CONTROL_MASK)
-	ie.modifiers |= ctrl_modifier;
+	inev.ie.modifiers |= ctrl_modifier;
       if (state & GDK_ALT_MASK)
-	ie.modifiers |= meta_modifier;
-      ie.timestamp = 0;
-      XSETFRAME (ie.frame_or_window, f);
-      if (0) fprintf (stderr, "DEBUG: Storing ASCII key event: code=%u, modifiers=%d\n", c, ie.modifiers);
-      kbd_buffer_store_event (&ie);
+	inev.ie.modifiers |= meta_modifier;
+      inev.ie.timestamp = 0;
+      XSETFRAME (inev.ie.frame_or_window, f);
+      fprintf (stderr, "DEBUG: Enqueueing ASCII key event: code=%u, modifiers=%d\n", c, inev.ie.modifiers);
+      neomacs_evq_enqueue (&inev);
       return TRUE;
     }
 
@@ -628,16 +635,22 @@ neomacs_focus_enter_cb (GtkEventControllerFocus *controller, gpointer user_data)
 {
   struct frame *f = (struct frame *) user_data;
   struct input_event ie;
+  GtkWidget *widget = gtk_event_controller_get_widget (GTK_EVENT_CONTROLLER (controller));
 
   if (!FRAME_LIVE_P (f))
     return;
 
-  if (0) fprintf (stderr, "DEBUG: Focus entered frame %p\n", (void *) f);
+  fprintf (stderr, "DEBUG: Focus entered frame %p, widget=%p (focusable=%d, has_focus=%d)\n", 
+           (void *) f, (void *) widget,
+           gtk_widget_get_focusable (widget),
+           gtk_widget_has_focus (widget));
 
+  /* Temporarily disabled to debug exit-on-focus issue
   EVENT_INIT (ie);
   ie.kind = FOCUS_IN_EVENT;
   XSETFRAME (ie.frame_or_window, f);
   kbd_buffer_store_event (&ie);
+  */
 }
 
 /* Callback for focus leave */
@@ -650,12 +663,40 @@ neomacs_focus_leave_cb (GtkEventControllerFocus *controller, gpointer user_data)
   if (!FRAME_LIVE_P (f))
     return;
 
-  if (0) fprintf (stderr, "DEBUG: Focus left frame %p\n", (void *) f);
+  fprintf (stderr, "DEBUG: Focus left frame %p\n", (void *) f);
 
+  /* Temporarily disabled to debug exit-on-focus issue
   EVENT_INIT (ie);
   ie.kind = FOCUS_OUT_EVENT;
   XSETFRAME (ie.frame_or_window, f);
   kbd_buffer_store_event (&ie);
+  */
+}
+
+/* Callback for widget realize - grab focus when ready */
+static void
+neomacs_realize_cb (GtkWidget *widget, gpointer user_data)
+{
+  struct frame *f = (struct frame *) user_data;
+  struct neomacs_output *output;
+  
+  if (!FRAME_LIVE_P (f))
+    return;
+  
+  output = FRAME_NEOMACS_OUTPUT (f);
+  if (!output)
+    return;
+  
+  fprintf (stderr, "DEBUG: Widget %p realized, grabbing focus on drawing_area %p\n",
+           (void *) widget, (void *) output->drawing_area);
+  
+  /* Now grab focus on the drawing area */
+  if (output->drawing_area)
+    {
+      gtk_widget_grab_focus (output->drawing_area);
+      fprintf (stderr, "DEBUG: After realize focus grab: has_focus=%d\n",
+               gtk_widget_has_focus (output->drawing_area));
+    }
 }
 
 /* Callback for GTK4 window close request */
@@ -663,6 +704,8 @@ static gboolean
 neomacs_close_request_cb (GtkWindow *window, gpointer user_data)
 {
   struct frame *f = (struct frame *) user_data;
+
+  fprintf (stderr, "DEBUG: Close request received for frame %p\n", (void *) f);
 
   if (FRAME_LIVE_P (f))
     {
@@ -688,13 +731,20 @@ neomacs_click_pressed_cb (GtkGestureClick *gesture, int n_press,
   GdkModifierType state = 0;
   GdkEvent *event;
 
+  fprintf (stderr, "DEBUG: Click pressed at (%f, %f), n_press=%d, frame=%p\n", x, y, n_press, (void*)f);
+
   if (!FRAME_LIVE_P (f))
-    return;
+    {
+      fprintf (stderr, "DEBUG: Frame not live, ignoring click\n");
+      return;
+    }
 
   button = gtk_gesture_single_get_current_button (GTK_GESTURE_SINGLE (gesture));
   event = gtk_event_controller_get_current_event (GTK_EVENT_CONTROLLER (gesture));
   if (event)
     state = gdk_event_get_modifier_state (event);
+
+  fprintf (stderr, "DEBUG: Button=%u, state=%u\n", button, state);
 
   EVENT_INIT (ie);
   ie.kind = MOUSE_CLICK_EVENT;
@@ -716,6 +766,27 @@ neomacs_click_pressed_cb (GtkGestureClick *gesture, int n_press,
   ie.arg = Qnil;
 
   kbd_buffer_store_event (&ie);
+
+  /* Grab keyboard focus after click */
+  {
+    GtkWidget *widget = gtk_event_controller_get_widget (GTK_EVENT_CONTROLLER (gesture));
+    if (widget)
+      {
+        gtk_widget_grab_focus (widget);
+        fprintf (stderr, "DEBUG: Grabbed focus on widget %p, has_focus=%d, focusable=%d\n", 
+                 (void*)widget, 
+                 gtk_widget_has_focus (widget),
+                 gtk_widget_get_focusable (widget));
+        
+        /* Also try to set window focus */
+        GtkWidget *window = gtk_widget_get_ancestor (widget, GTK_TYPE_WINDOW);
+        if (window)
+          {
+            gtk_window_set_focus (GTK_WINDOW (window), widget);
+            fprintf (stderr, "DEBUG: Set window %p focus to widget %p\n", (void*)window, (void*)widget);
+          }
+      }
+  }
 }
 
 /* Callback for GTK4 mouse button release */
@@ -903,7 +974,9 @@ neomacs_create_frame_widgets (struct frame *f)
     g_object_unref (css_provider);
   }
 
-  /* Make drawing area focusable to receive keyboard events */
+  /* Make window and drawing area focusable to receive keyboard events */
+  gtk_widget_set_focusable (window, TRUE);
+  gtk_widget_set_can_focus (window, TRUE);
   gtk_widget_set_focusable (drawing_area, TRUE);
   gtk_widget_set_can_focus (drawing_area, TRUE);
 
@@ -918,19 +991,51 @@ neomacs_create_frame_widgets (struct frame *f)
   g_signal_connect (window, "close-request",
                     G_CALLBACK (neomacs_close_request_cb), f);
 
-  /* Add keyboard event controller - add to WINDOW for reliable key capture */
+  /* Add keyboard event controller - use TARGET phase since we have focus */
   key_controller = gtk_event_controller_key_new ();
+  gtk_event_controller_set_propagation_phase (key_controller, GTK_PHASE_CAPTURE);
   g_signal_connect (key_controller, "key-pressed",
 		    G_CALLBACK (neomacs_key_pressed_cb), f);
   gtk_widget_add_controller (window, key_controller);
+  fprintf (stderr, "DEBUG: Added key controller to window %p (CAPTURE phase)\n", (void*)window);
 
-  /* Add focus event controller */
+  /* Also add key controller to drawing area with BUBBLE phase */
+  {
+    GtkEventController *da_key_controller = gtk_event_controller_key_new ();
+    gtk_event_controller_set_propagation_phase (da_key_controller, GTK_PHASE_BUBBLE);
+    g_signal_connect (da_key_controller, "key-pressed",
+                      G_CALLBACK (neomacs_key_pressed_cb), f);
+    gtk_widget_add_controller (drawing_area, da_key_controller);
+    fprintf (stderr, "DEBUG: Added key controller to drawing_area %p (BUBBLE phase)\n", (void*)drawing_area);
+  }
+
+  /* Try using IM context for key event handling */
+  {
+    GtkIMContext *imc = gtk_im_context_simple_new ();
+    g_signal_connect (imc, "commit", G_CALLBACK (neomacs_im_commit_cb), f);
+    gtk_im_context_set_client_widget (imc, drawing_area);
+    gtk_im_context_focus_in (imc);
+    output->im_context = imc;
+    fprintf (stderr, "DEBUG: Created IM context %p for drawing_area\n", (void*)imc);
+  }
+
+  /* Add focus event controller to window */
   focus_controller = gtk_event_controller_focus_new ();
   g_signal_connect (focus_controller, "enter",
 		    G_CALLBACK (neomacs_focus_enter_cb), f);
   g_signal_connect (focus_controller, "leave",
 		    G_CALLBACK (neomacs_focus_leave_cb), f);
   gtk_widget_add_controller (window, focus_controller);
+
+  /* Also add focus controller to drawing area */
+  {
+    GtkEventController *da_focus_controller = gtk_event_controller_focus_new ();
+    g_signal_connect (da_focus_controller, "enter",
+                      G_CALLBACK (neomacs_focus_enter_cb), f);
+    g_signal_connect (da_focus_controller, "leave",
+                      G_CALLBACK (neomacs_focus_leave_cb), f);
+    gtk_widget_add_controller (drawing_area, da_focus_controller);
+  }
 
   /* Add mouse click gesture for button events */
   click_gesture = gtk_gesture_click_new ();
@@ -952,6 +1057,10 @@ neomacs_create_frame_widgets (struct frame *f)
   g_signal_connect (scroll_controller, "scroll",
 		    G_CALLBACK (neomacs_scroll_cb), f);
   gtk_widget_add_controller (drawing_area, scroll_controller);
+
+  /* Connect realize callback to grab focus when widget is ready */
+  g_signal_connect (drawing_area, "realize",
+                    G_CALLBACK (neomacs_realize_cb), f);
 
   /* Set up widget hierarchy */
   gtk_window_set_child (GTK_WINDOW (window), drawing_area);
@@ -993,7 +1102,17 @@ neomacs_create_frame_widgets (struct frame *f)
   while (g_main_context_iteration (NULL, FALSE))
     ;
 
+  /* Ensure the drawing area gets keyboard focus */
   gtk_widget_grab_focus (drawing_area);
+  
+  /* Also try setting as the default focus widget */
+  gtk_window_set_focus (GTK_WINDOW (window), drawing_area);
+  
+  fprintf (stderr, "DEBUG: After focus grab: drawing_area focusable=%d has_focus=%d, window has_focus=%d\n",
+           gtk_widget_get_focusable (drawing_area),
+           gtk_widget_has_focus (drawing_area),
+           gtk_widget_has_focus (window));
+  
   if (0) fprintf (stderr, "DEBUG: Window visible=%d realized=%d mapped=%d\n",
 	   gtk_widget_get_visible (window),
 	   gtk_widget_get_realized (window),
@@ -1061,12 +1180,12 @@ If the parameters specify a display, that display is used.  */)
   FRAME_NEOMACS_OUTPUT (f)->display_info = dpyinfo;
   dpyinfo->reference_count++;
 
-  /* Initialize frame pixels to white on black BEFORE anything else */
+  /* Initialize frame pixels - standard Emacs: black text on white background */
   /* This is critical because face realization uses FRAME_FOREGROUND_PIXEL */
-  f->foreground_pixel = 0xffffff;  /* white */
-  f->background_pixel = 0x000000;  /* black */
-  FRAME_NEOMACS_OUTPUT (f)->foreground_pixel = 0xffffff;  /* white */
-  FRAME_NEOMACS_OUTPUT (f)->background_pixel = 0x000000;  /* black */
+  f->foreground_pixel = 0x000000;  /* black text */
+  f->background_pixel = 0xffffff;  /* white background */
+  FRAME_NEOMACS_OUTPUT (f)->foreground_pixel = 0x000000;  /* black text */
+  FRAME_NEOMACS_OUTPUT (f)->background_pixel = 0xffffff;  /* white background */
 
   /* Initialize frame dimensions */
   FRAME_FONTSET (f) = -1;
@@ -1136,10 +1255,10 @@ If the parameters specify a display, that display is used.  */)
   }
 
   /* Set foreground and background colors - REQUIRED for face realization */
-  /* Use white on black (dark theme) for better visibility with GTK4 dark window */
-  gui_default_parameter (f, parms, Qforeground_color, build_string ("white"),
+  /* Use black on white (standard Emacs default) */
+  gui_default_parameter (f, parms, Qforeground_color, build_string ("black"),
 			 "foreground", "Foreground", RES_TYPE_STRING);
-  gui_default_parameter (f, parms, Qbackground_color, build_string ("black"),
+  gui_default_parameter (f, parms, Qbackground_color, build_string ("white"),
 			 "background", "Background", RES_TYPE_STRING);
 
   /* Initialize faces - MUST be done before adjust_frame_size */
@@ -1226,6 +1345,23 @@ DEFUN ("x-display-visual-class", Fx_display_visual_class,
   (Lisp_Object terminal)
 {
   return intern ("true-color");
+}
+
+DEFUN ("xw-color-values", Fxw_color_values, Sxw_color_values, 1, 2, 0,
+       doc: /* Internal function called by `color-values'.
+Return a list of (RED GREEN BLUE) for COLOR on FRAME.
+Each value is in the range 0 to 65535 inclusive.  */)
+  (Lisp_Object color, Lisp_Object frame)
+{
+  Emacs_Color col;
+  struct frame *f = decode_window_system_frame (frame);
+
+  CHECK_STRING (color);
+
+  if (neomacs_defined_color (f, SSDATA (color), &col, false, false))
+    return list3i (col.red, col.green, col.blue);
+  else
+    return Qnil;
 }
 
 DEFUN ("x-open-connection", Fx_open_connection, Sx_open_connection, 1, 3, 0,
@@ -1365,6 +1501,7 @@ syms_of_neomacsfns (void)
   defsubr (&Sx_display_planes);
   defsubr (&Sx_display_color_cells);
   defsubr (&Sx_display_visual_class);
+  defsubr (&Sxw_color_values);
   defsubr (&Sx_display_list);
 
   /* Connection functions */

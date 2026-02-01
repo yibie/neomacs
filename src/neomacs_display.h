@@ -12,6 +12,14 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#define DRM_FORMAT_ARGB8888 875713089
+
+#define DRM_FORMAT_XRGB8888 875713112
+
+#define DRM_FORMAT_ABGR8888 875708993
+
+#define DRM_FORMAT_XBGR8888 875709016
+
 /**
  * Backend type selection
  */
@@ -77,8 +85,17 @@ void neomacs_display_set_cursor(struct NeomacsDisplay *handle,
                                 int visible);
 
 /**
+ * Draw a border rectangle (for window dividers)
+ */
+void neomacs_display_draw_border(struct NeomacsDisplay *handle,
+                                 int x,
+                                 int y,
+                                 int width,
+                                 int height,
+                                 uint32_t color);
+
+/**
  * Begin a new glyph row for the current window
- * x: starting X position for this glyph string
  */
 void neomacs_display_begin_row(struct NeomacsDisplay *handle,
                                int y,
@@ -136,27 +153,10 @@ void neomacs_display_set_face(struct NeomacsDisplay *handle,
                               int boxLineWidth);
 
 /**
- * Load an image from file path
- * Returns image_id on success, 0 on failure
+ * Set the frame/scene background color
+ * Color is in 0xRRGGBB format
  */
-uint32_t neomacs_display_load_image(struct NeomacsDisplay *handle, const char *path);
-
-/**
- * Load an image from raw bytes
- * Returns image_id on success, 0 on failure
- */
-uint32_t neomacs_display_load_image_data(struct NeomacsDisplay *handle, const uint8_t *data, size_t len);
-
-/**
- * Get image dimensions
- * Returns 0 on success, -1 on failure
- */
-int neomacs_display_get_image_size(struct NeomacsDisplay *handle, uint32_t imageId, int *width, int *height);
-
-/**
- * Free an image from cache
- */
-int neomacs_display_free_image(struct NeomacsDisplay *handle, uint32_t imageId);
+void neomacs_display_set_background(struct NeomacsDisplay *handle, uint32_t color);
 
 /**
  * Add a video glyph to the current row
@@ -188,19 +188,48 @@ int neomacs_display_video_pause(struct NeomacsDisplay *handle, uint32_t videoId)
 int neomacs_display_video_stop(struct NeomacsDisplay *handle, uint32_t videoId);
 
 /**
+ * Load an image from a file path
+ * Returns image_id on success, 0 on failure
+ */
+uint32_t neomacs_display_load_image(struct NeomacsDisplay *handle, const char *path);
+
+/**
+ * Load an image from raw bytes
+ * Returns image_id on success, 0 on failure
+ */
+uint32_t neomacs_display_load_image_data(struct NeomacsDisplay *handle,
+                                         const uint8_t *data,
+                                         uintptr_t len);
+
+/**
+ * Get image dimensions
+ * Returns 0 on success, -1 on failure
+ */
+int neomacs_display_get_image_size(struct NeomacsDisplay *handle,
+                                   uint32_t imageId,
+                                   int *width,
+                                   int *height);
+
+/**
+ * Free an image from cache
+ */
+int neomacs_display_free_image(struct NeomacsDisplay *handle, uint32_t imageId);
+
+/**
  * Set a floating video at a specific screen position
  * The video will be rendered on top of the frame
  */
 void neomacs_display_set_floating_video(struct NeomacsDisplay *handle,
                                         uint32_t videoId,
-                                        int x, int y,
-                                        int width, int height);
+                                        int x,
+                                        int y,
+                                        int width,
+                                        int height);
 
 /**
  * Remove a floating video
  */
-void neomacs_display_clear_floating_video(struct NeomacsDisplay *handle,
-                                          uint32_t videoId);
+void neomacs_display_clear_floating_video(struct NeomacsDisplay *handle, uint32_t videoId);
 
 /**
  * Set a floating image at a specific screen position
@@ -208,14 +237,15 @@ void neomacs_display_clear_floating_video(struct NeomacsDisplay *handle,
  */
 void neomacs_display_set_floating_image(struct NeomacsDisplay *handle,
                                         uint32_t imageId,
-                                        int x, int y,
-                                        int width, int height);
+                                        int x,
+                                        int y,
+                                        int width,
+                                        int height);
 
 /**
  * Remove a floating image
  */
-void neomacs_display_clear_floating_image(struct NeomacsDisplay *handle,
-                                          uint32_t imageId);
+void neomacs_display_clear_floating_image(struct NeomacsDisplay *handle, uint32_t imageId);
 
 /**
  * End frame and render
@@ -305,16 +335,16 @@ void neomacs_display_widget_init_pango(struct NeomacsDisplay *handle, void *widg
 int neomacs_display_render_to_widget(struct NeomacsDisplay *handle, void *widget);
 
 /**
- * Create a new WebKit view
- * Returns view_id on success, 0 on failure
- */
-uint32_t neomacs_display_webkit_create(struct NeomacsDisplay *handle, int width, int height);
-
-/**
  * Initialize WebKit subsystem with EGL display
  * Must be called before creating WebKit views
  */
 int neomacs_display_webkit_init(struct NeomacsDisplay *handle, void *eglDisplay);
+
+/**
+ * Create a new WebKit view
+ * Returns view_id on success, 0 on failure
+ */
+uint32_t neomacs_display_webkit_create(struct NeomacsDisplay *handle, int width, int height);
 
 /**
  * Destroy a WebKit view
@@ -351,43 +381,38 @@ int neomacs_display_webkit_execute_js(struct NeomacsDisplay *handle,
                                       const char *script);
 
 /**
- * Set a floating WebKit view at a specific screen position
+ * Set a floating WebKit view position and size
  */
 void neomacs_display_set_floating_webkit(struct NeomacsDisplay *handle,
                                          uint32_t webkitId,
-                                         int x, int y,
-                                         int width, int height);
+                                         int x,
+                                         int y,
+                                         int width,
+                                         int height);
 
 /**
  * Hide a floating WebKit view
  */
-void neomacs_display_hide_floating_webkit(struct NeomacsDisplay *handle,
-                                          uint32_t webkitId);
+void neomacs_display_hide_floating_webkit(struct NeomacsDisplay *handle, uint32_t webkitId);
 
 /**
  * Send keyboard event to WebKit view
- * @param key_code XKB keysym
- * @param hardware_key_code Physical scancode
- * @param pressed 1 for key down, 0 for key up
- * @param modifiers Bitmask: ctrl=1, shift=2, alt=4, meta=8
  */
 void neomacs_display_webkit_send_key(struct NeomacsDisplay *handle,
                                      uint32_t webkitId,
-                                     uint32_t key_code,
-                                     uint32_t hardware_key_code,
+                                     uint32_t keyCode,
+                                     uint32_t hardwareKeyCode,
                                      int pressed,
                                      uint32_t modifiers);
 
 /**
  * Send pointer/mouse event to WebKit view
- * @param event_type 1=motion, 2=button
- * @param button Mouse button (1=left, 2=middle, 3=right)
- * @param state Button state (1=pressed, 0=released)
  */
 void neomacs_display_webkit_send_pointer(struct NeomacsDisplay *handle,
                                          uint32_t webkitId,
-                                         uint32_t event_type,
-                                         int x, int y,
+                                         uint32_t eventType,
+                                         int x,
+                                         int y,
                                          uint32_t button,
                                          uint32_t state,
                                          uint32_t modifiers);
@@ -397,45 +422,44 @@ void neomacs_display_webkit_send_pointer(struct NeomacsDisplay *handle,
  */
 void neomacs_display_webkit_send_scroll(struct NeomacsDisplay *handle,
                                         uint32_t webkitId,
-                                        int x, int y,
-                                        int delta_x, int delta_y);
+                                        int x,
+                                        int y,
+                                        int deltaX,
+                                        int deltaY);
 
 /**
- * Click in WebKit view
+ * Click in WebKit view (convenience function)
  */
 void neomacs_display_webkit_click(struct NeomacsDisplay *handle,
                                   uint32_t webkitId,
-                                  int x, int y,
+                                  int x,
+                                  int y,
                                   uint32_t button);
 
 /**
- * Get WebKit view title
- * Returns dynamically allocated string, caller must free with webkit_free_string
+ * Get WebKit view title (returns null-terminated string, caller must free)
  */
 char *neomacs_display_webkit_get_title(struct NeomacsDisplay *handle, uint32_t webkitId);
 
 /**
- * Get WebKit view URL
- * Returns dynamically allocated string, caller must free with webkit_free_string
+ * Get WebKit view URL (returns null-terminated string, caller must free)
  */
 char *neomacs_display_webkit_get_url(struct NeomacsDisplay *handle, uint32_t webkitId);
 
 /**
- * Get WebKit view loading progress (0.0 - 1.0)
- * Returns -1 if view not found
+ * Get WebKit view loading progress (0.0 - 1.0), returns -1 if view not found
  */
 double neomacs_display_webkit_get_progress(struct NeomacsDisplay *handle, uint32_t webkitId);
 
 /**
- * Check if WebKit view is loading
- * Returns 1 if loading, 0 if not, -1 if view not found
+ * Check if WebKit view is loading (1=loading, 0=not loading, -1=not found)
  */
 int neomacs_display_webkit_is_loading(struct NeomacsDisplay *handle, uint32_t webkitId);
 
 /**
  * Free a string returned by webkit_get_title or webkit_get_url
  */
-void neomacs_display_webkit_free_string(char *str);
+void neomacs_display_webkit_free_string(char *s);
 
 /**
  * Add a WPE glyph to the current row

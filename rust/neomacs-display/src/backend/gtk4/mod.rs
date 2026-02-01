@@ -146,6 +146,7 @@ impl DisplayBackend for Gtk4Backend {
                 state.scene.height = scene.height;
                 state.scene.background = scene.background;
                 state.scene.windows = scene.windows.clone();
+                state.scene.borders = scene.borders.clone();
                 state.scene.dirty = scene.dirty;
                 state.needs_redraw = true;
             }

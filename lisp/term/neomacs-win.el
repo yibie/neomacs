@@ -96,10 +96,10 @@ DISPLAY is the name of the display Emacs should connect to."
 		     ;; Exit Emacs with fatal error if this fails.
 		     t)
 
-  ;; Create the default faces - use white on black (dark theme) for GTK4 dark window
-  (let ((color-map '((foreground-color . "white")
-                     (background-color . "black")
-                     (cursor-color . "white"))))
+  ;; Create the default faces - use black on white (standard Emacs default)
+  (let ((color-map '((foreground-color . "black")
+                     (background-color . "white")
+                     (cursor-color . "black"))))
     (dolist (param color-map)
       (add-to-list 'default-frame-alist param)))
 
@@ -112,8 +112,9 @@ DISPLAY is the name of the display Emacs should connect to."
   (x-handle-args args))
 
 ;; Frame creation for Neomacs
+;; Use x-create-frame-with-faces to properly initialize faces with colors
 (cl-defmethod frame-creation-function (params &context (window-system neomacs))
-  (x-create-frame params))
+  (x-create-frame-with-faces params))
 
 ;; Provide the feature
 (provide 'neomacs-win)

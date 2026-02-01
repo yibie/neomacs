@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use gtk4::prelude::*;
 use gtk4::{gdk, gsk, pango, graphene};
 
-use crate::core::scene::{Scene, WindowScene, CursorStyle};
+use crate::core::scene::{Scene, WindowScene, CursorStyle, BorderRect};
 use crate::core::glyph::{GlyphRow, GlyphType, GlyphData};
 use crate::core::face::FaceCache;
 use crate::core::types::Color;
@@ -142,6 +142,14 @@ impl GskRenderer {
             if let Some(window_node) = self.build_window_node(window, scene, video_cache, img_cache, webkit_cache) {
                 nodes.push(window_node);
             }
+        }
+
+        // Render window borders (vertical dividers, etc.) on top of windows
+        for border in &scene.borders {
+            let border_rect = graphene::Rect::new(border.x, border.y, border.width, border.height);
+            let border_color = color_to_gdk(&border.color);
+            let border_node = gsk::ColorNode::new(&border_color, &border_rect);
+            nodes.push(border_node.upcast());
         }
 
         // Render floating videos on top

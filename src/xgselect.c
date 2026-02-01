@@ -153,6 +153,7 @@ xg_select (int fds_lim, fd_set *rfds, fd_set *wfds, fd_set *efds,
 				     gfds, gfds_size);
     }
 
+  static int xg_select_calls = 0;
   for (i = 0; i < n_gfds; ++i)
     {
       if (gfds[i].events & G_IO_IN)
@@ -167,6 +168,9 @@ xg_select (int fds_lim, fd_set *rfds, fd_set *wfds, fd_set *efds,
           have_wfds = true;
         }
     }
+  if (++xg_select_calls % 1000 == 0)
+    fprintf (stderr, "DEBUG xg_select: n_gfds=%d, max_fds=%d, tmo=%d (call #%d)\n",
+             n_gfds, max_fds, tmo_in_millisec, xg_select_calls);
 
   if (must_free)
     xfree (gfds);

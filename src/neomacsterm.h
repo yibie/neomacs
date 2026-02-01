@@ -23,6 +23,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include "frame.h"
 #include "character.h"
 #include "font.h"
+#include "keyboard.h"  /* For union buffered_input_event */
 
 #ifdef HAVE_NEOMACS
 
@@ -130,6 +131,9 @@ struct neomacs_display_info
   int last_mouse_motion_x;
   int last_mouse_motion_y;
 
+  /* Last user interaction time (for focus stealing prevention) */
+  guint32 last_user_time;
+
   /* Whether the display supports ARGB visuals */
   bool_bf supports_argb : 1;
 
@@ -150,6 +154,9 @@ struct neomacs_output
   void *widget;
   void *container;
   void *drawing_area;
+
+  /* Input method context */
+  void *im_context;
 
   /* Whether using GPU-accelerated widget */
   int use_gpu_widget;
@@ -315,6 +322,9 @@ extern void neomacs_expose_frame (struct frame *);
 /* Mouse */
 extern void neomacs_frame_up_to_date (struct frame *);
 extern void neomacs_focus_frame (struct frame *, bool);
+
+/* Event queue for input events */
+extern void neomacs_evq_enqueue (union buffered_input_event *ev);
 
 /* Cairo integration for font rendering (ftcrfont.c) */
 typedef struct _cairo cairo_t;  /* Forward declaration */

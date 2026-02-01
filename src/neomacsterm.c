@@ -44,6 +44,79 @@ struct wl_display;
 /* List of Neomacs display info structures */
 struct neomacs_display_info *neomacs_display_list = NULL;
 
+/* Event queue for buffering input events from GTK callbacks */
+struct neomacs_event_queue_t
+{
+  union buffered_input_event *q;
+  int nr, cap;
+};
+
+static struct neomacs_event_queue_t neomacs_event_q;
+
+/* Enqueue an event from GTK callback to be processed by read_socket */
+void
+neomacs_evq_enqueue (union buffered_input_event *ev)
+{
+  struct neomacs_event_queue_t *evq = &neomacs_event_q;
+  struct frame *frame;
+  struct neomacs_display_info *dpyinfo;
+
+  if (evq->cap == 0)
+    {
+      evq->cap = 4;
+      evq->q = xmalloc (sizeof *evq->q * evq->cap);
+    }
+
+  if (evq->nr >= evq->cap)
+    {
+      evq->cap += evq->cap / 2;
+      evq->q = xrealloc (evq->q, sizeof *evq->q * evq->cap);
+    }
+
+  evq->q[evq->nr++] = *ev;
+
+  /* Update last user time */
+  frame = NULL;
+  if (WINDOWP (ev->ie.frame_or_window))
+    frame = WINDOW_XFRAME (XWINDOW (ev->ie.frame_or_window));
+  if (FRAMEP (ev->ie.frame_or_window))
+    frame = XFRAME (ev->ie.frame_or_window);
+
+  if (frame)
+    {
+      dpyinfo = FRAME_DISPLAY_INFO (frame);
+      if (dpyinfo && dpyinfo->last_user_time < ev->ie.timestamp)
+        dpyinfo->last_user_time = ev->ie.timestamp;
+    }
+
+  /* Signal Emacs that input is available */
+  raise (SIGIO);
+}
+
+/* Flush events from queue to Emacs keyboard buffer */
+static int
+neomacs_evq_flush (struct input_event *hold_quit)
+{
+  struct neomacs_event_queue_t *evq = &neomacs_event_q;
+  int n = 0;
+
+  while (evq->nr > 0)
+    {
+      /* kbd_buffer_store_buffered_event may do longjmp, so
+         we need to shift event queue first.  Bug#52941 */
+      union buffered_input_event ev = evq->q[0];
+      int i;
+      for (i = 1; i < evq->nr; i++)
+        evq->q[i - 1] = evq->q[i];
+      evq->nr--;
+
+      kbd_buffer_store_buffered_event (&ev, hold_quit);
+      n++;
+    }
+
+  return n;
+}
+
 /* Forward declarations */
 extern frame_parm_handler neomacs_frame_parm_handlers[];
 
@@ -54,6 +127,7 @@ static void neomacs_make_frame_visible_invisible (struct frame *, bool);
 static void neomacs_after_update_window_line (struct window *, struct glyph_row *);
 static void neomacs_update_window_begin (struct window *);
 static void neomacs_update_window_end (struct window *, bool, bool);
+static void neomacs_draw_vertical_window_border (struct window *, int, int, int);
 
 /* The redisplay interface for Neomacs frames - statically initialized.
    All function pointers are declared extern in neomacsterm.h */
@@ -80,7 +154,7 @@ static struct redisplay_interface neomacs_redisplay_interface = {
   .clear_frame_area = neomacs_clear_frame_area,
   .clear_under_internal_border = NULL,
   .draw_window_cursor = neomacs_draw_window_cursor,
-  .draw_vertical_window_border = NULL,
+  .draw_vertical_window_border = neomacs_draw_vertical_window_border,
   .draw_window_divider = NULL,
   .shift_glyphs_for_insert = NULL,
   .show_hourglass = NULL,
@@ -126,6 +200,9 @@ neomacs_open_display (const char *display_name)
       xfree (dpyinfo);
       error ("Failed to initialize Neomacs display engine");
     }
+
+  /* Set the background color to white (Emacs default) */
+  neomacs_display_set_background (dpyinfo->display_handle, dpyinfo->background_pixel);
 
   /* Add to display list */
   dpyinfo->next = neomacs_display_list;
@@ -209,7 +286,7 @@ neomacs_initialize_display_info (struct neomacs_display_info *dpyinfo)
 	    }
 	}
 
-      if (0) fprintf (stderr, "DEBUG: Display connection fd: %d\n", dpyinfo->connection);
+      if (1) fprintf (stderr, "DEBUG: Display connection fd: %d\n", dpyinfo->connection);
     }
 }
 
@@ -283,7 +360,13 @@ neomacs_create_terminal (struct neomacs_display_info *dpyinfo)
 
   /* Register the display connection fd for event handling */
   if (dpyinfo->connection >= 0)
-    add_keyboard_wait_descriptor (dpyinfo->connection);
+    {
+      add_keyboard_wait_descriptor (dpyinfo->connection);
+      fprintf (stderr, "DEBUG: Registered fd %d with add_keyboard_wait_descriptor\n", 
+               dpyinfo->connection);
+    }
+  else
+    fprintf (stderr, "DEBUG: WARNING: No valid connection fd to register!\n");
 
   /* More hooks would be set up here... */
 
@@ -349,6 +432,9 @@ neomacs_update_window_begin (struct window *w)
       int height = WINDOW_PIXEL_HEIGHT (w);
       unsigned long bg = FRAME_BACKGROUND_PIXEL (f);
       int selected = (w == XWINDOW (f->selected_window)) ? 1 : 0;
+
+      fprintf (stderr, "DEBUG add_window: x=%d y=%d w=%d h=%d bg=%08lx\n",
+               x, y, width, height, bg);
 
       neomacs_display_add_window (dpyinfo->display_handle,
                                   (intptr_t) w,  /* window_id */
@@ -512,8 +598,20 @@ neomacs_draw_glyph_string (struct glyph_string *s)
       /* Forward glyph data to Rust scene graph */
       if (dpyinfo && dpyinfo->display_handle && s->first_glyph && s->row)
         {
-          /* Always call begin_row - pass X position for glyph replacement */
-          int row_y = s->row->y;
+          /* Calculate absolute Y position: window top edge + row Y within window */
+          struct window *w = XWINDOW (s->f->selected_window);
+          if (s->w)
+            w = s->w;  /* Use the actual window from glyph_string if available */
+          int window_top = WINDOW_TOP_EDGE_Y (w);
+          int row_y = window_top + s->row->y;
+          
+          static int debug_count = 0;
+          if (debug_count < 100)
+            {
+              fprintf (stderr, "DEBUG draw_glyph: window_top=%d, row->y=%d, row_y=%d, x=%d, nchars=%d\n",
+                       window_top, s->row->y, row_y, s->x, s->nchars);
+              debug_count++;
+            }
           
           neomacs_display_begin_row (dpyinfo->display_handle,
                                      row_y,
@@ -538,6 +636,16 @@ neomacs_draw_glyph_string (struct glyph_string *s)
                 fg = FRAME_FOREGROUND_PIXEL(s->f);
               if (face->background_defaulted_p)
                 bg = FRAME_BACKGROUND_PIXEL(s->f);
+              
+              static int face_debug = 0;
+              if (face_debug < 20)
+                {
+                  fprintf (stderr, "DEBUG face: id=%d, face->fg=%08lx, face->bg=%08lx, fg_default=%d, bg_default=%d, frame_fg=%08lx, frame_bg=%08lx\n",
+                           face_id, face->foreground, face->background,
+                           face->foreground_defaulted_p, face->background_defaulted_p,
+                           FRAME_FOREGROUND_PIXEL(s->f), FRAME_BACKGROUND_PIXEL(s->f));
+                  face_debug++;
+                }
               
               /* Convert Emacs colors to 0xRRGGBB format */
               uint32_t fg_rgb = ((RED_FROM_ULONG(fg) << 16) |
@@ -669,8 +777,12 @@ neomacs_draw_glyph_string (struct glyph_string *s)
   /* Forward glyph data to Rust scene graph if available */
   if (dpyinfo && dpyinfo->display_handle && s->first_glyph && s->row)
     {
-      /* Always call begin_row - pass X position for glyph replacement */
-      int row_y = s->row->y;
+      /* Calculate absolute Y position: window top edge + row Y within window */
+      struct window *w = XWINDOW (s->f->selected_window);
+      if (s->w)
+        w = s->w;  /* Use the actual window from glyph_string if available */
+      int window_top = WINDOW_TOP_EDGE_Y (w);
+      int row_y = window_top + s->row->y;
       neomacs_display_begin_row (dpyinfo->display_handle,
                                  row_y,
                                  s->x,  /* Starting X position for this glyph string */
@@ -902,6 +1014,52 @@ neomacs_clear_frame_area (struct frame *f, int x, int y, int width, int height)
   cairo_set_source_rgb (cr, r, g, b);
   cairo_rectangle (cr, x, y, width, height);
   cairo_fill (cr);
+}
+
+/* Draw vertical window border - used for horizontal splits (C-x 3) */
+static void
+neomacs_draw_vertical_window_border (struct window *w, int x, int y0, int y1)
+{
+  struct frame *f = XFRAME (WINDOW_FRAME (w));
+  struct neomacs_output *output = FRAME_NEOMACS_OUTPUT (f);
+  struct neomacs_display_info *dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
+  struct face *face;
+  unsigned long fg;
+
+  fprintf (stderr, "DEBUG C draw_vertical_border: x=%d, y0=%d, y1=%d, dpyinfo=%p, handle=%p\n",
+           x, y0, y1, (void*)dpyinfo, dpyinfo ? (void*)dpyinfo->display_handle : NULL);
+
+  if (!output)
+    return;
+
+  /* Get the vertical border face color, or fall back to black */
+  face = FACE_FROM_ID_OR_NULL (f, VERTICAL_BORDER_FACE_ID);
+  if (face)
+    fg = face->foreground;
+  else
+    fg = 0;  /* Black */
+
+  /* Use GPU path if available */
+  if (dpyinfo && dpyinfo->display_handle)
+    {
+      /* Convert to ARGB format with full opacity */
+      uint32_t color = (0xFF << 24) | (fg & 0xFFFFFF);
+      fprintf (stderr, "DEBUG C: calling neomacs_display_draw_border\n");
+      neomacs_display_draw_border (dpyinfo->display_handle,
+                                   x, y0, 1, y1 - y0, color);
+    }
+  else if (output->cr_context)
+    {
+      /* Fallback to Cairo */
+      fprintf (stderr, "DEBUG C: using Cairo fallback\n");
+      cairo_t *cr = output->cr_context;
+      double r = RED_FROM_ULONG (fg) / 255.0;
+      double g = GREEN_FROM_ULONG (fg) / 255.0;
+      double b = BLUE_FROM_ULONG (fg) / 255.0;
+      cairo_set_source_rgb (cr, r, g, b);
+      cairo_rectangle (cr, x, y0, 1, y1 - y0);
+      cairo_fill (cr);
+    }
 }
 
 /* Draw fringe bitmap */
@@ -1165,28 +1323,54 @@ int
 neomacs_read_socket (struct terminal *terminal, struct input_event *hold_quit)
 {
   GMainContext *context;
-  int count = 0;
-  static int call_count = 0;
+  bool context_acquired = false;
+  int count;
+  static int read_socket_calls = 0;
 
-  call_count++;
-  if (call_count <= 5 || (call_count % 100 == 0))
-    if (0) fprintf (stderr, "DEBUG: neomacs_read_socket called, count=%d\n", call_count);
+  /* First, flush any already-queued events */
+  count = neomacs_evq_flush (hold_quit);
+  if (count > 0)
+    {
+      fprintf (stderr, "DEBUG: read_socket: flushed %d pre-queued events\n", count);
+      return count;
+    }
 
   /* Get the default GLib main context */
   context = g_main_context_default ();
+  context_acquired = g_main_context_acquire (context);
 
   block_input ();
 
-  /* Process pending GTK events using iteration
-     - FALSE means don't block if no events */
-  while (g_main_context_iteration (context, FALSE))
+  /* Process pending GTK events - this will trigger our callbacks
+     which enqueue events via neomacs_evq_enqueue */
+  if (context_acquired)
     {
-      /* Events were processed - increment count to tell Emacs we did something */
-      count++;
+      int pending_count = 0;
+      while (g_main_context_pending (context))
+        {
+          g_main_context_dispatch (context);
+          pending_count++;
+        }
+      if (++read_socket_calls % 500 == 0)
+        fprintf (stderr, "DEBUG: read_socket: dispatched %d events (call #%d)\n", 
+                 pending_count, read_socket_calls);
+    }
+  else
+    {
+      if (++read_socket_calls % 500 == 0)
+        fprintf (stderr, "DEBUG: read_socket: could NOT acquire context (call #%d)\n", 
+                 read_socket_calls);
     }
 
   unblock_input ();
 
+  if (context_acquired)
+    g_main_context_release (context);
+
+  /* Flush events that were queued during dispatch */
+  count = neomacs_evq_flush (hold_quit);
+  if (count > 0)
+    fprintf (stderr, "DEBUG: read_socket: flushed %d events after dispatch\n", count);
   return count;
 }
 
@@ -1840,24 +2024,69 @@ DEFUN ("neomacs-webkit-loading-p", Fneomacs_webkit_loading_p, Sneomacs_webkit_lo
  * Miscellaneous Functions
  * ============================================================================ */
 
+/* Find display info for a given display name.  */
+static struct neomacs_display_info *
+neomacs_display_info_for_name (Lisp_Object name)
+{
+  struct neomacs_display_info *dpyinfo;
+
+  CHECK_STRING (name);
+
+  for (dpyinfo = neomacs_display_list; dpyinfo; dpyinfo = dpyinfo->next)
+    {
+      if (dpyinfo->name_list_element
+          && !NILP (Fstring_equal (XCAR (dpyinfo->name_list_element), name)))
+        return dpyinfo;
+    }
+
+  /* If display not found, try to open it.  For now, just use first display.  */
+  if (neomacs_display_list)
+    return neomacs_display_list;
+
+  error ("Cannot connect to Neomacs display: %s", SDATA (name));
+}
+
 /* Called from frame.c to get display info for x-get-resource.  */
 struct neomacs_display_info *
 check_x_display_info (Lisp_Object frame)
 {
-  struct frame *f;
+  struct neomacs_display_info *dpyinfo = NULL;
 
   if (NILP (frame))
-    f = SELECTED_FRAME ();
+    {
+      struct frame *sf = XFRAME (selected_frame);
+
+      if (FRAME_NEOMACS_P (sf) && FRAME_LIVE_P (sf))
+        dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (sf);
+      else if (x_display_list != NULL)
+        dpyinfo = x_display_list;
+      else
+        error ("Neomacs frames are not in use or not initialized");
+    }
+  else if (TERMINALP (frame))
+    {
+      struct terminal *t = decode_live_terminal (frame);
+
+      if (t->type != output_neomacs)
+        error ("Terminal %d is not a Neomacs display", t->id);
+
+      dpyinfo = t->display_info.neomacs;
+    }
+  else if (STRINGP (frame))
+    dpyinfo = neomacs_display_info_for_name (frame);
   else
     {
+      struct frame *f;
       CHECK_FRAME (frame);
       f = XFRAME (frame);
+
+      if (!FRAME_NEOMACS_P (f))
+        error ("Frame is not a Neomacs frame");
+
+      dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
     }
 
-  if (!FRAME_NEOMACS_P (f))
-    error ("Frame is not a Neomacs frame");
-
-  return FRAME_NEOMACS_DISPLAY_INFO (f);
+  return dpyinfo;
 }
 
 /* Get a human-readable name for a keysym.  */

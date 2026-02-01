@@ -85,6 +85,16 @@ void neomacs_display_set_cursor(struct NeomacsDisplay *handle,
                                 int visible);
 
 /**
+ * Draw a border rectangle (for window dividers)
+ */
+void neomacs_display_draw_border(struct NeomacsDisplay *handle,
+                                 int x,
+                                 int y,
+                                 int width,
+                                 int height,
+                                 uint32_t color);
+
+/**
  * Begin a new glyph row for the current window
  */
 void neomacs_display_begin_row(struct NeomacsDisplay *handle,
@@ -141,6 +151,12 @@ void neomacs_display_set_face(struct NeomacsDisplay *handle,
                               int boxType,
                               uint32_t boxColor,
                               int boxLineWidth);
+
+/**
+ * Set the frame/scene background color
+ * Color is in 0xRRGGBB format
+ */
+void neomacs_display_set_background(struct NeomacsDisplay *handle, uint32_t color);
 
 /**
  * Add a video glyph to the current row

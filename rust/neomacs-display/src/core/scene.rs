@@ -187,7 +187,7 @@ impl Node {
 /// Represents a window in the scene
 #[derive(Debug, Clone)]
 pub struct WindowScene {
-    /// Window ID
+    /// Window ID (from Emacs window pointer)
     pub window_id: i32,
 
     /// Position and size
@@ -213,6 +213,9 @@ pub struct WindowScene {
 
     /// Header line height
     pub header_line_height: i32,
+
+    /// Frame counter when this window was last touched (for stale window removal)
+    pub last_frame_touched: u64,
 }
 
 /// Cursor state in a window
@@ -257,6 +260,19 @@ pub struct Scene {
 
     /// Floating WebKit views at screen positions
     pub floating_webkits: Vec<FloatingWebKit>,
+
+    /// Vertical/horizontal window borders
+    pub borders: Vec<BorderRect>,
+}
+
+/// Border rectangle for window dividers
+#[derive(Debug, Clone)]
+pub struct BorderRect {
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+    pub color: Color,
 }
 
 /// Floating video layer for rendering video at a specific screen position
@@ -303,6 +319,7 @@ impl Scene {
             floating_videos: Vec::new(),
             floating_images: Vec::new(),
             floating_webkits: Vec::new(),
+            borders: Vec::new(),
         }
     }
 
@@ -402,6 +419,17 @@ impl Scene {
         self.mark_dirty();
     }
 
+    /// Add a border rectangle
+    pub fn add_border(&mut self, x: f32, y: f32, width: f32, height: f32, color: Color) {
+        self.borders.push(BorderRect { x, y, width, height, color });
+        self.mark_dirty();
+    }
+
+    /// Clear all borders
+    pub fn clear_borders(&mut self) {
+        self.borders.clear();
+    }
+
     /// Build the scene graph from windows
     pub fn build(&mut self) {
         let mut children = Vec::new();
@@ -415,6 +443,14 @@ impl Scene {
         // Each window
         for window in &self.windows {
             children.push(self.build_window_node(window));
+        }
+
+        // Borders (drawn on top of windows)
+        for border in &self.borders {
+            children.push(Node::color_rect(
+                Rect::new(border.x, border.y, border.width, border.height),
+                border.color,
+            ));
         }
 
         self.root = Some(Node::container(children));
