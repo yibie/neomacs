@@ -1101,6 +1101,7 @@ adjust_frame_size (struct frame *f, int new_text_width, int new_text_height,
   FRAME_TEXT_HEIGHT (f) = new_text_height;
   FRAME_PIXEL_WIDTH (f) = new_native_width;
   FRAME_PIXEL_HEIGHT (f) = new_native_height;
+  
   FRAME_TOTAL_COLS (f) = FRAME_PIXEL_WIDTH (f) / FRAME_COLUMN_WIDTH (f);
   FRAME_TOTAL_LINES (f) = FRAME_PIXEL_HEIGHT (f) / FRAME_LINE_HEIGHT (f);
 

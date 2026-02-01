@@ -31,6 +31,8 @@ thread_local! {
     // Store CLONED glyphs, not a pointer - pointer becomes invalid when Emacs clears buffer
     pub static WIDGET_FRAME_GLYPHS: RefCell<Option<FrameGlyphBuffer>> = const { RefCell::new(None) };
     pub static WIDGET_USE_HYBRID: RefCell<bool> = const { RefCell::new(true) };
+    // Resize callback - called when widget size changes
+    pub static WIDGET_RESIZE_CALLBACK: RefCell<Option<Box<dyn Fn(i32, i32) + Send + 'static>>> = const { RefCell::new(None) };
 }
 
 /// Set the video cache for widget rendering (called from FFI before queue_draw)
@@ -71,6 +73,16 @@ pub fn set_widget_use_hybrid(use_hybrid: bool) {
     });
 }
 
+/// Set the resize callback - called when widget size changes
+pub fn set_widget_resize_callback<F>(callback: F)
+where
+    F: Fn(i32, i32) + Send + 'static,
+{
+    WIDGET_RESIZE_CALLBACK.with(|c| {
+        *c.borrow_mut() = Some(Box::new(callback));
+    });
+}
+
 /// Inner state for NeomacsWidget
 #[derive(Default)]
 pub struct NeomacsWidgetInner {
@@ -82,6 +94,8 @@ pub struct NeomacsWidgetInner {
     hybrid_renderer: RefCell<HybridRenderer>,
     /// Whether Pango context has been initialized
     pango_initialized: RefCell<bool>,
+    /// Last known size (to detect changes)
+    last_size: RefCell<(i32, i32)>,
 }
 
 /// GObject subclass implementation
@@ -197,6 +211,25 @@ impl WidgetImpl for NeomacsWidgetInner {
             let rect = graphene::Rect::new(0.0, 0.0, width, height);
             let color = gtk4::gdk::RGBA::new(1.0, 0.0, 0.0, 1.0);
             snapshot.append_color(&color, &rect);
+        }
+    }
+
+    fn size_allocate(&self, width: i32, height: i32, baseline: i32) {
+        // Call parent implementation
+        self.parent_size_allocate(width, height, baseline);
+        
+        // Check if size changed
+        let last_size = *self.last_size.borrow();
+        if last_size != (width, height) {
+            *self.last_size.borrow_mut() = (width, height);
+            debug!("NeomacsWidget size_allocate: {}x{}", width, height);
+            
+            // Call resize callback if set
+            WIDGET_RESIZE_CALLBACK.with(|c| {
+                if let Some(ref callback) = *c.borrow() {
+                    callback(width, height);
+                }
+            });
         }
     }
 

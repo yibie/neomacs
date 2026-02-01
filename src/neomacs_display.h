@@ -160,6 +160,17 @@ void neomacs_display_set_face(struct NeomacsDisplay *handle,
 void neomacs_display_set_background(struct NeomacsDisplay *handle, uint32_t color);
 
 /**
+ * Resize callback function type
+ */
+typedef void (*neomacs_resize_callback_fn)(void *user_data, int width, int height);
+
+/**
+ * Set the resize callback for the NeomacsWidget
+ * The callback will be called whenever the widget is resized
+ */
+void neomacs_display_set_resize_callback(neomacs_resize_callback_fn callback, void *user_data);
+
+/**
  * Add a video glyph to the current row
  */
 void neomacs_display_add_video_glyph(struct NeomacsDisplay *handle,

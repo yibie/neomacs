@@ -20,7 +20,7 @@ use crate::backend::DisplayBackend;
 pub use renderer::Gtk4Renderer;
 pub use gsk_renderer::GskRenderer;
 pub use hybrid_renderer::HybridRenderer;
-pub use widget::{NeomacsWidget, set_widget_video_cache, set_widget_image_cache, set_widget_frame_glyphs, set_widget_use_hybrid};
+pub use widget::{NeomacsWidget, set_widget_video_cache, set_widget_image_cache, set_widget_frame_glyphs, set_widget_use_hybrid, set_widget_resize_callback};
 pub use video::{VideoCache, set_video_widget};
 pub use image::ImageCache;
 

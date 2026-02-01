@@ -79,7 +79,7 @@ pub unsafe extern "C" fn neomacs_display_init(backend: BackendType) -> *mut Neom
         gtk4_backend: None,
         tty_backend: None,
         scene: Scene::new(800.0, 600.0),
-        frame_glyphs: FrameGlyphBuffer::new(),
+        frame_glyphs: FrameGlyphBuffer::with_size(800.0, 600.0),  // Match initial scene size
         use_hybrid,
         animations: AnimationManager::new(),
         renderer: Gtk4Renderer::new(),
@@ -162,6 +162,13 @@ pub unsafe extern "C" fn neomacs_display_resize(
 
     let display = &mut *handle;
     display.scene = Scene::new(width as f32, height as f32);
+    
+    // Update frame_glyphs buffer size and CLEAR it for fresh redraw
+    display.frame_glyphs.width = width as f32;
+    display.frame_glyphs.height = height as f32;
+    display.frame_glyphs.glyphs.clear();  // Clear all glyphs - Emacs will resend
+    display.frame_glyphs.window_regions.clear();
+    display.frame_glyphs.prev_window_regions.clear();
 
     if let Some(backend) = display.get_backend() {
         backend.resize(width as u32, height as u32);
@@ -1585,6 +1592,27 @@ pub unsafe extern "C" fn neomacs_display_render_to_widget(
     }
 
     0
+}
+
+/// Type for the resize callback function pointer from C
+pub type ResizeCallbackFn = extern "C" fn(user_data: *mut c_void, width: c_int, height: c_int);
+
+/// Set the resize callback for the NeomacsWidget
+/// The callback will be called whenever the widget is resized
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_resize_callback(
+    callback: ResizeCallbackFn,
+    user_data: *mut c_void,
+) {
+    use crate::backend::gtk4::set_widget_resize_callback;
+    
+    // Store the raw pointer - it must remain valid for the lifetime of the callback
+    let user_data_ptr = user_data as usize;
+    
+    set_widget_resize_callback(move |width, height| {
+        // Call the C callback
+        callback(user_data_ptr as *mut c_void, width as c_int, height as c_int);
+    });
 }
 
 // ============================================================================

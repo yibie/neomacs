@@ -337,6 +337,12 @@ void neomacs_display_widget_init_pango(struct NeomacsDisplay *handle, void *widg
 int neomacs_display_render_to_widget(struct NeomacsDisplay *handle, void *widget);
 
 /**
+ * Set the resize callback for the NeomacsWidget
+ * The callback will be called whenever the widget is resized
+ */
+void neomacs_display_set_resize_callback(ResizeCallbackFn callback, void *userData);
+
+/**
  * Initialize WebKit subsystem with EGL display
  * Must be called before creating WebKit views
  */

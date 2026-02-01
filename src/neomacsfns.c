@@ -449,7 +449,58 @@ neomacs_resize_cb (GtkDrawingArea *area, int width, int height,
 
   if (new_cols != old_cols || new_rows != old_rows)
     {
-      change_frame_size (f, new_cols, new_rows, false, true, false);
+      /* change_frame_size expects PIXEL dimensions, not character dimensions */
+      change_frame_size (f, width, height, false, true, false);
+    }
+}
+
+/* Callback for GPU widget resize (called from Rust via FFI) */
+static void
+neomacs_widget_resize_cb (void *user_data, int width, int height)
+{
+  struct frame *f = (struct frame *) user_data;
+
+  if (!f || !FRAME_LIVE_P (f) || !FRAME_NEOMACS_P (f))
+    return;
+
+  struct neomacs_display_info *dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
+
+  /* Update Rust display engine with new size */
+  if (dpyinfo && dpyinfo->display_handle)
+    neomacs_display_resize (dpyinfo->display_handle, width, height);
+
+  /* Avoid division by zero */
+  int col_width = FRAME_COLUMN_WIDTH (f);
+  int line_height = FRAME_LINE_HEIGHT (f);
+  if (col_width <= 0) col_width = 8;
+  if (line_height <= 0) line_height = 16;
+  
+  int new_cols = width / col_width;
+  int new_rows = height / line_height;
+
+  if (new_cols > 0 && new_rows > 0)
+    {
+      /* Update pixel dimensions */
+      FRAME_PIXEL_WIDTH (f) = width;
+      FRAME_PIXEL_HEIGHT (f) = height;
+      
+      /* Change frame size - pass PIXEL dimensions, not character dimensions */
+      change_frame_size (f, width, height, false, true, false);
+      
+      /* Reallocate glyph matrices for new size */
+      adjust_frame_glyphs (f);
+      
+      /* Clear old glyph data that was built with wrong size */
+      clear_current_matrices (f);
+      
+      /* Force full redisplay to update content */
+      SET_FRAME_GARBAGED (f);
+      
+      /* Also mark windows as needing update */
+      mark_window_display_accurate (FRAME_ROOT_WINDOW (f), false);
+      
+      /* Signal that windows changed - forces redisplay cycle */
+      windows_or_buffers_changed = 63;
     }
 }
 
@@ -683,7 +734,6 @@ if (0) fprintf (stderr, "DEBUG: Focus left frame %p\n", (void *) f);
     {
       dpyinfo->highlight_frame = NULL;
       dpyinfo->x_highlight_frame = NULL;
-      fprintf (stderr, "DEBUG: Cleared highlight_frame\n");
     }
 
   /* Send focus-out event to Emacs */
@@ -707,16 +757,9 @@ neomacs_realize_cb (GtkWidget *widget, gpointer user_data)
   if (!output)
     return;
   
-  fprintf (stderr, "DEBUG: Widget %p realized, grabbing focus on drawing_area %p\n",
-           (void *) widget, (void *) output->drawing_area);
-  
-  /* Now grab focus on the drawing area */
+  /* Grab focus on the drawing area once widget is realized */
   if (output->drawing_area)
-    {
-      gtk_widget_grab_focus (output->drawing_area);
-      fprintf (stderr, "DEBUG: After realize focus grab: has_focus=%d\n",
-               gtk_widget_has_focus (output->drawing_area));
-    }
+    gtk_widget_grab_focus (output->drawing_area);
 }
 
 /* Callback for GTK4 window close request */
@@ -724,8 +767,6 @@ static gboolean
 neomacs_close_request_cb (GtkWindow *window, gpointer user_data)
 {
   struct frame *f = (struct frame *) user_data;
-
-  fprintf (stderr, "DEBUG: Close request received for frame %p\n", (void *) f);
 
   if (FRAME_LIVE_P (f))
     {
@@ -751,20 +792,13 @@ neomacs_click_pressed_cb (GtkGestureClick *gesture, int n_press,
   GdkModifierType state = 0;
   GdkEvent *event;
 
-  fprintf (stderr, "DEBUG: Click pressed at (%f, %f), n_press=%d, frame=%p\n", x, y, n_press, (void*)f);
-
   if (!FRAME_LIVE_P (f))
-    {
-      fprintf (stderr, "DEBUG: Frame not live, ignoring click\n");
-      return;
-    }
+    return;
 
   button = gtk_gesture_single_get_current_button (GTK_GESTURE_SINGLE (gesture));
   event = gtk_event_controller_get_current_event (GTK_EVENT_CONTROLLER (gesture));
   if (event)
     state = gdk_event_get_modifier_state (event);
-
-  fprintf (stderr, "DEBUG: Button=%u, state=%u\n", button, state);
 
   EVENT_INIT (ie);
   ie.kind = MOUSE_CLICK_EVENT;
@@ -793,18 +827,11 @@ neomacs_click_pressed_cb (GtkGestureClick *gesture, int n_press,
     if (widget)
       {
         gtk_widget_grab_focus (widget);
-        fprintf (stderr, "DEBUG: Grabbed focus on widget %p, has_focus=%d, focusable=%d\n", 
-                 (void*)widget, 
-                 gtk_widget_has_focus (widget),
-                 gtk_widget_get_focusable (widget));
         
-        /* Also try to set window focus */
+        /* Also set window focus */
         GtkWidget *window = gtk_widget_get_ancestor (widget, GTK_TYPE_WINDOW);
         if (window)
-          {
-            gtk_window_set_focus (GTK_WINDOW (window), widget);
-            fprintf (stderr, "DEBUG: Set window %p focus to widget %p\n", (void*)window, (void*)widget);
-          }
+          gtk_window_set_focus (GTK_WINDOW (window), widget);
       }
   }
 }
@@ -982,11 +1009,11 @@ neomacs_create_frame_widgets (struct frame *f)
   gtk_widget_set_opacity (drawing_area, 1.0);
   gtk_widget_set_opacity (window, 1.0);
 
-  /* Add CSS to set a solid background */
+  /* Add CSS to set a solid background (black for dark theme) */
   {
     GtkCssProvider *css_provider = gtk_css_provider_new ();
     gtk_css_provider_load_from_string (css_provider,
-      "window, drawingarea { background-color: white; }");
+      "window, drawingarea { background-color: black; }");
     gtk_style_context_add_provider_for_display (
       gdk_display_get_default (),
       GTK_STYLE_PROVIDER (css_provider),
@@ -1000,13 +1027,17 @@ neomacs_create_frame_widgets (struct frame *f)
   gtk_widget_set_focusable (drawing_area, TRUE);
   gtk_widget_set_can_focus (drawing_area, TRUE);
 
-  /* Connect callbacks - only set resize for DrawingArea (not GPU widget) */
+  /* Connect callbacks - resize handling differs between widget types */
   if (!use_gpu_widget)
     {
-      /* Draw func was already set above for DrawingArea */
-      /* Resize signal is DrawingArea-specific */
+      /* DrawingArea has its own resize signal */
       g_signal_connect (drawing_area, "resize",
                         G_CALLBACK (neomacs_resize_cb), f);
+    }
+  else
+    {
+      /* GPU widget: use Rust callback mechanism since NeomacsWidget doesn't have resize signal */
+      neomacs_display_set_resize_callback (neomacs_widget_resize_cb, f);
     }
   g_signal_connect (window, "close-request",
                     G_CALLBACK (neomacs_close_request_cb), f);
@@ -1017,7 +1048,6 @@ neomacs_create_frame_widgets (struct frame *f)
   g_signal_connect (key_controller, "key-pressed",
 		    G_CALLBACK (neomacs_key_pressed_cb), f);
   gtk_widget_add_controller (window, key_controller);
-  fprintf (stderr, "DEBUG: Added key controller to window %p (CAPTURE phase)\n", (void*)window);
 
   /* Add key controller to drawing area with BUBBLE phase */
   {
@@ -1026,7 +1056,6 @@ neomacs_create_frame_widgets (struct frame *f)
     g_signal_connect (da_key_controller, "key-pressed",
                       G_CALLBACK (neomacs_key_pressed_cb), f);
     gtk_widget_add_controller (drawing_area, da_key_controller);
-    fprintf (stderr, "DEBUG: Added key controller to drawing_area %p (BUBBLE phase)\n", (void*)drawing_area);
   }
   
   /* Also add key controller to drawing area with CAPTURE phase */
@@ -1036,7 +1065,6 @@ neomacs_create_frame_widgets (struct frame *f)
     g_signal_connect (da_key_controller2, "key-pressed",
                       G_CALLBACK (neomacs_key_pressed_cb), f);
     gtk_widget_add_controller (drawing_area, da_key_controller2);
-    fprintf (stderr, "DEBUG: Added key controller to drawing_area %p (CAPTURE phase)\n", (void*)drawing_area);
   }
 
   /* Create IM context for input method support */
@@ -1046,8 +1074,6 @@ neomacs_create_frame_widgets (struct frame *f)
     gtk_im_context_set_client_widget (imc, drawing_area);
     gtk_im_context_focus_in (imc);
     output->im_context = imc;
-    fprintf (stderr, "DEBUG: Created IM multicontext %p for drawing_area\n", (void*)imc);
-    /* Don't set IM context on key controller - let key events come through directly */
   }
 
   /* Add focus event controller to window */
@@ -1136,19 +1162,8 @@ neomacs_create_frame_widgets (struct frame *f)
   /* Ensure the drawing area gets keyboard focus */
   gtk_widget_grab_focus (drawing_area);
   
-  /* Also try setting as the default focus widget */
+  /* Also set as the default focus widget */
   gtk_window_set_focus (GTK_WINDOW (window), drawing_area);
-  
-  fprintf (stderr, "DEBUG: After focus grab: drawing_area focusable=%d has_focus=%d, window has_focus=%d\n",
-           gtk_widget_get_focusable (drawing_area),
-           gtk_widget_has_focus (drawing_area),
-           gtk_widget_has_focus (window));
-  
-  if (0) fprintf (stderr, "DEBUG: Window visible=%d realized=%d mapped=%d\n",
-	   gtk_widget_get_visible (window),
-	   gtk_widget_get_realized (window),
-	   gtk_widget_get_mapped (window));
-  if (0) fprintf (stderr, "DEBUG: gtk_window_present returned\n");
 }
 
 

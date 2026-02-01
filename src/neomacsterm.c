@@ -790,6 +790,13 @@ neomacs_draw_glyph_string (struct glyph_string *s)
         w = s->w;  /* Use the actual window from glyph_string if available */
       int window_top = WINDOW_TOP_EDGE_Y (w);
       int row_y = window_top + s->row->y;
+      
+      /* Debug: print what we're calculating */
+      static int debug_count = 0;
+      if (debug_count++ < 30)
+        fprintf(stderr, "DEBUG C begin_row: window_top=%d, s->row->y=%d, row_y=%d, height=%d\n",
+                window_top, s->row->y, row_y, s->row->height);
+      
       neomacs_display_begin_row (dpyinfo->display_handle,
                                  row_y,
                                  s->x,  /* Starting X position for this glyph string */

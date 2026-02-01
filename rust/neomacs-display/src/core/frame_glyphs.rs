@@ -154,6 +154,26 @@ impl FrameGlyphBuffer {
             current_underline_color: None,
         }
     }
+    
+    /// Create a new buffer with specified dimensions
+    pub fn with_size(width: f32, height: f32) -> Self {
+        Self {
+            width,
+            height,
+            background: Color::BLACK, // Default to dark (Emacs default theme)
+            glyphs: Vec::with_capacity(10000), // Pre-allocate for typical frame
+            window_regions: Vec::with_capacity(16),
+            prev_window_regions: Vec::with_capacity(16),
+            layout_changed: false,
+            current_face_id: 0,
+            current_fg: Color::WHITE, // Default foreground white for dark theme
+            current_bg: None,
+            current_bold: false,
+            current_italic: false,
+            current_underline: 0,
+            current_underline_color: None,
+        }
+    }
 
     /// Start new frame - prepare for new content
     pub fn start_frame(&mut self) {
