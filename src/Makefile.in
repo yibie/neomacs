@@ -329,6 +329,19 @@ NEOMACS_OBJ=@NEOMACS_OBJ@
 NEOMACS_LIBS=@NEOMACS_LIBS@
 NEOMACS_CFLAGS=@NEOMACS_CFLAGS@
 
+## Neomacs Rust display library
+## Set NEOMACS_RELEASE=1 to build release version
+NEOMACS_RUST_DIR = $(top_srcdir)/rust/neomacs-display
+NEOMACS_RUST_LIB = libneomacs_display.so
+ifdef NEOMACS_RELEASE
+NEOMACS_RUST_PROFILE = release
+NEOMACS_CARGO_FLAGS = --release
+else
+NEOMACS_RUST_PROFILE = debug
+NEOMACS_CARGO_FLAGS =
+endif
+NEOMACS_RUST_TARGET = $(NEOMACS_RUST_DIR)/target/$(NEOMACS_RUST_PROFILE)/$(NEOMACS_RUST_LIB)
+
 ## emacs.res if HAVE_W32
 EMACSRES = @EMACSRES@
 ## If HAVE_W32, compiler arguments for including
@@ -704,12 +717,24 @@ else
 MAKE_PDUMPER_FINGERPRINT =
 endif
 
+## Build Neomacs Rust display library
+## The library is built with cargo and copied to src/ for linking
+.PHONY: neomacs-rust
+neomacs-rust: $(NEOMACS_RUST_LIB)
+
+$(NEOMACS_RUST_LIB): $(NEOMACS_RUST_TARGET)
+	$(AM_V_GEN)cp -f $< $@
+
+$(NEOMACS_RUST_TARGET): FORCE
+	$(AM_V_at)cd $(NEOMACS_RUST_DIR) && cargo build $(NEOMACS_CARGO_FLAGS)
+
 ## We have to create $(etc) here because init_cmdargs tests its
 ## existence when setting Vinstallation_directory (FIXME?).
 ## This goes on to affect various things, and the emacs binary fails
 ## to start if Vinstallation_directory has the wrong value.
 temacs$(EXEEXT): $(LIBXMENU) $(ALLOBJS) $(LIBEGNU_ARCHIVE) $(EMACSRES) \
-  $(charsets) $(charscript) ${emoji-zwj} $(MAKE_PDUMPER_FINGERPRINT)
+  $(charsets) $(charscript) ${emoji-zwj} $(MAKE_PDUMPER_FINGERPRINT) \
+  $(NEOMACS_RUST_LIB)
 ifeq ($(HAVE_BE_APP),yes)
 	$(AM_V_CXXLD)$(CXX) -o $@.tmp \
 	  $(ALL_CFLAGS) $(TEMACS_LDFLAGS) $(LDFLAGS) \
@@ -807,6 +832,7 @@ mostlyclean:
 	rm -f buildobj.h
 	rm -f globals.h gl-stamp
 	rm -f ./*.res ./*.tmp
+	rm -f $(NEOMACS_RUST_LIB)
 versionclean:
 	rm -f emacs$(EXEEXT) emacs-*.*.*[0-9]$(EXEEXT) emacs-*.*.*[0-9].pdmp
 	rm -f ../etc/DOC*

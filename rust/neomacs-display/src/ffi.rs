@@ -1,8 +1,12 @@
 //! C FFI layer for integration with Emacs.
+//!
+//! Enable logging with: RUST_LOG=neomacs_display=debug
 
 use std::ffi::{c_char, c_int, c_void, CStr, CString};
 use std::panic;
 use std::ptr;
+
+use log::{debug, trace, warn, info, error};
 
 use crate::backend::{BackendType, DisplayBackend};
 use crate::backend::gtk4::{Gtk4Backend, Gtk4Renderer, GskRenderer, HybridRenderer, VideoCache, ImageCache, set_video_widget};
@@ -56,15 +60,18 @@ impl NeomacsDisplay {
 /// Returns a pointer to NeomacsDisplay that must be freed with neomacs_display_shutdown.
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_init(backend: BackendType) -> *mut NeomacsDisplay {
+    // Initialize logger (only once, errors if called multiple times)
+    let _ = env_logger::try_init();
+
     // Check environment variable for hybrid mode (default: enabled)
     let use_hybrid = std::env::var("NEOMACS_HYBRID")
         .map(|v| v != "0")
         .unwrap_or(true);
 
     if use_hybrid {
-        eprintln!("Neomacs: Using HYBRID rendering mode");
+        info!("Using HYBRID rendering mode");
     } else {
-        eprintln!("Neomacs: Using LEGACY scene graph mode");
+        info!("Using LEGACY scene graph mode");
     }
 
     let mut display = Box::new(NeomacsDisplay {
@@ -173,6 +180,8 @@ pub unsafe extern "C" fn neomacs_display_begin_frame(handle: *mut NeomacsDisplay
     display.frame_counter += 1;
     // Mark that we're in a frame update cycle
     display.in_frame = true;
+
+    debug!("begin_frame: frame={}, hybrid={}", display.frame_counter, display.use_hybrid);
 
     // Hybrid path: DON'T clear glyphs - Emacs uses incremental redisplay
     // Only update frame dimensions. Glyphs accumulate and overlap handling
@@ -390,6 +399,9 @@ pub unsafe extern "C" fn neomacs_display_begin_row(
     display.current_row_x = x;  // Set starting X for this glyph string
     display.current_row_height = height;  // Store for hybrid path
     display.current_row_ascent = ascent;  // Store for hybrid path
+
+    // Debug: log row Y values
+    log::warn!("begin_row: y={}, x={}, height={}, mode_line={}", y, x, height, mode_line);
 
     // Hybrid path: we don't need window tracking - just use frame-absolute coords
     if display.use_hybrid {
@@ -724,6 +736,8 @@ pub unsafe extern "C" fn neomacs_display_set_face(
 
     let display = &mut *handle;
 
+    trace!("set_face: id={}, fg=0x{:06x}, bg=0x{:06x}, weight={}", face_id, foreground, background, font_weight);
+
     // Convert colors from 0xRRGGBB to Color
     let fg = Color {
         r: ((foreground >> 16) & 0xFF) as f32 / 255.0,
@@ -812,6 +826,21 @@ pub unsafe extern "C" fn neomacs_display_set_face(
         box_type: bx_type,
         box_line_width,
     };
+
+    // Hybrid path: set current face attributes for frame glyph buffer
+    if display.use_hybrid {
+        let bg_opt = if background == 0 { None } else { Some(bg) };
+        let ul_color_opt = if underline_color != 0 { ul_color } else { None };
+        display.frame_glyphs.set_face(
+            face_id,
+            fg,
+            bg_opt,
+            font_weight >= 700,
+            is_italic != 0,
+            underline_style as u8,
+            ul_color_opt,
+        );
+    }
 
     // Register face both in the renderer's cache AND in the scene
     // The scene will be cloned to the widget which has its own renderer
@@ -1200,6 +1229,8 @@ pub unsafe extern "C" fn neomacs_display_end_frame(handle: *mut NeomacsDisplay) 
     // Reset frame flag
     display.in_frame = false;
 
+    debug!("end_frame: frame={}, glyphs={}", current_frame, display.frame_glyphs.len());
+
     // NOTE: Don't remove stale windows - Emacs uses incremental redisplay
     // which may not touch unchanged windows. Windows are only removed when
     // Emacs explicitly deletes them and does a full redisplay.
@@ -1521,6 +1552,7 @@ pub unsafe extern "C" fn neomacs_display_render_to_widget(
     use gtk4::prelude::{WidgetExt, Cast};
 
     if handle.is_null() || widget.is_null() {
+        warn!("render_to_widget: null handle or widget");
         return -1;
     }
 
@@ -1542,12 +1574,14 @@ pub unsafe extern "C" fn neomacs_display_render_to_widget(
 
         if display.use_hybrid {
             // Hybrid path: pass FrameGlyphBuffer to widget via thread-local
+            debug!("render_to_widget: hybrid mode, {} glyphs", display.frame_glyphs.len());
             set_widget_frame_glyphs(&display.frame_glyphs as *const FrameGlyphBuffer);
 
             // Trigger redraw - widget will read from thread-local frame_glyphs
             widget.queue_draw();
         } else {
             // Legacy path: build scene and set on widget
+            debug!("render_to_widget: legacy mode, building scene");
             display.scene.build();
             let cloned_scene = display.scene.clone();
             widget.set_scene(cloned_scene);
@@ -1555,7 +1589,7 @@ pub unsafe extern "C" fn neomacs_display_render_to_widget(
     }));
 
     if let Err(e) = result {
-        eprintln!("PANIC in neomacs_display_render_to_widget: {:?}", e);
+        error!("PANIC in render_to_widget: {:?}", e);
         return -1;
     }
 

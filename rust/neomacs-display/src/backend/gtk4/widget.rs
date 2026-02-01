@@ -2,6 +2,8 @@
 //!
 //! This widget uses GtkSnapshot for true GPU rendering via GSK render nodes,
 //! bypassing the Cairo software rasterization path.
+//!
+//! Enable logging with: RUST_LOG=neomacs_display::backend::gtk4::widget=debug
 
 use std::cell::RefCell;
 use std::sync::{Arc, Mutex};
@@ -9,6 +11,7 @@ use std::sync::{Arc, Mutex};
 use gtk4::prelude::*;
 use gtk4::subclass::prelude::*;
 use gtk4::{glib, graphene, gsk, pango, Snapshot};
+use log::{debug, trace, warn, info};
 
 use crate::core::scene::Scene;
 use crate::core::frame_glyphs::FrameGlyphBuffer;
@@ -85,30 +88,34 @@ impl ObjectImpl for NeomacsWidgetInner {
     }
 }
 
-impl WidgetImpl for NeomacsWidgetInner {
-    fn snapshot(&self, snapshot: &Snapshot) {
+impl NeomacsWidgetInner {
+    fn snapshot_impl(&self, snapshot: &Snapshot) {
+        warn!("SNAPSHOT CALLED");
         let widget = self.obj();
         let width = widget.width() as f32;
         let height = widget.height() as f32;
+        warn!("SNAPSHOT size={}x{}", width, height);
 
-        // Initialize Pango context if needed (for both renderers)
+        // Initialize Pango context for legacy renderer (GSK renderer still uses Pango)
         if !*self.pango_initialized.borrow() {
             let context = widget.pango_context();
             self.renderer.borrow_mut().init_with_context(context.clone());
-            self.hybrid_renderer.borrow_mut().init_with_context(context);
+            // Note: hybrid_renderer now uses cosmic-text, no Pango init needed
             *self.pango_initialized.borrow_mut() = true;
         }
 
         // Check if using hybrid mode
         let use_hybrid = WIDGET_USE_HYBRID.with(|c| *c.borrow());
+        warn!("snapshot: use_hybrid={}, size={}x{}", use_hybrid, width, height);
 
         if use_hybrid {
-            // Hybrid path: render from FrameGlyphBuffer
+            // Hybrid path: render from FrameGlyphBuffer (uses cosmic-text)
             let frame_glyphs = WIDGET_FRAME_GLYPHS.with(|c| {
                 c.borrow().map(|ptr| unsafe { &*ptr })
             });
 
             if let Some(buffer) = frame_glyphs {
+                warn!("snapshot: HAVE buffer with {} glyphs, frame={}x{}", buffer.len(), buffer.width, buffer.height);
                 // Get video cache from thread-local
                 let video_cache = WIDGET_VIDEO_CACHE.with(|c| {
                     c.borrow().map(|ptr| unsafe { &*ptr })
@@ -120,11 +127,22 @@ impl WidgetImpl for NeomacsWidgetInner {
 
                 // Build render node with hybrid renderer
                 let mut renderer = self.hybrid_renderer.borrow_mut();
+                
+                // DEBUG: Try direct snapshot append to test basic rendering
+                let test_rect = graphene::Rect::new(50.0, 50.0, 200.0, 100.0);
+                let test_color = gtk4::gdk::RGBA::new(0.0, 0.0, 1.0, 1.0); // blue
+                snapshot.append_color(&test_color, &test_rect);
+                warn!("snapshot: Added BLUE test rect at (50,50)");
+                
                 if let Some(node) = renderer.build_render_node(buffer, video_cache, image_cache) {
+                    warn!("snapshot: APPENDING render node");
                     snapshot.append_node(&node);
+                } else {
+                    warn!("snapshot: NO render node returned!");
                 }
             } else {
                 // No frame glyphs - draw background
+                warn!("snapshot: NO frame_glyphs, drawing dark background");
                 let rect = graphene::Rect::new(0.0, 0.0, width, height);
                 let color = gtk4::gdk::RGBA::new(0.1, 0.1, 0.12, 1.0);
                 snapshot.append_color(&color, &rect);
@@ -154,6 +172,26 @@ impl WidgetImpl for NeomacsWidgetInner {
                 let color = gtk4::gdk::RGBA::new(0.1, 0.1, 0.12, 1.0);
                 snapshot.append_color(&color, &rect);
             }
+        }
+    }
+}
+
+impl WidgetImpl for NeomacsWidgetInner {
+    fn snapshot(&self, snapshot: &Snapshot) {
+        // Wrap everything in catch_unwind to prevent panics from crashing Emacs
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            self.snapshot_impl(snapshot);
+        }));
+        
+        if let Err(e) = result {
+            warn!("PANIC in snapshot: {:?}", e);
+            // Draw error background
+            let widget = self.obj();
+            let width = widget.width() as f32;
+            let height = widget.height() as f32;
+            let rect = graphene::Rect::new(0.0, 0.0, width, height);
+            let color = gtk4::gdk::RGBA::new(1.0, 0.0, 0.0, 1.0);
+            snapshot.append_color(&color, &rect);
         }
     }
 

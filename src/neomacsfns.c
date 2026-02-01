@@ -931,12 +931,12 @@ neomacs_create_frame_widgets (struct frame *f)
   GtkWidget *window, *drawing_area;
   GtkEventController *key_controller, *focus_controller, *motion_controller, *scroll_controller;
   GtkGesture *click_gesture;
-  int use_gpu_widget = 0;
+  int use_gpu_widget = 1;  /* Always use GPU widget when Neomacs is available */
 
-  /* Check if GPU widget is requested via environment variable */
+  /* Allow disabling GPU widget via environment variable */
   const char *gpu_env = getenv ("NEOMACS_GPU_WIDGET");
-  if (gpu_env && strcmp (gpu_env, "1") == 0)
-    use_gpu_widget = 1;
+  if (gpu_env && strcmp (gpu_env, "0") == 0)
+    use_gpu_widget = 0;
 
   /* Create main window */
   window = gtk_window_new ();
@@ -1011,7 +1011,7 @@ neomacs_create_frame_widgets (struct frame *f)
   g_signal_connect (window, "close-request",
                     G_CALLBACK (neomacs_close_request_cb), f);
 
-  /* Add keyboard event controller - use TARGET phase since we have focus */
+  /* Add keyboard event controller on window with CAPTURE phase */
   key_controller = gtk_event_controller_key_new ();
   gtk_event_controller_set_propagation_phase (key_controller, GTK_PHASE_CAPTURE);
   g_signal_connect (key_controller, "key-pressed",
@@ -1019,7 +1019,7 @@ neomacs_create_frame_widgets (struct frame *f)
   gtk_widget_add_controller (window, key_controller);
   fprintf (stderr, "DEBUG: Added key controller to window %p (CAPTURE phase)\n", (void*)window);
 
-  /* Also add key controller to drawing area with BUBBLE phase */
+  /* Add key controller to drawing area with BUBBLE phase */
   {
     GtkEventController *da_key_controller = gtk_event_controller_key_new ();
     gtk_event_controller_set_propagation_phase (da_key_controller, GTK_PHASE_BUBBLE);
@@ -1028,15 +1028,26 @@ neomacs_create_frame_widgets (struct frame *f)
     gtk_widget_add_controller (drawing_area, da_key_controller);
     fprintf (stderr, "DEBUG: Added key controller to drawing_area %p (BUBBLE phase)\n", (void*)drawing_area);
   }
-
-  /* Try using IM context for key event handling */
+  
+  /* Also add key controller to drawing area with CAPTURE phase */
   {
-    GtkIMContext *imc = gtk_im_context_simple_new ();
+    GtkEventController *da_key_controller2 = gtk_event_controller_key_new ();
+    gtk_event_controller_set_propagation_phase (da_key_controller2, GTK_PHASE_CAPTURE);
+    g_signal_connect (da_key_controller2, "key-pressed",
+                      G_CALLBACK (neomacs_key_pressed_cb), f);
+    gtk_widget_add_controller (drawing_area, da_key_controller2);
+    fprintf (stderr, "DEBUG: Added key controller to drawing_area %p (CAPTURE phase)\n", (void*)drawing_area);
+  }
+
+  /* Create IM context for input method support */
+  {
+    GtkIMContext *imc = gtk_im_multicontext_new ();
     g_signal_connect (imc, "commit", G_CALLBACK (neomacs_im_commit_cb), f);
     gtk_im_context_set_client_widget (imc, drawing_area);
     gtk_im_context_focus_in (imc);
     output->im_context = imc;
-    fprintf (stderr, "DEBUG: Created IM context %p for drawing_area\n", (void*)imc);
+    fprintf (stderr, "DEBUG: Created IM multicontext %p for drawing_area\n", (void*)imc);
+    /* Don't set IM context on key controller - let key events come through directly */
   }
 
   /* Add focus event controller to window */
