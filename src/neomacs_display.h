@@ -105,6 +105,21 @@ void neomacs_display_clear_area(struct NeomacsDisplay *handle,
                                 int height);
 
 /**
+ * Clear all glyphs (used when frame layout changes, e.g., tab-bar-mode toggle)
+ */
+void neomacs_display_clear_all_glyphs(struct NeomacsDisplay *handle);
+
+/**
+ * Clear all cursors (called at frame start to prevent ghost cursors)
+ */
+void neomacs_display_clear_all_cursors(struct NeomacsDisplay *handle);
+
+/**
+ * Clear all borders/dividers (called at frame start to prevent stale dividers)
+ */
+void neomacs_display_clear_all_borders(struct NeomacsDisplay *handle);
+
+/**
  * Begin a new glyph row for the current window
  */
 void neomacs_display_begin_row(struct NeomacsDisplay *handle,

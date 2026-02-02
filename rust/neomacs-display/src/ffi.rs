@@ -15,7 +15,7 @@ use crate::core::types::{Color, Rect};
 use crate::core::scene::{Scene, WindowScene, CursorState, CursorStyle};
 use crate::core::glyph::{Glyph, GlyphRow, GlyphType, GlyphData};
 use crate::core::animation::AnimationManager;
-use crate::core::frame_glyphs::FrameGlyphBuffer;
+use crate::core::frame_glyphs::{FrameGlyphBuffer, FrameGlyph};
 
 /// Opaque handle to the display engine
 pub struct NeomacsDisplay {
@@ -1296,6 +1296,44 @@ pub unsafe extern "C" fn neomacs_display_clear_area(
             height as f32,
         );
     }
+}
+
+/// Clear all glyphs - used when frame layout changes (e.g., tab-bar-mode toggle)
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_clear_all_glyphs(handle: *mut NeomacsDisplay) {
+    if handle.is_null() {
+        return;
+    }
+
+    let display = &mut *handle;
+    eprintln!("DEBUG: clear_all_glyphs called, clearing {} glyphs", display.frame_glyphs.len());
+    display.frame_glyphs.glyphs.clear();
+    display.frame_glyphs.window_regions.clear();
+    display.frame_glyphs.prev_window_regions.clear();
+}
+
+/// Clear all cursors - called at start of each frame to prevent ghost cursors
+/// when focus changes between windows (e.g., buffer <-> minibuffer)
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_clear_all_cursors(handle: *mut NeomacsDisplay) {
+    if handle.is_null() {
+        return;
+    }
+
+    let display = &mut *handle;
+    display.frame_glyphs.glyphs.retain(|g| !matches!(g, FrameGlyph::Cursor { .. }));
+}
+
+/// Clear all borders (window dividers) - called at start of each frame
+/// to prevent stale dividers when windows are deleted
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_clear_all_borders(handle: *mut NeomacsDisplay) {
+    if handle.is_null() {
+        return;
+    }
+
+    let display = &mut *handle;
+    display.frame_glyphs.glyphs.retain(|g| !matches!(g, FrameGlyph::Border { .. }));
 }
 
 /// End frame and render

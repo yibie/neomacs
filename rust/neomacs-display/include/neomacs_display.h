@@ -268,6 +268,23 @@ void neomacs_display_clear_floating_image(struct NeomacsDisplay *handle, uint32_
 void neomacs_display_clear_area(struct NeomacsDisplay *handle, int x, int y, int width, int height);
 
 /**
+ * Clear all glyphs - used when frame layout changes (e.g., tab-bar-mode toggle)
+ */
+void neomacs_display_clear_all_glyphs(struct NeomacsDisplay *handle);
+
+/**
+ * Clear all cursors - called at start of each frame to prevent ghost cursors
+ * when focus changes between windows (e.g., buffer <-> minibuffer)
+ */
+void neomacs_display_clear_all_cursors(struct NeomacsDisplay *handle);
+
+/**
+ * Clear all borders (window dividers) - called at start of each frame
+ * to prevent stale dividers when windows are deleted
+ */
+void neomacs_display_clear_all_borders(struct NeomacsDisplay *handle);
+
+/**
  * End frame and render
  * Returns 0 on success, 1 if layout changed (Emacs should force refresh), -1 on error
  */

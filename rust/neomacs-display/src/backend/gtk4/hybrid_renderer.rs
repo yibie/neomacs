@@ -124,14 +124,6 @@ impl HybridRenderer {
         mut video_cache: Option<&mut VideoCache>,
         _image_cache: Option<&mut ImageCache>,
     ) -> Option<gsk::RenderNode> {
-        debug!(
-            "build_render_node: {} glyphs, frame={}x{}, bg={:?}",
-            buffer.len(),
-            buffer.width,
-            buffer.height,
-            buffer.background
-        );
-        
         // Update ALL video players FIRST before any rendering
         // This ensures bus polling doesn't happen during the render loop
         #[cfg(feature = "video")]

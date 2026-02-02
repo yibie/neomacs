@@ -26,6 +26,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include "lisp.h"
 #include "blockinput.h"
 #include "neomacsterm.h"
+#include "neomacs_display.h"
 #include "buffer.h"
 #include "window.h"
 #include "keyboard.h"
@@ -164,14 +165,76 @@ neomacs_set_menu_bar_lines (struct frame *f, Lisp_Object value, Lisp_Object oldv
 static void
 neomacs_set_tab_bar_lines (struct frame *f, Lisp_Object value, Lisp_Object oldval)
 {
-  /* Tab bar - not yet implemented for Neomacs */
+  int nlines;
+
+  if (FRAME_MINIBUF_ONLY_P (f))
+    return;
+
+  if (RANGED_FIXNUMP (0, value, INT_MAX))
+    nlines = XFIXNAT (value);
+  else
+    nlines = 0;
+
+  neomacs_change_tab_bar_height (f, nlines * FRAME_LINE_HEIGHT (f));
 }
 
 /* Set the pixel height of the tab bar of frame F to HEIGHT.  */
 void
 neomacs_change_tab_bar_height (struct frame *f, int height)
 {
-  /* Tab bar - not yet implemented for Neomacs */
+  int unit = FRAME_LINE_HEIGHT (f);
+  int old_height = FRAME_TAB_BAR_HEIGHT (f);
+  int lines = height / unit;
+
+  /* Even if HEIGHT is less than unit (e.g., tab bar face not as tall),
+     ensure at least 1 line if height is nonzero.  */
+  if (lines == 0 && height != 0)
+    lines = 1;
+
+  /* Make sure we redisplay all windows in this frame.  */
+  fset_redisplay (f);
+
+  /* Recalculate tab bar and frame text sizes.  */
+  FRAME_TAB_BAR_HEIGHT (f) = height;
+  FRAME_TAB_BAR_LINES (f) = lines;
+  store_frame_param (f, Qtab_bar_lines, make_fixnum (lines));
+
+  /* Clear frame when tab bar height changes - need full redraw */
+  if (FRAME_NEOMACS_WINDOW (f) && height != old_height)
+    {
+      /* Clear GPU renderer's glyph buffer to force full redraw */
+      struct neomacs_display_info *dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
+      if (dpyinfo && dpyinfo->display_handle)
+        neomacs_display_clear_all_glyphs (dpyinfo->display_handle);
+
+      clear_frame (f);
+      clear_current_matrices (f);
+    }
+
+  /* Clear old tab bar contents if shrinking */
+  if ((height < old_height) && WINDOWP (f->tab_bar_window))
+    clear_glyph_matrix (XWINDOW (f->tab_bar_window)->current_matrix);
+
+  if (!f->tab_bar_resized)
+    {
+      Lisp_Object fullscreen = get_frame_param (f, Qfullscreen);
+
+      /* As long as tab_bar_resized is false, try to change F's native height.  */
+      if (NILP (fullscreen) || EQ (fullscreen, Qfullwidth))
+	adjust_frame_size (f, FRAME_TEXT_WIDTH (f), FRAME_TEXT_HEIGHT (f),
+			   1, false, Qtab_bar_lines);
+      else
+	adjust_frame_size (f, -1, -1, 4, false, Qtab_bar_lines);
+
+      f->tab_bar_resized = f->tab_bar_redisplayed;
+    }
+  else
+    /* Any other change may leave the native size of F alone.  */
+    adjust_frame_size (f, -1, -1, 3, false, Qtab_bar_lines);
+
+  /* adjust_frame_size might not have done anything, garbage frame here.  */
+  adjust_frame_glyphs (f);
+  SET_FRAME_GARBAGED (f);
 }
 
 static void

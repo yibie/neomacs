@@ -31,6 +31,7 @@ struct wl_display;
 #include "blockinput.h"
 #include "sysselect.h"
 #include "neomacsterm.h"
+#include "neomacs_display.h"
 #include "buffer.h"
 #include "coding.h"
 #include "window.h"
@@ -369,6 +370,7 @@ neomacs_create_terminal (struct neomacs_display_info *dpyinfo)
   terminal->read_socket_hook = neomacs_read_socket;
   terminal->frame_visible_invisible_hook = neomacs_make_frame_visible_invisible;
   terminal->menu_show_hook = neomacs_menu_show;
+  terminal->change_tab_bar_height_hook = neomacs_change_tab_bar_height;
 
   /* Register the display connection fd for event handling */
   if (dpyinfo->connection >= 0)
@@ -400,7 +402,13 @@ neomacs_update_begin (struct frame *f)
      Our GPU backend accumulates glyphs and handles overlaps.  */
 
   if (dpyinfo && dpyinfo->display_handle)
-    neomacs_display_begin_frame (dpyinfo->display_handle);
+    {
+      /* Clear all cursors and borders at frame start to prevent ghost artifacts
+         when focus changes or windows are deleted */
+      neomacs_display_clear_all_cursors (dpyinfo->display_handle);
+      neomacs_display_clear_all_borders (dpyinfo->display_handle);
+      neomacs_display_begin_frame (dpyinfo->display_handle);
+    }
 }
 
 /* Called at the end of updating a frame */
@@ -491,7 +499,9 @@ neomacs_flush_display (struct frame *f)
 
   /* Queue a redraw of the drawing area */
   if (output && output->drawing_area)
-    gtk_widget_queue_draw (GTK_WIDGET (output->drawing_area));
+    {
+      gtk_widget_queue_draw (GTK_WIDGET (output->drawing_area));
+    }
 }
 
 /* Make frame visible or invisible */
@@ -623,13 +633,9 @@ neomacs_draw_glyph_string (struct glyph_string *s)
       /* Forward glyph data to Rust scene graph */
       if (dpyinfo && dpyinfo->display_handle && s->first_glyph && s->row)
         {
-          /* Calculate absolute Y position: use s->y which is the actual Y-origin of this glyph string */
-          struct window *w = XWINDOW (s->f->selected_window);
-          if (s->w)
-            w = s->w;  /* Use the actual window from glyph_string if available */
-          int window_top = WINDOW_TOP_EDGE_Y (w);
-          /* Use s->y for the glyph string's actual Y position, not row->y */
-          int glyph_y = window_top + s->y;
+          /* s->y is already frame-relative (set via WINDOW_TO_FRAME_PIXEL_Y in xdisp.c),
+             so we use it directly without adding window_top again */
+          int glyph_y = s->y;
           
           neomacs_display_begin_row (dpyinfo->display_handle,
                                      glyph_y,
