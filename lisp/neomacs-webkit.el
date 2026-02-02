@@ -137,11 +137,13 @@ Optional WIDTH and HEIGHT override stored dimensions."
     (define-key map "F" #'neomacs-webkit-mode-forward)
     (define-key map "q" #'neomacs-webkit-mode-quit)
     (define-key map "o" #'neomacs-webkit-mode-open)
+    (define-key map "i" #'neomacs-webkit-mode-toggle-input)  ; Enter input mode
     (define-key map [mouse-1] #'neomacs-webkit-mode-mouse-click)
     (define-key map [wheel-up] #'neomacs-webkit-mode-scroll-up)
     (define-key map [wheel-down] #'neomacs-webkit-mode-scroll-down)
     map)
-  "Keymap for `neomacs-webkit-mode'.")
+  "Keymap for `neomacs-webkit-mode'.
+Press 'i' to enter input mode for typing in web forms.")
 
 (defvar neomacs-webkit-mode-line-format
   '(:eval (neomacs-webkit--mode-line-string))
@@ -243,6 +245,177 @@ Optional WIDTH and HEIGHT override stored dimensions."
            (view-x (- (car pos) float-x))
            (view-y (- (cdr pos) float-y)))
       (neomacs-webkit-send-scroll neomacs-webkit-buffer-view-id view-x view-y 0 50))))
+
+;; Keyboard input support for text entry in web forms
+
+(defvar neomacs-webkit--input-mode nil
+  "Non-nil when input mode is active (for typing in web forms).")
+
+(defun neomacs-webkit-mode-toggle-input ()
+  "Toggle input mode for typing in web forms.
+When enabled, most keys are forwarded to the WebKit view."
+  (interactive)
+  (setq neomacs-webkit--input-mode (not neomacs-webkit--input-mode))
+  (if neomacs-webkit--input-mode
+      (progn
+        (message "WebKit input mode ON - type to enter text, C-c C-c to exit")
+        (neomacs-webkit--enable-input-mode))
+    (message "WebKit input mode OFF")
+    (neomacs-webkit--disable-input-mode)))
+
+(defun neomacs-webkit--enable-input-mode ()
+  "Enable input mode keybindings."
+  ;; Use a minor mode map that captures most keys
+  (setq-local neomacs-webkit--saved-keymap (current-local-map))
+  (use-local-map neomacs-webkit-input-mode-map))
+
+(defun neomacs-webkit--disable-input-mode ()
+  "Disable input mode keybindings."
+  (when neomacs-webkit--saved-keymap
+    (use-local-map neomacs-webkit--saved-keymap)
+    (setq-local neomacs-webkit--saved-keymap nil)))
+
+(defvar neomacs-webkit--saved-keymap nil
+  "Saved keymap before entering input mode.")
+
+(defun neomacs-webkit--char-to-keysym (char)
+  "Convert CHAR to XKB keysym."
+  (cond
+   ;; Letters
+   ((and (>= char ?a) (<= char ?z)) char)
+   ((and (>= char ?A) (<= char ?Z)) char)
+   ;; Numbers
+   ((and (>= char ?0) (<= char ?9)) char)
+   ;; Space
+   ((= char ?\s) #x0020)
+   ;; Common punctuation
+   ((= char ?.) #x002e)
+   ((= char ?,) #x002c)
+   ((= char ?!) #x0021)
+   ((= char ??) #x003f)
+   ((= char ?:) #x003a)
+   ((= char ?\;) #x003b)
+   ((= char ?') #x0027)
+   ((= char ?\") #x0022)
+   ((= char ?-) #x002d)
+   ((= char ?_) #x005f)
+   ((= char ?=) #x003d)
+   ((= char ?+) #x002b)
+   ((= char ?/) #x002f)
+   ((= char ?\\) #x005c)
+   ((= char ?@) #x0040)
+   ((= char ?#) #x0023)
+   ((= char ?$) #x0024)
+   ((= char ?%) #x0025)
+   ((= char ?^) #x005e)
+   ((= char ?&) #x0026)
+   ((= char ?*) #x002a)
+   ((= char ?\() #x0028)
+   ((= char ?\)) #x0029)
+   ((= char ?\[) #x005b)
+   ((= char ?\]) #x005d)
+   ((= char ?{) #x007b)
+   ((= char ?}) #x007d)
+   ((= char ?<) #x003c)
+   ((= char ?>) #x003e)
+   ((= char ?|) #x007c)
+   ((= char ?`) #x0060)
+   ((= char ?~) #x007e)
+   ;; Default: use char code as keysym
+   (t char)))
+
+(defun neomacs-webkit-input-self-insert ()
+  "Forward current key to WebKit as text input."
+  (interactive)
+  (when neomacs-webkit-buffer-view-id
+    (let* ((char last-command-event)
+           (keysym (neomacs-webkit--char-to-keysym char))
+           (modifiers 0))
+      ;; Send key down then key up
+      (neomacs-webkit-send-key neomacs-webkit-buffer-view-id keysym 0 t modifiers)
+      (neomacs-webkit-send-key neomacs-webkit-buffer-view-id keysym 0 nil modifiers))))
+
+(defun neomacs-webkit-input-return ()
+  "Send Return/Enter to WebKit."
+  (interactive)
+  (when neomacs-webkit-buffer-view-id
+    (neomacs-webkit-send-key neomacs-webkit-buffer-view-id #xff0d 36 t 0)  ; XK_Return
+    (neomacs-webkit-send-key neomacs-webkit-buffer-view-id #xff0d 36 nil 0)))
+
+(defun neomacs-webkit-input-backspace ()
+  "Send Backspace to WebKit."
+  (interactive)
+  (when neomacs-webkit-buffer-view-id
+    (neomacs-webkit-send-key neomacs-webkit-buffer-view-id #xff08 22 t 0)  ; XK_BackSpace
+    (neomacs-webkit-send-key neomacs-webkit-buffer-view-id #xff08 22 nil 0)))
+
+(defun neomacs-webkit-input-tab ()
+  "Send Tab to WebKit."
+  (interactive)
+  (when neomacs-webkit-buffer-view-id
+    (neomacs-webkit-send-key neomacs-webkit-buffer-view-id #xff09 23 t 0)  ; XK_Tab
+    (neomacs-webkit-send-key neomacs-webkit-buffer-view-id #xff09 23 nil 0)))
+
+(defun neomacs-webkit-input-escape ()
+  "Send Escape to WebKit and exit input mode."
+  (interactive)
+  (when neomacs-webkit-buffer-view-id
+    (neomacs-webkit-send-key neomacs-webkit-buffer-view-id #xff1b 9 t 0)  ; XK_Escape
+    (neomacs-webkit-send-key neomacs-webkit-buffer-view-id #xff1b 9 nil 0))
+  (neomacs-webkit-mode-toggle-input))
+
+(defun neomacs-webkit-input-arrow-up ()
+  "Send Up arrow to WebKit."
+  (interactive)
+  (when neomacs-webkit-buffer-view-id
+    (neomacs-webkit-send-key neomacs-webkit-buffer-view-id #xff52 111 t 0)
+    (neomacs-webkit-send-key neomacs-webkit-buffer-view-id #xff52 111 nil 0)))
+
+(defun neomacs-webkit-input-arrow-down ()
+  "Send Down arrow to WebKit."
+  (interactive)
+  (when neomacs-webkit-buffer-view-id
+    (neomacs-webkit-send-key neomacs-webkit-buffer-view-id #xff54 116 t 0)
+    (neomacs-webkit-send-key neomacs-webkit-buffer-view-id #xff54 116 nil 0)))
+
+(defun neomacs-webkit-input-arrow-left ()
+  "Send Left arrow to WebKit."
+  (interactive)
+  (when neomacs-webkit-buffer-view-id
+    (neomacs-webkit-send-key neomacs-webkit-buffer-view-id #xff51 113 t 0)
+    (neomacs-webkit-send-key neomacs-webkit-buffer-view-id #xff51 113 nil 0)))
+
+(defun neomacs-webkit-input-arrow-right ()
+  "Send Right arrow to WebKit."
+  (interactive)
+  (when neomacs-webkit-buffer-view-id
+    (neomacs-webkit-send-key neomacs-webkit-buffer-view-id #xff53 114 t 0)
+    (neomacs-webkit-send-key neomacs-webkit-buffer-view-id #xff53 114 nil 0)))
+
+(defvar neomacs-webkit-input-mode-map
+  (let ((map (make-keymap)))
+    ;; Self-insert for printable characters
+    (dotimes (i 128)
+      (when (and (>= i 32) (/= i 127))  ; printable ASCII
+        (define-key map (vector i) #'neomacs-webkit-input-self-insert)))
+    ;; Special keys
+    (define-key map (kbd "RET") #'neomacs-webkit-input-return)
+    (define-key map (kbd "DEL") #'neomacs-webkit-input-backspace)
+    (define-key map (kbd "<backspace>") #'neomacs-webkit-input-backspace)
+    (define-key map (kbd "TAB") #'neomacs-webkit-input-tab)
+    (define-key map (kbd "<up>") #'neomacs-webkit-input-arrow-up)
+    (define-key map (kbd "<down>") #'neomacs-webkit-input-arrow-down)
+    (define-key map (kbd "<left>") #'neomacs-webkit-input-arrow-left)
+    (define-key map (kbd "<right>") #'neomacs-webkit-input-arrow-right)
+    ;; Exit input mode
+    (define-key map (kbd "ESC") #'neomacs-webkit-input-escape)
+    (define-key map (kbd "C-c C-c") #'neomacs-webkit-mode-toggle-input)
+    ;; Keep mouse bindings
+    (define-key map [mouse-1] #'neomacs-webkit-mode-mouse-click)
+    (define-key map [wheel-up] #'neomacs-webkit-mode-scroll-up)
+    (define-key map [wheel-down] #'neomacs-webkit-mode-scroll-down)
+    map)
+  "Keymap for WebKit input mode (typing in web forms).")
 
 (defun neomacs-webkit-mode-show-fullscreen ()
   "Show WebKit view as fullscreen floating overlay."
