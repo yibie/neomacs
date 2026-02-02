@@ -345,6 +345,9 @@ extern void syms_of_neomacsfns (void);
 extern void update_frame_tool_bar (struct frame *f);
 extern void free_frame_tool_bar (struct frame *f);
 
+/* Tab bar support */
+extern void neomacs_change_tab_bar_height (struct frame *f, int height);
+
 /* Note: x_create_gc and x_free_gc are defined as static functions in xfaces.c */
 
 #endif /* HAVE_NEOMACS */

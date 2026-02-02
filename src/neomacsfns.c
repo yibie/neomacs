@@ -164,7 +164,14 @@ neomacs_set_menu_bar_lines (struct frame *f, Lisp_Object value, Lisp_Object oldv
 static void
 neomacs_set_tab_bar_lines (struct frame *f, Lisp_Object value, Lisp_Object oldval)
 {
-  /* Tab bar lines - not implemented yet */
+  /* Tab bar - not yet implemented for Neomacs */
+}
+
+/* Set the pixel height of the tab bar of frame F to HEIGHT.  */
+void
+neomacs_change_tab_bar_height (struct frame *f, int height)
+{
+  /* Tab bar - not yet implemented for Neomacs */
 }
 
 static void
