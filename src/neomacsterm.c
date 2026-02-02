@@ -46,6 +46,10 @@ struct wl_display;
 /* List of Neomacs display info structures */
 struct neomacs_display_info *neomacs_display_list = NULL;
 
+/* Forward declarations */
+static void neomacs_set_window_size (struct frame *f, bool change_gravity,
+                                     int width, int height);
+
 /* Event queue for buffering input events from GTK callbacks */
 struct neomacs_event_queue_t
 {
@@ -371,6 +375,7 @@ neomacs_create_terminal (struct neomacs_display_info *dpyinfo)
   terminal->frame_visible_invisible_hook = neomacs_make_frame_visible_invisible;
   terminal->menu_show_hook = neomacs_menu_show;
   terminal->change_tab_bar_height_hook = neomacs_change_tab_bar_height;
+  terminal->set_window_size_hook = neomacs_set_window_size;
 
   /* Register the display connection fd for event handling */
   if (dpyinfo->connection >= 0)
@@ -502,6 +507,57 @@ neomacs_flush_display (struct frame *f)
     {
       gtk_widget_queue_draw (GTK_WIDGET (output->drawing_area));
     }
+}
+
+/* Set window size (called from set-frame-size and similar) */
+static void
+neomacs_set_window_size (struct frame *f, bool change_gravity,
+                         int width, int height)
+{
+  struct neomacs_output *output = FRAME_NEOMACS_OUTPUT (f);
+  struct neomacs_display_info *dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
+
+  if (!output || !output->widget)
+    return;
+
+  block_input ();
+
+  /* Update frame's pixel dimensions */
+  output->pixel_width = width;
+  output->pixel_height = height;
+
+  /* For GPU widget, also update the glyph buffer dimensions */
+  if (output->use_gpu_widget && dpyinfo && dpyinfo->display_handle)
+    {
+      neomacs_display_resize (dpyinfo->display_handle, width, height);
+      /* Clear glyph buffer to force full redraw after resize */
+      neomacs_display_clear_all_glyphs (dpyinfo->display_handle);
+    }
+
+  /* Set the widget size request - this tells GTK the minimum size */
+  if (output->drawing_area)
+    {
+      gtk_widget_set_size_request (GTK_WIDGET (output->drawing_area),
+                                   width, height);
+    }
+
+  /* For GTK4 top-level windows, set default size and queue resize */
+  if (GTK_IS_WINDOW (output->widget))
+    {
+      GtkWindow *window = GTK_WINDOW (output->widget);
+
+      /* Set the default size */
+      gtk_window_set_default_size (window, width, height);
+
+      /* For GTK4, we need to also set resizable and then queue resize */
+      gtk_window_set_resizable (window, TRUE);
+      gtk_widget_queue_resize (GTK_WIDGET (window));
+    }
+
+  /* Mark frame for redisplay */
+  SET_FRAME_GARBAGED (f);
+
+  unblock_input ();
 }
 
 /* Make frame visible or invisible */
