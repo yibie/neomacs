@@ -2064,6 +2064,34 @@ thread_local! {
     static WPE_BACKEND: RefCell<Option<WpeBackend>> = const { RefCell::new(None) };
 }
 
+/// Callback type for webkit new window requests
+/// Parameters: (view_id, url, frame_name)
+/// Returns: 1 if handled (Emacs will open URL), 0 to ignore
+pub type WebKitNewWindowCallback = extern "C" fn(u32, *const c_char, *const c_char) -> bool;
+
+/// Set callback for WebKit new window/tab requests (target="_blank", window.open(), etc.)
+/// Pass null to clear the callback.
+#[no_mangle]
+#[cfg(feature = "wpe-webkit")]
+pub unsafe extern "C" fn neomacs_display_webkit_set_new_window_callback(
+    callback: Option<WebKitNewWindowCallback>,
+) {
+    crate::backend::wpe::set_new_window_callback(callback);
+    if callback.is_some() {
+        log::info!("WebKit new window callback set");
+    } else {
+        log::info!("WebKit new window callback cleared");
+    }
+}
+
+#[no_mangle]
+#[cfg(not(feature = "wpe-webkit"))]
+pub unsafe extern "C" fn neomacs_display_webkit_set_new_window_callback(
+    _callback: Option<extern "C" fn(u32, *const c_char, *const c_char) -> bool>,
+) {
+    // No-op when webkit not available
+}
+
 /// Initialize WebKit subsystem with EGL display
 /// Must be called before creating WebKit views
 #[no_mangle]

@@ -58,10 +58,77 @@
 (defvar neomacs-webkit--initialized nil
   "Whether the WebKit subsystem has been initialized.")
 
+(defcustom neomacs-webkit-new-window-action 'new-buffer
+  "Action to take when WebKit requests a new window.
+Possible values:
+  `new-buffer' - Open URL in a new webkit buffer (default)
+  `same-buffer' - Load URL in the current webkit view
+  `external' - Open URL in external browser
+  `ignore' - Ignore the request
+  `ask' - Ask user what to do"
+  :type '(choice (const :tag "Open in new buffer" new-buffer)
+                 (const :tag "Load in same view" same-buffer)
+                 (const :tag "Open in external browser" external)
+                 (const :tag "Ignore" ignore)
+                 (const :tag "Ask user" ask))
+  :group 'neomacs-webkit)
+
+(defun neomacs-webkit--handle-new-window (view-id url frame-name)
+  "Handle a new window request from WebKit VIEW-ID.
+URL is the requested URL, FRAME-NAME is the target attribute (e.g., \"_blank\")."
+  (message "WebKit new window request: view=%d url=%s frame=%s"
+           view-id url frame-name)
+  (pcase neomacs-webkit-new-window-action
+    ('new-buffer
+     ;; Open URL in a new webkit buffer
+     (let ((new-view-id (neomacs-webkit-browse url)))
+       (when new-view-id
+         (message "Opened %s in new webkit view %d" url new-view-id)))
+     t)
+    ('same-buffer
+     ;; Load URL in the same view
+     (neomacs-webkit-load-uri view-id url)
+     (message "Loading %s in view %d" url view-id)
+     t)
+    ('external
+     ;; Open in external browser
+     (browse-url url)
+     (message "Opened %s in external browser" url)
+     t)
+    ('ignore
+     ;; Ignore the request
+     (message "Ignored new window request for %s" url)
+     nil)
+    ('ask
+     ;; Ask user what to do
+     (let ((choice (completing-read
+                    (format "New window request for %s: " url)
+                    '("Open in new buffer" "Load in same view"
+                      "Open in external browser" "Ignore")
+                    nil t)))
+       (pcase choice
+         ("Open in new buffer"
+          (neomacs-webkit-browse url)
+          t)
+         ("Load in same view"
+          (neomacs-webkit-load-uri view-id url)
+          t)
+         ("Open in external browser"
+          (browse-url url)
+          t)
+         (_
+          nil))))
+    (_
+     ;; Default: open in new buffer
+     (neomacs-webkit-browse url)
+     t)))
+
 (defun neomacs-webkit--ensure-initialized ()
   "Ensure the WebKit subsystem is initialized."
   (unless neomacs-webkit--initialized
     (when (neomacs-webkit-init)
+      ;; Set up the new window callback
+      (neomacs-webkit-set-new-window-function #'neomacs-webkit--handle-new-window)
       (setq neomacs-webkit--initialized t))))
 
 (defun neomacs-webkit-browse (url &optional width height)

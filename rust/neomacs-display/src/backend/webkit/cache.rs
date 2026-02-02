@@ -31,9 +31,9 @@ impl WebKitCache {
     /// Create a new WebKit view with WPE backend
     #[cfg(feature = "wpe-webkit")]
     pub fn create_with_backend(&mut self, backend: &WpeBackend, width: i32, height: i32) -> DisplayResult<u32> {
-        let view = WebKitView::new(backend, width, height)?;
         let id = self.next_id;
         self.next_id += 1;
+        let view = WebKitView::new(id, backend, width, height)?;
         self.views.insert(id, view);
         log::info!("Created WebKit view {} ({}x{})", id, width, height);
         Ok(id)

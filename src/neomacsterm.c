@@ -2669,6 +2669,50 @@ DEFUN ("neomacs-webkit-loading-p", Fneomacs_webkit_loading_p, Sneomacs_webkit_lo
   return loading == 1 ? Qt : Qnil;
 }
 
+/* C callback that calls the Lisp function for new window requests */
+static bool
+neomacs_webkit_new_window_callback (uint32_t view_id, const char *url, const char *frame_name)
+{
+  if (NILP (Vneomacs_webkit_new_window_function))
+    return false;
+
+  /* Call the Lisp function safely */
+  Lisp_Object result = safe_calln (Vneomacs_webkit_new_window_function,
+                                   make_fixnum (view_id),
+                                   url ? build_string (url) : Qnil,
+                                   frame_name ? build_string (frame_name) : Qnil);
+
+  return !NILP (result);
+}
+
+DEFUN ("neomacs-webkit-set-new-window-function", Fneomacs_webkit_set_new_window_function,
+       Sneomacs_webkit_set_new_window_function, 1, 1, 0,
+       doc: /* Set FUNCTION as the handler for WebKit new window requests.
+FUNCTION is called with three arguments: (VIEW-ID URL FRAME-NAME)
+when a link with target=\"_blank\" is clicked or window.open() is called.
+
+If FUNCTION returns non-nil, the new window request is handled by Emacs
+(typically by opening URL in a new buffer). If it returns nil, the request
+is ignored.
+
+Pass nil to clear the handler.  */)
+  (Lisp_Object function)
+{
+  Vneomacs_webkit_new_window_function = function;
+
+  /* Register or clear the C callback */
+  if (NILP (function))
+    {
+      neomacs_display_webkit_set_new_window_callback (NULL);
+    }
+  else
+    {
+      neomacs_display_webkit_set_new_window_callback (neomacs_webkit_new_window_callback);
+    }
+
+  return Qt;
+}
+
 
 /* ============================================================================
  * Animation API
@@ -3001,6 +3045,7 @@ syms_of_neomacsterm (void)
   defsubr (&Sneomacs_webkit_get_url);
   defsubr (&Sneomacs_webkit_get_progress);
   defsubr (&Sneomacs_webkit_loading_p);
+  defsubr (&Sneomacs_webkit_set_new_window_function);
 
   /* Animation API */
   defsubr (&Sneomacs_set_animation_option);
@@ -3014,6 +3059,14 @@ syms_of_neomacsterm (void)
   DEFSYM (Qneomacs, "neomacs");
   /* Qvideo and Qwebkit are defined in xdisp.c for use in VIDEOP/WEBKITP */
   DEFSYM (QCid, ":id");
+
+  /* WebKit new window callback */
+  DEFVAR_LISP ("neomacs-webkit-new-window-function", Vneomacs_webkit_new_window_function,
+    doc: /* Function called when WebKit requests a new window.
+The function is called with three arguments: VIEW-ID, URL, and FRAME-NAME.
+If it returns non-nil, Emacs handles the request (e.g., opens URL in new buffer).
+If nil, the request is ignored. */);
+  Vneomacs_webkit_new_window_function = Qnil;
 
   /* Required variables for cus-start */
   DEFVAR_BOOL ("x-use-underline-position-properties",

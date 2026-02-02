@@ -588,6 +588,21 @@ int neomacs_display_webkit_is_loading(struct NeomacsDisplay *handle, uint32_t we
 void neomacs_display_webkit_free_string(char *s);
 
 /**
+ * Callback type for WebKit new window requests (target="_blank", window.open(), etc.)
+ * Parameters: (view_id, url, frame_name)
+ * Returns: true if Emacs handled it (will open in new buffer), false to ignore
+ */
+typedef bool (*WebKitNewWindowCallbackFn)(uint32_t view_id,
+                                          const char *url,
+                                          const char *frame_name);
+
+/**
+ * Set callback for WebKit new window/tab requests
+ * Pass NULL to clear the callback.
+ */
+void neomacs_display_webkit_set_new_window_callback(WebKitNewWindowCallbackFn callback);
+
+/**
  * Add a WPE glyph to the current row
  */
 void neomacs_display_add_wpe_glyph(struct NeomacsDisplay *handle,

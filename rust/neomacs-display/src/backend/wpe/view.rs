@@ -19,6 +19,26 @@ use super::sys::platform as plat;
 use super::platform::WpePlatformDisplay;
 use super::dmabuf::DmaBufExporter;
 
+/// Callback type for new window requests.
+/// Parameters: (view_id, url, frame_name)
+/// Returns: true to handle (ignore webkit's default), false to allow webkit default
+pub type NewWindowCallback = extern "C" fn(view_id: u32, url: *const std::os::raw::c_char, frame_name: *const std::os::raw::c_char) -> bool;
+
+/// Global callback for new window requests (set from Emacs)
+static mut NEW_WINDOW_CALLBACK: Option<NewWindowCallback> = None;
+
+/// Set the global new window callback
+pub fn set_new_window_callback(callback: Option<NewWindowCallback>) {
+    unsafe {
+        NEW_WINDOW_CALLBACK = callback;
+    }
+}
+
+/// Get the global new window callback
+pub fn get_new_window_callback() -> Option<NewWindowCallback> {
+    unsafe { NEW_WINDOW_CALLBACK }
+}
+
 /// State of a WPE WebKit view
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WpeViewState {
@@ -34,6 +54,8 @@ pub enum WpeViewState {
 
 /// Callback data for buffer-rendered signal
 struct BufferCallbackData {
+    /// View ID for callbacks to Emacs
+    view_id: u32,
     /// Latest rendered texture (Mutex for thread safety)
     latest_texture: Mutex<Option<Texture>>,
     /// Flag indicating new frame available
@@ -51,6 +73,9 @@ struct BufferCallbackData {
 /// Uses WPEDisplay headless mode and WPEView buffer-rendered signals
 /// for efficient GPU texture extraction.
 pub struct WpeWebView {
+    /// View ID (for callbacks to Emacs)
+    pub view_id: u32,
+
     /// Current URL
     pub url: String,
 
@@ -82,6 +107,9 @@ pub struct WpeWebView {
     /// Signal handler ID for buffer-rendered
     buffer_rendered_handler_id: u64,
 
+    /// Signal handler ID for decide-policy
+    decide_policy_handler_id: u64,
+
     /// DMA-BUF exporter for texture conversion
     dmabuf_exporter: DmaBufExporter,
 
@@ -96,12 +124,13 @@ impl WpeWebView {
     /// Create a new WPE WebKit view using WPE Platform API.
     ///
     /// # Arguments
+    /// * `view_id` - Unique ID for this view (for callbacks)
     /// * `platform_display` - The initialized WPE Platform display
     /// * `width` - Initial width
     /// * `height` - Initial height
-    pub fn new(platform_display: &WpePlatformDisplay, width: u32, height: u32) -> DisplayResult<Self> {
+    pub fn new(view_id: u32, platform_display: &WpePlatformDisplay, width: u32, height: u32) -> DisplayResult<Self> {
         use std::io::Write;
-        eprintln!("WpeWebView::new (Platform API) called with {}x{}", width, height);
+        eprintln!("WpeWebView::new (Platform API) called with id={}, {}x{}", view_id, width, height);
         let _ = std::io::stderr().flush();
 
         let display = platform_display.raw();
@@ -168,6 +197,7 @@ impl WpeWebView {
 
             // Allocate callback data
             let callback_data = Box::into_raw(Box::new(BufferCallbackData {
+                view_id,
                 latest_texture: Mutex::new(None),
                 frame_available: AtomicBool::new(false),
                 display,
@@ -191,6 +221,21 @@ impl WpeWebView {
             );
             eprintln!("WpeWebView::new: connected buffer-rendered signal, handler_id={}", handler_id);
 
+            // Connect decide-policy signal for new window handling
+            let decide_policy_signal = CString::new("decide-policy").unwrap();
+            let decide_policy_handler_id = plat::g_signal_connect_data(
+                web_view as *mut _,
+                decide_policy_signal.as_ptr(),
+                Some(std::mem::transmute::<
+                    unsafe extern "C" fn(*mut wk::WebKitWebView, *mut wk::WebKitPolicyDecision, u32, *mut libc::c_void) -> i32,
+                    unsafe extern "C" fn(),
+                >(decide_policy_callback)),
+                callback_data as *mut _,
+                None,
+                0, // G_CONNECT_DEFAULT
+            );
+            eprintln!("WpeWebView::new: connected decide-policy signal, handler_id={}", decide_policy_handler_id);
+
             // Map and make the view visible so it starts rendering
             plat::wpe_view_set_visible(wpe_view as *mut plat::WPEView, 1);
             plat::wpe_view_map(wpe_view as *mut plat::WPEView);
@@ -200,6 +245,7 @@ impl WpeWebView {
             log::info!("WPE Platform WebKitWebView created successfully ({}x{})", width, height);
 
             Ok(Self {
+                view_id,
                 url: String::new(),
                 state: WpeViewState::Ready,
                 width,
@@ -211,6 +257,7 @@ impl WpeWebView {
                 wpe_view: wpe_view as *mut _,
                 callback_data,
                 buffer_rendered_handler_id: handler_id,
+                decide_policy_handler_id,
                 dmabuf_exporter,
                 gdk_display,
                 needs_redraw: false,
@@ -604,4 +651,98 @@ unsafe extern "C" fn buffer_rendered_callback(
         *guard = Some(texture.upcast());
     }
     callback_data.frame_available.store(true, Ordering::Release);
+}
+
+/// C callback for decide-policy signal from WebKitWebView
+/// Handles new window requests (target="_blank", window.open(), etc.)
+unsafe extern "C" fn decide_policy_callback(
+    _web_view: *mut wk::WebKitWebView,
+    decision: *mut wk::WebKitPolicyDecision,
+    decision_type: u32,
+    user_data: *mut libc::c_void,
+) -> i32 {
+    // Policy decision type constants
+    const WEBKIT_POLICY_DECISION_TYPE_NAVIGATION_ACTION: u32 = 0;
+    const WEBKIT_POLICY_DECISION_TYPE_NEW_WINDOW_ACTION: u32 = 1;
+    const WEBKIT_POLICY_DECISION_TYPE_RESPONSE: u32 = 2;
+
+    if user_data.is_null() || decision.is_null() {
+        return 0; // FALSE - let WebKit handle it
+    }
+
+    let callback_data = &*(user_data as *const BufferCallbackData);
+
+    match decision_type {
+        WEBKIT_POLICY_DECISION_TYPE_NEW_WINDOW_ACTION => {
+            // Cast to WebKitNavigationPolicyDecision
+            let nav_decision = decision as *mut wk::WebKitNavigationPolicyDecision;
+
+            // Get the navigation action
+            let nav_action = wk::webkit_navigation_policy_decision_get_navigation_action(nav_decision);
+            if nav_action.is_null() {
+                log::warn!("decide_policy_callback: null navigation action");
+                wk::webkit_policy_decision_ignore(decision);
+                return 1; // TRUE - we handled it
+            }
+
+            // Get the request URL
+            let request = wk::webkit_navigation_action_get_request(nav_action);
+            let url = if !request.is_null() {
+                let uri_ptr = wk::webkit_uri_request_get_uri(request);
+                if !uri_ptr.is_null() {
+                    CStr::from_ptr(uri_ptr).to_string_lossy().into_owned()
+                } else {
+                    String::new()
+                }
+            } else {
+                String::new()
+            };
+
+            // Get the frame name (target attribute)
+            let frame_name_ptr = wk::webkit_navigation_action_get_frame_name(nav_action);
+            let frame_name = if !frame_name_ptr.is_null() {
+                CStr::from_ptr(frame_name_ptr).to_string_lossy().into_owned()
+            } else {
+                String::new()
+            };
+
+            log::info!("decide_policy_callback: NEW_WINDOW request url='{}' frame='{}'",
+                       url, frame_name);
+
+            // Call the Emacs callback if set
+            if let Some(callback) = get_new_window_callback() {
+                let c_url = CString::new(url.clone()).unwrap_or_default();
+                let c_frame = CString::new(frame_name.clone()).unwrap_or_default();
+
+                let handled = callback(callback_data.view_id, c_url.as_ptr(), c_frame.as_ptr());
+
+                if handled {
+                    // Emacs will handle opening the URL
+                    wk::webkit_policy_decision_ignore(decision);
+                    log::info!("decide_policy_callback: Emacs handled new window for '{}'", url);
+                    return 1; // TRUE - we handled it
+                }
+            }
+
+            // No callback or callback didn't handle it - ignore (don't open new window)
+            wk::webkit_policy_decision_ignore(decision);
+            log::info!("decide_policy_callback: Ignored new window request for '{}'", url);
+            return 1; // TRUE - we handled it (by ignoring)
+        }
+
+        WEBKIT_POLICY_DECISION_TYPE_NAVIGATION_ACTION => {
+            // Normal navigation - let WebKit handle it
+            return 0; // FALSE
+        }
+
+        WEBKIT_POLICY_DECISION_TYPE_RESPONSE => {
+            // Resource response - let WebKit handle it
+            return 0; // FALSE
+        }
+
+        _ => {
+            // Unknown type - let WebKit handle it
+            return 0; // FALSE
+        }
+    }
 }

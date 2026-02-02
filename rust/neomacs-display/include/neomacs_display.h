@@ -444,6 +444,16 @@ void neomacs_display_set_mouse_motion_callback(MouseMotionCallbackFn callback, v
 void neomacs_display_set_mouse_scroll_callback(MouseScrollCallbackFn callback, void *userData);
 
 /**
+ * Set callback for WebKit new window/tab requests (target="_blank", window.open(), etc.)
+ * Pass null to clear the callback.
+ */
+void neomacs_display_webkit_set_new_window_callback(Option<WebKitNewWindowCallback> callback);
+
+void neomacs_display_webkit_set_new_window_callback(bool (*callback)(uint32_t,
+                                                                     const char*,
+                                                                     const char*));
+
+/**
  * Initialize WebKit subsystem with EGL display
  * Must be called before creating WebKit views
  */
