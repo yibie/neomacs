@@ -63,6 +63,12 @@ thread_local! {
     pub static WIDGET_CACHE_FRAMES: RefCell<bool> = const { RefCell::new(false) };
     // Shared HybridRenderer pointer - set by FFI to share renderer with widget
     pub static WIDGET_HYBRID_RENDERER: RefCell<Option<*mut super::HybridRenderer>> = const { RefCell::new(None) };
+    // Tick callback ID for animation frame clock
+    pub static WIDGET_TICK_CALLBACK_ID: RefCell<Option<gtk4::TickCallbackId>> = const { RefCell::new(None) };
+    // Last frame timestamp for delta time calculation (in microseconds)
+    pub static WIDGET_LAST_FRAME_TIME: RefCell<i64> = const { RefCell::new(0) };
+    // Widget reference for tick callback (weak ref to avoid preventing drop)
+    pub static WIDGET_INSTANCE: RefCell<Option<glib::WeakRef<NeomacsWidget>>> = const { RefCell::new(None) };
 }
 
 /// Set the video cache for widget rendering (called from FFI before queue_draw)
@@ -260,6 +266,87 @@ pub fn get_widget_hybrid_renderer() -> Option<*mut super::HybridRenderer> {
     WIDGET_HYBRID_RENDERER.with(|c| *c.borrow())
 }
 
+/// Store widget instance for tick callback access
+pub fn set_widget_instance(widget: &NeomacsWidget) {
+    WIDGET_INSTANCE.with(|c| {
+        *c.borrow_mut() = Some(widget.downgrade());
+    });
+}
+
+/// Start animation tick callback (frame clock driven updates)
+/// This enables continuous animation updates at display refresh rate
+pub fn start_animation_tick() {
+    // Check if already running
+    let already_running = WIDGET_TICK_CALLBACK_ID.with(|c| c.borrow().is_some());
+    if already_running {
+        return;
+    }
+
+    // Get widget reference
+    let widget = WIDGET_INSTANCE.with(|c| {
+        c.borrow().as_ref().and_then(|w| w.upgrade())
+    });
+
+    if let Some(widget) = widget {
+        info!("Starting animation tick callback");
+
+        // Initialize last frame time
+        WIDGET_LAST_FRAME_TIME.with(|c| *c.borrow_mut() = 0);
+
+        // Add tick callback - called every frame by GTK
+        let tick_id = widget.add_tick_callback(|widget, frame_clock| {
+            // Get current frame time in microseconds
+            let frame_time = frame_clock.frame_time();
+
+            // Calculate delta time
+            let last_time = WIDGET_LAST_FRAME_TIME.with(|c| *c.borrow());
+            let dt = if last_time == 0 {
+                1.0 / 60.0  // Assume 60fps for first frame
+            } else {
+                (frame_time - last_time) as f32 / 1_000_000.0  // Convert microseconds to seconds
+            };
+            WIDGET_LAST_FRAME_TIME.with(|c| *c.borrow_mut() = frame_time);
+
+            // Update animations via shared renderer
+            let mut animations_active = false;
+            if let Some(renderer_ptr) = get_widget_hybrid_renderer() {
+                let renderer = unsafe { &mut *renderer_ptr };
+                animations_active = renderer.update_animation(dt);
+            }
+
+            // If animations are active, request redraw
+            if animations_active {
+                widget.queue_draw();
+                glib::ControlFlow::Continue
+            } else {
+                // No more animations - stop tick callback
+                info!("Animation complete, stopping tick callback");
+                WIDGET_TICK_CALLBACK_ID.with(|c| *c.borrow_mut() = None);
+                WIDGET_LAST_FRAME_TIME.with(|c| *c.borrow_mut() = 0);
+                glib::ControlFlow::Break
+            }
+        });
+
+        WIDGET_TICK_CALLBACK_ID.with(|c| *c.borrow_mut() = Some(tick_id));
+    }
+}
+
+/// Stop animation tick callback
+pub fn stop_animation_tick() {
+    WIDGET_TICK_CALLBACK_ID.with(|c| {
+        if let Some(tick_id) = c.borrow_mut().take() {
+            tick_id.remove();
+            info!("Animation tick callback stopped");
+        }
+    });
+    WIDGET_LAST_FRAME_TIME.with(|c| *c.borrow_mut() = 0);
+}
+
+/// Check if animation tick is running
+pub fn is_animation_tick_running() -> bool {
+    WIDGET_TICK_CALLBACK_ID.with(|c| c.borrow().is_some())
+}
+
 /// Inner state for NeomacsWidget
 #[derive(Default)]
 pub struct NeomacsWidgetInner {
@@ -294,6 +381,9 @@ impl ObjectImpl for NeomacsWidgetInner {
         widget.set_can_focus(true);
         widget.set_can_target(true);  // Enable receiving pointer events
         widget.set_sensitive(true);   // Enable input events
+
+        // Store widget instance for tick callback access
+        set_widget_instance(&widget);
 
         // Note: Mouse event handlers are added by C code in neomacsfns.c
         // (neomacs_click_pressed_cb, neomacs_motion_cb, neomacs_scroll_cb)
@@ -424,6 +514,14 @@ impl NeomacsWidgetInner {
                     }
                     
                     snapshot.append_node(&node);
+                    
+                    // Start animation tick if animations need continuous updates
+                    if let Some(renderer_ptr) = shared_renderer {
+                        let renderer = unsafe { &*renderer_ptr };
+                        if renderer.needs_animation_frame() && !is_animation_tick_running() {
+                            start_animation_tick();
+                        }
+                    }
                 } else {
                     let rect = graphene::Rect::new(0.0, 0.0, width, height);
                     let color = gtk4::gdk::RGBA::new(0.5, 0.1, 0.1, 1.0);

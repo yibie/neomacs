@@ -2913,6 +2913,12 @@ pub unsafe extern "C" fn neomacs_display_trigger_buffer_transition(
         display.hybrid_renderer.trigger_buffer_transition();
         let active = display.hybrid_renderer.buffer_transition.is_active();
         info!("FFI: Transition started, active: {}", active);
+        
+        // Start frame clock driven animation updates
+        if active {
+            crate::backend::gtk4::start_animation_tick();
+        }
+        
         if active { 1 } else { 0 }
     } else {
         info!("FFI: No snapshot available for transition");
