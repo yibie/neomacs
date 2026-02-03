@@ -671,4 +671,14 @@ int neomacs_display_trigger_buffer_transition(struct NeomacsDisplay *handle);
  */
 int neomacs_display_has_transition_snapshot(struct NeomacsDisplay *handle);
 
+/* Window management - winit backend */
+uint32_t neomacs_display_create_window(void *display_handle, int width, int height, const char *title);
+void neomacs_display_destroy_window(void *display_handle, uint32_t window_id);
+void neomacs_display_show_window(void *display_handle, uint32_t window_id, bool visible);
+void neomacs_display_set_window_title(void *display_handle, uint32_t window_id, const char *title);
+void neomacs_display_set_window_size(void *display_handle, uint32_t window_id, int width, int height);
+
+/* Event polling - winit backend */
+int neomacs_display_poll_events(void *display_handle);
+
 #endif  /* NEOMACS_DISPLAY_H */
