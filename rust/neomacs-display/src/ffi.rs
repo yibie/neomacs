@@ -1557,13 +1557,11 @@ pub unsafe extern "C" fn neomacs_display_set_mouse_scroll_callback(
 #[cfg(feature = "wpe-webkit")]
 use std::cell::RefCell;
 #[cfg(feature = "wpe-webkit")]
-use crate::backend::webkit::WebKitCache;
-#[cfg(feature = "wpe-webkit")]
-use crate::backend::wpe::WpeBackend;
+use crate::backend::wpe::{WpeBackend, WebKitViewCache};
 
 #[cfg(feature = "wpe-webkit")]
 thread_local! {
-    static WEBKIT_CACHE: RefCell<Option<WebKitCache>> = const { RefCell::new(None) };
+    static WEBKIT_CACHE: RefCell<Option<WebKitViewCache>> = const { RefCell::new(None) };
     static WPE_BACKEND: RefCell<Option<WpeBackend>> = const { RefCell::new(None) };
 }
 
@@ -1642,7 +1640,7 @@ pub unsafe extern "C" fn neomacs_display_webkit_init(
 
                 // Initialize cache
                 WEBKIT_CACHE.with(|cache| {
-                    *cache.borrow_mut() = Some(WebKitCache::new());
+                    *cache.borrow_mut() = Some(WebKitViewCache::new());
                 });
 
                 eprintln!("neomacs_display_webkit_init: WebKit subsystem initialized successfully");
@@ -1875,7 +1873,7 @@ pub unsafe extern "C" fn neomacs_display_webkit_resize(
             let mut cache_borrow = cache_cell.borrow_mut();
             if let Some(cache) = cache_borrow.as_mut() {
                 if let Some(view) = cache.get_mut(view_id) {
-                    view.resize(width as i32, height as i32);
+                    view.resize(width as u32, height as u32);
                     return 0;
                 }
             }

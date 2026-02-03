@@ -525,6 +525,33 @@ impl WgpuRenderer {
     pub fn height(&self) -> u32 {
         self.height
     }
+
+    /// Render a WebKit view texture at the given bounds.
+    ///
+    /// This method renders the WebKit view content (from a wgpu texture)
+    /// to the screen at the specified rectangle.
+    ///
+    /// # Arguments
+    /// * `_encoder` - The command encoder to use for rendering
+    /// * `_view` - The output texture view to render to
+    /// * `_webkit_bind_group` - The bind group containing the WebKit texture
+    /// * `_bounds` - The rectangle where the WebKit view should be rendered
+    #[cfg(feature = "wpe-webkit")]
+    pub fn render_webkit_view(
+        &mut self,
+        _encoder: &mut wgpu::CommandEncoder,
+        _view: &wgpu::TextureView,
+        _webkit_bind_group: &wgpu::BindGroup,
+        _bounds: crate::core::types::Rect,
+    ) {
+        // TODO: Implement texture rendering
+        // Use existing texture pipeline to render webkit content
+        // Steps:
+        // 1. Create a render pass with the output view
+        // 2. Set the texture pipeline (need to add a texture shader)
+        // 3. Set the webkit bind group
+        // 4. Draw a quad at the specified bounds
+    }
 }
 
 impl Default for WgpuRenderer {

@@ -114,9 +114,10 @@ impl WebKitView {
         self.wpe_view.state.into()
     }
 
-    /// Get the texture for rendering (cloned to ensure proper reference counting)
-    pub fn texture(&self) -> Option<gdk4::Texture> {
-        self.wpe_view.texture()
+    /// Get the DMA-BUF for rendering.
+    /// Returns the exported DMA-BUF that can be imported into wgpu.
+    pub fn get_frame_dmabuf(&self) -> Option<crate::backend::wpe::ExportedDmaBuf> {
+        self.wpe_view.get_frame_dmabuf()
     }
 
     /// Get dimensions
