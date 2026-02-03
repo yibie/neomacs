@@ -12,6 +12,31 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+/**
+ * Modifier flags matching Emacs.
+ */
+#define NEOMACS_SHIFT_MASK (1 << 0)
+
+#define NEOMACS_CTRL_MASK (1 << 1)
+
+#define NEOMACS_META_MASK (1 << 2)
+
+#define NEOMACS_SUPER_MASK (1 << 3)
+
+/**
+ * Event kinds for NeomacsInputEvent.kind
+ */
+#define NEOMACS_EVENT_KEY_PRESS     1
+#define NEOMACS_EVENT_KEY_RELEASE   2
+#define NEOMACS_EVENT_MOUSE_PRESS   3
+#define NEOMACS_EVENT_MOUSE_RELEASE 4
+#define NEOMACS_EVENT_MOUSE_MOVE    5
+#define NEOMACS_EVENT_SCROLL        6
+#define NEOMACS_EVENT_RESIZE        7
+#define NEOMACS_EVENT_CLOSE_REQUEST 8
+#define NEOMACS_EVENT_FOCUS_IN      9
+#define NEOMACS_EVENT_FOCUS_OUT     10
+
 #define DRM_FORMAT_ARGB8888 875713089
 
 #define DRM_FORMAT_XRGB8888 875713112
@@ -69,6 +94,30 @@ typedef void (*MouseScrollCallbackFn)(void *user_data,
                                       double delta_y,
                                       unsigned int modifiers,
                                       unsigned int time);
+
+/**
+ * Input event structure passed to C.
+ */
+typedef struct NeomacsInputEvent {
+  uint32_t kind;
+  uint32_t windowId;
+  uint64_t timestamp;
+  int32_t x;
+  int32_t y;
+  uint32_t keycode;
+  uint32_t keysym;
+  uint32_t modifiers;
+  uint32_t button;
+  float scrollDeltaX;
+  float scrollDeltaY;
+  uint32_t width;
+  uint32_t height;
+} NeomacsInputEvent;
+
+/**
+ * Event callback function type for C FFI
+ */
+typedef void (*EventCallback)(const struct NeomacsInputEvent*);
 
 /**
  * Initialize the display engine
@@ -623,6 +672,55 @@ void neomacs_display_add_wpe_glyph(struct NeomacsDisplay *handle,
                                    int pixelHeight);
 
 /**
+ * Create a new window with the specified dimensions and title.
+ *
+ * Returns the window ID if successful, or 0 if creation failed.
+ */
+uint32_t neomacs_display_create_window(struct NeomacsDisplay *handle,
+                                       int32_t width,
+                                       int32_t height,
+                                       const char *title);
+
+/**
+ * Destroy a window by its ID.
+ */
+void neomacs_display_destroy_window(struct NeomacsDisplay *handle, uint32_t windowId);
+
+/**
+ * Show or hide a window.
+ */
+void neomacs_display_show_window(struct NeomacsDisplay *handle, uint32_t windowId, bool visible);
+
+/**
+ * Set the title of a window.
+ */
+void neomacs_display_set_window_title(struct NeomacsDisplay *handle,
+                                      uint32_t windowId,
+                                      const char *title);
+
+/**
+ * Set the size of a window.
+ */
+void neomacs_display_set_window_size(struct NeomacsDisplay *handle,
+                                     uint32_t windowId,
+                                     int32_t width,
+                                     int32_t height);
+
+/**
+ * Set the event callback function.
+ *
+ * The callback will be invoked for each input event when polling.
+ */
+void neomacs_display_set_event_callback(EventCallback callback);
+
+/**
+ * Poll for input events and invoke the callback for each event.
+ *
+ * Returns the number of events processed.
+ */
+int32_t neomacs_display_poll_events(struct NeomacsDisplay *handle);
+
+/**
  * Set an animation configuration option (stub)
  */
 int neomacs_display_set_animation_option(struct NeomacsDisplay *handle,
@@ -670,15 +768,5 @@ int neomacs_display_trigger_buffer_transition(struct NeomacsDisplay *handle);
  * Check if buffer transition is ready (stub)
  */
 int neomacs_display_has_transition_snapshot(struct NeomacsDisplay *handle);
-
-/* Window management - winit backend */
-uint32_t neomacs_display_create_window(void *display_handle, int width, int height, const char *title);
-void neomacs_display_destroy_window(void *display_handle, uint32_t window_id);
-void neomacs_display_show_window(void *display_handle, uint32_t window_id, bool visible);
-void neomacs_display_set_window_title(void *display_handle, uint32_t window_id, const char *title);
-void neomacs_display_set_window_size(void *display_handle, uint32_t window_id, int width, int height);
-
-/* Event polling - winit backend */
-int neomacs_display_poll_events(void *display_handle);
 
 #endif  /* NEOMACS_DISPLAY_H */

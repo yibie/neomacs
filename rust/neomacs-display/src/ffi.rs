@@ -9,6 +9,21 @@ use std::ptr;
 use log::{debug, trace, warn, info, error};
 
 use crate::backend::{BackendType, DisplayBackend};
+
+// ============================================================================
+// Event Callback for FFI
+// ============================================================================
+
+#[cfg(feature = "winit-backend")]
+use crate::backend::wgpu::NeomacsInputEvent;
+
+/// Event callback function type for C FFI
+#[cfg(feature = "winit-backend")]
+type EventCallback = extern "C" fn(*const NeomacsInputEvent);
+
+/// Global event callback - set by C code to receive input events
+#[cfg(feature = "winit-backend")]
+static mut EVENT_CALLBACK: Option<EventCallback> = None;
 use crate::backend::tty::TtyBackend;
 #[cfg(feature = "winit-backend")]
 use crate::backend::wgpu::WinitBackend;
@@ -2432,6 +2447,50 @@ pub extern "C" fn neomacs_display_set_window_size(
             );
         }
     }
+}
+
+// ============================================================================
+// Event Polling FFI Functions
+// ============================================================================
+
+/// Set the event callback function.
+///
+/// The callback will be invoked for each input event when polling.
+#[cfg(feature = "winit-backend")]
+#[no_mangle]
+pub extern "C" fn neomacs_display_set_event_callback(callback: EventCallback) {
+    unsafe {
+        EVENT_CALLBACK = Some(callback);
+    }
+}
+
+/// Poll for input events and invoke the callback for each event.
+///
+/// Returns the number of events processed.
+#[no_mangle]
+pub extern "C" fn neomacs_display_poll_events(handle: *mut NeomacsDisplay) -> i32 {
+    if handle.is_null() {
+        return 0;
+    }
+
+    let display = unsafe { &mut *handle };
+    let mut count = 0;
+
+    #[cfg(feature = "winit-backend")]
+    if let Some(ref mut backend) = display.winit_backend {
+        let events = backend.poll_events();
+        count = events.len() as i32;
+
+        unsafe {
+            if let Some(callback) = EVENT_CALLBACK {
+                for event in &events {
+                    callback(event as *const _);
+                }
+            }
+        }
+    }
+
+    count
 }
 
 // ============================================================================
