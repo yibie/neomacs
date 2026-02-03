@@ -556,6 +556,7 @@ neomacs_set_window_size (struct frame *f, bool change_gravity,
   if (!output || !output->widget)
     return;
 
+
   block_input ();
 
   /* Update frame's pixel dimensions */

@@ -227,6 +227,22 @@ neomacs_change_tab_bar_height (struct frame *f, int height)
 	adjust_frame_size (f, -1, -1, 4, false, Qtab_bar_lines);
 
       f->tab_bar_resized = f->tab_bar_redisplayed;
+
+      /* After frame size adjustment, resize GTK widget to match new frame size */
+      struct neomacs_output *output = FRAME_NEOMACS_OUTPUT (f);
+      if (output && output->drawing_area)
+        {
+          int new_width = FRAME_PIXEL_WIDTH (f);
+          int new_height = FRAME_PIXEL_HEIGHT (f);
+          gtk_widget_set_size_request (GTK_WIDGET (output->drawing_area),
+                                       new_width, new_height);
+          if (GTK_IS_WINDOW (output->widget))
+            {
+              gtk_window_set_default_size (GTK_WINDOW (output->widget),
+                                           new_width, new_height);
+              gtk_widget_queue_resize (GTK_WIDGET (output->widget));
+            }
+        }
     }
   else
     /* Any other change may leave the native size of F alone.  */
@@ -544,7 +560,7 @@ neomacs_widget_resize_cb (void *user_data, int width, int height)
   int line_height = FRAME_LINE_HEIGHT (f);
   if (col_width <= 0) col_width = 8;
   if (line_height <= 0) line_height = 16;
-  
+
   int new_cols = width / col_width;
   int new_rows = height / line_height;
 
@@ -553,22 +569,22 @@ neomacs_widget_resize_cb (void *user_data, int width, int height)
       /* Update pixel dimensions */
       FRAME_PIXEL_WIDTH (f) = width;
       FRAME_PIXEL_HEIGHT (f) = height;
-      
+
       /* Change frame size - pass PIXEL dimensions, not character dimensions */
       change_frame_size (f, width, height, false, true, false);
-      
+
       /* Reallocate glyph matrices for new size */
       adjust_frame_glyphs (f);
-      
+
       /* Clear old glyph data that was built with wrong size */
       clear_current_matrices (f);
-      
+
       /* Force full redisplay to update content */
       SET_FRAME_GARBAGED (f);
-      
+
       /* Also mark windows as needing update */
       mark_window_display_accurate (FRAME_ROOT_WINDOW (f), false);
-      
+
       /* Signal that windows changed - forces redisplay cycle */
       windows_or_buffers_changed = 63;
     }
@@ -602,7 +618,7 @@ neomacs_draw_cb (GtkDrawingArea *area, cairo_t *cr,
 
   /* Fallback: use C Cairo backing surface */
   neomacs_ensure_cr_surface (f, width, height);
-  
+
   if (output->cr_surface)
     {
       cairo_set_source_surface (cr, output->cr_surface, 0, 0);
@@ -762,7 +778,7 @@ neomacs_focus_enter_cb (GtkEventControllerFocus *controller, gpointer user_data)
   if (!FRAME_LIVE_P (f))
     return;
 
-if (0) fprintf (stderr, "DEBUG: Focus entered frame %p, widget=%p (focusable=%d, has_focus=%d)\n", 
+if (0) fprintf (stderr, "DEBUG: Focus entered frame %p, widget=%p (focusable=%d, has_focus=%d)\n",
            (void *) f, (void *) widget,
            gtk_widget_get_focusable (widget),
            gtk_widget_has_focus (widget));
@@ -819,14 +835,14 @@ neomacs_realize_cb (GtkWidget *widget, gpointer user_data)
 {
   struct frame *f = (struct frame *) user_data;
   struct neomacs_output *output;
-  
+
   if (!FRAME_LIVE_P (f))
     return;
-  
+
   output = FRAME_NEOMACS_OUTPUT (f);
   if (!output)
     return;
-  
+
   /* Grab focus on the drawing area once widget is realized */
   if (output->drawing_area)
     gtk_widget_grab_focus (output->drawing_area);
@@ -1139,7 +1155,7 @@ neomacs_create_frame_widgets (struct frame *f)
           use_gpu_widget = 0;
         }
     }
-  
+
   if (!use_gpu_widget)
     {
       /* Use standard DrawingArea with Cairo rendering */
@@ -1212,7 +1228,7 @@ neomacs_create_frame_widgets (struct frame *f)
                       G_CALLBACK (neomacs_key_pressed_cb), f);
     gtk_widget_add_controller (drawing_area, da_key_controller);
   }
-  
+
   /* Also add key controller to drawing area with CAPTURE phase */
   {
     GtkEventController *da_key_controller2 = gtk_event_controller_key_new ();
@@ -1258,7 +1274,7 @@ neomacs_create_frame_widgets (struct frame *f)
     g_signal_connect (legacy_controller, "event",
                       G_CALLBACK (neomacs_legacy_event_cb), f);
     gtk_widget_add_controller (drawing_area, legacy_controller);
-    
+
     GtkEventController *window_legacy_controller = gtk_event_controller_legacy_new ();
     g_signal_connect (window_legacy_controller, "event",
                       G_CALLBACK (neomacs_legacy_event_cb), f);
@@ -1323,7 +1339,7 @@ neomacs_create_frame_widgets (struct frame *f)
 
   /* Ensure the drawing area gets keyboard focus */
   gtk_widget_grab_focus (drawing_area);
-  
+
   /* Also set as the default focus widget */
   gtk_window_set_focus (GTK_WINDOW (window), drawing_area);
 }

@@ -165,7 +165,7 @@ pub unsafe extern "C" fn neomacs_display_resize(
 
     let display = &mut *handle;
     display.scene = Scene::new(width as f32, height as f32);
-    
+
     // Update frame_glyphs buffer size and CLEAR it for fresh redraw
     display.frame_glyphs.width = width as f32;
     display.frame_glyphs.height = height as f32;
@@ -190,11 +190,11 @@ pub unsafe extern "C" fn neomacs_display_begin_frame(handle: *mut NeomacsDisplay
     display.frame_counter += 1;
     // Mark that we're in a frame update cycle
     display.in_frame = true;
-    
+
     // Share the hybrid renderer with the widget for animation state sharing
     crate::backend::gtk4::set_widget_hybrid_renderer(&mut display.hybrid_renderer);
 
-    debug!("begin_frame: frame={}, hybrid={}, glyphs={}", 
+    debug!("begin_frame: frame={}, hybrid={}, glyphs={}",
            display.frame_counter, display.use_hybrid, display.frame_glyphs.len());
 
     // DON'T clear glyphs - accumulate them for incremental redisplay.
@@ -588,7 +588,7 @@ pub unsafe extern "C" fn neomacs_display_add_stretch_glyph(
             // Get the background color from the current face
             let bg_color = display.frame_glyphs.get_current_bg()
                 .unwrap_or(display.frame_glyphs.background);
-            
+
             display.frame_glyphs.add_stretch(
                 current_x as f32,
                 current_y as f32,
@@ -685,7 +685,7 @@ pub unsafe extern "C" fn neomacs_display_add_image_glyph(
         let relative_y = current_y - window.bounds.y as i32;
         // Convert frame-absolute X to window-relative X
         let relative_x = current_x - window.bounds.x as i32;
-        
+
         if let Some(row) = window.rows.iter_mut().find(|r| r.y == relative_y) {
             // Remove overlapping glyphs (using window-relative X)
             let x_start = relative_x;
@@ -694,7 +694,7 @@ pub unsafe extern "C" fn neomacs_display_add_image_glyph(
                 let g_end = g.x + g.pixel_width;
                 g_end <= x_start || g.x >= x_end
             });
-            
+
             let glyph = Glyph {
                 glyph_type: GlyphType::Image,
                 charcode: 0,
@@ -710,7 +710,7 @@ pub unsafe extern "C" fn neomacs_display_add_image_glyph(
                 data: GlyphData::Image { image_id },
             };
             row.glyphs.push(glyph);
-            
+
             // Advance X position (keep as frame-absolute for C code)
             display.current_row_x += pixel_width;
         }
@@ -895,9 +895,9 @@ pub unsafe extern "C" fn neomacs_display_set_background(
         b: (color & 0xFF) as f32 / 255.0,
         a: 1.0,
     };
-    
+
     display.scene.background = bg;
-    
+
     // Also set background for existing windows
     for window in &mut display.scene.windows {
         window.background = bg;
@@ -946,7 +946,7 @@ pub unsafe extern "C" fn neomacs_display_add_video_glyph(
         let relative_y = current_y - window.bounds.y as i32;
         // Convert frame-absolute X to window-relative X
         let relative_x = current_x - window.bounds.x as i32;
-        
+
         if let Some(row) = window.rows.iter_mut().find(|r| r.y == relative_y) {
             // Remove overlapping glyphs (using window-relative X)
             let x_start = relative_x;
@@ -955,7 +955,7 @@ pub unsafe extern "C" fn neomacs_display_add_video_glyph(
                 let g_end = g.x + g.pixel_width;
                 g_end <= x_start || g.x >= x_end
             });
-            
+
             let glyph = Glyph {
                 glyph_type: GlyphType::Video,
                 charcode: 0,
@@ -971,7 +971,7 @@ pub unsafe extern "C" fn neomacs_display_add_video_glyph(
                 data: GlyphData::Video { video_id },
             };
             row.glyphs.push(glyph);
-            
+
             // Advance X position (keep as frame-absolute for C code)
             display.current_row_x += pixel_width;
         }
@@ -1459,7 +1459,7 @@ pub unsafe extern "C" fn neomacs_display_clear_area(
     }
 
     let display = &mut *handle;
-    
+
     // For hybrid path, clear the area in frame_glyphs
     if display.use_hybrid {
         display.frame_glyphs.clear_area(
@@ -1522,7 +1522,7 @@ pub unsafe extern "C" fn neomacs_display_end_frame(handle: *mut NeomacsDisplay) 
     // Reset frame flag
     display.in_frame = false;
 
-    debug!("end_frame: frame={}, glyphs={}, regions={}", 
+    debug!("end_frame: frame={}, glyphs={}, regions={}",
            current_frame, display.frame_glyphs.len(), display.frame_glyphs.window_regions.len());
 
     // End frame - this handles layout change detection and stale glyph removal
@@ -1768,6 +1768,10 @@ pub unsafe extern "C" fn neomacs_display_create_widget() -> *mut c_void {
     use gtk4::prelude::{WidgetExt, Cast};
 
     let widget = NeomacsWidget::new();
+
+    // Make widget expand to fill the entire window
+    widget.set_hexpand(true);
+    widget.set_vexpand(true);
 
     // Cast to gtk4::Widget first, then get the pointer
     let gtk_widget: gtk4::Widget = widget.upcast();
@@ -2128,7 +2132,7 @@ pub unsafe extern "C" fn neomacs_display_webkit_init(
     #[cfg(feature = "wpe-webkit")]
     {
         eprintln!("neomacs_display_webkit_init: egl_display={:?}", egl_display);
-        
+
         // If no EGL display provided, try to get one from the current context
         let egl_display = if egl_display.is_null() {
             eprintln!("neomacs_display_webkit_init: egl_display is NULL, trying eglGetCurrentDisplay");
@@ -2138,7 +2142,7 @@ pub unsafe extern "C" fn neomacs_display_webkit_init(
         } else {
             egl_display
         };
-        
+
         // Initialize WPE backend
         match WpeBackend::new(egl_display) {
             Ok(backend) => {
@@ -2470,14 +2474,14 @@ pub unsafe extern "C" fn neomacs_display_webkit_at_position(
     }
 
     let display = &*handle;
-    
+
     // Check floating webkits in reverse order (top-most first)
     for webkit in display.scene.floating_webkits.iter().rev() {
         let wx = webkit.x as i32;
         let wy = webkit.y as i32;
         let ww = webkit.width as i32;
         let wh = webkit.height as i32;
-        
+
         if x >= wx && x < wx + ww && y >= wy && y < wy + wh {
             if !out_webkit_id.is_null() {
                 *out_webkit_id = webkit.webkit_id;
@@ -2491,7 +2495,7 @@ pub unsafe extern "C" fn neomacs_display_webkit_at_position(
             return 1;
         }
     }
-    
+
     0 // No webkit at position
 }
 
@@ -2791,7 +2795,7 @@ pub unsafe extern "C" fn neomacs_display_add_wpe_glyph(
                 let g_end = g.x + g.pixel_width;
                 g_end <= x_start || g.x >= x_end
             });
-            
+
             let glyph = Glyph {
                 glyph_type: GlyphType::Wpe,
                 charcode: 0,
@@ -2807,7 +2811,7 @@ pub unsafe extern "C" fn neomacs_display_add_wpe_glyph(
                 data: GlyphData::Wpe { view_id },
             };
             row.glyphs.push(glyph);
-            
+
             // Advance X position
             display.current_row_x += pixel_width;
         }
@@ -2819,7 +2823,7 @@ pub unsafe extern "C" fn neomacs_display_add_wpe_glyph(
 // ============================================================================
 
 /// Set an animation configuration option
-/// 
+///
 /// key: option name (e.g., "animation", "cursor-animation", "cursor-animation-mode", etc.)
 /// value: option value (e.g., "t", "nil", "railgun", "crossfade", "30", etc.)
 ///
@@ -2847,19 +2851,19 @@ pub unsafe extern "C" fn neomacs_display_set_animation_option(
     let display = &mut *handle;
     display.hybrid_renderer.set_animation_option(key_str, value_str);
     info!("Animation option set: {} = {}", key_str, value_str);
-    
+
     // When buffer-transition is enabled, enable frame caching for instant snapshots
     if key_str == "buffer-transition" {
         let enabled = value_str == "t" || value_str == "true" || value_str == "1";
         crate::backend::gtk4::enable_frame_caching(enabled);
         info!("Frame caching {}", if enabled { "enabled" } else { "disabled" });
     }
-    
+
     1
 }
 
 /// Get an animation configuration option
-/// 
+///
 /// Returns the value as a newly-allocated C string (caller must free with neomacs_display_free_string)
 /// Returns NULL on failure or unknown option
 #[no_mangle]
@@ -2897,7 +2901,7 @@ pub unsafe extern "C" fn neomacs_display_free_string(s: *mut c_char) {
 }
 
 /// Update cursor animation state (call each frame from GTK widget)
-/// 
+///
 /// dt: delta time in seconds since last frame
 /// Returns 1 if animation is still in progress (needs redraw), 0 otherwise
 #[no_mangle]
@@ -2930,7 +2934,7 @@ pub unsafe extern "C" fn neomacs_display_animation_active(
 }
 
 /// Trigger a buffer transition animation
-/// 
+///
 /// effect: transition effect name ("crossfade", "slide-left", "slide-right", etc.)
 /// duration: animation duration in milliseconds
 /// Returns 1 on success, 0 on failure
@@ -2968,7 +2972,7 @@ pub unsafe extern "C" fn neomacs_display_prepare_buffer_transition(
 
     let display = &mut *handle;
     display.hybrid_renderer.prepare_buffer_transition();
-    
+
     // Use the last cached frame as the snapshot (instant, no async wait)
     if crate::backend::gtk4::prepare_snapshot_from_last_frame() {
         info!("FFI: Prepared snapshot from cached frame");
@@ -2993,28 +2997,28 @@ pub unsafe extern "C" fn neomacs_display_trigger_buffer_transition(
     }
 
     let display = &mut *handle;
-    
+
     // The snapshot should already be in the renderer (set during widget render)
     // Just check if there's one in the thread-local (fallback) and use it
     if let Some(texture) = crate::backend::gtk4::take_snapshot_texture() {
         info!("FFI: Got snapshot texture {}x{} (fallback)", texture.width(), texture.height());
         display.hybrid_renderer.set_snapshot_texture(texture);
     }
-    
+
     // Check if renderer has a snapshot
     let has_snapshot = display.hybrid_renderer.has_snapshot();
     info!("FFI: trigger_buffer_transition called, renderer has snapshot: {}", has_snapshot);
-    
+
     if has_snapshot {
         display.hybrid_renderer.trigger_buffer_transition();
         let active = display.hybrid_renderer.buffer_transition.is_active();
         info!("FFI: Transition started, active: {}", active);
-        
+
         // Start frame clock driven animation updates
         if active {
             crate::backend::gtk4::start_animation_tick();
         }
-        
+
         if active { 1 } else { 0 }
     } else {
         info!("FFI: No snapshot available for transition");
