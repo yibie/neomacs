@@ -70,11 +70,17 @@ Neomacs aims to transform Emacs from a text editor into a **modern graphical com
 - Smooth scrolling everywhere
 - Window animations and effects
 
+**GPU-Powered Terminal Emulator**
+- Blazing fast terminal emulation written in Rust
+- GPU-accelerated rendering for smooth 120fps scrolling
+- Replaces slow Emacs `term.el`/`ansi-term` and vterm (which suffer from Emacs redisplay bottlenecks)
+- True color support, ligatures, and modern terminal features
+- Zero-latency input handling
+
 **Beyond Text**
 - Embed any GTK4 widget in buffers
 - Interactive diagrams and visualizations
 - Real-time collaboration widgets
-- Native terminal emulation with GPU rendering
 
 **Cross-Platform Excellence**
 - Linux (Wayland & X11)

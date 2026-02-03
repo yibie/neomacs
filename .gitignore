@@ -394,7 +394,6 @@ exec/*.s.s
 
 # Rust build artifacts
 rust/neomacs-display/target/
-rust/neomacs-display/Cargo.lock
 
 # Neomacs exceptions
 !rust/neomacs-display/Makefile
