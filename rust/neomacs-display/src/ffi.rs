@@ -2,6 +2,7 @@
 //!
 //! Enable logging with: RUST_LOG=neomacs_display=debug
 
+use std::collections::HashMap;
 use std::ffi::{c_char, c_int, c_uint, c_double, c_void, CStr, CString};
 use std::panic;
 use std::ptr;
@@ -57,6 +58,7 @@ pub struct NeomacsDisplay {
     in_frame: bool,         // Whether we're currently in a frame update
     frame_counter: u64,     // Frame counter for tracking row updates
     current_render_window_id: u32, // Winit window ID being rendered to (0 = legacy rendering)
+    faces: HashMap<u32, Face>,
 }
 
 impl NeomacsDisplay {
@@ -128,6 +130,7 @@ pub unsafe extern "C" fn neomacs_display_init(backend: BackendType) -> *mut Neom
         in_frame: false,
         frame_counter: 0,
         current_render_window_id: 0, // 0 = legacy rendering
+        faces: HashMap::new(),
     });
 
     // Create the backend
@@ -904,6 +907,9 @@ pub unsafe extern "C" fn neomacs_display_set_face(
         box_type: bx_type,
         box_line_width,
     };
+
+    // Store face for later lookup during rendering
+    display.faces.insert(face_id, face.clone());
 
     // Hybrid path: set current face attributes for frame glyph buffer
     if display.use_hybrid && display.current_render_window_id == 0 {
