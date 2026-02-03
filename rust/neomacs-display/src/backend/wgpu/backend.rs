@@ -1,13 +1,19 @@
 //! Winit window and event handling backend.
 
 use std::collections::HashMap;
+use std::collections::VecDeque;
 use std::sync::Arc;
+use std::time::Duration;
 
 use winit::application::ApplicationHandler;
 use winit::dpi::{LogicalSize, PhysicalSize};
-use winit::event::{ElementState, KeyEvent, MouseButton, WindowEvent};
+use winit::event::{ElementState, Event, KeyEvent, MouseButton, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy};
+use winit::keyboard::{Key, NamedKey};
+use winit::platform::pump_events::EventLoopExtPumpEvents;
 use winit::window::{Window, WindowId};
+
+use super::events::*;
 
 use crate::backend::DisplayBackend;
 use crate::core::error::{DisplayError, DisplayResult};
@@ -80,6 +86,12 @@ pub struct WinitBackend {
     windows: HashMap<u32, WindowState>,
     /// Next window ID to assign.
     next_window_id: u32,
+    /// Queue of input events for polling.
+    event_queue: VecDeque<NeomacsInputEvent>,
+    /// Current modifier key state.
+    current_modifiers: u32,
+    /// Current mouse position.
+    mouse_position: (i32, i32),
 }
 
 impl WinitBackend {
@@ -103,6 +115,9 @@ impl WinitBackend {
             event_loop: None,
             windows: HashMap::new(),
             next_window_id: 1,
+            event_queue: VecDeque::new(),
+            current_modifiers: 0,
+            mouse_position: (0, 0),
         }
     }
 
@@ -370,6 +385,60 @@ impl WinitBackend {
     /// Get a mutable reference to a window state by ID.
     pub fn get_window_mut(&mut self, window_id: u32) -> Option<&mut WindowState> {
         self.windows.get_mut(&window_id)
+    }
+
+    /// Poll for input events.
+    ///
+    /// Note: pump_events requires taking ownership of event_loop temporarily.
+    /// This is a complex integration point - for now we return queued events.
+    /// The actual implementation needs careful handling of winit's event loop model.
+    pub fn poll_events(&mut self) -> Vec<NeomacsInputEvent> {
+        let mut events = Vec::new();
+
+        // Process any queued events
+        while let Some(ev) = self.event_queue.pop_front() {
+            events.push(ev);
+        }
+
+        events
+    }
+
+    /// Translate a winit key to an X11-compatible keysym.
+    fn translate_key(&self, key: &Key) -> u32 {
+        match key {
+            Key::Character(c) => c.chars().next().unwrap_or('\0') as u32,
+            Key::Named(named) => match named {
+                NamedKey::Enter => 0xFF0D,
+                NamedKey::Tab => 0xFF09,
+                NamedKey::Backspace => 0xFF08,
+                NamedKey::Escape => 0xFF1B,
+                NamedKey::Space => 0x20,
+                NamedKey::ArrowUp => 0xFF52,
+                NamedKey::ArrowDown => 0xFF54,
+                NamedKey::ArrowLeft => 0xFF51,
+                NamedKey::ArrowRight => 0xFF53,
+                NamedKey::Home => 0xFF50,
+                NamedKey::End => 0xFF57,
+                NamedKey::PageUp => 0xFF55,
+                NamedKey::PageDown => 0xFF56,
+                NamedKey::Insert => 0xFF63,
+                NamedKey::Delete => 0xFFFF,
+                NamedKey::F1 => 0xFFBE,
+                NamedKey::F2 => 0xFFBF,
+                NamedKey::F3 => 0xFFC0,
+                NamedKey::F4 => 0xFFC1,
+                NamedKey::F5 => 0xFFC2,
+                NamedKey::F6 => 0xFFC3,
+                NamedKey::F7 => 0xFFC4,
+                NamedKey::F8 => 0xFFC5,
+                NamedKey::F9 => 0xFFC6,
+                NamedKey::F10 => 0xFFC7,
+                NamedKey::F11 => 0xFFC8,
+                NamedKey::F12 => 0xFFC9,
+                _ => 0,
+            },
+            _ => 0,
+        }
     }
 }
 
