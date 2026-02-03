@@ -1,10 +1,12 @@
-# Neomacs
+<p align="center">
+   <img src="assets/banner.png" alt="NEOMACS - The Future of Emacs"/>
+</p>
 
-**Reimagining Emacs for the GPU era.**
-
-A complete rewrite of Emacs's display engine in Rust — enabling GPU-accelerated rendering, embedded browsers, video playback, and smooth animations.
-
-> ⚠️ **Alpha Status**: Under active development. Many features working, APIs evolving.
+<p align="center">
+  <a href="#features"><img src="https://img.shields.io/badge/status-alpha-blueviolet?style=for-the-badge" alt="Status: Alpha"/></a>
+  <a href="#building"><img src="https://img.shields.io/badge/rust-1.70+-orange?style=for-the-badge&logo=rust" alt="Rust 1.70+"/></a>
+  <a href="#license"><img src="https://img.shields.io/badge/license-GPL--3.0-blue?style=for-the-badge" alt="License: GPL-3.0"/></a>
+</p>
 
 ---
 

@@ -404,9 +404,21 @@ impl FrameGlyphBuffer {
                 FrameGlyph::Stretch { x, y, width, height, .. } => (*x, *y, *width, *height),
                 FrameGlyph::Image { x, y, width, height, .. } => (*x, *y, *width, *height),
                 FrameGlyph::Video { x, y, width, height, .. } => (*x, *y, *width, *height),
-                // Keep WebKit glyphs - they are persistent embedded views managed explicitly
-                // Don't remove them when clearing mode lines or other overlapping areas
-                FrameGlyph::WebKit { .. } => return true,
+                // WebKit glyphs: remove if the clear area covers the webkit's top edge
+                // This handles scrolling (where webkit moves up and out of view)
+                // while protecting against mode-line clears (which are at the bottom)
+                FrameGlyph::WebKit { x: wx, y: wy, width: ww, height: wh, .. } => {
+                    let gx_end = *wx + *ww;
+                    // Check horizontal overlap
+                    let h_overlap = *wx < x_end && gx_end > x;
+                    // Remove if clear area starts at or above webkit's top AND has horizontal overlap
+                    // This catches scroll operations that move webkit out of view
+                    let covers_top = y <= *wy && y_end > *wy && h_overlap;
+                    // Also remove if fully contained (for completeness)
+                    let gy_end = *wy + *wh;
+                    let fully_contained = *wx >= x && gx_end <= x_end && *wy >= y && gy_end <= y_end;
+                    return !(covers_top || fully_contained);
+                }
                 // Keep backgrounds, cursors, borders - managed separately
                 _ => return true,
             };
@@ -458,7 +470,19 @@ impl FrameGlyphBuffer {
     }
 
     /// Add a webkit glyph
+    /// Removes any existing webkit glyph with the same ID first to handle scrolling
     pub fn add_webkit(&mut self, webkit_id: u32, x: f32, y: f32, width: f32, height: f32) {
+        // Remove any existing webkit glyph with the same ID (handles scrolling)
+        // This is necessary because webkit glyphs are skipped by remove_overlapping
+        // and clear_area to prevent accidental removal, but we need to update position
+        // when the same view is redrawn at a different location
+        self.glyphs.retain(|g| {
+            if let FrameGlyph::WebKit { webkit_id: id, .. } = g {
+                *id != webkit_id
+            } else {
+                true
+            }
+        });
         self.remove_overlapping(x, y, width, height);
         self.glyphs.push(FrameGlyph::WebKit { webkit_id, x, y, width, height });
     }
