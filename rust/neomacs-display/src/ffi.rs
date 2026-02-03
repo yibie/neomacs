@@ -2497,8 +2497,12 @@ pub extern "C" fn neomacs_display_begin_frame_window(
 ) {
     let display = unsafe { &mut *handle };
 
+    // Track which window we're currently rendering to
+    display.current_render_window_id = window_id;
+
     #[cfg(feature = "winit-backend")]
     if let Some(ref mut backend) = display.winit_backend {
+        // This clears the window's scene to prepare for new content
         backend.begin_frame_for_window(window_id);
     }
 }
@@ -2515,8 +2519,12 @@ pub extern "C" fn neomacs_display_end_frame_window(
 
     #[cfg(feature = "winit-backend")]
     if let Some(ref mut backend) = display.winit_backend {
+        // Render and present the window's scene
         backend.end_frame_for_window(window_id);
     }
+
+    // Reset current window tracking after rendering is complete
+    display.current_render_window_id = 0;
 }
 
 // ============================================================================
