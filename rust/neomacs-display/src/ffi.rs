@@ -2336,6 +2336,105 @@ pub unsafe extern "C" fn neomacs_display_add_wpe_glyph(
 }
 
 // ============================================================================
+// Window Management FFI Functions
+// ============================================================================
+
+/// Create a new window with the specified dimensions and title.
+///
+/// Returns the window ID if successful, or 0 if creation failed.
+#[no_mangle]
+pub extern "C" fn neomacs_display_create_window(
+    handle: *mut NeomacsDisplay,
+    width: i32,
+    height: i32,
+    title: *const c_char,
+) -> u32 {
+    let display = unsafe { &mut *handle };
+
+    #[cfg(feature = "winit-backend")]
+    if let Some(ref mut backend) = display.winit_backend {
+        let title_str = if title.is_null() {
+            "Emacs"
+        } else {
+            unsafe { std::ffi::CStr::from_ptr(title).to_str().unwrap_or("Emacs") }
+        };
+        return backend.create_window(width as u32, height as u32, title_str).unwrap_or(0);
+    }
+
+    0
+}
+
+/// Destroy a window by its ID.
+#[no_mangle]
+pub extern "C" fn neomacs_display_destroy_window(handle: *mut NeomacsDisplay, window_id: u32) {
+    let display = unsafe { &mut *handle };
+
+    #[cfg(feature = "winit-backend")]
+    if let Some(ref mut backend) = display.winit_backend {
+        backend.destroy_window(window_id);
+    }
+}
+
+/// Show or hide a window.
+#[no_mangle]
+pub extern "C" fn neomacs_display_show_window(
+    handle: *mut NeomacsDisplay,
+    window_id: u32,
+    visible: bool,
+) {
+    let display = unsafe { &mut *handle };
+
+    #[cfg(feature = "winit-backend")]
+    if let Some(ref backend) = display.winit_backend {
+        if let Some(state) = backend.get_window(window_id) {
+            state.window.set_visible(visible);
+        }
+    }
+}
+
+/// Set the title of a window.
+#[no_mangle]
+pub extern "C" fn neomacs_display_set_window_title(
+    handle: *mut NeomacsDisplay,
+    window_id: u32,
+    title: *const c_char,
+) {
+    let display = unsafe { &mut *handle };
+
+    #[cfg(feature = "winit-backend")]
+    if let Some(ref backend) = display.winit_backend {
+        if let Some(state) = backend.get_window(window_id) {
+            let title_str = if title.is_null() {
+                "Emacs"
+            } else {
+                unsafe { std::ffi::CStr::from_ptr(title).to_str().unwrap_or("Emacs") }
+            };
+            state.window.set_title(title_str);
+        }
+    }
+}
+
+/// Set the size of a window.
+#[no_mangle]
+pub extern "C" fn neomacs_display_set_window_size(
+    handle: *mut NeomacsDisplay,
+    window_id: u32,
+    width: i32,
+    height: i32,
+) {
+    let display = unsafe { &mut *handle };
+
+    #[cfg(feature = "winit-backend")]
+    if let Some(ref mut backend) = display.winit_backend {
+        if let Some(state) = backend.get_window_mut(window_id) {
+            let _ = state.window.request_inner_size(
+                winit::dpi::PhysicalSize::new(width as u32, height as u32)
+            );
+        }
+    }
+}
+
+// ============================================================================
 // Animation FFI functions (stubs - no GTK4 backend)
 // ============================================================================
 
