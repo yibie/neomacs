@@ -16,6 +16,8 @@ mod animation;
 mod transition;
 #[cfg(feature = "winit-backend")]
 mod window_state;
+#[cfg(feature = "winit-backend")]
+mod events;
 
 #[cfg(feature = "winit-backend")]
 pub use renderer::WgpuRenderer;
@@ -37,6 +39,8 @@ pub use animation::{AnimationTarget, AnimatedProperty, Easing, Animation, Animat
 pub use transition::{TransitionType, BufferTransition, TransitionManager};
 #[cfg(feature = "winit-backend")]
 pub use window_state::WindowState;
+#[cfg(feature = "winit-backend")]
+pub use events::{EventKind, NeomacsInputEvent, NEOMACS_SHIFT_MASK, NEOMACS_CTRL_MASK, NEOMACS_META_MASK, NEOMACS_SUPER_MASK};
 
 #[cfg(all(feature = "wpe-webkit", target_os = "linux"))]
 mod webkit_cache;
