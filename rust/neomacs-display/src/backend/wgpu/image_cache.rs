@@ -20,6 +20,9 @@ const MAX_TEXTURE_SIZE: u32 = 4096;
 /// Maximum total cache memory in bytes (64MB)
 const MAX_CACHE_MEMORY: usize = 64 * 1024 * 1024;
 
+/// Number of decoder threads
+const DECODER_THREADS: usize = 4;
+
 /// Image loading state
 #[derive(Debug, Clone)]
 pub enum ImageState {
@@ -137,10 +140,17 @@ impl ImageCache {
         let (decode_tx, decode_rx) = mpsc::channel::<DecodeRequest>();
         let (decoded_tx, decoded_rx) = mpsc::channel::<DecodedImage>();
 
-        // Spawn decoder thread
-        thread::spawn(move || {
-            Self::decoder_thread(decode_rx, decoded_tx);
-        });
+        // Wrap receiver in Arc<Mutex> for sharing across threads
+        let decode_rx = Arc::new(Mutex::new(decode_rx));
+
+        // Spawn decoder thread pool
+        for i in 0..DECODER_THREADS {
+            let rx = Arc::clone(&decode_rx);
+            let tx = decoded_tx.clone();
+            thread::spawn(move || {
+                Self::decoder_thread_pooled(i, rx, tx);
+            });
+        }
 
         Self {
             next_id: AtomicU32::new(1),
@@ -155,28 +165,46 @@ impl ImageCache {
         }
     }
 
-    /// Background decoder thread
-    fn decoder_thread(
-        rx: mpsc::Receiver<DecodeRequest>,
+    /// Background decoder thread (pooled version)
+    fn decoder_thread_pooled(
+        thread_id: usize,
+        rx: Arc<Mutex<mpsc::Receiver<DecodeRequest>>>,
         tx: mpsc::Sender<DecodedImage>,
     ) {
-        while let Ok(request) = rx.recv() {
-            let result = match request.source {
-                ImageSource::File(path) => {
-                    Self::decode_file(&path, request.max_width, request.max_height)
-                }
-                ImageSource::Data(data) => {
-                    Self::decode_data(&data, request.max_width, request.max_height)
-                }
+        log::debug!("Decoder thread {} started", thread_id);
+        loop {
+            // Lock, receive, unlock immediately to allow other threads to grab work
+            let request = {
+                let guard = rx.lock().unwrap();
+                guard.recv()
             };
 
-            if let Some((width, height, data)) = result {
-                let _ = tx.send(DecodedImage {
-                    id: request.id,
-                    width,
-                    height,
-                    data,
-                });
+            match request {
+                Ok(request) => {
+                    log::debug!("Thread {} decoding image {}", thread_id, request.id);
+                    let result = match request.source {
+                        ImageSource::File(path) => {
+                            Self::decode_file(&path, request.max_width, request.max_height)
+                        }
+                        ImageSource::Data(data) => {
+                            Self::decode_data(&data, request.max_width, request.max_height)
+                        }
+                    };
+
+                    if let Some((width, height, data)) = result {
+                        let _ = tx.send(DecodedImage {
+                            id: request.id,
+                            width,
+                            height,
+                            data,
+                        });
+                    }
+                }
+                Err(_) => {
+                    // Channel closed, exit thread
+                    log::debug!("Decoder thread {} exiting", thread_id);
+                    break;
+                }
             }
         }
     }

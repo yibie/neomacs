@@ -1304,14 +1304,18 @@ pub unsafe extern "C" fn neomacs_display_load_image_file_scaled(
         Err(_) => return 0,
     };
 
+    log::info!("load_image_file_scaled: path={}, max={}x{}", path_str, max_width, max_height);
+
     #[cfg(feature = "winit-backend")]
     if let Some(ref mut backend) = display.winit_backend {
         if let Some(renderer) = backend.renderer_mut() {
-            return renderer.load_image_file(
+            let id = renderer.load_image_file(
                 path_str,
                 max_width.max(0) as u32,
                 max_height.max(0) as u32,
             );
+            log::info!("load_image_file_scaled: returned id={}", id);
+            return id;
         }
     }
     0
