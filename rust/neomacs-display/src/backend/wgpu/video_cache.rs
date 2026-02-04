@@ -515,6 +515,11 @@ impl VideoCache {
             // Create GStreamer pipeline with video and audio
             // decodebin will auto-select VA-API hardware decoders when available
             // since they have higher rank than software decoders
+            //
+            // NOTE: vapostproc does YUV→RGB conversion but doesn't respect downstream
+            // colorimetry caps (GitLab issue #80). For BT.2020 content (10-bit VP9/AV1),
+            // colors may be slightly off. Proper fix would require shader-based color
+            // matrix conversion.
             let pipeline_str = if has_vapostproc {
                 // VA-API hardware acceleration pipeline with true zero-copy:
                 // - decodebin auto-selects VA-API decoders (higher rank)

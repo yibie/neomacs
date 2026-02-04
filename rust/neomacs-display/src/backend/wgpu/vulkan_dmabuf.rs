@@ -38,11 +38,11 @@ pub mod drm_fourcc {
 /// - DRM_FORMAT_ARGB8888: 32-bit word is 0xAARRGGBB, bytes in memory: [B, G, R, A]
 /// - DRM_FORMAT_BGRA8888: bytes in memory: [B, G, R, A]
 ///
-/// Uses sRGB formats for correct color rendering (following Smithay's approach)
+/// Uses sRGB formats for correct gamma handling. Video content is typically
+/// encoded with sRGB-like gamma curve (BT.709 transfer function ≈ sRGB).
 pub fn drm_fourcc_to_wgpu_format(fourcc: u32) -> Option<wgpu::TextureFormat> {
     match fourcc {
         // ARGB8888: bytes [B, G, R, A] in memory = Bgra8UnormSrgb
-        // Use sRGB for proper gamma handling (matches Smithay's VK_FORMAT_B8G8R8A8_SRGB)
         drm_fourcc::DRM_FORMAT_ARGB8888 | drm_fourcc::DRM_FORMAT_XRGB8888 |
         drm_fourcc::DRM_FORMAT_BGRA8888 | drm_fourcc::DRM_FORMAT_BGRX8888 => {
             Some(wgpu::TextureFormat::Bgra8UnormSrgb)
@@ -104,11 +104,11 @@ mod hal_import {
 
     /// Convert DRM fourcc to Vulkan format
     ///
-    /// Uses sRGB formats for correct color rendering (following Smithay's approach)
+    /// Uses sRGB formats for correct gamma handling. Video content is typically
+    /// encoded with sRGB-like gamma curve (BT.709 transfer function ≈ sRGB).
     fn drm_fourcc_to_vk_format(fourcc: u32) -> Option<vk::Format> {
         match fourcc {
             // ARGB8888: bytes [B, G, R, A] in memory = B8G8R8A8_SRGB
-            // Use sRGB for proper gamma handling (matches Smithay)
             drm_fourcc::DRM_FORMAT_ARGB8888 | drm_fourcc::DRM_FORMAT_XRGB8888 |
             drm_fourcc::DRM_FORMAT_BGRA8888 | drm_fourcc::DRM_FORMAT_BGRX8888 => {
                 Some(vk::Format::B8G8R8A8_SRGB)
