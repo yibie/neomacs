@@ -120,6 +120,13 @@ impl WebKitView {
         self.wpe_view.get_frame_dmabuf()
     }
 
+    /// Take the latest DMA-BUF frame data for rendering.
+    /// Returns the frame data and clears the stored frame.
+    /// The caller takes ownership of the file descriptors.
+    pub fn take_latest_dmabuf(&self) -> Option<crate::backend::wpe::DmaBufData> {
+        self.wpe_view.take_latest_dmabuf()
+    }
+
     /// Get dimensions
     pub fn dimensions(&self) -> (u32, u32) {
         (self.wpe_view.width, self.wpe_view.height)

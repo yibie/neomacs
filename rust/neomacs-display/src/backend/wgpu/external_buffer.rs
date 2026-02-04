@@ -314,13 +314,24 @@ impl DmaBufBuffer {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) -> Option<wgpu::Texture> {
-        // Only support single-plane formats for now
-        if self.num_planes != 1 {
+        // For XRGB/ARGB formats with modifiers, the extra plane is auxiliary data (CCS).
+        // We can import just the first plane as the main color data.
+        // Multi-plane YUV formats (NV12, etc.) with >2 planes are not yet supported.
+        if self.num_planes > 2 {
             log::warn!(
-                "DmaBufBuffer: multi-plane formats not yet supported (planes={})",
+                "DmaBufBuffer: formats with >2 planes not yet supported (planes={})",
                 self.num_planes
             );
             return None;
+        }
+
+        // For 2-plane formats, the second plane is typically CCS compression data
+        // for Intel modifiers. We import just the first plane.
+        if self.num_planes == 2 {
+            log::info!(
+                "DmaBufBuffer: 2-plane format fourcc={:08x}, modifier={:#x}, using plane 0 only",
+                self.fourcc, self.modifier
+            );
         }
 
         // Import DMA-BUF as wgpu texture

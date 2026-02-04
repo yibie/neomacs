@@ -2806,6 +2806,38 @@ DEFUN ("neomacs-webkit-loading-p", Fneomacs_webkit_loading_p, Sneomacs_webkit_lo
   return loading == 1 ? Qt : Qnil;
 }
 
+DEFUN ("neomacs-webkit-update", Fneomacs_webkit_update, Sneomacs_webkit_update, 1, 1, 0,
+       doc: /* Process pending events for WebKit VIEW-ID.
+Pumps the GLib main context to handle WebKit events (including frame rendering).
+Returns t on success, nil if view not found.  */)
+  (Lisp_Object view_id)
+{
+  CHECK_FIXNUM (view_id);
+
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+
+  int result = neomacs_display_webkit_update (dpyinfo->display_handle,
+                                               (uint32_t) XFIXNUM (view_id));
+  return result == 0 ? Qt : Qnil;
+}
+
+DEFUN ("neomacs-webkit-update-all", Fneomacs_webkit_update_all, Sneomacs_webkit_update_all, 0, 0, 0,
+       doc: /* Process pending events for all WebKit views.
+Pumps the GLib main context to handle WebKit events (including frame rendering).
+Call this once per frame/redraw cycle to keep WebKit views rendering.
+Returns t on success, nil on failure.  */)
+  (void)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+
+  int result = neomacs_display_webkit_update_all (dpyinfo->display_handle);
+  return result == 0 ? Qt : Qnil;
+}
+
 /* C callback that calls the Lisp function for new window requests */
 static bool
 neomacs_webkit_new_window_callback (uint32_t view_id, const char *url, const char *frame_name)
@@ -3283,6 +3315,8 @@ syms_of_neomacsterm (void)
   defsubr (&Sneomacs_webkit_get_url);
   defsubr (&Sneomacs_webkit_get_progress);
   defsubr (&Sneomacs_webkit_loading_p);
+  defsubr (&Sneomacs_webkit_update);
+  defsubr (&Sneomacs_webkit_update_all);
   defsubr (&Sneomacs_webkit_set_new_window_function);
   defsubr (&Sneomacs_webkit_set_load_callback);
   defsubr (&Sneomacs_insert_webkit);

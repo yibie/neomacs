@@ -78,7 +78,26 @@ struct RawFrameData {
     height: u32,
 }
 
-/// DMA-BUF frame data for zero-copy rendering
+/// Public DMA-BUF frame data for export to wgpu renderer.
+/// The file descriptors are duped and owned by this struct.
+pub struct DmaBufData {
+    /// DMA-BUF file descriptors (one per plane, duped for ownership)
+    pub fds: Vec<i32>,
+    /// Stride for each plane
+    pub strides: Vec<u32>,
+    /// Offset for each plane
+    pub offsets: Vec<u32>,
+    /// DRM fourcc format code
+    pub fourcc: u32,
+    /// DRM modifier
+    pub modifier: u64,
+    /// Frame width in pixels
+    pub width: u32,
+    /// Frame height in pixels
+    pub height: u32,
+}
+
+/// Internal DMA-BUF frame data for zero-copy rendering
 /// Stores DMA-BUF file descriptors and metadata for GPU-to-GPU texture import.
 struct DmaBufFrameData {
     /// DMA-BUF file descriptors (one per plane, duped for ownership)
@@ -539,6 +558,37 @@ impl WpeWebView {
     /// Clear redraw flag
     pub fn clear_redraw_flag(&mut self) {
         self.needs_redraw = false;
+    }
+
+    /// Take the latest DMA-BUF frame data for rendering.
+    /// Returns the frame data and clears the stored frame.
+    /// The caller takes ownership of the file descriptors.
+    pub fn take_latest_dmabuf(&self) -> Option<DmaBufData> {
+        unsafe {
+            if let Some(callback_data) = self.callback_data.as_ref() {
+                // Check if DMA-BUF frame is available
+                if callback_data.dmabuf_available.swap(false, Ordering::AcqRel) {
+                    if let Ok(mut guard) = callback_data.latest_dmabuf.lock() {
+                        if let Some(mut frame) = guard.take() {
+                            // Take ownership of the fds
+                            let fds = frame.take_fds();
+                            callback_data.frame_available.store(false, Ordering::Release);
+
+                            return Some(DmaBufData {
+                                fds,
+                                strides: frame.strides.clone(),
+                                offsets: frame.offsets.clone(),
+                                fourcc: frame.fourcc,
+                                modifier: frame.modifier,
+                                width: frame.width,
+                                height: frame.height,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        None
     }
 
     /// Dispatch frame complete to WPE

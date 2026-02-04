@@ -14,6 +14,8 @@ use super::glyph_atlas::{GlyphKey, WgpuGlyphAtlas};
 use super::image_cache::ImageCache;
 #[cfg(feature = "video")]
 use super::video_cache::VideoCache;
+#[cfg(feature = "wpe-webkit")]
+use super::webkit_cache::WgpuWebKitCache;
 use super::vertex::{GlyphVertex, RectVertex, Uniforms};
 
 /// GPU-accelerated renderer using wgpu.
@@ -31,6 +33,8 @@ pub struct WgpuRenderer {
     image_cache: ImageCache,
     #[cfg(feature = "video")]
     video_cache: VideoCache,
+    #[cfg(feature = "wpe-webkit")]
+    webkit_cache: WgpuWebKitCache,
     width: u32,
     height: u32,
 }
@@ -253,6 +257,10 @@ impl WgpuRenderer {
         #[cfg(feature = "video")]
         video_cache.init_gpu(&device);
 
+        // Create webkit cache
+        #[cfg(feature = "wpe-webkit")]
+        let webkit_cache = WgpuWebKitCache::new(&device);
+
         // Load image shader
         let image_shader_source = include_str!("shaders/image.wgsl");
         let image_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -320,6 +328,8 @@ impl WgpuRenderer {
             image_cache,
             #[cfg(feature = "video")]
             video_cache,
+            #[cfg(feature = "wpe-webkit")]
+            webkit_cache,
             width,
             height,
         }
@@ -826,6 +836,123 @@ impl WgpuRenderer {
     #[cfg(feature = "video")]
     pub fn get_video(&self, id: u32) -> Option<&super::video_cache::CachedVideo> {
         self.video_cache.get(id)
+    }
+
+    /// Process pending webkit frames from WPE views.
+    /// This imports DMA-BUF frames into the wgpu texture cache.
+    #[cfg(feature = "wpe-webkit")]
+    pub fn process_webkit_frames(&mut self) {
+        use super::external_buffer::DmaBufBuffer;
+
+        crate::ffi::WEBKIT_CACHE.with(|cache| {
+            let cache = cache.borrow();
+            if let Some(ref wpe_cache) = *cache {
+                for (view_id, view) in wpe_cache.views() {
+                    // Check if view has a new frame available
+                    if let Some(dmabuf_data) = view.take_latest_dmabuf() {
+                        log::debug!("process_webkit_frames: importing DMA-BUF for view {}", view_id);
+
+                        // Convert Vec to fixed size arrays
+                        let num_planes = dmabuf_data.fds.len().min(4) as u32;
+                        let mut fds = [-1i32; 4];
+                        let mut strides = [0u32; 4];
+                        let mut offsets = [0u32; 4];
+
+                        for i in 0..num_planes as usize {
+                            fds[i] = dmabuf_data.fds[i];
+                            strides[i] = dmabuf_data.strides[i];
+                            offsets[i] = dmabuf_data.offsets[i];
+                        }
+
+                        // Create DmaBufBuffer from the data
+                        let buffer = DmaBufBuffer::new(
+                            fds,
+                            strides,
+                            offsets,
+                            num_planes,
+                            dmabuf_data.width,
+                            dmabuf_data.height,
+                            dmabuf_data.fourcc,
+                            dmabuf_data.modifier,
+                        );
+
+                        // Import into webkit cache
+                        if self.webkit_cache.update_view(*view_id, buffer, &self.device, &self.queue) {
+                            log::info!("process_webkit_frames: successfully imported view {} frame", view_id);
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    /// Render floating webkit views to the screen.
+    /// This draws the cached webkit textures at their specified positions.
+    #[cfg(feature = "wpe-webkit")]
+    pub fn render_floating_webkits(
+        &self,
+        view: &wgpu::TextureView,
+        floating_webkits: &[crate::core::scene::FloatingWebKit],
+    ) {
+        use wgpu::util::DeviceExt;
+
+        if floating_webkits.is_empty() {
+            return;
+        }
+
+        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Floating WebKit Encoder"),
+        });
+
+        {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Floating WebKit Render Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Load, // Preserve existing content
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+            });
+
+            render_pass.set_pipeline(&self.image_pipeline);
+            render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+
+            for fw in floating_webkits {
+                log::debug!("Rendering floating webkit {} at ({}, {}) size {}x{}",
+                           fw.webkit_id, fw.x, fw.y, fw.width, fw.height);
+
+                if let Some(cached) = self.webkit_cache.get(fw.webkit_id) {
+                    let vertices = [
+                        GlyphVertex { position: [fw.x, fw.y], tex_coords: [0.0, 0.0], color: [1.0, 1.0, 1.0, 1.0] },
+                        GlyphVertex { position: [fw.x + fw.width, fw.y], tex_coords: [1.0, 0.0], color: [1.0, 1.0, 1.0, 1.0] },
+                        GlyphVertex { position: [fw.x + fw.width, fw.y + fw.height], tex_coords: [1.0, 1.0], color: [1.0, 1.0, 1.0, 1.0] },
+                        GlyphVertex { position: [fw.x, fw.y], tex_coords: [0.0, 0.0], color: [1.0, 1.0, 1.0, 1.0] },
+                        GlyphVertex { position: [fw.x + fw.width, fw.y + fw.height], tex_coords: [1.0, 1.0], color: [1.0, 1.0, 1.0, 1.0] },
+                        GlyphVertex { position: [fw.x, fw.y + fw.height], tex_coords: [0.0, 1.0], color: [1.0, 1.0, 1.0, 1.0] },
+                    ];
+
+                    let webkit_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some("Floating WebKit Vertex Buffer"),
+                        contents: bytemuck::cast_slice(&vertices),
+                        usage: wgpu::BufferUsages::VERTEX,
+                    });
+
+                    render_pass.set_bind_group(1, &cached.bind_group, &[]);
+                    render_pass.set_vertex_buffer(0, webkit_buffer.slice(..));
+                    render_pass.draw(0..6, 0..1);
+                } else {
+                    log::debug!("WebKit {} not found in cache", fw.webkit_id);
+                }
+            }
+        }
+
+        self.queue.submit(Some(encoder.finish()));
     }
 
     /// Render frame glyphs to a texture view

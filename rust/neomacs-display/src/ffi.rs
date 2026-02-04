@@ -1982,7 +1982,8 @@ use crate::backend::wpe::{WpeBackend, WebKitViewCache};
 
 #[cfg(feature = "wpe-webkit")]
 thread_local! {
-    static WEBKIT_CACHE: RefCell<Option<WebKitViewCache>> = const { RefCell::new(None) };
+    /// WebKit view cache for WPE views (public for renderer access).
+    pub static WEBKIT_CACHE: RefCell<Option<WebKitViewCache>> = const { RefCell::new(None) };
     static WPE_BACKEND: RefCell<Option<WpeBackend>> = const { RefCell::new(None) };
 }
 
@@ -2688,6 +2689,58 @@ pub unsafe extern "C" fn neomacs_display_webkit_is_loading(
 pub unsafe extern "C" fn neomacs_display_webkit_free_string(s: *mut c_char) {
     if !s.is_null() {
         let _ = CString::from_raw(s);
+    }
+}
+
+/// Update WebKit view - pumps GLib main context to process events
+/// This MUST be called regularly (e.g., every frame or via timer) for WebKit to render
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_webkit_update(
+    _handle: *mut NeomacsDisplay,
+    webkit_id: u32,
+) -> c_int {
+    #[cfg(feature = "wpe-webkit")]
+    {
+        return WEBKIT_CACHE.with(|cache| {
+            let mut cache = cache.borrow_mut();
+            if let Some(ref mut cache) = *cache {
+                if let Some(view) = cache.get_mut(webkit_id) {
+                    view.update();
+                    return 0;
+                }
+            }
+            -1
+        });
+    }
+
+    #[cfg(not(feature = "wpe-webkit"))]
+    {
+        let _ = webkit_id;
+        -1
+    }
+}
+
+/// Update all WebKit views - pumps GLib main context
+/// Call this once per frame to process all webkit events
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_webkit_update_all(
+    _handle: *mut NeomacsDisplay,
+) -> c_int {
+    #[cfg(feature = "wpe-webkit")]
+    {
+        return WEBKIT_CACHE.with(|cache| {
+            let mut cache = cache.borrow_mut();
+            if let Some(ref mut cache) = *cache {
+                cache.update_all();
+                return 0;
+            }
+            -1
+        });
+    }
+
+    #[cfg(not(feature = "wpe-webkit"))]
+    {
+        -1
     }
 }
 

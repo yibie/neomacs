@@ -106,6 +106,11 @@ impl WebKitCache {
         self.views.iter().map(|(&id, view)| (id, view))
     }
 
+    /// Get all views as a HashMap reference
+    pub fn views(&self) -> &HashMap<u32, WebKitView> {
+        &self.views
+    }
+
     /// Send keyboard event to a view
     pub fn send_keyboard_event(&self, id: u32, key_code: u32, hardware_key_code: u32, pressed: bool, modifiers: u32) -> DisplayResult<()> {
         let view = self.views.get(&id)

@@ -420,6 +420,12 @@ impl WinitBackend {
             None => return Ok(()),
         };
 
+        // Process webkit frames before rendering
+        #[cfg(feature = "wpe-webkit")]
+        if let Some(renderer) = &mut self.renderer {
+            renderer.process_webkit_frames();
+        }
+
         let renderer = match &self.renderer {
             Some(r) => r,
             None => return Ok(()),
@@ -448,6 +454,12 @@ impl WinitBackend {
 
         // Render the scene to the view
         renderer.render_to_view(&view, &self.scene);
+
+        // Render floating webkit views
+        #[cfg(feature = "wpe-webkit")]
+        if !self.scene.floating_webkits.is_empty() {
+            renderer.render_floating_webkits(&view, &self.scene.floating_webkits);
+        }
 
         // Present the frame
         output.present();
@@ -690,6 +702,15 @@ impl WinitBackend {
         #[cfg(feature = "video")]
         if !state.scene.floating_videos.is_empty() {
             renderer.render_floating_videos(&view, &state.scene.floating_videos);
+        }
+
+        // Process webkit frames and render floating webkits
+        #[cfg(feature = "wpe-webkit")]
+        {
+            renderer.process_webkit_frames();
+            if !state.scene.floating_webkits.is_empty() {
+                renderer.render_floating_webkits(&view, &state.scene.floating_webkits);
+            }
         }
 
         output.present();

@@ -11,7 +11,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
-
 /**
  * Modifier flags matching Emacs.
  */
@@ -45,6 +44,82 @@
 
 #define DRM_FORMAT_XBGR8888 875709016
 
+
+/**
+ * Modifier flags matching Emacs.
+ */
+#define NEOMACS_SHIFT_MASK (1 << 0)
+
+#define NEOMACS_CTRL_MASK (1 << 1)
+
+#define NEOMACS_META_MASK (1 << 2)
+
+#define NEOMACS_SUPER_MASK (1 << 3)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#define DRM_FORMAT_ARGB8888 875713089
+
+#define DRM_FORMAT_ARGB8888 875713089
+
+#define DRM_FORMAT_XRGB8888 875713112
+
+#define DRM_FORMAT_XRGB8888 875713112
+
+#define DRM_FORMAT_ABGR8888 875708993
+
+#define DRM_FORMAT_ABGR8888 875708993
+
+#define DRM_FORMAT_XBGR8888 875709016
+
+#define DRM_FORMAT_XBGR8888 875709016
+
+#define DRM_FORMAT_RGBA8888 875708754
+
+#define DRM_FORMAT_RGBX8888 875714642
+
+#define DRM_FORMAT_BGRA8888 875708738
+
+#define DRM_FORMAT_BGRX8888 875714626
+
+#define DRM_FORMAT_NV12 842094158
+
+#define DRM_FORMAT_YUV420 842093913
+
+/**
+ * Linear modifier (no tiling)
+ */
+#define DRM_FORMAT_MOD_LINEAR 0
+
+/**
+ * Invalid modifier
+ */
+#define DRM_FORMAT_MOD_INVALID 72057594037927935
+
+#define VA_EXPORT_SURFACE_READ_ONLY 1
+
+#define VA_EXPORT_SURFACE_SEPARATE_LAYERS 4
+
+#define VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2 1073741824
+
 /**
  * Backend type selection
  */
@@ -58,6 +133,23 @@ typedef enum BackendType {
    */
   BACKEND_TYPE_WGPU = 1,
 } BackendType;
+
+/**
+ * Input event kinds matching Emacs event types.
+ */
+enum EventKind {
+  EVENT_KIND_KEY_PRESS = 1,
+  EVENT_KIND_KEY_RELEASE = 2,
+  EVENT_KIND_MOUSE_PRESS = 3,
+  EVENT_KIND_MOUSE_RELEASE = 4,
+  EVENT_KIND_MOUSE_MOVE = 5,
+  EVENT_KIND_SCROLL = 6,
+  EVENT_KIND_RESIZE = 7,
+  EVENT_KIND_CLOSE_REQUEST = 8,
+  EVENT_KIND_FOCUS_IN = 9,
+  EVENT_KIND_FOCUS_OUT = 10,
+};
+typedef uint32_t EventKind;
 
 /**
  * Type for the resize callback function pointer from C
@@ -119,6 +211,10 @@ typedef struct NeomacsInputEvent {
  */
 typedef void (*EventCallback)(const struct NeomacsInputEvent*);
 
+#define VA_STATUS_SUCCESS 0
+
+#define VA_INVALID_SURFACE 4294967295
+
 /**
  * Initialize the display engine
  *
@@ -134,6 +230,17 @@ struct NeomacsDisplay *neomacs_display_init(enum BackendType backend);
  * The handle must have been returned by neomacs_display_init.
  */
 void neomacs_display_shutdown(struct NeomacsDisplay *handle);
+
+/**
+ * Get the eventfd for Emacs to wait on (winit backend only)
+ *
+ * Returns the file descriptor that becomes readable when input events are available.
+ * Returns -1 if not available (e.g., TTY backend or eventfd creation failed).
+ *
+ * # Safety
+ * The handle must be valid.
+ */
+int neomacs_display_get_event_fd(struct NeomacsDisplay *handle);
 
 /**
  * Resize the display
@@ -255,34 +362,42 @@ void neomacs_display_add_video_glyph(struct NeomacsDisplay *handle,
                                      int pixelHeight);
 
 /**
- * Load a video from URI (stub - video not supported without GTK4)
+ * Load a video from file path (async - uses GStreamer)
  */
-uint32_t neomacs_display_load_video(struct NeomacsDisplay *handle, const char *uri);
+uint32_t neomacs_display_load_video(struct NeomacsDisplay *handle, const char *path);
 
 /**
- * Play a loaded video (stub)
+ * Play a loaded video
  */
 int neomacs_display_video_play(struct NeomacsDisplay *handle, uint32_t videoId);
 
 /**
- * Pause a video (stub)
+ * Pause a video
  */
 int neomacs_display_video_pause(struct NeomacsDisplay *handle, uint32_t videoId);
 
 /**
- * Stop a video (stub)
+ * Stop a video
  */
 int neomacs_display_video_stop(struct NeomacsDisplay *handle, uint32_t videoId);
 
 /**
- * Set video loop mode (stub)
+ * Set video loop mode (-1 for infinite)
  */
 int neomacs_display_video_set_loop(struct NeomacsDisplay *handle, uint32_t videoId, int loopCount);
 
 /**
- * Update video frame (stub)
+ * Process pending video frames (call each frame)
  */
 int neomacs_display_video_update(struct NeomacsDisplay *handle, uint32_t videoId);
+
+/**
+ * Get video dimensions (works for pending and loaded videos)
+ */
+int neomacs_display_get_video_size(struct NeomacsDisplay *handle,
+                                   uint32_t videoId,
+                                   int *width,
+                                   int *height);
 
 /**
  * Load an image from a file path (stub)
@@ -324,12 +439,12 @@ uint32_t neomacs_display_load_image_rgb24(struct NeomacsDisplay *handle,
                                           int stride);
 
 /**
- * Load an image from a file path (stub)
+ * Load an image from a file path (async - returns ID immediately)
  */
 uint32_t neomacs_display_load_image_file(struct NeomacsDisplay *handle, const char *path);
 
 /**
- * Load an image from a file path with scaling (stub)
+ * Load an image from a file path with scaling (async)
  */
 uint32_t neomacs_display_load_image_file_scaled(struct NeomacsDisplay *handle,
                                                 const char *path,
@@ -337,12 +452,12 @@ uint32_t neomacs_display_load_image_file_scaled(struct NeomacsDisplay *handle,
                                                 int maxHeight);
 
 /**
- * Load an image directly as texture (stub)
+ * Load an image directly as texture (same as load_image_file)
  */
 uint32_t neomacs_display_load_image_file_direct(struct NeomacsDisplay *handle, const char *path);
 
 /**
- * Load an image directly as texture with scaling (stub)
+ * Load an image directly as texture with scaling
  */
 uint32_t neomacs_display_load_image_file_direct_scaled(struct NeomacsDisplay *handle,
                                                        const char *path,
@@ -350,7 +465,7 @@ uint32_t neomacs_display_load_image_file_direct_scaled(struct NeomacsDisplay *ha
                                                        int maxHeight);
 
 /**
- * Get image dimensions (stub)
+ * Get image dimensions (works for pending and loaded images)
  */
 int neomacs_display_get_image_size(struct NeomacsDisplay *handle,
                                    uint32_t imageId,
@@ -358,7 +473,7 @@ int neomacs_display_get_image_size(struct NeomacsDisplay *handle,
                                    int *height);
 
 /**
- * Query image file dimensions without loading (stub)
+ * Query image file dimensions without loading (fast - reads header only)
  */
 int neomacs_display_query_image_file_size(struct NeomacsDisplay *handle,
                                           const char *path,
@@ -366,7 +481,7 @@ int neomacs_display_query_image_file_size(struct NeomacsDisplay *handle,
                                           int *height);
 
 /**
- * Free an image from cache (stub)
+ * Free an image from cache
  */
 int neomacs_display_free_image(struct NeomacsDisplay *handle, uint32_t imageId);
 
@@ -425,20 +540,6 @@ void neomacs_display_clear_all_borders(struct NeomacsDisplay *handle);
  * Returns 0 on success, 1 if layout changed, -1 on error
  */
 int neomacs_display_end_frame(struct NeomacsDisplay *handle);
-
-/**
- * Begin a frame for a specific window.
- *
- * Clears the window's scene to prepare for new content.
- */
-void neomacs_display_begin_frame_window(struct NeomacsDisplay *handle, uint32_t windowId);
-
-/**
- * End a frame for a specific window and present it.
- *
- * Renders the window's scene to its surface and presents it.
- */
-void neomacs_display_end_frame_window(struct NeomacsDisplay *handle, uint32_t windowId);
 
 /**
  * Render the scene to an external Cairo context (stub)
@@ -504,7 +605,9 @@ void neomacs_display_widget_init_pango(struct NeomacsDisplay *handle, void *widg
 int neomacs_display_render_to_widget(struct NeomacsDisplay *handle, void *widget);
 
 /**
- * Set the resize callback (stub)
+ * Set the resize callback for winit windows.
+ *
+ * The callback will be invoked when the window is resized.
  */
 void neomacs_display_set_resize_callback(ResizeCallbackFn callback, void *userData);
 
@@ -679,6 +782,18 @@ int neomacs_display_webkit_is_loading(struct NeomacsDisplay *handle, uint32_t we
 void neomacs_display_webkit_free_string(char *s);
 
 /**
+ * Update WebKit view - pumps GLib main context to process events
+ * This MUST be called regularly (e.g., every frame or via timer) for WebKit to render
+ */
+int neomacs_display_webkit_update(struct NeomacsDisplay *handle, uint32_t webkitId);
+
+/**
+ * Update all WebKit views - pumps GLib main context
+ * Call this once per frame to process all webkit events
+ */
+int neomacs_display_webkit_update_all(struct NeomacsDisplay *handle);
+
+/**
  * Add a WPE glyph to the current row
  */
 void neomacs_display_add_wpe_glyph(struct NeomacsDisplay *handle,
@@ -689,7 +804,8 @@ void neomacs_display_add_wpe_glyph(struct NeomacsDisplay *handle,
 /**
  * Create a new window with the specified dimensions and title.
  *
- * Returns the window ID if successful, or 0 if creation failed.
+ * Returns the window ID. The window will be created during the next poll_events call.
+ * Returns 0 if the backend is not available.
  */
 uint32_t neomacs_display_create_window(struct NeomacsDisplay *handle,
                                        int32_t width,
@@ -722,6 +838,20 @@ void neomacs_display_set_window_size(struct NeomacsDisplay *handle,
                                      int32_t height);
 
 /**
+ * Begin a frame for a specific window.
+ *
+ * Clears the window's scene to prepare for new content.
+ */
+void neomacs_display_begin_frame_window(struct NeomacsDisplay *handle, uint32_t windowId);
+
+/**
+ * End a frame for a specific window and present it.
+ *
+ * Renders the window's scene to its surface and presents it.
+ */
+void neomacs_display_end_frame_window(struct NeomacsDisplay *handle, uint32_t windowId);
+
+/**
  * Set the event callback function.
  *
  * The callback will be invoked for each input event when polling.
@@ -731,17 +861,12 @@ void neomacs_display_set_event_callback(EventCallback callback);
 /**
  * Poll for input events and invoke the callback for each event.
  *
+ * This uses winit's pump_events to process the event loop non-blocking,
+ * creates any pending windows, and delivers input events via callback.
+ *
  * Returns the number of events processed.
  */
 int32_t neomacs_display_poll_events(struct NeomacsDisplay *handle);
-
-/**
- * Get the event fd for Emacs to wait on (winit backend only).
- *
- * Returns a file descriptor that becomes readable periodically to trigger
- * event polling. Returns -1 if not available.
- */
-int neomacs_display_get_event_fd(struct NeomacsDisplay *handle);
 
 /**
  * Set an animation configuration option (stub)

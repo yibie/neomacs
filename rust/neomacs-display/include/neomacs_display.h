@@ -11,6 +11,39 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+/**
+ * Modifier flags matching Emacs.
+ */
+#define NEOMACS_SHIFT_MASK (1 << 0)
+
+#define NEOMACS_CTRL_MASK (1 << 1)
+
+#define NEOMACS_META_MASK (1 << 2)
+
+#define NEOMACS_SUPER_MASK (1 << 3)
+
+/**
+ * Event kinds for NeomacsInputEvent.kind
+ */
+#define NEOMACS_EVENT_KEY_PRESS     1
+#define NEOMACS_EVENT_KEY_RELEASE   2
+#define NEOMACS_EVENT_MOUSE_PRESS   3
+#define NEOMACS_EVENT_MOUSE_RELEASE 4
+#define NEOMACS_EVENT_MOUSE_MOVE    5
+#define NEOMACS_EVENT_SCROLL        6
+#define NEOMACS_EVENT_RESIZE        7
+#define NEOMACS_EVENT_CLOSE_REQUEST 8
+#define NEOMACS_EVENT_FOCUS_IN      9
+#define NEOMACS_EVENT_FOCUS_OUT     10
+
+#define DRM_FORMAT_ARGB8888 875713089
+
+#define DRM_FORMAT_XRGB8888 875713112
+
+#define DRM_FORMAT_ABGR8888 875708993
+
+#define DRM_FORMAT_XBGR8888 875709016
+
 
 /**
  * Modifier flags matching Emacs.
@@ -101,39 +134,6 @@ typedef enum BackendType {
   BACKEND_TYPE_WGPU = 1,
 } BackendType;
 
-typedef int VAStatus;
-
-typedef void *VADisplay;
-
-typedef unsigned int VASurfaceID;
-
-typedef struct VADRMObject {
-  int fd;
-  uint32_t size;
-  uint64_t drmFormatModifier;
-} VADRMObject;
-
-typedef struct VADRMLayer {
-  uint32_t drmFormat;
-  uint32_t numPlanes;
-  uint32_t objectIndex[4];
-  uint32_t offset[4];
-  uint32_t pitch[4];
-} VADRMLayer;
-
-/**
- * VA surface descriptor for DRM PRIME export
- */
-typedef struct VADRMPRIMESurfaceDescriptor {
-  uint32_t fourcc;
-  uint32_t width;
-  uint32_t height;
-  uint32_t numObjects;
-  struct VADRMObject objects[4];
-  uint32_t numLayers;
-  struct VADRMLayer layers[4];
-} VADRMPRIMESurfaceDescriptor;
-
 /**
  * Type for the resize callback function pointer from C
  */
@@ -197,18 +197,6 @@ typedef void (*EventCallback)(const struct NeomacsInputEvent*);
 #define VA_STATUS_SUCCESS 0
 
 #define VA_INVALID_SURFACE 4294967295
-
-extern VAStatus vaExportSurfaceHandle(VADisplay dpy,
-                                      VASurfaceID surfaceId,
-                                      unsigned int memType,
-                                      unsigned int flags,
-                                      struct VADRMPRIMESurfaceDescriptor *descriptor);
-
-extern VASurfaceID gst_va_buffer_get_surface(GstBuffer *buffer);
-
-extern struct GstVaDisplay *gst_va_allocator_peek_display(struct GstAllocator *allocator);
-
-extern VADisplay gst_va_display_get_va_dpy(struct GstVaDisplay *display);
 
 /**
  * Initialize the display engine
@@ -775,6 +763,18 @@ int neomacs_display_webkit_is_loading(struct NeomacsDisplay *handle, uint32_t we
  * Free a string returned by webkit_get_title or webkit_get_url
  */
 void neomacs_display_webkit_free_string(char *s);
+
+/**
+ * Update WebKit view - pumps GLib main context to process events
+ * This MUST be called regularly (e.g., every frame or via timer) for WebKit to render
+ */
+int neomacs_display_webkit_update(struct NeomacsDisplay *handle, uint32_t webkitId);
+
+/**
+ * Update all WebKit views - pumps GLib main context
+ * Call this once per frame to process all webkit events
+ */
+int neomacs_display_webkit_update_all(struct NeomacsDisplay *handle);
 
 /**
  * Add a WPE glyph to the current row
