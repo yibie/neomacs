@@ -78,6 +78,17 @@ struct RawFrameData {
     height: u32,
 }
 
+/// Public raw pixel frame data for fallback rendering.
+/// Used when DMA-BUF import fails (e.g., incompatible modifier).
+pub struct RawPixelData {
+    /// Raw BGRA pixel data
+    pub pixels: Vec<u8>,
+    /// Frame width in pixels
+    pub width: u32,
+    /// Frame height in pixels
+    pub height: u32,
+}
+
 /// Public DMA-BUF frame data for export to wgpu renderer.
 /// The file descriptors are duped and owned by this struct.
 pub struct DmaBufData {
@@ -353,6 +364,26 @@ impl WpeWebView {
             );
             eprintln!("WpeWebView::new: connected load-changed signal, handler_id={}", load_changed_handler_id);
 
+            // Create a headless toplevel and attach it to the view
+            // This is required for WPEViewHeadless to start rendering and emit buffer-rendered signals
+            // IMPORTANT: We must get the display from the view itself to match what WebKit is using
+            let view_display = plat::wpe_view_get_display(wpe_view as *mut plat::WPEView);
+            if view_display.is_null() {
+                eprintln!("WpeWebView::new: WARNING - view has no display");
+            } else {
+                eprintln!("WpeWebView::new: view display = {:?}", view_display);
+                let toplevel = plat::wpe_toplevel_headless_new(view_display as *mut _);
+                if !toplevel.is_null() {
+                    eprintln!("WpeWebView::new: created headless toplevel {:?}", toplevel);
+                    plat::wpe_view_set_toplevel(wpe_view as *mut plat::WPEView, toplevel);
+                    eprintln!("WpeWebView::new: set toplevel on view");
+                    // Resize the toplevel to the view size
+                    plat::wpe_toplevel_resize(toplevel, width as i32, height as i32);
+                } else {
+                    eprintln!("WpeWebView::new: WARNING - failed to create headless toplevel");
+                }
+            }
+
             // Map and make the view visible so it starts rendering
             plat::wpe_view_set_visible(wpe_view as *mut plat::WPEView, 1);
             plat::wpe_view_map(wpe_view as *mut plat::WPEView);
@@ -481,12 +512,28 @@ impl WpeWebView {
 
     /// Update view state from WebKit
     pub fn update(&mut self) {
+        log::trace!("WpeWebView::update() called for view {}", self.view_id);
         unsafe {
             // Pump GLib main context to process WebKit events (including buffer-rendered signal)
             // This is critical - without this, WebKit's internal events won't be dispatched
-            let ctx = plat::g_main_context_default();
+            //
+            // IMPORTANT: WPEViewHeadless attaches its frame source to g_main_context_get_thread_default(),
+            // so we need to iterate that context. If no thread-default is set, it falls back to default.
+            let thread_ctx = plat::g_main_context_get_thread_default();
+            let ctx = if thread_ctx.is_null() {
+                plat::g_main_context_default()
+            } else {
+                thread_ctx
+            };
             while plat::g_main_context_iteration(ctx, 0) != 0 {
                 // Process all pending events
+            }
+            // Also iterate the default context in case signals are attached there
+            let default_ctx = plat::g_main_context_default();
+            if default_ctx != ctx {
+                while plat::g_main_context_iteration(default_ctx, 0) != 0 {
+                    // Process default context events
+                }
             }
 
             // Update title
@@ -572,7 +619,7 @@ impl WpeWebView {
                         if let Some(mut frame) = guard.take() {
                             // Take ownership of the fds
                             let fds = frame.take_fds();
-                            callback_data.frame_available.store(false, Ordering::Release);
+                            // Note: Don't clear frame_available here - pixel fallback may still need it
 
                             return Some(DmaBufData {
                                 fds,
@@ -580,6 +627,28 @@ impl WpeWebView {
                                 offsets: frame.offsets.clone(),
                                 fourcc: frame.fourcc,
                                 modifier: frame.modifier,
+                                width: frame.width,
+                                height: frame.height,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    /// Take the latest raw pixel frame data as fallback.
+    /// This is used when DMA-BUF import fails (e.g., incompatible modifier).
+    pub fn take_latest_pixels(&self) -> Option<RawPixelData> {
+        unsafe {
+            if let Some(callback_data) = self.callback_data.as_ref() {
+                // Check if raw frame is available
+                if callback_data.frame_available.swap(false, Ordering::AcqRel) {
+                    if let Ok(mut guard) = callback_data.latest_frame.lock() {
+                        if let Some(frame) = guard.take() {
+                            return Some(RawPixelData {
+                                pixels: frame.pixels,
                                 width: frame.width,
                                 height: frame.height,
                             });
@@ -825,6 +894,9 @@ unsafe extern "C" fn buffer_rendered_callback(
     buffer: *mut plat::WPEBuffer,
     user_data: *mut libc::c_void,
 ) {
+    // Debug: verify callback is being triggered
+    log::info!("buffer_rendered_callback CALLED! buffer={:?}", buffer);
+
     // Step 1: Basic validation
     if user_data.is_null() || buffer.is_null() {
         log::warn!("buffer_rendered_callback: null user_data or buffer");
@@ -885,15 +957,12 @@ unsafe extern "C" fn buffer_rendered_callback(
                 log::info!("buffer_rendered_callback: DMA-BUF frame stored (zero-copy)");
             }
             callback_data.dmabuf_available.store(true, Ordering::Release);
-            callback_data.frame_available.store(true, Ordering::Release);
-
-            // Note: Widget redraw notification will be handled by wgpu integration
-            return;
+            // Don't return early - also capture pixels as fallback for incompatible modifiers
         }
     }
 
-    // Fallback: Import pixels (non-zero-copy path)
-    log::debug!("buffer_rendered_callback: falling back to pixel import path");
+    // Always capture pixels as fallback (for when DMA-BUF import fails on renderer)
+    log::info!("buffer_rendered_callback: attempting pixel capture as fallback");
 
     let mut error: *mut plat::GError = ptr::null_mut();
     let bytes = plat::wpe_buffer_import_to_pixels(buffer, &mut error);
@@ -904,9 +973,12 @@ unsafe extern "C" fn buffer_rendered_callback(
                 .to_string_lossy();
             log::warn!("buffer_rendered_callback: pixel import failed: {}", msg);
             plat::g_error_free(error);
+        } else {
+            log::warn!("buffer_rendered_callback: pixel import failed (no error message)");
         }
         return;
     }
+    log::info!("buffer_rendered_callback: pixel import succeeded, extracting data");
 
     // Get pixel data from GBytes
     let mut size: plat::gsize = 0;
@@ -1229,6 +1301,9 @@ unsafe extern "C" fn load_changed_callback(
     const WEBKIT_LOAD_REDIRECTED: u32 = 1;
     const WEBKIT_LOAD_COMMITTED: u32 = 2;
     const WEBKIT_LOAD_FINISHED: u32 = 3;
+
+    // Debug: verify callback is being triggered
+    log::info!("load_changed_callback CALLED! event={}", load_event);
 
     if user_data.is_null() {
         return;

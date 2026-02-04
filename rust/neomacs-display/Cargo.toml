@@ -56,8 +56,8 @@ bindgen = "0.71"
 pkg-config = "0.3"
 
 [features]
-# Default: winit-wgpu backend with video support
-default = ["winit-backend", "video"]
+# Default: winit-wgpu backend with video and webkit support
+default = ["winit-backend", "video", "wpe-webkit"]
 winit-backend = ["winit", "wgpu", "raw-window-handle", "arboard", "bytemuck", "pollster", "image"]
 tty-backend = []
 # Video with GStreamer - includes ash and wgpu-hal for DMA-BUF zero-copy

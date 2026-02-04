@@ -89,26 +89,58 @@ impl WpeBackend {
     /// Initialize WPE backend with WPE Platform API.
     ///
     /// Creates a headless WPE Platform display for embedding.
+    /// If a device path is not provided, uses the default GPU.
     pub unsafe fn new(_egl_display_hint: *mut libc::c_void) -> DisplayResult<Self> {
+        Self::new_with_device(_egl_display_hint, None)
+    }
+
+    /// Initialize WPE backend with a specific DRM device.
+    ///
+    /// This allows WPE to use the same GPU as wgpu for zero-copy DMA-BUF sharing.
+    ///
+    /// # Arguments
+    /// * `egl_display_hint` - EGL display hint (unused with WPE Platform API)
+    /// * `device_path` - Optional DRM render node path (e.g., "/dev/dri/renderD128")
+    pub unsafe fn new_with_device(
+        _egl_display_hint: *mut libc::c_void,
+        device_path: Option<&str>,
+    ) -> DisplayResult<Self> {
+        // Store the device path in a static for the once closure
+        static mut DEVICE_PATH: Option<String> = None;
+        if let Some(path) = device_path {
+            DEVICE_PATH = Some(path.to_string());
+        }
+
         WPE_INIT.call_once(|| {
-            eprintln!("WpeBackend: Initializing WPE Platform API...");
+            let dev_path = DEVICE_PATH.as_deref();
+            if let Some(path) = dev_path {
+                log::info!("WpeBackend: Initializing WPE Platform API with device: {}", path);
+            } else {
+                log::info!("WpeBackend: Initializing WPE Platform API (default device)...");
+            }
 
             // Check sandbox prerequisites first
             if let Err(msg) = check_sandbox_prerequisites() {
-                eprintln!("WpeBackend: ERROR - {}", msg);
+                log::error!("WpeBackend: ERROR - {}", msg);
                 WPE_INIT_ERROR = Some(msg);
                 return;
             }
 
-            match WpePlatformDisplay::new_headless() {
+            let result = if let Some(path) = dev_path {
+                WpePlatformDisplay::new_headless_for_device(path)
+            } else {
+                WpePlatformDisplay::new_headless()
+            };
+
+            match result {
                 Ok(display) => {
-                    eprintln!("WpeBackend: WPE Platform display created successfully");
-                    eprintln!("WpeBackend: EGL available: {}", display.has_egl());
+                    log::info!("WpeBackend: WPE Platform display created successfully");
+                    log::info!("WpeBackend: EGL available: {}", display.has_egl());
                     WPE_PLATFORM_DISPLAY = Some(display);
                 }
                 Err(e) => {
                     let msg = format!("Failed to create WPE Platform display: {}", e);
-                    eprintln!("WpeBackend: ERROR - {}", msg);
+                    log::error!("WpeBackend: ERROR - {}", msg);
                     WPE_INIT_ERROR = Some(msg);
                 }
             }

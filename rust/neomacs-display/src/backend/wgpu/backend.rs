@@ -112,6 +112,8 @@ pub struct WinitBackend {
     wgpu_initialized: bool,
     /// Glyph atlas for text rendering.
     glyph_atlas: Option<WgpuGlyphAtlas>,
+    /// Adapter info for GPU device identification.
+    adapter_info: Option<wgpu::AdapterInfo>,
 }
 
 impl WinitBackend {
@@ -142,6 +144,7 @@ impl WinitBackend {
             pending_windows: Vec::new(),
             wgpu_initialized: false,
             glyph_atlas: None,
+            adapter_info: None,
         }
     }
 
@@ -165,6 +168,12 @@ impl WinitBackend {
             force_fallback_adapter: false,
         }))
         .ok_or_else(|| DisplayError::InitFailed("Failed to find a suitable GPU adapter".to_string()))?;
+
+        // Store adapter info for GPU device identification (needed for WPE WebKit)
+        let adapter_info = adapter.get_info();
+        log::info!("wgpu adapter: {} (vendor={:04x}, device={:04x}, backend={:?})",
+            adapter_info.name, adapter_info.vendor, adapter_info.device, adapter_info.backend);
+        self.adapter_info = Some(adapter_info);
 
         // Request device and queue
         let (device, queue) = pollster::block_on(adapter.request_device(
@@ -322,6 +331,12 @@ impl WinitBackend {
             force_fallback_adapter: false,
         }))
         .ok_or_else(|| DisplayError::InitFailed("Failed to find a suitable GPU adapter".to_string()))?;
+
+        // Store adapter info for GPU device identification (needed for WPE WebKit)
+        let adapter_info = adapter.get_info();
+        log::info!("wgpu adapter: {} (vendor={:04x}, device={:04x}, backend={:?})",
+            adapter_info.name, adapter_info.vendor, adapter_info.device, adapter_info.backend);
+        self.adapter_info = Some(adapter_info);
 
         // Request device and queue
         let (device, queue) = pollster::block_on(adapter.request_device(
@@ -522,6 +537,14 @@ impl WinitBackend {
         self.renderer.as_mut()
     }
 
+    /// Get the adapter info for GPU device identification.
+    ///
+    /// This is useful for coordinating with other subsystems (like WPE WebKit)
+    /// that need to use the same GPU.
+    pub fn adapter_info(&self) -> Option<&wgpu::AdapterInfo> {
+        self.adapter_info.as_ref()
+    }
+
     /// Create a new window with the specified dimensions and title.
     ///
     /// Returns the window ID if successful, or None if creation failed.
@@ -574,6 +597,12 @@ impl WinitBackend {
     /// Get a mutable reference to a window state by ID.
     pub fn get_window_mut(&mut self, window_id: u32) -> Option<&mut WindowState> {
         self.windows.get_mut(&window_id)
+    }
+
+    /// Get the first available window ID.
+    /// This is useful for webkit redraw when we need to pick a window.
+    pub fn first_window_id(&self) -> Option<u32> {
+        self.windows.keys().next().copied()
     }
 
     /// Poll for input events.

@@ -115,6 +115,77 @@ impl WgpuWebKitCache {
         true
     }
 
+    /// Update or create a cached view from raw pixel data (fallback path).
+    /// Used when DMA-BUF import fails (e.g., incompatible modifier).
+    pub fn update_view_from_pixels(
+        &mut self,
+        view_id: u32,
+        width: u32,
+        height: u32,
+        pixels: &[u8],
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+    ) -> bool {
+        use wgpu::util::DeviceExt;
+
+        // Validate pixel data size (BGRA = 4 bytes per pixel)
+        let expected_size = (width * height * 4) as usize;
+        if pixels.len() < expected_size {
+            log::warn!("update_view_from_pixels: pixel data too small ({} < {})", pixels.len(), expected_size);
+            return false;
+        }
+
+        // Create texture
+        let texture = device.create_texture_with_data(
+            queue,
+            &wgpu::TextureDescriptor {
+                label: Some("WebKit Pixel Texture"),
+                size: wgpu::Extent3d {
+                    width,
+                    height,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::Bgra8UnormSrgb,
+                usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+                view_formats: &[],
+            },
+            wgpu::util::TextureDataOrder::LayerMajor,
+            &pixels[..expected_size],
+        );
+
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("WebKit Pixel Bind Group"),
+            layout: &self.bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&self.sampler),
+                },
+            ],
+        });
+
+        self.views.insert(view_id, CachedWebKitView {
+            texture,
+            view,
+            bind_group,
+            width,
+            height,
+            last_updated: Instant::now(),
+        });
+
+        log::info!("update_view_from_pixels: successfully uploaded {}x{} texture for view {}", width, height, view_id);
+        true
+    }
+
     /// Get a cached view.
     pub fn get(&self, view_id: u32) -> Option<&CachedWebKitView> {
         self.views.get(&view_id)

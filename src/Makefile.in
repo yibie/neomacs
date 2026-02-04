@@ -340,10 +340,9 @@ else
 NEOMACS_RUST_PROFILE = release
 NEOMACS_CARGO_FLAGS = --release
 endif
-# Add WPE WebKit feature if available
-ifdef HAVE_WPE_WEBKIT
-NEOMACS_CARGO_FLAGS += --features wpe-webkit
-endif
+# WPE WebKit is now a default feature - always enable the cargo feature
+# Note: wpe-webkit is included in the default features in Cargo.toml
+HAVE_WPE_WEBKIT = 1
 NEOMACS_RUST_TARGET = $(NEOMACS_RUST_DIR)/target/$(NEOMACS_RUST_PROFILE)/$(NEOMACS_RUST_LIB)
 
 ## emacs.res if HAVE_W32

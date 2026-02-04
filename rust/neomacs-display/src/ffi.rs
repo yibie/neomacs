@@ -2036,25 +2036,72 @@ pub unsafe extern "C" fn neomacs_display_webkit_set_load_callback(
 /// Initialize WebKit subsystem with EGL display
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_webkit_init(
-    _handle: *mut NeomacsDisplay,
+    handle: *mut NeomacsDisplay,
     egl_display: *mut libc::c_void,
 ) -> c_int {
     #[cfg(feature = "wpe-webkit")]
     {
-        eprintln!("neomacs_display_webkit_init: egl_display={:?}", egl_display);
+        log::info!("neomacs_display_webkit_init: ENTER egl_display={:?}", egl_display);
 
         // If no EGL display provided, try to get one from the current context
         let egl_display = if egl_display.is_null() {
-            eprintln!("neomacs_display_webkit_init: egl_display is NULL, trying eglGetCurrentDisplay");
+            log::info!("neomacs_display_webkit_init: egl_display is NULL, trying eglGetCurrentDisplay");
             let current = egl_get_current_display();
-            eprintln!("neomacs_display_webkit_init: eglGetCurrentDisplay returned {:?}", current);
+            log::info!("neomacs_display_webkit_init: eglGetCurrentDisplay returned {:?}", current);
             current
         } else {
             egl_display
         };
 
-        // Initialize WPE backend
-        match WpeBackend::new(egl_display) {
+        // Try to get the DRM render node from wgpu adapter info for GPU device selection
+        log::debug!("neomacs_display_webkit_init: getting DRM device path, handle={:?}", handle);
+
+        let device_path: Option<String> = if !handle.is_null() {
+            #[cfg(all(feature = "winit-backend", target_os = "linux"))]
+            {
+                use crate::backend::wgpu::get_render_node_from_adapter_info;
+
+                log::debug!("neomacs_display_webkit_init: checking winit backend");
+
+                if let Some(ref backend) = (*handle).winit_backend {
+                    log::debug!("neomacs_display_webkit_init: have winit backend, checking adapter_info");
+
+                    if let Some(adapter_info) = backend.adapter_info() {
+                        log::info!("neomacs_display_webkit_init: Found wgpu adapter info");
+
+                        if let Some(path) = get_render_node_from_adapter_info(adapter_info) {
+                            log::info!("neomacs_display_webkit_init: Using DRM render node: {:?}", path);
+                            Some(path.to_string_lossy().into_owned())
+                        } else {
+                            log::warn!("neomacs_display_webkit_init: Could not find matching DRM render node");
+                            None
+                        }
+                    } else {
+                        log::warn!("neomacs_display_webkit_init: No adapter info available");
+                        None
+                    }
+                } else {
+                    log::warn!("neomacs_display_webkit_init: No winit backend available");
+                    None
+                }
+            }
+            #[cfg(not(all(feature = "winit-backend", target_os = "linux")))]
+            {
+                None
+            }
+        } else {
+            log::warn!("neomacs_display_webkit_init: handle is NULL, using default GPU");
+            None
+        };
+
+        // Initialize WPE backend with optional device path
+        let result = if let Some(ref path) = device_path {
+            WpeBackend::new_with_device(egl_display, Some(path.as_str()))
+        } else {
+            WpeBackend::new(egl_display)
+        };
+
+        match result {
             Ok(backend) => {
                 WPE_BACKEND.with(|wpe| {
                     *wpe.borrow_mut() = Some(backend);
@@ -2065,11 +2112,11 @@ pub unsafe extern "C" fn neomacs_display_webkit_init(
                     *cache.borrow_mut() = Some(WebKitViewCache::new());
                 });
 
-                eprintln!("neomacs_display_webkit_init: WebKit subsystem initialized successfully");
+                log::info!("neomacs_display_webkit_init: WebKit subsystem initialized successfully");
                 return 0;
             }
             Err(e) => {
-                eprintln!("neomacs_display_webkit_init: Failed to initialize WPE backend: {}", e);
+                log::error!("neomacs_display_webkit_init: Failed to initialize WPE backend: {}", e);
                 return -1;
             }
         }
@@ -2077,8 +2124,9 @@ pub unsafe extern "C" fn neomacs_display_webkit_init(
 
     #[cfg(not(feature = "wpe-webkit"))]
     {
+        let _ = handle;
         let _ = egl_display;
-        eprintln!("WebKit support not compiled");
+        log::warn!("WebKit support not compiled");
         -1
     }
 }
@@ -2993,6 +3041,17 @@ pub extern "C" fn neomacs_display_poll_events(handle: *mut NeomacsDisplay) -> i3
 
     let display = unsafe { &mut *handle };
 
+    // Pump GLib events for WebKit (this runs at 60fps via timerfd)
+    #[cfg(feature = "wpe-webkit")]
+    WEBKIT_CACHE.with(|cache| {
+        let mut cache = cache.borrow_mut();
+        if let Some(ref mut wpe_cache) = *cache {
+            if !wpe_cache.is_empty() {
+                wpe_cache.update_all();
+            }
+        }
+    });
+
     #[cfg(feature = "winit-backend")]
     {
         use std::time::Duration;
@@ -3209,6 +3268,43 @@ pub extern "C" fn neomacs_display_poll_events(handle: *mut NeomacsDisplay) -> i3
                 for event in &collected_events {
                     callback(event as *const _);
                 }
+            }
+        }
+
+        // Check if any webkit views need redraw and re-render the frame
+        #[cfg(feature = "wpe-webkit")]
+        {
+            let needs_redraw = WEBKIT_CACHE.with(|cache| {
+                let cache = cache.borrow();
+                if let Some(ref wpe_cache) = *cache {
+                    for view in wpe_cache.views().values() {
+                        if view.needs_redraw() {
+                            return true;
+                        }
+                    }
+                }
+                false
+            });
+            if needs_redraw {
+                log::debug!("poll_events: webkit needs_redraw=true, re-rendering frame_glyphs");
+                // Re-render the frame_glyphs path which includes inline webkit rendering
+                // Get the first available window to render to (typically there's only one)
+                if let Some(ref mut backend) = display.winit_backend {
+                    if let Some(window_id) = backend.first_window_id() {
+                        backend.end_frame_for_window(window_id, &display.frame_glyphs, &display.faces);
+                    } else {
+                        log::debug!("poll_events: no windows available for webkit redraw");
+                    }
+                }
+                // Clear the needs_redraw flags
+                WEBKIT_CACHE.with(|cache| {
+                    let mut cache = cache.borrow_mut();
+                    if let Some(ref mut wpe_cache) = *cache {
+                        for view in wpe_cache.views_mut().values_mut() {
+                            view.clear_redraw_flag();
+                        }
+                    }
+                });
             }
         }
 

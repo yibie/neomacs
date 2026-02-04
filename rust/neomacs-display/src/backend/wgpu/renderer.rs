@@ -840,9 +840,18 @@ impl WgpuRenderer {
 
     /// Process pending webkit frames from WPE views.
     /// This imports DMA-BUF frames into the wgpu texture cache.
+    /// Also pumps GLib main context to process WebKit events.
     #[cfg(feature = "wpe-webkit")]
     pub fn process_webkit_frames(&mut self) {
         use super::external_buffer::DmaBufBuffer;
+
+        // Pump GLib events to process WebKit callbacks (including buffer-rendered)
+        crate::ffi::WEBKIT_CACHE.with(|cache| {
+            let mut cache = cache.borrow_mut();
+            if let Some(ref mut wpe_cache) = *cache {
+                wpe_cache.update_all();
+            }
+        });
 
         crate::ffi::WEBKIT_CACHE.with(|cache| {
             let cache = cache.borrow();
@@ -876,9 +885,28 @@ impl WgpuRenderer {
                             dmabuf_data.modifier,
                         );
 
-                        // Import into webkit cache
+                        // Import into webkit cache - try DMA-BUF first, fallback to pixels
                         if self.webkit_cache.update_view(*view_id, buffer, &self.device, &self.queue) {
-                            log::info!("process_webkit_frames: successfully imported view {} frame", view_id);
+                            log::info!("process_webkit_frames: successfully imported view {} frame via DMA-BUF", view_id);
+                        } else {
+                            // DMA-BUF import failed (e.g., incompatible modifier), try pixel fallback
+                            log::info!("process_webkit_frames: DMA-BUF import failed for view {}, trying pixel fallback", view_id);
+                            if let Some(pixel_data) = view.take_latest_pixels() {
+                                if self.webkit_cache.update_view_from_pixels(
+                                    *view_id,
+                                    pixel_data.width,
+                                    pixel_data.height,
+                                    &pixel_data.pixels,
+                                    &self.device,
+                                    &self.queue,
+                                ) {
+                                    log::info!("process_webkit_frames: successfully imported view {} frame via pixel upload", view_id);
+                                } else {
+                                    log::warn!("process_webkit_frames: pixel fallback also failed for view {}", view_id);
+                                }
+                            } else {
+                                log::warn!("process_webkit_frames: no pixel fallback available for view {}", view_id);
+                            }
                         }
                     }
                 }
@@ -1237,6 +1265,39 @@ impl WgpuRenderer {
                         }
                     } else {
                         log::warn!("Video {} not found in cache!", video_id);
+                    }
+                }
+            }
+
+            // Draw inline webkit views
+            #[cfg(feature = "wpe-webkit")]
+            for glyph in &frame_glyphs.glyphs {
+                if let FrameGlyph::WebKit { webkit_id, x, y, width, height } = glyph {
+                    // Check if webkit texture is ready
+                    if let Some(cached) = self.webkit_cache.get(*webkit_id) {
+                        log::debug!("Rendering webkit {} at ({}, {}) size {}x{}",
+                            webkit_id, x, y, width, height);
+                        // Create vertices for webkit quad (white color = no tinting)
+                        let vertices = [
+                            GlyphVertex { position: [*x, *y], tex_coords: [0.0, 0.0], color: [1.0, 1.0, 1.0, 1.0] },
+                            GlyphVertex { position: [*x + *width, *y], tex_coords: [1.0, 0.0], color: [1.0, 1.0, 1.0, 1.0] },
+                            GlyphVertex { position: [*x + *width, *y + *height], tex_coords: [1.0, 1.0], color: [1.0, 1.0, 1.0, 1.0] },
+                            GlyphVertex { position: [*x, *y], tex_coords: [0.0, 0.0], color: [1.0, 1.0, 1.0, 1.0] },
+                            GlyphVertex { position: [*x + *width, *y + *height], tex_coords: [1.0, 1.0], color: [1.0, 1.0, 1.0, 1.0] },
+                            GlyphVertex { position: [*x, *y + *height], tex_coords: [0.0, 1.0], color: [1.0, 1.0, 1.0, 1.0] },
+                        ];
+
+                        let webkit_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                            label: Some("WebKit Vertex Buffer"),
+                            contents: bytemuck::cast_slice(&vertices),
+                            usage: wgpu::BufferUsages::VERTEX,
+                        });
+
+                        render_pass.set_bind_group(1, &cached.bind_group, &[]);
+                        render_pass.set_vertex_buffer(0, webkit_buffer.slice(..));
+                        render_pass.draw(0..6, 0..1);
+                    } else {
+                        log::debug!("WebKit {} not found in cache", webkit_id);
                     }
                 }
             }

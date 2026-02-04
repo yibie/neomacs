@@ -35,11 +35,53 @@ pub struct WpePlatformDisplay {
 impl WpePlatformDisplay {
     /// Create a new headless WPE Platform display
     pub fn new_headless() -> DisplayResult<Self> {
+        Self::new_headless_internal(None)
+    }
+
+    /// Create a new headless WPE Platform display for a specific DRM device.
+    ///
+    /// This allows WPE to use the same GPU as wgpu for zero-copy DMA-BUF sharing.
+    ///
+    /// # Arguments
+    /// * `device_path` - The DRM render node path (e.g., "/dev/dri/renderD128")
+    pub fn new_headless_for_device(device_path: &str) -> DisplayResult<Self> {
+        Self::new_headless_internal(Some(device_path))
+    }
+
+    /// Internal implementation for headless display creation.
+    fn new_headless_internal(device_path: Option<&str>) -> DisplayResult<Self> {
         unsafe {
-            info!("WpePlatformDisplay: Creating headless display...");
+            if let Some(path) = device_path {
+                info!("WpePlatformDisplay: Creating headless display for device: {}", path);
+            } else {
+                info!("WpePlatformDisplay: Creating headless display (default device)...");
+            }
 
             // Create headless display
-            let display = plat::wpe_display_headless_new();
+            let display = if let Some(path) = device_path {
+                let c_path = CString::new(path)
+                    .map_err(|_| DisplayError::WebKit("Invalid device path".into()))?;
+                let mut error: *mut plat::GError = ptr::null_mut();
+                let d = plat::wpe_display_headless_new_for_device(c_path.as_ptr(), &mut error);
+                if d.is_null() {
+                    let error_msg = if !error.is_null() {
+                        let msg = std::ffi::CStr::from_ptr((*error).message)
+                            .to_string_lossy()
+                            .into_owned();
+                        plat::g_error_free(error);
+                        msg
+                    } else {
+                        "Unknown error".into()
+                    };
+                    return Err(DisplayError::WebKit(format!(
+                        "Failed to create WPE headless display for device {}: {}", path, error_msg
+                    )));
+                }
+                d
+            } else {
+                plat::wpe_display_headless_new()
+            };
+
             if display.is_null() {
                 return Err(DisplayError::WebKit("Failed to create WPE headless display".into()));
             }

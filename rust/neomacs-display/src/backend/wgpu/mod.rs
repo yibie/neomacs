@@ -71,3 +71,10 @@ mod webkit_cache;
 
 #[cfg(all(feature = "wpe-webkit", target_os = "linux"))]
 pub use webkit_cache::{WgpuWebKitCache, CachedWebKitView};
+
+// DRM device discovery for GPU device path mapping
+#[cfg(target_os = "linux")]
+mod drm_device;
+
+#[cfg(target_os = "linux")]
+pub use drm_device::{DrmDeviceInfo, find_drm_render_nodes, find_render_node_for_adapter, get_render_node_from_adapter_info};

@@ -198,6 +198,8 @@ typedef void (*EventCallback)(const struct NeomacsInputEvent*);
 
 #define VA_INVALID_SURFACE 4294967295
 
+extern GMainContext *g_main_context_get_thread_default(void);
+
 /**
  * Initialize the display engine
  *
