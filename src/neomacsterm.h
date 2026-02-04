@@ -325,7 +325,6 @@ extern struct neomacs_display_info *neomacs_display_list;
 
 extern void neomacs_delete_terminal (struct terminal *);
 extern struct terminal *neomacs_create_terminal (struct neomacs_display_info *);
-extern void neomacs_term_init (void);
 extern bool neomacs_defined_color (struct frame *, const char *, Emacs_Color *, bool, bool);
 extern struct neomacs_display_info *neomacs_open_display (const char *);
 

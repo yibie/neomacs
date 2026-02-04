@@ -143,79 +143,6 @@ neomacs_evq_flush (struct input_event *hold_quit)
   return n;
 }
 
-/* Event callback from Rust/winit */
-static void
-neomacs_event_callback (const NeomacsInputEvent *event)
-{
-  union buffered_input_event inev;
-  struct frame *f = SELECTED_FRAME ();
-  Lisp_Object tail, frame;
-
-  /* Find frame by window_id */
-  FOR_EACH_FRAME (tail, frame)
-    {
-      struct frame *tf = XFRAME (frame);
-      if (FRAME_NEOMACS_P (tf)
-          && FRAME_NEOMACS_OUTPUT (tf)->window_id == event->windowId)
-        {
-          f = tf;
-          break;
-        }
-    }
-
-  EVENT_INIT (inev.ie);
-  inev.ie.timestamp = event->timestamp;
-
-  switch (event->kind)
-    {
-    case NEOMACS_EVENT_KEY_PRESS:
-      if (event->keysym < 0x100)
-        inev.ie.kind = ASCII_KEYSTROKE_EVENT;
-      else
-        inev.ie.kind = NON_ASCII_KEYSTROKE_EVENT;
-      inev.ie.code = event->keysym;
-      inev.ie.modifiers = 0;
-      if (event->modifiers & NEOMACS_SHIFT_MASK) inev.ie.modifiers |= shift_modifier;
-      if (event->modifiers & NEOMACS_CTRL_MASK) inev.ie.modifiers |= ctrl_modifier;
-      if (event->modifiers & NEOMACS_META_MASK) inev.ie.modifiers |= meta_modifier;
-      if (event->modifiers & NEOMACS_SUPER_MASK) inev.ie.modifiers |= super_modifier;
-      XSETFRAME (inev.ie.frame_or_window, f);
-      neomacs_evq_enqueue (&inev);
-      break;
-
-    case NEOMACS_EVENT_MOUSE_PRESS:
-    case NEOMACS_EVENT_MOUSE_RELEASE:
-      inev.ie.kind = MOUSE_CLICK_EVENT;
-      inev.ie.code = event->button - 1;  /* Emacs buttons are 0-indexed */
-      inev.ie.modifiers = (event->kind == NEOMACS_EVENT_MOUSE_PRESS) ? down_modifier : up_modifier;
-      if (event->modifiers & NEOMACS_SHIFT_MASK) inev.ie.modifiers |= shift_modifier;
-      if (event->modifiers & NEOMACS_CTRL_MASK) inev.ie.modifiers |= ctrl_modifier;
-      if (event->modifiers & NEOMACS_META_MASK) inev.ie.modifiers |= meta_modifier;
-      XSETINT (inev.ie.x, event->x);
-      XSETINT (inev.ie.y, event->y);
-      XSETFRAME (inev.ie.frame_or_window, f);
-      neomacs_evq_enqueue (&inev);
-      break;
-
-    case NEOMACS_EVENT_RESIZE:
-      {
-        struct neomacs_display_info *dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
-        if (dpyinfo && dpyinfo->display_handle)
-          neomacs_display_resize (dpyinfo->display_handle, event->width, event->height);
-      }
-      break;
-
-    case NEOMACS_EVENT_CLOSE_REQUEST:
-      inev.ie.kind = DELETE_WINDOW_EVENT;
-      XSETFRAME (inev.ie.frame_or_window, f);
-      neomacs_evq_enqueue (&inev);
-      break;
-
-    default:
-      break;
-    }
-}
-
 /* Forward declarations */
 extern frame_parm_handler neomacs_frame_parm_handlers[];
 
@@ -269,17 +196,6 @@ static struct redisplay_interface neomacs_redisplay_interface = {
 /* Forward declaration for wakeup handler (defined in Threaded Mode Support section) */
 static void neomacs_display_wakeup_handler (int fd, void *data);
 
-/* Initialize the Neomacs display subsystem */
-void
-neomacs_term_init (void)
-{
-  /* Initialize the Rust display engine */
-  /* This will be called once at Emacs startup */
-
-  /* Register event callback for winit events */
-  neomacs_display_set_event_callback (neomacs_event_callback);
-}
-
 /* Create a new Neomacs display connection */
 struct neomacs_display_info *
 neomacs_open_display (const char *display_name)
@@ -322,8 +238,6 @@ neomacs_open_display (const char *display_name)
 
   /* Register wakeup handler with Emacs event loop */
   add_read_fd (wakeup_fd, neomacs_display_wakeup_handler, dpyinfo);
-
-  /* Note: No longer need neomacs_term_init() - events come via wakeup handler */
 
   /* Add to display list */
   dpyinfo->next = neomacs_display_list;
