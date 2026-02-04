@@ -215,10 +215,36 @@ impl RenderApp {
 
         self.surface = Some(surface);
         self.surface_config = Some(config);
-        self.device = Some(device);
+        self.device = Some(device.clone());
         self.queue = Some(queue);
         self.renderer = Some(renderer);
         self.glyph_atlas = Some(glyph_atlas);
+
+        // Initialize WPE backend for WebKit
+        #[cfg(feature = "wpe-webkit")]
+        {
+            use crate::backend::wgpu::get_render_node_from_adapter_info;
+
+            // Get DRM render node from adapter to ensure WebKit uses the same GPU
+            let render_node = get_render_node_from_adapter_info(&adapter_info)
+                .map(|p| p.to_string_lossy().into_owned());
+
+            log::info!("Initializing WPE backend (render_node: {:?})", render_node);
+
+            // SAFETY: We pass null for egl_display_hint as WPE Platform API doesn't use it
+            match unsafe { WpeBackend::new_with_device(std::ptr::null_mut(), render_node.as_deref()) } {
+                Ok(backend) => {
+                    log::info!("WPE backend initialized successfully");
+                    self.wpe_backend = Some(backend);
+                }
+                Err(e) => {
+                    log::warn!("Failed to initialize WPE backend: {:?}", e);
+                }
+            }
+
+            // Initialize WebKit texture cache
+            self.webkit_texture_cache = Some(WgpuWebKitCache::new(&device));
+        }
     }
 
     /// Handle surface resize
