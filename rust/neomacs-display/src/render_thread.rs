@@ -350,20 +350,33 @@ impl RenderApp {
                     }
                 }
                 RenderCommand::VideoCreate { id, path } => {
-                    log::debug!("Video create: id={}, path={}", id, path);
-                    // TODO: Create video
+                    log::info!("Loading video {}: {}", id, path);
+                    #[cfg(feature = "video")]
+                    if let Some(ref mut cache) = self.video_cache {
+                        let video_id = cache.load_file(&path);
+                        log::info!("Video loaded with id {} (requested id was {})", video_id, id);
+                    }
                 }
                 RenderCommand::VideoPlay { id } => {
-                    log::debug!("Video play: id={}", id);
-                    // TODO: Play video
+                    log::debug!("Playing video {}", id);
+                    #[cfg(feature = "video")]
+                    if let Some(ref mut cache) = self.video_cache {
+                        cache.play(id);
+                    }
                 }
                 RenderCommand::VideoPause { id } => {
-                    log::debug!("Video pause: id={}", id);
-                    // TODO: Pause video
+                    log::debug!("Pausing video {}", id);
+                    #[cfg(feature = "video")]
+                    if let Some(ref mut cache) = self.video_cache {
+                        cache.pause(id);
+                    }
                 }
                 RenderCommand::VideoDestroy { id } => {
-                    log::debug!("Video destroy: id={}", id);
-                    // TODO: Destroy video
+                    log::info!("Destroying video {}", id);
+                    #[cfg(feature = "video")]
+                    if let Some(ref mut cache) = self.video_cache {
+                        cache.remove(id);
+                    }
                 }
             }
         }
