@@ -378,15 +378,30 @@ impl RenderApp {
         output.present();
     }
 
-    /// Translate winit key to keysym
+    /// Translate winit key to X11 keysym
     fn translate_key(key: &Key) -> u32 {
         match key {
             Key::Named(named) => match named {
+                // Function keys
+                NamedKey::F1 => 0xffbe,
+                NamedKey::F2 => 0xffbf,
+                NamedKey::F3 => 0xffc0,
+                NamedKey::F4 => 0xffc1,
+                NamedKey::F5 => 0xffc2,
+                NamedKey::F6 => 0xffc3,
+                NamedKey::F7 => 0xffc4,
+                NamedKey::F8 => 0xffc5,
+                NamedKey::F9 => 0xffc6,
+                NamedKey::F10 => 0xffc7,
+                NamedKey::F11 => 0xffc8,
+                NamedKey::F12 => 0xffc9,
+                // Navigation
                 NamedKey::Escape => 0xff1b,
                 NamedKey::Enter => 0xff0d,
                 NamedKey::Tab => 0xff09,
                 NamedKey::Backspace => 0xff08,
                 NamedKey::Delete => 0xffff,
+                NamedKey::Insert => 0xff63,
                 NamedKey::Home => 0xff50,
                 NamedKey::End => 0xff57,
                 NamedKey::PageUp => 0xff55,
@@ -395,10 +410,24 @@ impl RenderApp {
                 NamedKey::ArrowUp => 0xff52,
                 NamedKey::ArrowRight => 0xff53,
                 NamedKey::ArrowDown => 0xff54,
+                // Whitespace
                 NamedKey::Space => 0x20,
+                // Modifier keys (as keys themselves)
+                NamedKey::Shift => 0xffe1,
+                NamedKey::Control => 0xffe3,
+                NamedKey::Alt => 0xffe9,
+                NamedKey::Super => 0xffeb,
+                NamedKey::CapsLock => 0xffe5,
+                // Other
+                NamedKey::PrintScreen => 0xff61,
+                NamedKey::ScrollLock => 0xff14,
+                NamedKey::Pause => 0xff13,
+                NamedKey::NumLock => 0xff7f,
                 _ => 0,
             },
-            Key::Character(c) => c.chars().next().map(|ch| ch as u32).unwrap_or(0),
+            Key::Character(c) => {
+                c.chars().next().map(|ch| ch as u32).unwrap_or(0)
+            }
             _ => 0,
         }
     }
@@ -617,9 +646,16 @@ mod tests {
     }
 
     #[test]
+    fn test_translate_key_function_keys() {
+        assert_eq!(RenderApp::translate_key(&Key::Named(NamedKey::F1)), 0xffbe);
+        assert_eq!(RenderApp::translate_key(&Key::Named(NamedKey::F12)), 0xffc9);
+        assert_eq!(RenderApp::translate_key(&Key::Named(NamedKey::Insert)), 0xff63);
+        assert_eq!(RenderApp::translate_key(&Key::Named(NamedKey::PrintScreen)), 0xff61);
+    }
+
+    #[test]
     fn test_translate_key_unknown() {
         // Unknown named keys should return 0
-        assert_eq!(RenderApp::translate_key(&Key::Named(NamedKey::F1)), 0);
         assert_eq!(RenderApp::translate_key(&Key::Dead(None)), 0);
     }
 
