@@ -740,6 +740,16 @@ impl WgpuRenderer {
         self.image_cache.load_data(data, max_width, max_height)
     }
 
+    /// Load image from raw ARGB32 pixel data
+    pub fn load_image_argb32(&mut self, data: &[u8], width: u32, height: u32, stride: u32) -> u32 {
+        self.image_cache.load_raw_argb32(data, width, height, stride, 0, 0)
+    }
+
+    /// Load image from raw RGB24 pixel data
+    pub fn load_image_rgb24(&mut self, data: &[u8], width: u32, height: u32, stride: u32) -> u32 {
+        self.image_cache.load_raw_rgb24(data, width, height, stride, 0, 0)
+    }
+
     /// Query image file dimensions (fast - reads header only, does not block)
     pub fn query_image_file_size(path: &str) -> Option<(u32, u32)> {
         ImageCache::query_file_dimensions(path).map(|d| (d.width, d.height))
