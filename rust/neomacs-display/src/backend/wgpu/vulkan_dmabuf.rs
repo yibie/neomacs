@@ -33,15 +33,23 @@ pub mod drm_fourcc {
 }
 
 /// Convert DRM fourcc to wgpu format
+///
+/// DRM format naming convention (little-endian):
+/// - DRM_FORMAT_ARGB8888: 32-bit word is 0xAARRGGBB, bytes in memory: [B, G, R, A]
+/// - DRM_FORMAT_BGRA8888: bytes in memory: [B, G, R, A]
+///
+/// Uses sRGB formats for correct color rendering (following Smithay's approach)
 pub fn drm_fourcc_to_wgpu_format(fourcc: u32) -> Option<wgpu::TextureFormat> {
     match fourcc {
+        // ARGB8888: bytes [B, G, R, A] in memory = Bgra8UnormSrgb
+        // Use sRGB for proper gamma handling (matches Smithay's VK_FORMAT_B8G8R8A8_SRGB)
         drm_fourcc::DRM_FORMAT_ARGB8888 | drm_fourcc::DRM_FORMAT_XRGB8888 |
         drm_fourcc::DRM_FORMAT_BGRA8888 | drm_fourcc::DRM_FORMAT_BGRX8888 => {
-            Some(wgpu::TextureFormat::Bgra8Unorm)
+            Some(wgpu::TextureFormat::Bgra8UnormSrgb)
         }
         drm_fourcc::DRM_FORMAT_ABGR8888 | drm_fourcc::DRM_FORMAT_XBGR8888 |
         drm_fourcc::DRM_FORMAT_RGBA8888 | drm_fourcc::DRM_FORMAT_RGBX8888 => {
-            Some(wgpu::TextureFormat::Rgba8Unorm)
+            Some(wgpu::TextureFormat::Rgba8UnormSrgb)
         }
         _ => None,
     }
@@ -95,19 +103,19 @@ mod hal_import {
     }
 
     /// Convert DRM fourcc to Vulkan format
+    ///
+    /// Uses sRGB formats for correct color rendering (following Smithay's approach)
     fn drm_fourcc_to_vk_format(fourcc: u32) -> Option<vk::Format> {
         match fourcc {
-            drm_fourcc::DRM_FORMAT_ARGB8888 | drm_fourcc::DRM_FORMAT_XRGB8888 => {
-                Some(vk::Format::B8G8R8A8_UNORM)
-            }
-            drm_fourcc::DRM_FORMAT_ABGR8888 | drm_fourcc::DRM_FORMAT_XBGR8888 => {
-                Some(vk::Format::R8G8B8A8_UNORM)
-            }
-            drm_fourcc::DRM_FORMAT_RGBA8888 | drm_fourcc::DRM_FORMAT_RGBX8888 => {
-                Some(vk::Format::R8G8B8A8_UNORM)
-            }
+            // ARGB8888: bytes [B, G, R, A] in memory = B8G8R8A8_SRGB
+            // Use sRGB for proper gamma handling (matches Smithay)
+            drm_fourcc::DRM_FORMAT_ARGB8888 | drm_fourcc::DRM_FORMAT_XRGB8888 |
             drm_fourcc::DRM_FORMAT_BGRA8888 | drm_fourcc::DRM_FORMAT_BGRX8888 => {
-                Some(vk::Format::B8G8R8A8_UNORM)
+                Some(vk::Format::B8G8R8A8_SRGB)
+            }
+            drm_fourcc::DRM_FORMAT_ABGR8888 | drm_fourcc::DRM_FORMAT_XBGR8888 |
+            drm_fourcc::DRM_FORMAT_RGBA8888 | drm_fourcc::DRM_FORMAT_RGBX8888 => {
+                Some(vk::Format::R8G8B8A8_SRGB)
             }
             _ => None,
         }
