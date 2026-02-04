@@ -12,7 +12,10 @@ use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::keyboard::{Key, NamedKey};
 use winit::window::{Window, WindowId};
 
-use crate::backend::wgpu::{WgpuGlyphAtlas, WgpuRenderer};
+use crate::backend::wgpu::{
+    WgpuGlyphAtlas, WgpuRenderer,
+    NEOMACS_CTRL_MASK, NEOMACS_META_MASK, NEOMACS_SHIFT_MASK, NEOMACS_SUPER_MASK,
+};
 use crate::core::face::Face;
 use crate::core::frame_glyphs::{FrameGlyph, FrameGlyphBuffer};
 use crate::thread_comm::{InputEvent, RenderCommand, RenderComms};
@@ -61,6 +64,9 @@ struct RenderApp {
 
     // Face cache built from frame data
     faces: HashMap<u32, Face>,
+
+    // Current modifier state (NEOMACS_*_MASK flags)
+    modifiers: u32,
 }
 
 impl RenderApp {
@@ -79,6 +85,7 @@ impl RenderApp {
             queue: None,
             glyph_atlas: None,
             faces: HashMap::new(),
+            modifiers: 0,
         }
     }
 
@@ -456,7 +463,7 @@ impl ApplicationHandler for RenderApp {
                 if keysym != 0 {
                     self.comms.send_input(InputEvent::Key {
                         keysym,
-                        modifiers: 0, // TODO: Track modifiers
+                        modifiers: self.modifiers,
                         pressed: state == ElementState::Pressed,
                     });
                 }
@@ -476,7 +483,7 @@ impl ApplicationHandler for RenderApp {
                     x: 0.0, // TODO: Track mouse position
                     y: 0.0,
                     pressed: state == ElementState::Pressed,
-                    modifiers: 0,
+                    modifiers: self.modifiers,
                 });
             }
 
@@ -484,7 +491,7 @@ impl ApplicationHandler for RenderApp {
                 self.comms.send_input(InputEvent::MouseMove {
                     x: position.x as f32,
                     y: position.y as f32,
-                    modifiers: 0,
+                    modifiers: self.modifiers,
                 });
             }
 
@@ -500,12 +507,29 @@ impl ApplicationHandler for RenderApp {
                     delta_y: dy,
                     x: 0.0,
                     y: 0.0,
-                    modifiers: 0,
+                    modifiers: self.modifiers,
                 });
             }
 
             WindowEvent::RedrawRequested => {
                 self.render();
+            }
+
+            WindowEvent::ModifiersChanged(mods) => {
+                let state = mods.state();
+                self.modifiers = 0;
+                if state.shift_key() {
+                    self.modifiers |= NEOMACS_SHIFT_MASK;
+                }
+                if state.control_key() {
+                    self.modifiers |= NEOMACS_CTRL_MASK;
+                }
+                if state.alt_key() {
+                    self.modifiers |= NEOMACS_META_MASK;
+                }
+                if state.super_key() {
+                    self.modifiers |= NEOMACS_SUPER_MASK;
+                }
             }
 
             _ => {}
