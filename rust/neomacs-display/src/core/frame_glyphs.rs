@@ -372,14 +372,15 @@ impl FrameGlyphBuffer {
     }
 
     /// Remove glyphs that overlap with the given rectangle
-    /// Only removes Char/Stretch glyphs with exact Y match (within 1px) to prevent mode-line issues.
+    /// Uses actual vertical overlap (Y ranges intersect) for proper clearing.
     /// Image/Video glyphs are NOT removed here - they are managed by add_image/add_video.
-    fn remove_overlapping(&mut self, x: f32, y: f32, width: f32, _height: f32) {
+    fn remove_overlapping(&mut self, x: f32, y: f32, width: f32, height: f32) {
         let x_end = x + width;
+        let y_end = y + height;
         self.glyphs.retain(|g| {
-            let (gx, gy, gw) = match g {
-                FrameGlyph::Char { x, y, width, .. } => (*x, *y, *width),
-                FrameGlyph::Stretch { x, y, width, .. } => (*x, *y, *width),
+            let (gx, gy, gw, gh) = match g {
+                FrameGlyph::Char { x, y, width, height, .. } => (*x, *y, *width, *height),
+                FrameGlyph::Stretch { x, y, width, height, .. } => (*x, *y, *width, *height),
                 // Keep Image/Video glyphs - they are managed by add_image/add_video
                 FrameGlyph::Image { .. } => return true,
                 FrameGlyph::Video { .. } => return true,
@@ -389,10 +390,9 @@ impl FrameGlyphBuffer {
                 _ => return true,
             };
             let gx_end = gx + gw;
-            // Keep if no X overlap OR Y doesn't match (within 1px tolerance)
-            // This prevents mode-line (y=561) from being cleared when content rows
-            // on a shifted grid (y=554) add their chars.
-            gx_end <= x || gx >= x_end || (gy - y).abs() > 1.0
+            let gy_end = gy + gh;
+            // Keep if no X overlap OR no Y overlap (actual rectangle intersection)
+            gx_end <= x || gx >= x_end || gy_end <= y || gy >= y_end
         });
     }
 
