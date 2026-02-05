@@ -682,7 +682,7 @@ impl WgpuRenderer {
         height: f32,
         color: &Color,
     ) {
-        let color = [color.r, color.g, color.b, color.a];
+        let color_arr = [color.r, color.g, color.b, color.a];
 
         let x0 = x;
         let y0 = y;
@@ -692,29 +692,29 @@ impl WgpuRenderer {
         // First triangle (top-left, top-right, bottom-left)
         vertices.push(RectVertex {
             position: [x0, y0],
-            color,
+            color: color_arr,
         });
         vertices.push(RectVertex {
             position: [x1, y0],
-            color,
+            color: color_arr,
         });
         vertices.push(RectVertex {
             position: [x0, y1],
-            color,
+            color: color_arr,
         });
 
         // Second triangle (top-right, bottom-right, bottom-left)
         vertices.push(RectVertex {
             position: [x1, y0],
-            color,
+            color: color_arr,
         });
         vertices.push(RectVertex {
             position: [x1, y1],
-            color,
+            color: color_arr,
         });
         vertices.push(RectVertex {
             position: [x0, y1],
-            color,
+            color: color_arr,
         });
     }
 
@@ -1035,15 +1035,8 @@ impl WgpuRenderer {
             })
             .reduce(f32::min);
         log::trace!("Frame {}x{}, overlay_y={:?}", frame_glyphs.width, frame_glyphs.height, overlay_y);
-        let mut bg_count = 0;
         for glyph in &frame_glyphs.glyphs {
             if let FrameGlyph::Background { bounds, color } = glyph {
-                let covers_overlay = overlay_y.map(|oy| {
-                    bounds.y <= oy && bounds.y + bounds.height > oy
-                }).unwrap_or(false);
-                log::debug!("render_frame_glyphs: window background #{} at ({:.1},{:.1}) size {:.1}x{:.1} color=({:.3},{:.3},{:.3}) covers_overlay={}",
-                    bg_count, bounds.x, bounds.y, bounds.width, bounds.height, color.r, color.g, color.b, covers_overlay);
-                bg_count += 1;
                 self.add_rect(
                     &mut rect_vertices,
                     bounds.x,
@@ -1054,26 +1047,43 @@ impl WgpuRenderer {
                 );
             }
         }
-        log::debug!("render_frame_glyphs: {} window backgrounds total", bg_count);
 
-        // 3. Process stretches
+        // 3. Process stretches in two passes (non-overlay first, then overlay)
         for glyph in &frame_glyphs.glyphs {
-            if let FrameGlyph::Stretch { x, y, width, height, bg, .. } = glyph {
-                self.add_rect(&mut rect_vertices, *x, *y, *width, *height, bg);
+            if let FrameGlyph::Stretch { x, y, width, height, bg, is_overlay, .. } = glyph {
+                if !*is_overlay {
+                    self.add_rect(&mut rect_vertices, *x, *y, *width, *height, bg);
+                }
+            }
+        }
+        for glyph in &frame_glyphs.glyphs {
+            if let FrameGlyph::Stretch { x, y, width, height, bg, is_overlay, .. } = glyph {
+                if *is_overlay {
+                    self.add_rect(&mut rect_vertices, *x, *y, *width, *height, bg);
+                }
             }
         }
 
-        // 4. Process char backgrounds (modeline, etc.) - AFTER window backgrounds
-        let mut char_bg_count = 0;
+        // 4. Process char backgrounds in two passes:
+        //    First pass: non-overlay char backgrounds (content area)
+        //    Second pass: overlay char backgrounds (mode-line/echo area)
+        //    This ensures overlay backgrounds are drawn on top.
         for glyph in &frame_glyphs.glyphs {
-            if let FrameGlyph::Char { char, x, y, width, height, bg, is_overlay, face_id, .. } = glyph {
-                if *is_overlay && char_bg_count < 20 {
-                    log::debug!("RENDER char_bg: '{}' face={} at ({:.1},{:.1}) size {:.1}x{:.1} bg={:?}",
-                        char, face_id, x, y, width, height, bg);
-                    char_bg_count += 1;
+            if let FrameGlyph::Char { x, y, width, height, bg, is_overlay, .. } = glyph {
+                if !*is_overlay {
+                    if let Some(bg_color) = bg {
+                        self.add_rect(&mut rect_vertices, *x, *y, *width, *height, bg_color);
+                    }
                 }
-                if let Some(bg_color) = bg {
-                    self.add_rect(&mut rect_vertices, *x, *y, *width, *height, bg_color);
+            }
+        }
+        // Second pass: overlay char backgrounds (mode-line) - drawn last so they're on top
+        for glyph in &frame_glyphs.glyphs {
+            if let FrameGlyph::Char { x, y, width, height, bg, is_overlay, .. } = glyph {
+                if *is_overlay {
+                    if let Some(bg_color) = bg {
+                        self.add_rect(&mut rect_vertices, *x, *y, *width, *height, bg_color);
+                    }
                 }
             }
         }

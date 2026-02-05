@@ -508,15 +508,26 @@ pub unsafe extern "C" fn neomacs_display_add_char_glyph(
                     c, current_x, pixel_width, window_x, display.frame_glyphs.get_current_bg());
             }
 
-            if display.current_row_is_overlay && (current_x as f32) > window_x {
+            // For overlay rows (mode-line/echo-area), ensure full coverage from left edge
+            // This handles both the gap case (current_x > window_x) and the edge case (current_x == window_x)
+            // where we need to ensure the mode-line background starts exactly at the window edge
+            if display.current_row_is_overlay && (current_x as f32) >= window_x {
                 if let Some(bg) = display.frame_glyphs.get_current_bg() {
-                    // Check if we haven't already filled this row's left gap
+                    // Check if we haven't already filled this row's left edge (with Stretch or Char at window_x)
                     let already_filled = display.frame_glyphs.glyphs.iter().any(|g| {
-                        matches!(g, crate::core::frame_glyphs::FrameGlyph::Stretch { x, y, .. }
-                            if (*x - window_x).abs() < 1.0 && (*y - current_y as f32).abs() < 1.0)
+                        match g {
+                            crate::core::frame_glyphs::FrameGlyph::Stretch { x, y, is_overlay: true, .. } |
+                            crate::core::frame_glyphs::FrameGlyph::Char { x, y, is_overlay: true, .. } => {
+                                (*x - window_x).abs() < 1.0 && (*y - current_y as f32).abs() < 1.0
+                            }
+                            _ => false,
+                        }
                     });
                     if !already_filled {
-                        let gap_width = current_x as f32 - window_x;
+                        // Fill from window edge to the first character position
+                        // For current_x == window_x, this is a zero-width stretch (no visual effect)
+                        // but ensures we've "visited" this position for the already_filled check
+                        let gap_width = (current_x as f32 - window_x).max(1.0); // At least 1 pixel to ensure coverage
                         display.frame_glyphs.add_stretch(
                             window_x,
                             current_y as f32,

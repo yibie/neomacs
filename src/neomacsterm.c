@@ -954,6 +954,11 @@ neomacs_draw_glyph_string (struct glyph_string *s)
                                 (GREEN_FROM_ULONG(bg) << 8) |
                                 BLUE_FROM_ULONG(bg));
 
+              /* Debug: print mode-line face colors */
+              if (s->row->mode_line_p && s->x < 20)
+                printf("MODELINE face=%d bg_defaulted=%d bg_rgb=0x%06x\n",
+                       face->id, face->background_defaulted_p, bg_rgb);
+
               /* Get font family from lface */
               const char *font_family = NULL;  /* NULL means default */
               if (face->lface != NULL) {
