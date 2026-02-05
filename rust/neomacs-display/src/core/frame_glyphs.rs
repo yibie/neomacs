@@ -466,102 +466,86 @@ impl FrameGlyphBuffer {
         self.glyphs.push(FrameGlyph::Stretch { x, y, width, height, bg, is_overlay });
     }
 
-    /// Add an image glyph
-    /// Removes any existing image glyph with the same ID first, then removes
-    /// any other images that overlap with this image's position.
-    pub fn add_image(&mut self, image_id: u32, x: f32, y: f32, width: f32, height: f32) {
-        // Remove any existing image glyph with the same ID (handles scrolling)
-        // This prevents duplicate images when the same image is redrawn at a different position
-        self.glyphs.retain(|g| {
-            if let FrameGlyph::Image { image_id: id, .. } = g {
-                *id != image_id
-            } else {
-                true
-            }
-        });
+    /// Helper to add a media glyph (image, video, webkit) with proper overlap handling.
+    ///
+    /// This handles the common pattern for media glyphs:
+    /// 1. Remove any existing glyph with the same ID
+    /// 2. Remove any other glyph of the same type that overlaps with this position
+    /// 3. Remove overlapping char/stretch glyphs
+    /// 4. Add the new glyph
+    fn add_media_glyph(
+        &mut self,
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+        is_same_id: impl Fn(&FrameGlyph) -> bool,
+        get_same_type_bounds: impl Fn(&FrameGlyph) -> Option<(f32, f32, f32, f32)>,
+        glyph: FrameGlyph,
+    ) {
+        // Remove any existing glyph with the same ID (handles repositioning)
+        self.glyphs.retain(|g| !is_same_id(g));
 
-        // Remove any OTHER image that overlaps with this image's position
-        // This handles the case where different images end up at the same screen position
-        // (e.g., after scrolling, Image 4 is at y=51 and Image 1 should replace it)
+        // Remove any other glyph of the same type that overlaps with this position
+        // This handles the case where different media elements end up at the same
+        // screen position (e.g., after scrolling)
         let x_end = x + width;
         let y_end = y + height;
         self.glyphs.retain(|g| {
-            if let FrameGlyph::Image { x: gx, y: gy, width: gw, height: gh, .. } = g {
-                let gx_end = *gx + *gw;
-                let gy_end = *gy + *gh;
+            if let Some((gx, gy, gw, gh)) = get_same_type_bounds(g) {
+                let gx_end = gx + gw;
+                let gy_end = gy + gh;
                 // Keep if no overlap
-                gx_end <= x || *gx >= x_end || gy_end <= y || *gy >= y_end
+                gx_end <= x || gx >= x_end || gy_end <= y || gy >= y_end
             } else {
                 true
             }
         });
 
-        // Remove overlapping char/stretch glyphs (but NOT other images - already handled above)
+        // Remove overlapping char/stretch glyphs
         self.remove_overlapping(x, y, width, height);
-        self.glyphs.push(FrameGlyph::Image { image_id, x, y, width, height });
+
+        // Add the new glyph
+        self.glyphs.push(glyph);
+    }
+
+    /// Add an image glyph
+    pub fn add_image(&mut self, image_id: u32, x: f32, y: f32, width: f32, height: f32) {
+        self.add_media_glyph(
+            x, y, width, height,
+            |g| matches!(g, FrameGlyph::Image { image_id: id, .. } if *id == image_id),
+            |g| match g {
+                FrameGlyph::Image { x, y, width, height, .. } => Some((*x, *y, *width, *height)),
+                _ => None,
+            },
+            FrameGlyph::Image { image_id, x, y, width, height },
+        );
     }
 
     /// Add a video glyph
-    /// Removes any existing video glyph with the same ID first to handle scrolling
     pub fn add_video(&mut self, video_id: u32, x: f32, y: f32, width: f32, height: f32) {
-        // Remove any existing video glyph with the same ID (handles scrolling)
-        self.glyphs.retain(|g| {
-            if let FrameGlyph::Video { video_id: id, .. } = g {
-                *id != video_id
-            } else {
-                true
-            }
-        });
-
-        // Remove any OTHER video that overlaps with this video's position
-        // This handles the case where different videos end up at the same screen position
-        let x_end = x + width;
-        let y_end = y + height;
-        self.glyphs.retain(|g| {
-            if let FrameGlyph::Video { x: gx, y: gy, width: gw, height: gh, .. } = g {
-                let gx_end = *gx + *gw;
-                let gy_end = *gy + *gh;
-                // Keep if no overlap
-                gx_end <= x || *gx >= x_end || gy_end <= y || *gy >= y_end
-            } else {
-                true
-            }
-        });
-
-        self.remove_overlapping(x, y, width, height);
-        self.glyphs.push(FrameGlyph::Video { video_id, x, y, width, height });
+        self.add_media_glyph(
+            x, y, width, height,
+            |g| matches!(g, FrameGlyph::Video { video_id: id, .. } if *id == video_id),
+            |g| match g {
+                FrameGlyph::Video { x, y, width, height, .. } => Some((*x, *y, *width, *height)),
+                _ => None,
+            },
+            FrameGlyph::Video { video_id, x, y, width, height },
+        );
     }
 
     /// Add a webkit glyph
-    /// Removes any existing webkit glyph with the same ID first, then removes
-    /// any other webkits that overlap with this webkit's position.
     pub fn add_webkit(&mut self, webkit_id: u32, x: f32, y: f32, width: f32, height: f32) {
-        // Remove any existing webkit glyph with the same ID (handles scrolling)
-        self.glyphs.retain(|g| {
-            if let FrameGlyph::WebKit { webkit_id: id, .. } = g {
-                *id != webkit_id
-            } else {
-                true
-            }
-        });
-
-        // Remove any OTHER webkit that overlaps with this webkit's position
-        // This handles the case where different webkits end up at the same screen position
-        let x_end = x + width;
-        let y_end = y + height;
-        self.glyphs.retain(|g| {
-            if let FrameGlyph::WebKit { x: gx, y: gy, width: gw, height: gh, .. } = g {
-                let gx_end = *gx + *gw;
-                let gy_end = *gy + *gh;
-                // Keep if no overlap
-                gx_end <= x || *gx >= x_end || gy_end <= y || *gy >= y_end
-            } else {
-                true
-            }
-        });
-
-        self.remove_overlapping(x, y, width, height);
-        self.glyphs.push(FrameGlyph::WebKit { webkit_id, x, y, width, height });
+        self.add_media_glyph(
+            x, y, width, height,
+            |g| matches!(g, FrameGlyph::WebKit { webkit_id: id, .. } if *id == webkit_id),
+            |g| match g {
+                FrameGlyph::WebKit { x, y, width, height, .. } => Some((*x, *y, *width, *height)),
+                _ => None,
+            },
+            FrameGlyph::WebKit { webkit_id, x, y, width, height },
+        );
     }
 
     /// Add cursor - removes any existing cursor for the same window first
