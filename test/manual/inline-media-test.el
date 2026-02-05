@@ -61,30 +61,27 @@
         (success-count 0)
         (total-count 3))
 
-    ;; === Section 1: Inline Image ===
-    (insert "--- 1. Inline Image ---\n")
-    (if inline-media-test-image-path
-        (condition-case err
-            (let ((img (create-image inline-media-test-image-path nil nil
-                                     :max-width media-width
-                                     :max-height media-height)))
-              (if img
-                  (progn
-                    (insert-image img "[IMAGE]")
-                    (insert "\n")
-                    (insert (format "Image: %s (%dx%d max)\n"
-                                    (file-name-nondirectory inline-media-test-image-path)
-                                    media-width media-height))
-                    (setq success-count (1+ success-count))
-                    (inline-media-test-log "Image: OK"))
-                (insert "[Image creation failed]\n")
-                (inline-media-test-log "Image: FAILED (create-image returned nil)")))
-          (error
-           (insert (format "[Image error: %S]\n" err))
-           (inline-media-test-log "Image: ERROR %S" err)))
-      (insert "[No test image found - skipping]\n")
-      (insert "Set inline-media-test-image-path or place image at ~/Pictures/559-4K.jpg\n")
-      (inline-media-test-log "Image: SKIPPED (no file)"))
+    ;; === Section 1: Inline WebKit ===
+    (insert "--- 1. Inline WebKit ---\n")
+    (condition-case err
+        (progn
+          (neomacs-webkit-init)
+          (let ((spec (neomacs-insert-webkit inline-media-test-url
+                                              media-width media-height t)))
+            (if spec
+                (let ((view-id (plist-get (cdr spec) :id)))
+                  (insert (propertize " " 'display spec))
+                  (insert "\n")
+                  (insert (format "WebKit ID: %d, URL: %s (%dx%d)\n"
+                                  view-id inline-media-test-url
+                                  media-width media-height))
+                  (setq success-count (1+ success-count))
+                  (inline-media-test-log "WebKit: OK (id=%d)" view-id))
+              (insert "[WebKit creation failed]\n")
+              (inline-media-test-log "WebKit: FAILED (neomacs-insert-webkit returned nil)"))))
+      (error
+       (insert (format "[WebKit error: %S]\n" err))
+       (inline-media-test-log "WebKit: ERROR %S" err)))
     (insert "\n")
 
     ;; === Section 2: Inline Video ===
@@ -115,27 +112,30 @@
       (inline-media-test-log "Video: SKIPPED (no file)"))
     (insert "\n")
 
-    ;; === Section 3: Inline WebKit ===
-    (insert "--- 3. Inline WebKit ---\n")
-    (condition-case err
-        (progn
-          (neomacs-webkit-init)
-          (let ((spec (neomacs-insert-webkit inline-media-test-url
-                                              media-width media-height t)))
-            (if spec
-                (let ((view-id (plist-get (cdr spec) :id)))
-                  (insert (propertize " " 'display spec))
-                  (insert "\n")
-                  (insert (format "WebKit ID: %d, URL: %s (%dx%d)\n"
-                                  view-id inline-media-test-url
-                                  media-width media-height))
-                  (setq success-count (1+ success-count))
-                  (inline-media-test-log "WebKit: OK (id=%d)" view-id))
-              (insert "[WebKit creation failed]\n")
-              (inline-media-test-log "WebKit: FAILED (neomacs-insert-webkit returned nil)"))))
-      (error
-       (insert (format "[WebKit error: %S]\n" err))
-       (inline-media-test-log "WebKit: ERROR %S" err)))
+    ;; === Section 3: Inline Image ===
+    (insert "--- 3. Inline Image ---\n")
+    (if inline-media-test-image-path
+        (condition-case err
+            (let ((img (create-image inline-media-test-image-path nil nil
+                                     :max-width media-width
+                                     :max-height media-height)))
+              (if img
+                  (progn
+                    (insert-image img "[IMAGE]")
+                    (insert "\n")
+                    (insert (format "Image: %s (%dx%d max)\n"
+                                    (file-name-nondirectory inline-media-test-image-path)
+                                    media-width media-height))
+                    (setq success-count (1+ success-count))
+                    (inline-media-test-log "Image: OK"))
+                (insert "[Image creation failed]\n")
+                (inline-media-test-log "Image: FAILED (create-image returned nil)")))
+          (error
+           (insert (format "[Image error: %S]\n" err))
+           (inline-media-test-log "Image: ERROR %S" err)))
+      (insert "[No test image found - skipping]\n")
+      (insert "Set inline-media-test-image-path or place image at ~/Pictures/559-4K.jpg\n")
+      (inline-media-test-log "Image: SKIPPED (no file)"))
     (insert "\n")
 
     ;; === Summary ===
