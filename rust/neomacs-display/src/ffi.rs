@@ -285,8 +285,9 @@ pub unsafe extern "C" fn neomacs_display_set_cursor(
     let display = &mut *handle;
 
     // Hybrid path: add cursor directly to glyph buffer
+    // Blink is handled by the render thread, so always add cursor when visible.
     if display.use_hybrid {
-        if visible != 0 && display.animations.cursor_visible() {
+        if visible != 0 {
             // style: 0=box, 1=bar, 2=underline, 3=hollow
             display.frame_glyphs.add_cursor(
                 window_id,
@@ -299,8 +300,7 @@ pub unsafe extern "C" fn neomacs_display_set_cursor(
     }
 
     // Legacy scene graph path...
-    // Compute cursor visibility before borrowing target scene
-    let cursor_visible = visible != 0 && display.animations.cursor_visible();
+    let cursor_visible = visible != 0;
 
     // Find the window by ID
     if let Some(window) = display.get_target_scene().windows.iter_mut().find(|w| w.window_id == window_id) {
@@ -1797,8 +1797,28 @@ pub unsafe extern "C" fn neomacs_display_reset_cursor_blink(handle: *mut Neomacs
         return;
     }
 
-    let display = &mut *handle;
-    display.animations.reset_cursor_blink();
+    // No-op: blink is now managed entirely by the render thread.
+    // New frames reset the blink timer automatically in poll_frame().
+}
+
+/// Configure cursor blinking (enable/disable and interval)
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_cursor_blink(
+    handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    interval_ms: c_int,
+) {
+    if handle.is_null() {
+        return;
+    }
+
+    let cmd = RenderCommand::SetCursorBlink {
+        enabled: enabled != 0,
+        interval_ms: if interval_ms > 0 { interval_ms as u32 } else { 500 },
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
 }
 
 /// Check if animations are active

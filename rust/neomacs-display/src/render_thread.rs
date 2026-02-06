@@ -99,6 +99,12 @@ struct RenderApp {
     // Frame dirty flag: set when new frame data arrives, cleared after render
     frame_dirty: bool,
 
+    // Cursor blink state (managed by render thread)
+    cursor_blink_on: bool,
+    cursor_blink_enabled: bool,
+    last_cursor_toggle: std::time::Instant,
+    cursor_blink_interval: std::time::Duration,
+
     // WebKit state (video cache is managed by renderer)
     #[cfg(feature = "wpe-webkit")]
     wpe_backend: Option<WpeBackend>,
@@ -133,6 +139,10 @@ impl RenderApp {
             mouse_pos: (0.0, 0.0),
             image_dimensions,
             frame_dirty: false,
+            cursor_blink_on: true,
+            cursor_blink_enabled: true,
+            last_cursor_toggle: std::time::Instant::now(),
+            cursor_blink_interval: std::time::Duration::from_millis(500),
             #[cfg(feature = "wpe-webkit")]
             wpe_backend: None,
             #[cfg(feature = "wpe-webkit")]
@@ -473,6 +483,15 @@ impl RenderApp {
                         renderer.video_stop(id);
                     }
                 }
+                RenderCommand::SetCursorBlink { enabled, interval_ms } => {
+                    log::debug!("Cursor blink: enabled={}, interval={}ms", enabled, interval_ms);
+                    self.cursor_blink_enabled = enabled;
+                    self.cursor_blink_interval = std::time::Duration::from_millis(interval_ms as u64);
+                    if !enabled {
+                        self.cursor_blink_on = true;
+                        self.frame_dirty = true;
+                    }
+                }
             }
         }
 
@@ -485,6 +504,31 @@ impl RenderApp {
         while let Ok(frame) = self.comms.frame_rx.try_recv() {
             self.current_frame = Some(frame);
             self.frame_dirty = true;
+            // Reset blink to visible when new frame arrives (cursor just moved/redrawn)
+            self.cursor_blink_on = true;
+            self.last_cursor_toggle = std::time::Instant::now();
+        }
+    }
+
+    /// Update cursor blink state, returns true if blink toggled
+    fn tick_cursor_blink(&mut self) -> bool {
+        if !self.cursor_blink_enabled || self.current_frame.is_none() {
+            return false;
+        }
+        // Check if any cursor exists in the current frame
+        let has_cursor = self.current_frame.as_ref()
+            .map(|f| f.glyphs.iter().any(|g| matches!(g, crate::core::frame_glyphs::FrameGlyph::Cursor { .. })))
+            .unwrap_or(false);
+        if !has_cursor {
+            return false;
+        }
+        let now = std::time::Instant::now();
+        if now.duration_since(self.last_cursor_toggle) >= self.cursor_blink_interval {
+            self.cursor_blink_on = !self.cursor_blink_on;
+            self.last_cursor_toggle = now;
+            true
+        } else {
+            false
         }
     }
 
@@ -742,6 +786,7 @@ impl RenderApp {
             &self.faces,
             self.width,
             self.height,
+            self.cursor_blink_on,
         );
 
         // Present the frame
@@ -952,7 +997,13 @@ impl ApplicationHandler for RenderApp {
         // Pump GLib for WebKit
         self.pump_glib();
 
-        // Request redraw when we have new frame data, or webkit/video content changed
+        // Update cursor blink state
+        if self.tick_cursor_blink() {
+            self.frame_dirty = true;
+        }
+
+        // Request redraw when we have new frame data, cursor blink toggled,
+        // or webkit/video content changed
         if self.frame_dirty || self.has_webkit_needing_redraw() || self.has_playing_videos() {
             if let Some(ref window) = self.window {
                 window.request_redraw();

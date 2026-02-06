@@ -544,6 +544,11 @@ void neomacs_display_smooth_scroll(struct NeomacsDisplay *handle,
 void neomacs_display_reset_cursor_blink(struct NeomacsDisplay *handle);
 
 /**
+ * Configure cursor blinking (enable/disable and interval)
+ */
+void neomacs_display_set_cursor_blink(struct NeomacsDisplay *handle, int enabled, int intervalMs);
+
+/**
  * Check if animations are active
  */
 int neomacs_display_has_animations(struct NeomacsDisplay *handle);

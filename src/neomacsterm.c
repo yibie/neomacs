@@ -3590,6 +3590,27 @@ and a frame has been captured.  */)
 }
 
 
+DEFUN ("neomacs-set-cursor-blink", Fneomacs_set_cursor_blink, Sneomacs_set_cursor_blink, 1, 2, 0,
+       doc: /* Configure cursor blinking in the render thread.
+ENABLED non-nil enables blinking, nil disables it.
+Optional INTERVAL is the blink interval in seconds (default 0.5).  */)
+  (Lisp_Object enabled, Lisp_Object interval)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+
+  int blink_enabled = !NILP (enabled);
+  int interval_ms = 500;
+  if (!NILP (interval) && NUMBERP (interval))
+    interval_ms = (int)(XFLOATINT (interval) * 1000);
+
+  neomacs_display_set_cursor_blink (dpyinfo->display_handle,
+                                    blink_enabled, interval_ms);
+  return blink_enabled ? Qt : Qnil;
+}
+
+
 /* ============================================================================
  * Miscellaneous Functions
  * ============================================================================ */
@@ -3949,6 +3970,9 @@ syms_of_neomacsterm (void)
   defsubr (&Sneomacs_prepare_buffer_transition);
   defsubr (&Sneomacs_trigger_buffer_transition);
   defsubr (&Sneomacs_has_transition_snapshot_p);
+
+  /* Cursor blink */
+  defsubr (&Sneomacs_set_cursor_blink);
 
   DEFSYM (Qneomacs, "neomacs");
   /* Qvideo and Qwebkit are defined in xdisp.c for use in VIDEOP/WEBKITP */

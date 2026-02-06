@@ -129,6 +129,8 @@ pub enum RenderCommand {
     VideoPlay { id: u32 },
     VideoPause { id: u32 },
     VideoDestroy { id: u32 },
+    /// Configure cursor blinking
+    SetCursorBlink { enabled: bool, interval_ms: u32 },
 }
 
 /// Wakeup pipe for signaling Emacs from render thread

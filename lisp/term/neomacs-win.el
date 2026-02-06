@@ -105,6 +105,11 @@ DISPLAY is the name of the display Emacs should connect to."
 
   (add-hook 'suspend-hook #'neomacs-suspend-error)
 
+  ;; Cursor blinking is handled by the render thread.
+  ;; Sync blink-cursor-mode state to the render thread and suppress the
+  ;; Emacs-side blink timer (which would fight with the render-thread blink).
+  (neomacs--setup-cursor-blink)
+
   (setq neomacs-initialized t))
 
 ;; Handle args function (required by common-win)
@@ -115,6 +120,31 @@ DISPLAY is the name of the display Emacs should connect to."
 ;; Use x-create-frame-with-faces to properly initialize faces with colors
 (cl-defmethod frame-creation-function (params &context (window-system neomacs))
   (x-create-frame-with-faces params))
+
+;; Cursor blink integration: delegate to render thread
+(declare-function neomacs-set-cursor-blink "neomacsterm.c" (enabled &optional interval))
+
+(defun neomacs--sync-cursor-blink ()
+  "Sync `blink-cursor-mode' state to the render thread."
+  (when (fboundp 'neomacs-set-cursor-blink)
+    (neomacs-set-cursor-blink
+     blink-cursor-mode
+     (if (boundp 'blink-cursor-interval) blink-cursor-interval 0.5))))
+
+(defun neomacs--setup-cursor-blink ()
+  "Set up render-thread cursor blinking.
+Syncs current blink state and advises `blink-cursor-mode' for future changes.
+Also suppresses the Emacs-side blink timer since the render thread handles it."
+  ;; Sync initial state
+  (neomacs--sync-cursor-blink)
+  ;; Re-sync whenever blink-cursor-mode toggles
+  (advice-add 'blink-cursor-mode :after
+              (lambda (&rest _) (neomacs--sync-cursor-blink))
+              '((name . neomacs-sync-blink)))
+  ;; Suppress Emacs-side blink timer (render thread handles visual blinking)
+  (advice-add 'blink-cursor-timer-function :override
+              (lambda () nil)
+              '((name . neomacs-suppress-blink-timer))))
 
 ;; Provide the feature
 (provide 'neomacs-win)
