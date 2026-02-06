@@ -792,6 +792,10 @@ pub unsafe extern "C" fn neomacs_display_set_face(
     box_type: c_int,  // 0=none, 1=line, 2=raised3d, 3=sunken3d
     box_color: u32,
     box_line_width: c_int,
+    strike_through: c_int, // 0=none, 1=enabled
+    strike_through_color: u32, // 0xRRGGBB
+    overline: c_int,  // 0=none, 1=enabled
+    overline_color: u32, // 0xRRGGBB
 ) {
     if handle.is_null() {
         return;
@@ -843,6 +847,12 @@ pub unsafe extern "C" fn neomacs_display_set_face(
     if box_type != 0 {
         attrs |= FaceAttributes::BOX;
     }
+    if strike_through != 0 {
+        attrs |= FaceAttributes::STRIKE_THROUGH;
+    }
+    if overline != 0 {
+        attrs |= FaceAttributes::OVERLINE;
+    }
 
     // Underline style
     let ul_style = match underline_style {
@@ -886,6 +896,30 @@ pub unsafe extern "C" fn neomacs_display_set_face(
         None
     };
 
+    // Strike-through color
+    let st_color = if strike_through != 0 && strike_through_color != 0 {
+        Some(Color {
+            r: ((strike_through_color >> 16) & 0xFF) as f32 / 255.0,
+            g: ((strike_through_color >> 8) & 0xFF) as f32 / 255.0,
+            b: (strike_through_color & 0xFF) as f32 / 255.0,
+            a: 1.0,
+        }.srgb_to_linear())
+    } else {
+        None
+    };
+
+    // Overline color
+    let ol_color = if overline != 0 && overline_color != 0 {
+        Some(Color {
+            r: ((overline_color >> 16) & 0xFF) as f32 / 255.0,
+            g: ((overline_color >> 8) & 0xFF) as f32 / 255.0,
+            b: (overline_color & 0xFF) as f32 / 255.0,
+            a: 1.0,
+        }.srgb_to_linear())
+    } else {
+        None
+    };
+
     let new_font_size = if font_size > 0 { font_size as f32 } else { 14.0 };
 
     // No text-scale clearing needed: with full-frame rebuild, the buffer is
@@ -896,8 +930,8 @@ pub unsafe extern "C" fn neomacs_display_set_face(
         foreground: fg,
         background: bg,
         underline_color: ul_color,
-        overline_color: None,
-        strike_through_color: None,
+        overline_color: ol_color,
+        strike_through_color: st_color,
         box_color: bx_color,
         font_family: font_family_str.clone(),
         font_size: new_font_size,
@@ -915,6 +949,8 @@ pub unsafe extern "C" fn neomacs_display_set_face(
     if display.use_hybrid {
         let bg_opt = if background == 0 { None } else { Some(bg) };
         let ul_color_opt = if underline_color != 0 { ul_color } else { None };
+        let st_color_opt = if strike_through != 0 { st_color } else { None };
+        let ol_color_opt = if overline != 0 { ol_color } else { None };
         display.frame_glyphs.set_face_with_font(
             face_id,
             fg,
@@ -925,6 +961,10 @@ pub unsafe extern "C" fn neomacs_display_set_face(
             if font_size > 0 { font_size as f32 } else { 14.0 },
             underline_style as u8,
             ul_color_opt,
+            strike_through as u8,
+            st_color_opt,
+            overline as u8,
+            ol_color_opt,
         );
     }
 

@@ -342,7 +342,11 @@ void neomacs_display_set_face(struct NeomacsDisplay *handle,
                               uint32_t underlineColor,
                               int boxType,
                               uint32_t boxColor,
-                              int boxLineWidth);
+                              int boxLineWidth,
+                              int strikeThrough,
+                              uint32_t strikeThroughColor,
+                              int overline,
+                              uint32_t overlineColor);
 
 /**
  * Set the frame/scene background color

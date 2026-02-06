@@ -36,10 +36,18 @@ pub enum FrameGlyph {
         italic: bool,
         /// Font size in pixels
         font_size: f32,
-        /// Underline style (0=none, 1=single, 2=double, 3=wave)
+        /// Underline style (0=none, 1=single, 2=wave, 3=double, 4=dotted, 5=dashed)
         underline: u8,
         /// Underline color
         underline_color: Option<Color>,
+        /// Strike-through (0=none, 1=enabled)
+        strike_through: u8,
+        /// Strike-through color
+        strike_through_color: Option<Color>,
+        /// Overline (0=none, 1=enabled)
+        overline: u8,
+        /// Overline color
+        overline_color: Option<Color>,
         /// True if this is mode-line/echo area (renders on top)
         is_overlay: bool,
     },
@@ -194,6 +202,10 @@ pub struct FrameGlyphBuffer {
     current_font_size: f32,
     current_underline: u8,
     current_underline_color: Option<Color>,
+    current_strike_through: u8,
+    current_strike_through_color: Option<Color>,
+    current_overline: u8,
+    current_overline_color: Option<Color>,
 
     /// Font family cache: face_id -> font_family
     pub face_fonts: HashMap<u32, String>,
@@ -220,6 +232,10 @@ impl FrameGlyphBuffer {
             current_font_size: 14.0,
             current_underline: 0,
             current_underline_color: None,
+            current_strike_through: 0,
+            current_strike_through_color: None,
+            current_overline: 0,
+            current_overline_color: None,
             face_fonts: HashMap::new(),
         }
     }
@@ -271,7 +287,10 @@ impl FrameGlyphBuffer {
 
     /// Set current face attributes for subsequent char glyphs (with font family)
     pub fn set_face_with_font(&mut self, face_id: u32, fg: Color, bg: Option<Color>,
-                    font_family: &str, bold: bool, italic: bool, font_size: f32, underline: u8, underline_color: Option<Color>) {
+                    font_family: &str, bold: bool, italic: bool, font_size: f32,
+                    underline: u8, underline_color: Option<Color>,
+                    strike_through: u8, strike_through_color: Option<Color>,
+                    overline: u8, overline_color: Option<Color>) {
         self.current_face_id = face_id;
         self.current_fg = fg;
         self.current_bg = bg;
@@ -281,12 +300,18 @@ impl FrameGlyphBuffer {
         self.current_font_size = font_size;
         self.current_underline = underline;
         self.current_underline_color = underline_color;
+        self.current_strike_through = strike_through;
+        self.current_strike_through_color = strike_through_color;
+        self.current_overline = overline;
+        self.current_overline_color = overline_color;
         self.face_fonts.insert(face_id, font_family.to_string());
     }
 
     /// Set current face attributes for subsequent char glyphs
     pub fn set_face(&mut self, face_id: u32, fg: Color, bg: Option<Color>,
-                    bold: bool, italic: bool, underline: u8, underline_color: Option<Color>) {
+                    bold: bool, italic: bool, underline: u8, underline_color: Option<Color>,
+                    strike_through: u8, strike_through_color: Option<Color>,
+                    overline: u8, overline_color: Option<Color>) {
         self.current_face_id = face_id;
         self.current_fg = fg;
         self.current_bg = bg;
@@ -294,6 +319,10 @@ impl FrameGlyphBuffer {
         self.current_italic = italic;
         self.current_underline = underline;
         self.current_underline_color = underline_color;
+        self.current_strike_through = strike_through;
+        self.current_strike_through_color = strike_through_color;
+        self.current_overline = overline;
+        self.current_overline_color = overline_color;
     }
 
     /// Get font family for a face_id
@@ -354,6 +383,10 @@ impl FrameGlyphBuffer {
             font_size: self.current_font_size,
             underline: self.current_underline,
             underline_color: self.current_underline_color,
+            strike_through: self.current_strike_through,
+            strike_through_color: self.current_strike_through_color,
+            overline: self.current_overline,
+            overline_color: self.current_overline_color,
             is_overlay,
         });
     }

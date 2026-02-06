@@ -529,9 +529,19 @@ neomacs_send_face (void *handle, struct frame *f, struct face *face)
   uint32_t underline_color = fg_rgb;
   if (face->underline != FACE_NO_UNDERLINE)
     {
-      underline_style = 1;
-      if (face->underline == FACE_UNDERLINE_WAVE)
-        underline_style = 2;
+      switch (face->underline)
+        {
+        case FACE_UNDERLINE_SINGLE: underline_style = 1; break;
+        case FACE_UNDERLINE_WAVE: underline_style = 2; break;
+        case FACE_UNDERLINE_DOUBLE_LINE: underline_style = 3; break;
+        case FACE_UNDERLINE_DOTS: underline_style = 4; break;
+        case FACE_UNDERLINE_DASHES: underline_style = 5; break;
+        default: underline_style = 1; break;
+        }
+      if (!face->underline_defaulted_p)
+        underline_color = ((RED_FROM_ULONG (face->underline_color) << 16) |
+                           (GREEN_FROM_ULONG (face->underline_color) << 8) |
+                           BLUE_FROM_ULONG (face->underline_color));
     }
 
   int box_type = 0;
@@ -548,6 +558,20 @@ neomacs_send_face (void *handle, struct frame *f, struct face *face)
                      BLUE_FROM_ULONG (face->box_color));
     }
 
+  int strike_through = face->strike_through_p ? 1 : 0;
+  uint32_t strike_through_color = fg_rgb;
+  if (strike_through && !face->strike_through_color_defaulted_p)
+    strike_through_color = ((RED_FROM_ULONG (face->strike_through_color) << 16) |
+                            (GREEN_FROM_ULONG (face->strike_through_color) << 8) |
+                            BLUE_FROM_ULONG (face->strike_through_color));
+
+  int overline = face->overline_p ? 1 : 0;
+  uint32_t overline_color = fg_rgb;
+  if (overline && !face->overline_color_defaulted_p)
+    overline_color = ((RED_FROM_ULONG (face->overline_color) << 16) |
+                      (GREEN_FROM_ULONG (face->overline_color) << 8) |
+                      BLUE_FROM_ULONG (face->overline_color));
+
   int font_size = 14;
   if (face->font)
     font_size = face->font->pixel_size;
@@ -556,7 +580,9 @@ neomacs_send_face (void *handle, struct frame *f, struct face *face)
                             fg_rgb, bg_rgb, font_family,
                             font_weight, is_italic, font_size,
                             underline_style, underline_color,
-                            box_type, box_color, box_line_width);
+                            box_type, box_color, box_line_width,
+                            strike_through, strike_through_color,
+                            overline, overline_color);
 }
 
 /* Callback for foreach_window: extract all visible glyphs from a window's
@@ -1450,10 +1476,19 @@ neomacs_draw_glyph_string (struct glyph_string *s)
               uint32_t underline_color = fg_rgb;
               if (face->underline != FACE_NO_UNDERLINE)
                 {
-                  underline_style = 1;  /* line */
-                  if (face->underline == FACE_UNDERLINE_WAVE)
-                    underline_style = 2;
-                  /* Use foreground as underline color (there's no separate underline_color field) */
+                  switch (face->underline)
+                    {
+                    case FACE_UNDERLINE_SINGLE: underline_style = 1; break;
+                    case FACE_UNDERLINE_WAVE: underline_style = 2; break;
+                    case FACE_UNDERLINE_DOUBLE_LINE: underline_style = 3; break;
+                    case FACE_UNDERLINE_DOTS: underline_style = 4; break;
+                    case FACE_UNDERLINE_DASHES: underline_style = 5; break;
+                    default: underline_style = 1; break;
+                    }
+                  if (!face->underline_defaulted_p)
+                    underline_color = ((RED_FROM_ULONG(face->underline_color) << 16) |
+                                       (GREEN_FROM_ULONG(face->underline_color) << 8) |
+                                       BLUE_FROM_ULONG(face->underline_color));
                 }
 
               /* Check for box */
@@ -1472,6 +1507,22 @@ neomacs_draw_glyph_string (struct glyph_string *s)
                                  BLUE_FROM_ULONG(face->box_color));
                 }
 
+              /* Check for strike-through */
+              int strike_through = face->strike_through_p ? 1 : 0;
+              uint32_t strike_through_color = fg_rgb;
+              if (strike_through && !face->strike_through_color_defaulted_p)
+                strike_through_color = ((RED_FROM_ULONG(face->strike_through_color) << 16) |
+                                        (GREEN_FROM_ULONG(face->strike_through_color) << 8) |
+                                        BLUE_FROM_ULONG(face->strike_through_color));
+
+              /* Check for overline */
+              int overline = face->overline_p ? 1 : 0;
+              uint32_t overline_color = fg_rgb;
+              if (overline && !face->overline_color_defaulted_p)
+                overline_color = ((RED_FROM_ULONG(face->overline_color) << 16) |
+                                  (GREEN_FROM_ULONG(face->overline_color) << 8) |
+                                  BLUE_FROM_ULONG(face->overline_color));
+
               /* Get font size from the face's font (for text-scale-increase support) */
               int font_size = 14;  /* default */
               if (face->font)
@@ -1489,7 +1540,11 @@ neomacs_draw_glyph_string (struct glyph_string *s)
                                         underline_color,
                                         box_type,
                                         box_color,
-                                        box_line_width);
+                                        box_line_width,
+                                        strike_through,
+                                        strike_through_color,
+                                        overline,
+                                        overline_color);
             }
 
           switch (s->first_glyph->type)

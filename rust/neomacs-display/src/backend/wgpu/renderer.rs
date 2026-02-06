@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use wgpu::util::DeviceExt;
 
-use crate::core::face::Face;
+use crate::core::face::{Face, FaceAttributes};
 use crate::core::frame_glyphs::{FrameGlyph, FrameGlyphBuffer};
 use crate::core::scene::{CursorStyle, Scene};
 use crate::core::types::{AnimatedCursor, Color};
@@ -1481,6 +1481,124 @@ impl WgpuRenderer {
                             let start = (i * 6) as u32;
                             render_pass.draw(start..start + 6, 0..1);
                         }
+                    }
+                }
+
+                // === Draw text decorations (underline, overline, strike-through, box) ===
+                // Rendered after text so decorations appear on top of glyphs.
+                {
+                    let mut decoration_vertices: Vec<RectVertex> = Vec::new();
+
+                    for glyph in &frame_glyphs.glyphs {
+                        if let FrameGlyph::Char {
+                            x, y, width, height, ascent, fg, face_id,
+                            underline, underline_color,
+                            strike_through, strike_through_color,
+                            overline, overline_color,
+                            is_overlay, ..
+                        } = glyph {
+                            if *is_overlay != want_overlay {
+                                continue;
+                            }
+
+                            let baseline_y = *y + *ascent;
+
+                            // --- Underline ---
+                            if *underline > 0 {
+                                let ul_color = underline_color.as_ref().unwrap_or(fg);
+                                let ul_y = baseline_y + 1.0;
+                                let line_thickness = 1.0;
+
+                                match underline {
+                                    1 => {
+                                        // Single solid line
+                                        self.add_rect(&mut decoration_vertices, *x, ul_y, *width, line_thickness, ul_color);
+                                    }
+                                    2 => {
+                                        // Wave: alternating up/down segments
+                                        let seg_w: f32 = 4.0;
+                                        let mut cx = *x;
+                                        let mut up = true;
+                                        while cx < *x + *width {
+                                            let sw = seg_w.min(*x + *width - cx);
+                                            let seg_y = if up { ul_y - 1.0 } else { ul_y + 1.0 };
+                                            self.add_rect(&mut decoration_vertices, cx, seg_y, sw, line_thickness, ul_color);
+                                            cx += seg_w;
+                                            up = !up;
+                                        }
+                                    }
+                                    3 => {
+                                        // Double line
+                                        self.add_rect(&mut decoration_vertices, *x, ul_y, *width, line_thickness, ul_color);
+                                        self.add_rect(&mut decoration_vertices, *x, ul_y + 2.0, *width, line_thickness, ul_color);
+                                    }
+                                    4 => {
+                                        // Dots (1px with 2px gap)
+                                        let mut cx = *x;
+                                        while cx < *x + *width {
+                                            let dw = 1.0_f32.min(*x + *width - cx);
+                                            self.add_rect(&mut decoration_vertices, cx, ul_y, dw, line_thickness, ul_color);
+                                            cx += 3.0;
+                                        }
+                                    }
+                                    5 => {
+                                        // Dashes (4px with 3px gap)
+                                        let mut cx = *x;
+                                        while cx < *x + *width {
+                                            let dw = 4.0_f32.min(*x + *width - cx);
+                                            self.add_rect(&mut decoration_vertices, cx, ul_y, dw, line_thickness, ul_color);
+                                            cx += 7.0;
+                                        }
+                                    }
+                                    _ => {
+                                        // Fallback: single line
+                                        self.add_rect(&mut decoration_vertices, *x, ul_y, *width, line_thickness, ul_color);
+                                    }
+                                }
+                            }
+
+                            // --- Overline ---
+                            if *overline > 0 {
+                                let ol_color = overline_color.as_ref().unwrap_or(fg);
+                                self.add_rect(&mut decoration_vertices, *x, *y, *width, 1.0, ol_color);
+                            }
+
+                            // --- Strike-through ---
+                            if *strike_through > 0 {
+                                let st_color = strike_through_color.as_ref().unwrap_or(fg);
+                                let center_y = *y + *height / 2.0;
+                                self.add_rect(&mut decoration_vertices, *x, center_y, *width, 1.0, st_color);
+                            }
+
+                            // --- Box ---
+                            if let Some(face) = faces.get(face_id) {
+                                if face.attributes.contains(FaceAttributes::BOX) && face.box_line_width > 0 {
+                                    let bx_color = face.box_color.as_ref().unwrap_or(&face.foreground);
+                                    let bw = face.box_line_width as f32;
+                                    // Top
+                                    self.add_rect(&mut decoration_vertices, *x, *y, *width, bw, bx_color);
+                                    // Bottom
+                                    self.add_rect(&mut decoration_vertices, *x, *y + *height - bw, *width, bw, bx_color);
+                                    // Left
+                                    self.add_rect(&mut decoration_vertices, *x, *y, bw, *height, bx_color);
+                                    // Right
+                                    self.add_rect(&mut decoration_vertices, *x + *width - bw, *y, bw, *height, bx_color);
+                                }
+                            }
+                        }
+                    }
+
+                    if !decoration_vertices.is_empty() {
+                        let decoration_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                            label: Some("Decoration Rect Buffer"),
+                            contents: bytemuck::cast_slice(&decoration_vertices),
+                            usage: wgpu::BufferUsages::VERTEX,
+                        });
+
+                        render_pass.set_pipeline(&self.rect_pipeline);
+                        render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                        render_pass.set_vertex_buffer(0, decoration_buffer.slice(..));
+                        render_pass.draw(0..decoration_vertices.len() as u32, 0..1);
                     }
                 }
             }

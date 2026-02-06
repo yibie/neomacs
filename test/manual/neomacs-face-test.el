@@ -10,13 +10,15 @@
 ;; visually verify the renderer draws it correctly.
 ;;
 ;; Known gaps in neomacs rendering (as of 2026-02-07):
-;;   - Strike-through: not transmitted from C, not rendered
-;;   - Overline: not transmitted from C, not rendered
 ;;   - Stipple: completely absent from pipeline
 ;;   - Distant-foreground: not checked in neomacsterm.c
 ;;   - Font width (condensed/expanded): not handled
-;;   - Underline on text: data transmitted but NOT drawn by wgpu renderer
-;;   - Box on text: face data stored but NOT drawn by wgpu renderer
+;;
+;; Implemented decorations:
+;;   - Underline: all 5 styles (single, wave, double, dotted, dashed) + custom color
+;;   - Strike-through: with optional custom color
+;;   - Overline: with optional custom color
+;;   - Box: border rects using box_color and box_line_width
 
 ;;; Code:
 
@@ -483,16 +485,20 @@
     - Font family changes
     - Region/highlight/isearch faces
 
+  SHOULD WORK (text decorations):
+    - Underline (all 5 styles: single, wave, double, dotted, dashed)
+    - Underline custom color
+    - Strike-through (with optional custom color)
+    - Overline (with optional custom color)
+    - Box borders (line style, with custom color and width)
+
   MAY BE BROKEN (needs verification):
-    - Underline (all 5 styles) -- data sent but renderer may not draw
-    - Box (all styles) -- face data stored but renderer may not draw
     - Inverse video on text (works for cursor, unclear for faces)
     - Font weight granularity (thin/light/semi-bold/extra-bold)
     - Relative font sizes within a line
+    - Box 3D styles (raised/pressed button)
 
   LIKELY BROKEN (not implemented in Rust renderer):
-    - Strike-through -- not transmitted from C to Rust
-    - Overline -- not transmitted from C to Rust
     - Stipple -- completely absent from pipeline
     - Distant-foreground -- not checked in neomacsterm.c
     - Font width (condensed/expanded)
