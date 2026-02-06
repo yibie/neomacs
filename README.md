@@ -43,44 +43,123 @@ Throw it all away and start fresh.
 |---------|-------------|
 | **GPU Text Rendering** | Hardware-accelerated text via wgpu (Vulkan/Metal/DX12/OpenGL) |
 | **Video Playback** | GStreamer + VA-API hardware decode with DMA-BUF zero-copy |
-| **Cursor Animations** | Neovide-style effects: railgun, torpedo, pixiedust, sonicboom, ripple |
-| **Smooth Scrolling** | Animated scroll with configurable easing |
-| **Buffer Transitions** | Fade/slide effects when switching buffers |
+| **Cursor Animations** | 8 modes with 7 movement styles and configurable spring trail |
+| **Scroll Animations** | 21 scroll effects with 5 easing functions |
+| **Buffer Transitions** | 10 buffer-switch effects (crossfade, slide, page-curl, etc.) |
 | **DMA-BUF Zero-Copy** | GPU-to-GPU texture sharing via Vulkan HAL (no CPU readback) |
 | **Inline Images** | GPU-accelerated image rendering in buffers |
+| **Inline WebKit** | WPE WebKit browser views embedded in buffers |
+
+### Animations
+
+All animations run on the GPU render thread at display refresh rate, independent of Emacs redisplay. Configure everything from Elisp.
+
+#### Cursor
+
+**8 particle/visual modes** (Neovide-inspired):
+
+| Mode | Description |
+|------|-------------|
+| `none` | No animation, instant movement |
+| `smooth` | Smooth interpolated movement (default) |
+| `railgun` | Particles shoot backward from cursor |
+| `torpedo` | Comet-like trail follows cursor |
+| `pixiedust` | Sparkly particles scatter around cursor |
+| `sonicboom` | Shockwave ring expands from cursor |
+| `ripple` | Concentric rings emanate outward |
+| `wireframe` | Animated outline glow |
+
+**7 movement styles** controlling how the cursor interpolates between positions:
+
+| Style | Description |
+|-------|-------------|
+| `exponential` | Smooth deceleration, no fixed duration (uses speed param) |
+| `spring` | Critically-damped spring, Neovide-like feel (default) |
+| `ease-out-quad` | Gentle deceleration curve |
+| `ease-out-cubic` | Stronger deceleration curve |
+| `ease-out-expo` | Sharp deceleration curve |
+| `ease-in-out-cubic` | Smooth S-curve |
+| `linear` | Constant speed |
+
+The spring style also supports a **4-corner trail effect** where leading corners snap ahead and trailing corners stretch behind, controlled by a `trail-size` parameter (0.0-1.0).
+
+#### Buffer Switch (Crossfade/Transition)
+
+**10 buffer-switch effects** triggered when the visible buffer changes:
+
+| Effect | Description |
+|--------|-------------|
+| `none` | Instant switch |
+| `crossfade` | Alpha blend between old and new (default) |
+| `slide-left/right/up/down` | Directional slide transitions |
+| `scale-fade` | Scale and fade |
+| `push` | New buffer pushes old buffer out |
+| `blur` | Blur transition |
+| `page-curl` | 3D page-turning effect |
+
+#### Scroll
+
+**21 scroll animation effects** organized into categories:
+
+| # | Effect | Category | Description |
+|---|--------|----------|-------------|
+| 0 | `slide` | 2D | Content slides in scroll direction (default) |
+| 1 | `crossfade` | 2D | Alpha blend between old and new positions |
+| 2 | `scale-zoom` | 2D | Destination zooms from 95% to 100% |
+| 3 | `fade-edges` | 2D | Lines fade at viewport edges |
+| 4 | `cascade` | 2D | Lines drop in with stagger delay |
+| 5 | `parallax` | 2D | Layers scroll at different speeds |
+| 6 | `tilt` | 3D | Subtle 3D perspective tilt |
+| 7 | `page-curl` | 3D | Page turning effect |
+| 8 | `card-flip` | 3D | Card flips around X-axis |
+| 9 | `cylinder-roll` | 3D | Content wraps around cylinder |
+| 10 | `wobbly` | Deformation | Jelly-like deformation |
+| 11 | `wave` | Deformation | Sine-wave distortion |
+| 12 | `per-line-spring` | Deformation | Each line springs independently |
+| 13 | `liquid` | Deformation | Noise-based fluid distortion |
+| 14 | `motion-blur` | Post-process | Vertical blur during scroll |
+| 15 | `chromatic-aberration` | Post-process | RGB channel separation |
+| 16 | `ghost-trails` | Post-process | Semi-transparent afterimages |
+| 17 | `color-temperature` | Post-process | Warm/cool tint by direction |
+| 18 | `crt-scanlines` | Post-process | Retro scanline overlay |
+| 19 | `depth-of-field` | Post-process | Center sharp, edges dim |
+| 20 | `typewriter-reveal` | Creative | Lines appear left-to-right |
+
+**5 scroll easing functions:**
+
+| # | Easing | Description |
+|---|--------|-------------|
+| 0 | `ease-out-quad` | Standard deceleration (default) |
+| 1 | `ease-out-cubic` | Stronger deceleration |
+| 2 | `spring` | Critically damped spring with overshoot |
+| 3 | `linear` | Constant speed |
+| 4 | `ease-in-out-cubic` | Smooth S-curve |
+
+#### Configuration
+
+```elisp
+;; All-in-one configuration:
+;; (neomacs-set-animation-config
+;;   CURSOR-ENABLED CURSOR-SPEED CURSOR-STYLE CURSOR-DURATION
+;;   CROSSFADE-ENABLED CROSSFADE-DURATION
+;;   SCROLL-ENABLED SCROLL-DURATION
+;;   &optional SCROLL-EFFECT SCROLL-EASING TRAIL-SIZE)
+
+;; Example: spring cursor, crossfade buffer switch, page-curl scroll with spring easing
+(neomacs-set-animation-config t 15.0 'spring 150 t 200 t 150 7 2 0.7)
+
+;; Example: fast linear cursor, no crossfade, wobbly scroll
+(neomacs-set-animation-config t 20.0 'linear 100 nil 200 t 200 10 0 0.0)
+```
 
 ### The Ambitious Vision
 
 Neomacs aims to transform Emacs from a text editor into a **modern graphical computing environment**:
 
-**Rich Media First-Class Citizen**
-- 4K video playback directly in buffers with hardware decoding
-- PDF rendering with GPU acceleration
-- Image manipulation and annotation
-
-**GPU-Native Everything**
-- Hardware-accelerated rendering for all content
-- Shader effects (blur, shadows, glow)
-- 120fps smooth animations
-- Minimal CPU usage, maximum battery life
-
-**Modern UI/UX**
-- Neovide-style cursor animations
-- Buffer transition effects
-- Smooth scrolling everywhere
-- Window animations and effects
-
-**GPU-Powered Terminal Emulator**
-- Blazing fast terminal emulation written in Rust
-- GPU-accelerated rendering for smooth 120fps scrolling
-- Replaces slow Emacs `term.el`/`ansi-term` and vterm (which suffer from Emacs redisplay bottlenecks)
-- True color support, ligatures, and modern terminal features
-- Zero-latency input handling
-
-**Cross-Platform Excellence**
-- Linux (Vulkan on Wayland & X11)
-- macOS (Metal backend)
-- Windows (Vulkan/DX12)
+- **Rich media** — 4K video, PDF rendering, image manipulation directly in buffers
+- **GPU-native** — hardware-accelerated rendering, shader effects, 120fps animations
+- **GPU terminal** — Rust-based terminal emulator replacing slow `term.el`/`ansi-term`/vterm
+- **Cross-platform** — Linux (Vulkan), macOS (Metal), Windows (Vulkan/DX12)
 
 The goal: **Make Emacs the most powerful and beautiful computing environment on any platform.**
 
@@ -89,35 +168,44 @@ The goal: **Make Emacs the most powerful and beautiful computing environment on 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     Emacs Core (C/Lisp)                     │
-└─────────────────────────┬───────────────────────────────────┘
-                          │
-┌─────────────────────────▼───────────────────────────────────┐
-│                 Rust Display Engine                         │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
-│  │ Text Engine │  │ Animations  │  │ Video Pipeline      │  │
-│  │ cosmic-text │  │ cursor/     │  │ GStreamer + VA-API  │  │
-│  │ + atlas     │  │ transitions │  │ DMA-BUF zero-copy   │  │
-│  └──────┬──────┘  └──────┬──────┘  └──────────┬──────────┘  │
-│         └────────────────┼────────────────────┘             │
-│                          ▼                                  │
-│              ┌───────────────────────┐                      │
-│              │     wgpu Renderer     │                      │
-│              │  (GPU Render Pipeline)│                      │
-│              └───────────┬───────────┘                      │
-│                          │                                  │
-│              ┌───────────▼───────────┐                      │
-│              │   winit (Windowing)   │                      │
-│              └───────────────────────┘                      │
-└─────────────────────────────────────────────────────────────┘
-                           │
-              ┌────────────┼────────────┐
-              ▼            ▼            ▼
-        ┌─────────┐  ┌─────────┐  ┌─────────┐
-        │ Vulkan  │  │  Metal  │  │DX12/GL  │
-        │ (Linux) │  │ (macOS) │  │(Windows)│
-        └─────────┘  └─────────┘  └─────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                     Emacs Core (C/Lisp)                         │
+│  neomacsterm.c ──── neomacs_display.h (C FFI) ──── neomacs-win.el │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │  C FFI (ffi.rs)
+┌──────────────────────────▼──────────────────────────────────────┐
+│              Rust Display Engine (neomacs-display)               │
+│                                                                  │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │                   Render Thread                           │   │
+│  │  render_thread.rs — winit event loop, frame dispatch      │   │
+│  │  thread_comm.rs   — command/event channels                │   │
+│  └──────────────────────────┬───────────────────────────────┘   │
+│                              │                                   │
+│  ┌───────────┐  ┌───────────▼──────────┐  ┌─────────────────┐  │
+│  │   Core    │  │   wgpu Backend       │  │ Media Backends  │  │
+│  │           │  │                      │  │                 │  │
+│  │ scene     │  │ renderer (145KB)     │  │ video_cache     │  │
+│  │ animation │  │ glyph_atlas          │  │  GStreamer      │  │
+│  │ cursor    │  │ image_cache          │  │  VA-API         │  │
+│  │ scroll    │  │ vulkan_dmabuf        │  │  DMA-BUF        │  │
+│  │ buffer    │  │ 4 WGSL shaders       │  │                 │  │
+│  │ transition│  │                      │  │ webkit_cache    │  │
+│  │ faces     │  │ cosmic-text          │  │  WPE WebKit     │  │
+│  │ grid      │  │  text shaping        │  │                 │  │
+│  └───────────┘  └──────────┬───────────┘  └─────────────────┘  │
+│                             │                                    │
+│                  ┌──────────▼───────────┐                       │
+│                  │   winit (Windowing)  │                       │
+│                  └──────────────────────┘                       │
+└──────────────────────────────────────────────────────────────────┘
+                              │
+                 ┌────────────┼────────────┐
+                 ▼            ▼            ▼
+           ┌─────────┐  ┌─────────┐  ┌─────────┐
+           │ Vulkan  │  │  Metal  │  │DX12/GL  │
+           │ (Linux) │  │ (macOS) │  │(Windows)│
+           └─────────┘  └─────────┘  └─────────┘
 ```
 
 ### Why Rust?
@@ -227,19 +315,44 @@ make -j$(nproc)
 
 ```
 neomacs/
-├── rust/neomacs-display/     # Rust display engine
+├── rust/neomacs-display/          # Rust display engine crate
 │   ├── src/
-│   │   ├── core/             # Types, animations, scene graph
-│   │   ├── backend/wgpu/     # wgpu GPU renderer
-│   │   │   ├── mod.rs        # Main renderer
-│   │   │   ├── video_cache.rs    # GStreamer video pipeline
-│   │   │   ├── vulkan_dmabuf.rs  # DMA-BUF zero-copy import
-│   │   │   └── shaders/      # WGSL shaders
-│   │   ├── text/             # cosmic-text + glyph atlas
-│   │   └── ffi.rs            # C FFI layer
+│   │   ├── lib.rs                 # Crate root
+│   │   ├── ffi.rs                 # C FFI layer (~109KB)
+│   │   ├── render_thread.rs       # winit event loop + frame dispatch (~79KB)
+│   │   ├── thread_comm.rs         # Command/event channel types
+│   │   ├── core/                  # Engine core types
+│   │   │   ├── scene.rs           # Scene graph
+│   │   │   ├── animation.rs       # Base animation primitives
+│   │   │   ├── cursor_animation.rs    # 8 cursor particle modes
+│   │   │   ├── scroll_animation.rs    # 21 scroll effects + physics
+│   │   │   ├── buffer_transition.rs   # 10 buffer-switch effects
+│   │   │   ├── animation_config.rs    # Unified config system
+│   │   │   ├── frame_glyphs.rs    # Glyph buffer from Emacs
+│   │   │   ├── face.rs            # Face/style handling
+│   │   │   ├── glyph.rs           # Glyph types
+│   │   │   ├── grid.rs            # Character grid
+│   │   │   └── types.rs           # Color, Rect, CursorAnimStyle
+│   │   └── backend/
+│   │       ├── wgpu/              # GPU renderer (primary backend)
+│   │       │   ├── renderer.rs    # Main render pipeline (~145KB)
+│   │       │   ├── glyph_atlas.rs # cosmic-text glyph cache
+│   │       │   ├── image_cache.rs # Image texture management
+│   │       │   ├── video_cache.rs # GStreamer video pipeline
+│   │       │   ├── vulkan_dmabuf.rs   # DMA-BUF zero-copy import
+│   │       │   └── shaders/       # WGSL shaders (glyph, image, rect, texture)
+│   │       ├── webkit/            # WPE WebKit browser embedding
+│   │       ├── wpe/               # WPE backend support
+│   │       └── tty/               # Terminal backend
+│   ├── include/
+│   │   └── neomacs_display.h      # Generated C header
 │   └── Cargo.toml
-├── src/                      # Emacs C source (with Rust hooks)
-└── doc/display-engine/       # Design documentation
+├── src/                           # Emacs C source
+│   ├── neomacsterm.c              # Terminal hooks + Lisp DEFUNs (~156KB)
+│   ├── neomacsfns.c               # Frame/font functions (~60KB)
+│   └── neomacs_display.h          # C header (local copy)
+├── lisp/term/neomacs-win.el       # Lisp initialization + animation config
+└── doc/display-engine/            # Design documentation
 ```
 
 ---
