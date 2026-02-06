@@ -450,11 +450,9 @@ neomacs_update_begin (struct frame *f)
          when focus changes between windows */
       neomacs_display_clear_all_cursors (dpyinfo->display_handle);
 
-      /* Clear borders when window configuration changes (e.g., C-x 1, C-x 0).
-         This prevents stale borders from persisting after windows are deleted.
-         For incremental updates, borders persist and are redrawn as needed. */
-      if (windows_or_buffers_changed)
-        neomacs_display_clear_all_borders (dpyinfo->display_handle);
+      /* No need to clear borders here — begin_frame calls clear_all()
+         which clears everything, and neomacs_extract_full_frame()
+         re-adds borders for all leaf windows each frame. */
 
       /* Use window-targeted begin_frame if we have a winit window */
       struct neomacs_output *output = FRAME_NEOMACS_OUTPUT (f);
@@ -878,35 +876,35 @@ neomacs_extract_full_frame (struct frame *f)
       }
   }
 
-  /* Now extract cursor position and vertical borders */
+  /* Draw vertical window borders for all leaf windows.
+     Borders are cleared by begin_frame/clear_all each frame,
+     so we must re-add them here as part of the full-frame extraction. */
+  if (!FRAME_HAS_VERTICAL_SCROLL_BARS (f) && !FRAME_RIGHT_DIVIDER_WIDTH (f))
+    {
+      struct window *bstack[64];
+      int bsp = 0;
+      bstack[bsp++] = XWINDOW (FRAME_ROOT_WINDOW (f));
 
-  /* Draw vertical window borders */
-  {
-    Lisp_Object rest;
-    struct window *w;
-
-    for (rest = f->root_window; !NILP (rest); )
-      {
-        w = XWINDOW (rest);
-        if (WINDOWP (w->contents))
-          {
-            /* Internal window - check for vertical border between children */
-            rest = w->contents;
-          }
-        else
-          {
-            /* Leaf window - move to next sibling or up */
-            while (!NILP (rest) && NILP (XWINDOW (rest)->next))
-              {
-                rest = XWINDOW (rest)->parent;
-                if (NILP (rest))
-                  break;
-              }
-            if (!NILP (rest))
-              rest = XWINDOW (rest)->next;
-          }
-      }
-  }
+      while (bsp > 0)
+        {
+          struct window *w = bstack[--bsp];
+          if (WINDOWP (w->contents))
+            {
+              struct window *child = XWINDOW (w->contents);
+              while (child)
+                {
+                  if (bsp < 64)
+                    bstack[bsp++] = child;
+                  child = NILP (child->next) ? NULL : XWINDOW (child->next);
+                }
+            }
+          else
+            {
+              /* Leaf window — draw its vertical borders */
+              gui_draw_vertical_border (w);
+            }
+        }
+    }
 }
 
 /* Called at the end of updating a frame */
