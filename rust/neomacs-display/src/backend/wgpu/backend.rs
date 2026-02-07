@@ -163,7 +163,7 @@ impl WinitBackend {
 
         // Request adapter without a surface (headless)
         let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
-            power_preference: wgpu::PowerPreference::HighPerformance,
+            power_preference: crate::gpu_power_preference(),
             compatible_surface: None,
             force_fallback_adapter: false,
         }))
@@ -328,7 +328,7 @@ impl WinitBackend {
 
         // Request adapter
         let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
-            power_preference: wgpu::PowerPreference::HighPerformance,
+            power_preference: crate::gpu_power_preference(),
             compatible_surface: Some(&surface),
             force_fallback_adapter: false,
         }))

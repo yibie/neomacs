@@ -29,6 +29,30 @@ pub use crate::text::TextEngine;
 /// Library version
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+/// Read GPU power preference from `NEOMACS_GPU` environment variable.
+///
+/// - `"low"` or `"integrated"` → `LowPower` (prefer integrated GPU, e.g. Intel)
+/// - `"high"` or `"discrete"` → `HighPerformance` (prefer discrete GPU, e.g. NVIDIA)
+/// - unset or anything else → `HighPerformance` (default)
+#[cfg(feature = "winit-backend")]
+pub fn gpu_power_preference() -> wgpu::PowerPreference {
+    match std::env::var("NEOMACS_GPU").as_deref() {
+        Ok("low") | Ok("integrated") => {
+            log::info!("NEOMACS_GPU={}: using LowPower (integrated GPU)", std::env::var("NEOMACS_GPU").unwrap());
+            wgpu::PowerPreference::LowPower
+        }
+        Ok("high") | Ok("discrete") => {
+            log::info!("NEOMACS_GPU=high: using HighPerformance (discrete GPU)");
+            wgpu::PowerPreference::HighPerformance
+        }
+        Ok(val) => {
+            log::warn!("NEOMACS_GPU={}: unrecognized value, defaulting to HighPerformance", val);
+            wgpu::PowerPreference::HighPerformance
+        }
+        Err(_) => wgpu::PowerPreference::HighPerformance,
+    }
+}
+
 /// Initialize the display engine
 pub fn init() -> Result<(), DisplayError> {
     env_logger::init();

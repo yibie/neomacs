@@ -428,7 +428,7 @@ impl WgpuRenderer {
         // Request adapter
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::HighPerformance,
+                power_preference: crate::gpu_power_preference(),
                 compatible_surface: surface.as_ref(),
                 force_fallback_adapter: false,
             })
