@@ -470,6 +470,27 @@ neomacs_update_begin (struct frame *f)
  * Matrix Walker: Full-Frame Glyph Extraction
  * ============================================================================ */
 
+/* Convert Emacs-internal font weight (normal=80, bold=200) to CSS/OpenType
+   weight scale (normal=400, bold=700) that cosmic-text expects. */
+static int
+emacs_weight_to_css (int emacs_weight)
+{
+  /* Emacs weight table (from font.c):
+       0=thin, 20=ultra-light, 40=extra-light, 50=light, 55=semi-light,
+       80=normal, 100=medium, 180=semi-bold, 200=bold, 205=extra-bold,
+       210=ultra-bold */
+  if (emacs_weight <= 0)   return 100;  /* Thin */
+  if (emacs_weight <= 20)  return 200;  /* Ultra/Extra-light */
+  if (emacs_weight <= 50)  return 300;  /* Light */
+  if (emacs_weight <= 55)  return 350;  /* Semi-light */
+  if (emacs_weight <= 80)  return 400;  /* Normal */
+  if (emacs_weight <= 100) return 500;  /* Medium */
+  if (emacs_weight <= 180) return 600;  /* Semi-bold */
+  if (emacs_weight <= 200) return 700;  /* Bold */
+  if (emacs_weight <= 205) return 800;  /* Extra-bold */
+  return 900;                           /* Ultra-bold/Black */
+}
+
 /* Helper: resolve face and send it to Rust via set_face FFI.
    This mirrors what neomacs_draw_glyph_string does for face setup. */
 static void
@@ -517,7 +538,7 @@ neomacs_send_face (void *handle, struct frame *f, struct face *face)
   if (!NILP (weight_attr) && SYMBOLP (weight_attr))
     {
       int w = FONT_WEIGHT_NAME_NUMERIC (weight_attr);
-      if (w > 0) font_weight = w;
+      if (w > 0) font_weight = emacs_weight_to_css (w);
     }
 
   int is_italic = 0;
@@ -1469,7 +1490,7 @@ neomacs_draw_glyph_string (struct glyph_string *s)
                 {
                   int weight_numeric = FONT_WEIGHT_NAME_NUMERIC (weight_attr);
                   if (weight_numeric > 0)
-                    font_weight = weight_numeric;
+                    font_weight = emacs_weight_to_css (weight_numeric);
                 }
 
               /* Check face's lface for slant (italic) */
