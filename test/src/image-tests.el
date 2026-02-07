@@ -55,6 +55,14 @@
   (skip-when (display-images-p))
   (should-error (image-metadata (cdr (assq 'xbm image-tests--images)))))
 
+(ert-deftest image-tests-image-size/xbm-on-graphical-display ()
+  "XBM image-size should work on graphical displays without crashing."
+  (skip-unless (display-images-p))
+  (let* ((file (cdr (assq 'xbm image-tests--images)))
+         (spec `(image :type xbm :file ,file)))
+    (should (consp (image-size spec)))
+    (should (consp (image-size spec t)))))
+
 (ert-deftest image-tests-imagemagick-types ()
   (skip-unless (fboundp 'imagemagick-types))
   (when (fboundp 'imagemagick-types)

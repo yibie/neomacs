@@ -4979,10 +4979,15 @@ Create_Pixmap_From_Bitmap_Data (struct frame *f, struct image *img, char *data,
 				bool non_default_colors)
 {
 #ifdef USE_CAIRO
-  Emacs_Color fgbg[] = {{.pixel = fg}, {.pixel = bg}};
-  FRAME_TERMINAL (f)->query_colors (f, fgbg, ARRAYELTS (fgbg));
-  fg = lookup_rgb_color (f, fgbg[0].red, fgbg[0].green, fgbg[0].blue);
-  bg = lookup_rgb_color (f, fgbg[1].red, fgbg[1].green, fgbg[1].blue);
+  if (FRAME_TERMINAL (f)->query_colors)
+    {
+      Emacs_Color fgbg[] = {{.pixel = fg}, {.pixel = bg}};
+      FRAME_TERMINAL (f)->query_colors (f, fgbg, ARRAYELTS (fgbg));
+      fg = lookup_rgb_color (f, fgbg[0].red, fgbg[0].green, fgbg[0].blue);
+      bg = lookup_rgb_color (f, fgbg[1].red, fgbg[1].green, fgbg[1].blue);
+    }
+  /* Some terminals may not provide query_colors; in that case treat
+     FG and BG as already being RGB pixel values.  */
   img->pixmap
     = image_pix_container_create_from_bitmap_data (data, img->width,
 						   img->height, fg, bg);
