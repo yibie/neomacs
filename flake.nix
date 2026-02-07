@@ -12,7 +12,6 @@
     # Rust toolchain
     rust-overlay = {
       url = "github:oxalica/rust-overlay";
-      inputs.nixpkgs.follows = "nixpkgs";
     };
 
     # WPE WebKit standalone flake with Cachix binary cache
