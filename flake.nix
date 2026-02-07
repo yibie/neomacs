@@ -1,6 +1,11 @@
 {
   description = "Neomacs - GPU-accelerated Emacs with GTK4 and WebKit";
 
+  nixConfig = {
+    extra-substituters = [ "https://nix-wpe-webkit.cachix.org" ];
+    extra-trusted-public-keys = [ "nix-wpe-webkit.cachix.org-1:ItCjHkz1Y5QcwqI9cTGNWHzcox4EqcXqKvOygxpwYHE=" ];
+  };
+
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 

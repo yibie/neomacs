@@ -317,7 +317,7 @@ Uses Arch Linux. See the [Dockerfile](Dockerfile) for the full build environment
 
 Neomacs uses [nix-wpe-webkit](https://github.com/eval-exec/nix-wpe-webkit) for the WPE WebKit dependency. Pre-built binaries are available via Cachix (~60MB download instead of ~1 hour build).
 
-#### Step 1: Enable the Cachix binary cache
+The `flake.nix` includes `nixConfig` for the Cachix cache. Pass `--accept-flake-config` to use it automatically, or configure it system-wide:
 
 **NixOS** — add to your configuration (e.g., `/etc/nixos/configuration.nix`):
 
@@ -335,24 +335,20 @@ extra-substituters = https://nix-wpe-webkit.cachix.org
 extra-trusted-public-keys = nix-wpe-webkit.cachix.org-1:ItCjHkz1Y5QcwqI9cTGNWHzcox4EqcXqKvOygxpwYHE=
 ```
 
-**One-shot** (no config changes, requires trusted user):
+#### Build with Nix
 
 ```bash
-nix develop --extra-substituters "https://nix-wpe-webkit.cachix.org" \
-  --extra-trusted-public-keys "nix-wpe-webkit.cachix.org-1:ItCjHkz1Y5QcwqI9cTGNWHzcox4EqcXqKvOygxpwYHE="
-```
+# One-command build (accepts the Cachix cache from flake.nix nixConfig)
+nix build --accept-flake-config
 
-#### Step 2: Enter development shell
+# Or enter development shell for iterative development
+nix develop --accept-flake-config
 
-```bash
-# Using flakes (recommended)
-nix develop
-
-# Or using legacy nix-shell
+# Legacy nix-shell (for non-flake users)
 nix-shell
 ```
 
-#### Step 3: Build
+#### Manual build (inside dev shell)
 
 ```bash
 cargo build --release --manifest-path rust/neomacs-display/Cargo.toml
