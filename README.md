@@ -225,26 +225,39 @@ The goal: **Make Emacs the most powerful and beautiful computing environment on 
 
 ---
 
-## Quick Demo
+## Showcase
 
-### Video Playback
+### GPU Text with Rounded Box Faces
 
-```elisp
-;; Insert video directly in buffer (VA-API hardware decode + DMA-BUF zero-copy)
-(neomacs-video-insert "/path/to/video.mp4" 640 360)
+<img width="1868" alt="Round corner box face attribute" src="https://github.com/user-attachments/assets/65db32f0-8852-4091-bd99-d61f839e0c95" />
 
-;; Control playback
-(neomacs-video-play video-id)
-(neomacs-video-pause video-id)
-(neomacs-video-stop video-id)
-```
+### Inline 4K Images
 
-### Inline Images
+GPU-decoded directly — no CPU cost, won't block Emacs main thread.
 
-```elisp
-;; GPU-accelerated image display
-(insert-image (create-image "/path/to/image.png"))
-```
+<img width="1447" alt="Inline 4K images in Emacs buffer" src="https://github.com/user-attachments/assets/325719dc-dac4-4bd8-8fd9-e638450a489f" />
+
+### Inline Web Browser (WPE WebKit)
+
+GPU backend, DMA-BUF zero-copy.
+
+<img width="1851" alt="Inline WPE WebKit browser in Emacs buffer" src="https://github.com/user-attachments/assets/10e833ca-34b2-4200-b368-09f7510f50d0" />
+
+### Inline Terminal (Alacritty)
+
+GPU-backed terminal emulator embedded in Emacs buffer.
+
+<img width="1448" alt="Inline Alacritty terminal in Emacs buffer" src="https://github.com/user-attachments/assets/175ffd75-78b5-46c9-9562-61cfd705e358" />
+
+### Inline 4K Video Playback
+
+DMA-BUF zero-copy, GPU backend — no CPU cost.
+
+https://github.com/user-attachments/assets/275c6d9a-fced-44f6-8f43-3bbd2984d672
+
+### Animations (Cursor, Buffer Switch, Scroll)
+
+https://github.com/user-attachments/assets/85b7ee7b-3f4a-4cd2-a84f-86a91d052f11
 
 ---
 
