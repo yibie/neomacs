@@ -24,13 +24,13 @@ Emacs's display engine (~50,000 lines of C in `xdisp.c`) was designed for text t
 
 Throw it all away and start fresh.
 
-**Neomacs** replaces Emacs's entire display subsystem with a modern **Rust + GPU** architecture:
+**Neomacs** is rewriting Emacs from the ground up in **Rust** — starting with the display engine and expanding to the core:
 
-- **~4,000 lines of Rust** replacing ~50,000 lines of legacy C
-- **wgpu** for cross-platform GPU-accelerated rendering (Vulkan/Metal/DX12/OpenGL)
-- **winit** for native window management
-- **Zero-copy DMA-BUF** for efficient GPU texture sharing (Linux)
-- **cosmic-text** for pure-Rust text shaping
+- **GPU display engine** — ~4,000 lines of Rust replacing ~50,000 lines of legacy C, powered by wgpu (Vulkan/Metal/DX12/OpenGL)
+- **Rewriting Emacs C core in Rust** — incrementally replacing critical C subsystems with safe, modern Rust
+- **True multi-threaded Elisp** — real concurrency for the Lisp machine, not just cooperative threading
+- **10x Elisp performance** — Rust-optimized Lisp machine to dramatically speed up Elisp execution
+- **Zero-copy DMA-BUF** — efficient GPU texture sharing (Linux)
 - **Full Emacs compatibility** — your config and packages still work
 
 ---
@@ -190,12 +190,15 @@ The spring style also supports a **4-corner trail effect** where leading corners
 
 ### The Ambitious Vision
 
-Neomacs aims to transform Emacs from a text editor into a **modern graphical computing environment**:
+Neomacs aims to transform Emacs from a text editor into a **modern graphical computing environment**, while rewriting its internals in Rust:
 
 - **Rich media** — 4K video, PDF rendering, image manipulation directly in buffers
 - **GPU-native** — hardware-accelerated rendering, shader effects, 120fps animations
 - **GPU terminal** — Rust-based terminal emulator replacing slow `term.el`/`ansi-term`/vterm
 - **Cross-platform** — Linux (Vulkan), macOS (Metal), Windows (Vulkan/DX12)
+- **Rust core** — rewrite Emacs C internals in Rust for memory safety and performance
+- **Multi-threaded Elisp** — true concurrency for the Lisp machine, enabling parallel Elisp execution
+- **10x faster Elisp** — Rust-optimized Lisp interpreter/compiler to dramatically speed up Elisp
 
 The goal: **Make Emacs the most powerful and beautiful computing environment on any platform.**
 
