@@ -7514,18 +7514,88 @@ neomacs_display_wakeup_handler (int fd, void *data)
                   }
               }
 
-            inev.ie.kind = MOUSE_CLICK_EVENT;
-            inev.ie.code = ev->button - 1;  /* Emacs buttons are 0-indexed */
-            inev.ie.modifiers = (ev->kind == NEOMACS_EVENT_MOUSE_PRESS) ? down_modifier : up_modifier;
-            if (ev->modifiers & NEOMACS_SHIFT_MASK) inev.ie.modifiers |= shift_modifier;
-            if (ev->modifiers & NEOMACS_CTRL_MASK) inev.ie.modifiers |= ctrl_modifier;
-            if (ev->modifiers & NEOMACS_META_MASK) inev.ie.modifiers |= meta_modifier;
-            XSETINT (inev.ie.x, ev->x);
-            XSETINT (inev.ie.y, ev->y);
-            if (!NILP (tab_bar_arg))
-              inev.ie.arg = tab_bar_arg;
-            XSETFRAME (inev.ie.frame_or_window, f);
-            neomacs_evq_enqueue (&inev);
+            /* Check if click is on a scroll bar */
+            {
+              Lisp_Object click_window
+                = window_from_coordinates (f, ev->x, ev->y, 0, true, true, true);
+              bool scroll_bar_handled = false;
+
+              if (WINDOWP (click_window))
+                {
+                  struct window *cw = XWINDOW (click_window);
+
+                  /* Check vertical scroll bar */
+                  if (!NILP (cw->vertical_scroll_bar)
+                      && WINDOW_HAS_VERTICAL_SCROLL_BAR (cw))
+                    {
+                      struct scroll_bar *bar
+                        = XSCROLL_BAR (cw->vertical_scroll_bar);
+                      int sb_left = bar->left;
+                      int sb_right = sb_left + bar->width;
+
+                      /* Is the click in the scroll bar area? */
+                      if (ev->x >= sb_left && ev->x < sb_right
+                          && ev->y >= bar->top
+                          && ev->y < bar->top + bar->height)
+                        {
+                          int y_in_bar = ev->y - bar->top;
+                          enum scroll_bar_part part;
+
+                          if (y_in_bar < bar->start)
+                            part = scroll_bar_above_handle;
+                          else if (y_in_bar < bar->end)
+                            part = scroll_bar_handle;
+                          else
+                            part = scroll_bar_below_handle;
+
+                          if (ev->kind == NEOMACS_EVENT_MOUSE_PRESS)
+                            bar->dragging = y_in_bar - bar->start;
+                          else
+                            {
+                              part = scroll_bar_end_scroll;
+                              bar->dragging = -1;
+                            }
+
+                          inev.ie.kind = SCROLL_BAR_CLICK_EVENT;
+                          inev.ie.code = ev->button - 1;
+                          inev.ie.part = part;
+                          inev.ie.modifiers = (ev->kind == NEOMACS_EVENT_MOUSE_PRESS)
+                            ? down_modifier : up_modifier;
+                          if (ev->modifiers & NEOMACS_SHIFT_MASK)
+                            inev.ie.modifiers |= shift_modifier;
+                          if (ev->modifiers & NEOMACS_CTRL_MASK)
+                            inev.ie.modifiers |= ctrl_modifier;
+                          if (ev->modifiers & NEOMACS_META_MASK)
+                            inev.ie.modifiers |= meta_modifier;
+                          XSETINT (inev.ie.x, y_in_bar);
+                          XSETINT (inev.ie.y, bar->height);
+                          inev.ie.frame_or_window = cw->vertical_scroll_bar;
+                          neomacs_evq_enqueue (&inev);
+                          scroll_bar_handled = true;
+                        }
+                    }
+                }
+
+              if (!scroll_bar_handled)
+                {
+                  inev.ie.kind = MOUSE_CLICK_EVENT;
+                  inev.ie.code = ev->button - 1;
+                  inev.ie.modifiers = (ev->kind == NEOMACS_EVENT_MOUSE_PRESS)
+                    ? down_modifier : up_modifier;
+                  if (ev->modifiers & NEOMACS_SHIFT_MASK)
+                    inev.ie.modifiers |= shift_modifier;
+                  if (ev->modifiers & NEOMACS_CTRL_MASK)
+                    inev.ie.modifiers |= ctrl_modifier;
+                  if (ev->modifiers & NEOMACS_META_MASK)
+                    inev.ie.modifiers |= meta_modifier;
+                  XSETINT (inev.ie.x, ev->x);
+                  XSETINT (inev.ie.y, ev->y);
+                  if (!NILP (tab_bar_arg))
+                    inev.ie.arg = tab_bar_arg;
+                  XSETFRAME (inev.ie.frame_or_window, f);
+                  neomacs_evq_enqueue (&inev);
+                }
+            }
           }
           break;
 
