@@ -2433,6 +2433,44 @@ neomacs_layout_check_display_prop (void *buffer_ptr, void *window_ptr,
     {
       Lisp_Object car = XCAR (display_prop);
 
+      /* Check for (when CONDITION . SPEC) conditional display */
+      if (EQ (car, Qwhen) && CONSP (XCDR (display_prop)))
+        {
+          Lisp_Object condition = XCAR (XCDR (display_prop));
+          Lisp_Object rest = XCDR (XCDR (display_prop));
+
+          /* Evaluate condition in a safe way */
+          Lisp_Object result = safe_eval (condition);
+          if (!NILP (result))
+            {
+              /* Condition true — recursively process remaining spec.
+                 The spec is (SPEC) or SPEC, depending on form. */
+              if (CONSP (rest))
+                {
+                  Lisp_Object inner_spec = XCAR (rest);
+                  /* Re-check with inner spec as if it were the
+                     display property */
+                  if (STRINGP (inner_spec))
+                    {
+                      ptrdiff_t len = SBYTES (inner_spec);
+                      ptrdiff_t copy_len
+                        = len < str_buf_len - 1
+                          ? len : str_buf_len - 1;
+                      memcpy (str_buf, SDATA (inner_spec),
+                              copy_len);
+                      str_buf[copy_len] = 0;
+                      out->type = 1;
+                      out->str_len = (int) copy_len;
+                      set_buffer_internal_1 (old);
+                      return 0;
+                    }
+                }
+            }
+          /* Condition false or no spec — skip */
+          set_buffer_internal_1 (old);
+          return 0;
+        }
+
       if (EQ (car, Qspace))
         {
           Lisp_Object plist = XCDR (display_prop);
@@ -2754,6 +2792,42 @@ neomacs_layout_check_display_prop (void *buffer_ptr, void *window_ptr,
               set_buffer_internal_1 (old);
               return 0;
             }
+          set_buffer_internal_1 (old);
+          return 0;
+        }
+    }
+
+  /* Vector of display specs: process each element */
+  if (VECTORP (display_prop))
+    {
+      ptrdiff_t vlen = ASIZE (display_prop);
+      for (ptrdiff_t vi = 0; vi < vlen; vi++)
+        {
+          Lisp_Object spec = AREF (display_prop, vi);
+          if (!CONSP (spec))
+            continue;
+          Lisp_Object scar = XCAR (spec);
+
+          if (EQ (scar, Qraise) && CONSP (XCDR (spec)))
+            {
+              Lisp_Object factor = XCAR (XCDR (spec));
+              if (FIXNUMP (factor))
+                out->raise_factor += (float) XFIXNUM (factor);
+              else if (FLOATP (factor))
+                out->raise_factor += (float) XFLOAT_DATA (factor);
+            }
+          else if (EQ (scar, Qheight) && CONSP (XCDR (spec)))
+            {
+              Lisp_Object factor = XCAR (XCDR (spec));
+              if (FIXNUMP (factor))
+                out->height_factor = (float) XFIXNUM (factor);
+              else if (FLOATP (factor))
+                out->height_factor = (float) XFLOAT_DATA (factor);
+            }
+        }
+      if (out->raise_factor != 0.0 || out->height_factor != 0.0)
+        {
+          out->type = 5;
           set_buffer_internal_1 (old);
           return 0;
         }
