@@ -2270,6 +2270,26 @@ pub unsafe extern "C" fn neomacs_display_set_background_gradient(
     }
 }
 
+/// Configure scroll bar appearance
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_scroll_bar_config(
+    _handle: *mut NeomacsDisplay,
+    width: c_int,
+    thumb_radius: c_int,
+    track_opacity: c_int,
+    hover_brightness: c_int,
+) {
+    let cmd = RenderCommand::SetScrollBarConfig {
+        width: width as i32,
+        thumb_radius: thumb_radius as f32 / 100.0,
+        track_opacity: track_opacity as f32 / 100.0,
+        hover_brightness: hover_brightness as f32 / 100.0,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
 /// Set the window title (threaded mode)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_set_title(

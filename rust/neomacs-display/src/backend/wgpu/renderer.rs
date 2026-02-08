@@ -43,6 +43,12 @@ pub struct WgpuRenderer {
     height: u32,
     /// Display scale factor (physical pixels / logical pixels)
     scale_factor: f32,
+    /// Scroll bar thumb corner radius ratio (0.0-1.0)
+    scroll_bar_thumb_radius: f32,
+    /// Scroll bar track opacity (0.0-1.0)
+    scroll_bar_track_opacity: f32,
+    /// Scroll bar hover brightness multiplier
+    scroll_bar_hover_brightness: f32,
 }
 
 impl WgpuRenderer {
@@ -508,7 +514,18 @@ impl WgpuRenderer {
             width,
             height,
             scale_factor,
+            scroll_bar_thumb_radius: 0.4,
+            scroll_bar_track_opacity: 0.6,
+            scroll_bar_hover_brightness: 1.4,
         }
+    }
+
+    /// Update scroll bar rendering config
+    pub fn set_scroll_bar_config(&mut self, thumb_radius: f32, track_opacity: f32,
+                                  hover_brightness: f32) {
+        self.scroll_bar_thumb_radius = thumb_radius;
+        self.scroll_bar_track_opacity = track_opacity;
+        self.scroll_bar_hover_brightness = hover_brightness;
     }
 
     async fn new_async(
@@ -1487,10 +1504,10 @@ impl WgpuRenderer {
                     track_color,
                     thumb_color,
                 } => {
-                    // Draw scroll bar track (subtle, slightly transparent)
+                    // Draw scroll bar track (subtle, configurable opacity)
                     let subtle_track = Color::new(
                         track_color.r, track_color.g, track_color.b,
-                        track_color.a * 0.6,
+                        track_color.a * self.scroll_bar_track_opacity,
                     );
                     self.add_rect(&mut cursor_vertices, *x, *y, *width, *height, &subtle_track);
 
@@ -1505,19 +1522,20 @@ impl WgpuRenderer {
                     let (mx, my) = mouse_pos;
                     let hovered = mx >= *x && mx <= *x + *width
                         && my >= *y && my <= *y + *height;
+                    let bright = self.scroll_bar_hover_brightness;
                     let effective_thumb = if hovered {
                         Color::new(
-                            (thumb_color.r * 1.4).min(1.0),
-                            (thumb_color.g * 1.4).min(1.0),
-                            (thumb_color.b * 1.4).min(1.0),
+                            (thumb_color.r * bright).min(1.0),
+                            (thumb_color.g * bright).min(1.0),
+                            (thumb_color.b * bright).min(1.0),
                             thumb_color.a.min(1.0),
                         )
                     } else {
                         *thumb_color
                     };
 
-                    // Rounded thumb with pill shape
-                    let radius = tw.min(th) * 0.4;
+                    // Rounded thumb with configurable pill radius
+                    let radius = tw.min(th) * self.scroll_bar_thumb_radius;
                     scroll_bar_thumb_vertices.push((tx, ty, tw, th, radius, effective_thumb));
                 }
                 FrameGlyph::Cursor {

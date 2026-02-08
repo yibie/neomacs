@@ -1132,6 +1132,15 @@ void neomacs_display_set_background_gradient(struct NeomacsDisplay *handle,
                                              int bottomB);
 
 /**
+ * Configure scroll bar appearance
+ */
+void neomacs_display_set_scroll_bar_config(struct NeomacsDisplay *handle,
+                                           int width,
+                                           int thumbRadius,
+                                           int trackOpacity,
+                                           int hoverBrightness);
+
+/**
  * Set the window title (threaded mode)
  */
 void neomacs_display_set_title(struct NeomacsDisplay *handle, const char *title);

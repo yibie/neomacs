@@ -627,6 +627,12 @@ struct RenderApp {
     bg_gradient_enabled: bool,
     bg_gradient_top: (f32, f32, f32),
     bg_gradient_bottom: (f32, f32, f32),
+
+    /// Scroll bar config
+    scroll_bar_width: i32,
+    scroll_bar_thumb_radius: f32,
+    scroll_bar_track_opacity: f32,
+    scroll_bar_hover_brightness: f32,
 }
 
 /// State for a tooltip displayed as GPU overlay
@@ -786,6 +792,10 @@ impl RenderApp {
             bg_gradient_enabled: false,
             bg_gradient_top: (0.0, 0.0, 0.0),
             bg_gradient_bottom: (0.0, 0.0, 0.0),
+            scroll_bar_width: 0,
+            scroll_bar_thumb_radius: 0.4,
+            scroll_bar_track_opacity: 0.6,
+            scroll_bar_hover_brightness: 1.4,
         }
     }
 
@@ -1456,6 +1466,20 @@ impl RenderApp {
                     self.bg_gradient_enabled = enabled;
                     self.bg_gradient_top = (top_r, top_g, top_b);
                     self.bg_gradient_bottom = (bottom_r, bottom_g, bottom_b);
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetScrollBarConfig {
+                    width, thumb_radius, track_opacity, hover_brightness,
+                } => {
+                    self.scroll_bar_width = width;
+                    self.scroll_bar_thumb_radius = thumb_radius;
+                    self.scroll_bar_track_opacity = track_opacity;
+                    self.scroll_bar_hover_brightness = hover_brightness;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_scroll_bar_config(
+                            thumb_radius, track_opacity, hover_brightness,
+                        );
+                    }
                     self.frame_dirty = true;
                 }
             }

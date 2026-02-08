@@ -7936,6 +7936,52 @@ Colors are strings like \"#rrggbb\".  Pass nil for either to disable.  */)
   return Qt;
 }
 
+DEFUN ("neomacs-set-scroll-bar-config",
+       Fneomacs_set_scroll_bar_config,
+       Sneomacs_set_scroll_bar_config, 0, 4, 0,
+       doc: /* Configure GPU scroll bar appearance.
+Optional WIDTH is the scroll bar width in pixels (default 12).
+Optional THUMB-RADIUS is the thumb corner radius ratio 0-100 (default 40).
+Optional TRACK-OPACITY is the track opacity 0-100 (default 60).
+Optional HOVER-BRIGHTNESS is the hover brightness 0-200 (default 140).  */)
+  (Lisp_Object width, Lisp_Object thumb_radius,
+   Lisp_Object track_opacity, Lisp_Object hover_brightness)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+
+  int w = 0;
+  int tr = 40;
+  int to = 60;
+  int hb = 140;
+
+  if (!NILP (width) && NUMBERP (width))
+    w = (int) XFIXNUM (width);
+  if (!NILP (thumb_radius) && NUMBERP (thumb_radius))
+    tr = (int) XFIXNUM (thumb_radius);
+  if (!NILP (track_opacity) && NUMBERP (track_opacity))
+    to = (int) XFIXNUM (track_opacity);
+  if (!NILP (hover_brightness) && NUMBERP (hover_brightness))
+    hb = (int) XFIXNUM (hover_brightness);
+
+  /* Update the C-side default scroll bar width for new frames/windows */
+  if (w > 0)
+    {
+      struct frame *f = SELECTED_FRAME ();
+      if (f)
+        {
+          int unit = FRAME_COLUMN_WIDTH (f);
+          FRAME_CONFIG_SCROLL_BAR_WIDTH (f) = w;
+          FRAME_CONFIG_SCROLL_BAR_COLS (f) = (w + unit - 1) / unit;
+        }
+    }
+
+  neomacs_display_set_scroll_bar_config (
+    dpyinfo->display_handle, w, tr, to, hb);
+  return Qt;
+}
+
 DEFUN ("neomacs-set-cursor-blink", Fneomacs_set_cursor_blink, Sneomacs_set_cursor_blink, 1, 2, 0,
        doc: /* Configure cursor blinking in the render thread.
 ENABLED non-nil enables blinking, nil disables it.
@@ -9112,6 +9158,7 @@ syms_of_neomacsterm (void)
   defsubr (&Sneomacs_set_corner_radius);
   defsubr (&Sneomacs_set_extra_spacing);
   defsubr (&Sneomacs_set_background_gradient);
+  defsubr (&Sneomacs_set_scroll_bar_config);
 
   /* Cursor blink */
   defsubr (&Sneomacs_set_cursor_blink);

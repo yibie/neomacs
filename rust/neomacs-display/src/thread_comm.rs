@@ -265,6 +265,17 @@ pub enum RenderCommand {
         top_r: f32, top_g: f32, top_b: f32,
         bottom_r: f32, bottom_g: f32, bottom_b: f32,
     },
+    /// Configure scroll bar appearance
+    SetScrollBarConfig {
+        /// Width in pixels (0 = use default 12px)
+        width: i32,
+        /// Thumb corner radius ratio (0.0-1.0, default 0.4)
+        thumb_radius: f32,
+        /// Track background opacity (0.0-1.0, default 0.6)
+        track_opacity: f32,
+        /// Hover brightness multiplier (default 1.4)
+        hover_brightness: f32,
+    },
 }
 
 /// Wakeup pipe for signaling Emacs from render thread

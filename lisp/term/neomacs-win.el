@@ -498,6 +498,75 @@ Set to nil to disable.  Colors are strings like \"#1a1a2e\"."
                (neomacs-set-background-gradient (car val) (cdr val))
              (neomacs-set-background-gradient nil nil)))))
 
+;;; Scroll bar appearance
+
+(declare-function neomacs-set-scroll-bar-config "neomacsterm.c"
+  (&optional width thumb-radius track-opacity hover-brightness))
+
+(defcustom neomacs-scroll-bar-width 12
+  "Scroll bar width in pixels."
+  :type 'integer
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-scroll-bar-config)
+           (neomacs-set-scroll-bar-config
+            val
+            (if (boundp 'neomacs-scroll-bar-thumb-radius)
+                neomacs-scroll-bar-thumb-radius 40)
+            (if (boundp 'neomacs-scroll-bar-track-opacity)
+                neomacs-scroll-bar-track-opacity 60)
+            (if (boundp 'neomacs-scroll-bar-hover-brightness)
+                neomacs-scroll-bar-hover-brightness 140)))))
+
+(defcustom neomacs-scroll-bar-thumb-radius 40
+  "Scroll bar thumb corner radius (0-100, as percentage)."
+  :type 'integer
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-scroll-bar-config)
+           (neomacs-set-scroll-bar-config
+            (if (boundp 'neomacs-scroll-bar-width)
+                neomacs-scroll-bar-width 12)
+            val
+            (if (boundp 'neomacs-scroll-bar-track-opacity)
+                neomacs-scroll-bar-track-opacity 60)
+            (if (boundp 'neomacs-scroll-bar-hover-brightness)
+                neomacs-scroll-bar-hover-brightness 140)))))
+
+(defcustom neomacs-scroll-bar-track-opacity 60
+  "Scroll bar track background opacity (0-100, as percentage)."
+  :type 'integer
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-scroll-bar-config)
+           (neomacs-set-scroll-bar-config
+            (if (boundp 'neomacs-scroll-bar-width)
+                neomacs-scroll-bar-width 12)
+            (if (boundp 'neomacs-scroll-bar-thumb-radius)
+                neomacs-scroll-bar-thumb-radius 40)
+            val
+            (if (boundp 'neomacs-scroll-bar-hover-brightness)
+                neomacs-scroll-bar-hover-brightness 140)))))
+
+(defcustom neomacs-scroll-bar-hover-brightness 140
+  "Scroll bar thumb hover brightness (0-200, as percentage of 1.0)."
+  :type 'integer
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-scroll-bar-config)
+           (neomacs-set-scroll-bar-config
+            (if (boundp 'neomacs-scroll-bar-width)
+                neomacs-scroll-bar-width 12)
+            (if (boundp 'neomacs-scroll-bar-thumb-radius)
+                neomacs-scroll-bar-thumb-radius 40)
+            (if (boundp 'neomacs-scroll-bar-track-opacity)
+                neomacs-scroll-bar-track-opacity 60)
+            val))))
+
 ;; Provide the feature
 (provide 'neomacs-win)
 (provide 'term/neomacs-win)

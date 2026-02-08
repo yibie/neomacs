@@ -1264,6 +1264,13 @@ void neomacs_display_set_background_gradient(
     int top_r, int top_g, int top_b,
     int bottom_r, int bottom_g, int bottom_b);
 
+void neomacs_display_set_scroll_bar_config(
+    struct NeomacsDisplay *handle,
+    int width,
+    int thumb_radius,
+    int track_opacity,
+    int hover_brightness);
+
 /**
  * Get dropped file paths (call after NEOMACS_EVENT_FILE_DROP).
  * Returns number of paths written to out_paths.
