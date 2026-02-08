@@ -8762,6 +8762,24 @@ neomacs_display_wakeup_handler (int fd, void *data)
           }
           break;
 
+        case NEOMACS_EVENT_TERMINAL_TITLE_CHANGED:
+          {
+            uint32_t term_id = ev->keysym;
+            char *title
+              = neomacs_display_get_terminal_title (term_id);
+            if (title)
+              {
+                Lisp_Object handler
+                  = intern ("neo-term--handle-title-changed");
+                if (!NILP (Ffboundp (handler)))
+                  safe_calln (Fsymbol_function (handler),
+                              make_fixnum (term_id),
+                              build_string (title));
+                neomacs_display_free_dropped_path (title);
+              }
+          }
+          break;
+
         default:
           break;
         }

@@ -70,6 +70,7 @@ pub use events::{
     NEOMACS_EVENT_TERMINAL_EXITED,
     NEOMACS_EVENT_MENU_SELECTION,
     NEOMACS_EVENT_FILE_DROP,
+    NEOMACS_EVENT_TERMINAL_TITLE_CHANGED,
 };
 
 #[cfg(all(feature = "wpe-webkit", target_os = "linux"))]

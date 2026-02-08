@@ -28,6 +28,7 @@ use crate::backend::wgpu::{
     NEOMACS_EVENT_TERMINAL_EXITED,
     NEOMACS_EVENT_MENU_SELECTION,
     NEOMACS_EVENT_FILE_DROP,
+    NEOMACS_EVENT_TERMINAL_TITLE_CHANGED,
 };
 
 /// Resize callback function type for C FFI
@@ -44,6 +45,11 @@ static mut RESIZE_CALLBACK_USER_DATA: *mut std::ffi::c_void = std::ptr::null_mut
 /// Pending dropped file paths (populated by drain_input, consumed by C)
 #[cfg(feature = "winit-backend")]
 static DROPPED_FILES: std::sync::Mutex<Vec<Vec<String>>> = std::sync::Mutex::new(Vec::new());
+
+/// Pending terminal title changes (populated by drain_input, consumed by C)
+/// Each entry is (terminal_id, new_title).
+#[cfg(feature = "winit-backend")]
+static TERMINAL_TITLES: std::sync::Mutex<Vec<(u32, String)>> = std::sync::Mutex::new(Vec::new());
 
 use crate::backend::tty::TtyBackend;
 use crate::core::types::{Color, Rect};
@@ -4019,9 +4025,12 @@ pub unsafe extern "C" fn neomacs_display_drain_input(
                         out.keysym = id;  // reuse keysym field for terminal ID
                     }
                     #[cfg(feature = "neo-term")]
-                    InputEvent::TerminalTitleChanged { .. } => {
-                        // TODO: expose to C via terminal-specific API
-                        continue;
+                    InputEvent::TerminalTitleChanged { id, title } => {
+                        out.kind = NEOMACS_EVENT_TERMINAL_TITLE_CHANGED;
+                        out.keysym = id;
+                        if let Ok(mut queue) = TERMINAL_TITLES.lock() {
+                            queue.push((id, title));
+                        }
                     }
                     InputEvent::MenuSelection { index } => {
                         out.kind = NEOMACS_EVENT_MENU_SELECTION;
@@ -4087,6 +4096,30 @@ pub unsafe extern "C" fn neomacs_display_get_dropped_files(
 pub unsafe extern "C" fn neomacs_display_free_dropped_path(path: *mut c_char) {
     if !path.is_null() {
         drop(std::ffi::CString::from_raw(path));
+    }
+}
+
+/// Get the terminal title from the most recent title change event.
+/// Returns a C string that must be freed with
+/// `neomacs_display_free_dropped_path` (same allocator), or NULL.
+#[cfg(feature = "winit-backend")]
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_get_terminal_title(
+    terminal_id: u32,
+) -> *mut c_char {
+    let mut queue = match TERMINAL_TITLES.lock() {
+        Ok(q) => q,
+        Err(_) => return std::ptr::null_mut(),
+    };
+    // Find and remove the first entry matching terminal_id
+    if let Some(pos) = queue.iter().position(|(id, _)| *id == terminal_id) {
+        let (_id, title) = queue.remove(pos);
+        match std::ffi::CString::new(title) {
+            Ok(cstr) => cstr.into_raw(),
+            Err(_) => std::ptr::null_mut(),
+        }
+    } else {
+        std::ptr::null_mut()
     }
 }
 

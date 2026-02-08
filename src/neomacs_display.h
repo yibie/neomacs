@@ -39,6 +39,7 @@
 #define NEOMACS_EVENT_TERMINAL_EXITED 12
 #define NEOMACS_EVENT_MENU_SELECTION 13
 #define NEOMACS_EVENT_FILE_DROP 14
+#define NEOMACS_EVENT_TERMINAL_TITLE_CHANGED 15
 
 #define DRM_FORMAT_ARGB8888 875713089
 
@@ -1213,5 +1214,12 @@ int neomacs_display_get_dropped_files(char **out_paths, int max_paths);
  * Free a path returned by neomacs_display_get_dropped_files().
  */
 void neomacs_display_free_dropped_path(char *path);
+
+/**
+ * Get terminal title from most recent title change event.
+ * Returns a C string that must be freed with
+ * neomacs_display_free_dropped_path(), or NULL if none pending.
+ */
+char *neomacs_display_get_terminal_title(uint32_t terminal_id);
 
 #endif  /* NEOMACS_DISPLAY_H */

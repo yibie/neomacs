@@ -260,6 +260,14 @@ Returns terminal ID or nil on failure."
           (insert "\n[Process exited]\n"))
         (message "neo-term: terminal %d exited" terminal-id)))))
 
+(defun neo-term--handle-title-changed (terminal-id title)
+  "Handle terminal TERMINAL-ID title change to TITLE."
+  (dolist (buf (buffer-list))
+    (with-current-buffer buf
+      (when (and (eq major-mode 'neo-term-mode)
+                 (eql neo-term--id terminal-id))
+        (rename-buffer (format "*neo-term: %s*" title) t)))))
+
 ;;; Public API
 
 ;;;###autoload

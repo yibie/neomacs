@@ -89,6 +89,8 @@
 
 
 
+
+
 /**
  * Maximum number of DMA-BUF planes supported.
  */
@@ -1587,6 +1589,13 @@ int neomacs_display_get_dropped_files(char **outPaths, int maxPaths);
  * Free a string returned by `neomacs_display_get_dropped_files`.
  */
 void neomacs_display_free_dropped_path(char *path);
+
+/**
+ * Get the terminal title from the most recent title change event.
+ * Returns a C string that must be freed with
+ * `neomacs_display_free_dropped_path` (same allocator), or NULL.
+ */
+char *neomacs_display_get_terminal_title(uint32_t terminalId);
 
 /**
  * Send frame glyphs to render thread
