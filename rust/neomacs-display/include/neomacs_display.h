@@ -1141,6 +1141,16 @@ void neomacs_display_set_scroll_bar_config(struct NeomacsDisplay *handle,
                                            int hoverBrightness);
 
 /**
+ * Configure indent guide rendering
+ */
+void neomacs_display_set_indent_guides(struct NeomacsDisplay *handle,
+                                       int enabled,
+                                       int r,
+                                       int g,
+                                       int b,
+                                       int opacity);
+
+/**
  * Set the window title (threaded mode)
  */
 void neomacs_display_set_title(struct NeomacsDisplay *handle, const char *title);

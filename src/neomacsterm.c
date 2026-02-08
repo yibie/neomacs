@@ -7936,6 +7936,39 @@ Colors are strings like \"#rrggbb\".  Pass nil for either to disable.  */)
   return Qt;
 }
 
+DEFUN ("neomacs-set-indent-guides",
+       Fneomacs_set_indent_guides,
+       Sneomacs_set_indent_guides, 0, 2, 0,
+       doc: /* Configure indent guide rendering.
+ENABLED non-nil enables indent guides.
+Optional COLOR is a color string for the guides (default \"gray30\").  */)
+  (Lisp_Object enabled, Lisp_Object color)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+
+  int on = !NILP (enabled);
+  int r = 77, g = 77, b = 77;  /* gray30 default */
+  int opacity = 30;
+
+  if (!NILP (color) && STRINGP (color))
+    {
+      Emacs_Color c;
+      if (neomacs_defined_color (NULL, SSDATA (color), &c, false, false))
+        {
+          r = c.red >> 8;
+          g = c.green >> 8;
+          b = c.blue >> 8;
+          opacity = 40;
+        }
+    }
+
+  neomacs_display_set_indent_guides (
+    dpyinfo->display_handle, on, r, g, b, opacity);
+  return on ? Qt : Qnil;
+}
+
 DEFUN ("neomacs-set-scroll-bar-config",
        Fneomacs_set_scroll_bar_config,
        Sneomacs_set_scroll_bar_config, 0, 4, 0,
@@ -9159,6 +9192,7 @@ syms_of_neomacsterm (void)
   defsubr (&Sneomacs_set_extra_spacing);
   defsubr (&Sneomacs_set_background_gradient);
   defsubr (&Sneomacs_set_scroll_bar_config);
+  defsubr (&Sneomacs_set_indent_guides);
 
   /* Cursor blink */
   defsubr (&Sneomacs_set_cursor_blink);

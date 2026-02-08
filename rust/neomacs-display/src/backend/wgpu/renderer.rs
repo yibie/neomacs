@@ -49,6 +49,10 @@ pub struct WgpuRenderer {
     scroll_bar_track_opacity: f32,
     /// Scroll bar hover brightness multiplier
     scroll_bar_hover_brightness: f32,
+    /// Indent guide rendering enabled
+    indent_guides_enabled: bool,
+    /// Indent guide color (linear RGBA)
+    indent_guide_color: (f32, f32, f32, f32),
 }
 
 impl WgpuRenderer {
@@ -517,7 +521,15 @@ impl WgpuRenderer {
             scroll_bar_thumb_radius: 0.4,
             scroll_bar_track_opacity: 0.6,
             scroll_bar_hover_brightness: 1.4,
+            indent_guides_enabled: false,
+            indent_guide_color: (0.3, 0.3, 0.3, 0.3),
         }
+    }
+
+    /// Update indent guide config
+    pub fn set_indent_guide_config(&mut self, enabled: bool, color: (f32, f32, f32, f32)) {
+        self.indent_guides_enabled = enabled;
+        self.indent_guide_color = color;
     }
 
     /// Update scroll bar rendering config
@@ -1438,6 +1450,83 @@ impl WgpuRenderer {
                             self.add_rect(&mut non_overlay_rect_vertices, *x, *y, *width, *height, bg_color);
                         }
                     }
+                }
+            }
+        }
+
+        // --- Indent guides ---
+        if self.indent_guides_enabled {
+            let (ig_r, ig_g, ig_b, ig_a) = self.indent_guide_color;
+            let guide_color = Color::new(ig_r, ig_g, ig_b, ig_a);
+            let guide_width = 1.0_f32;
+
+            // Detect char_width from frame
+            let char_w = frame_glyphs.char_width.max(1.0);
+            let tab_w = 4; // default tab width; we infer from the glyph spacing
+
+            // Collect row info: group chars by Y coordinate to find rows,
+            // then detect indent (leading space/tab) per row.
+            struct RowInfo {
+                y: f32,
+                height: f32,
+                first_non_space_x: f32,
+                text_start_x: f32, // leftmost char X in the row
+            }
+            let mut rows: Vec<RowInfo> = Vec::new();
+            let mut current_row_y: f32 = -1.0;
+            let mut current_row_h: f32 = 0.0;
+            let mut first_non_space_x: f32 = f32::MAX;
+            let mut text_start_x: f32 = f32::MAX;
+            let mut has_chars = false;
+
+            for glyph in &frame_glyphs.glyphs {
+                if let FrameGlyph::Char { x, y, width, height, char: ch, is_overlay, .. } = glyph {
+                    if *is_overlay { continue; }
+                    let gy = *y;
+                    if (gy - current_row_y).abs() > 0.5 {
+                        // New row — save previous
+                        if has_chars && first_non_space_x > text_start_x + char_w {
+                            rows.push(RowInfo {
+                                y: current_row_y,
+                                height: current_row_h,
+                                first_non_space_x,
+                                text_start_x,
+                            });
+                        }
+                        current_row_y = gy;
+                        current_row_h = *height;
+                        first_non_space_x = f32::MAX;
+                        text_start_x = f32::MAX;
+                        has_chars = false;
+                    }
+                    has_chars = true;
+                    if *x < text_start_x { text_start_x = *x; }
+                    if *ch != ' ' && *ch != '\t' && *x < first_non_space_x {
+                        first_non_space_x = *x;
+                    }
+                }
+            }
+            // Save last row
+            if has_chars && first_non_space_x > text_start_x + char_w {
+                rows.push(RowInfo {
+                    y: current_row_y,
+                    height: current_row_h,
+                    first_non_space_x,
+                    text_start_x,
+                });
+            }
+
+            // Draw guides at each tab-stop column within the indent region
+            let tab_px = char_w * tab_w as f32;
+            for row in &rows {
+                let mut col_x = row.text_start_x + tab_px;
+                while col_x < row.first_non_space_x - 1.0 {
+                    self.add_rect(
+                        &mut non_overlay_rect_vertices,
+                        col_x, row.y, guide_width, row.height,
+                        &guide_color,
+                    );
+                    col_x += tab_px;
                 }
             }
         }

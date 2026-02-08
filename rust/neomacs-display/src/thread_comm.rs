@@ -276,6 +276,14 @@ pub enum RenderCommand {
         /// Hover brightness multiplier (default 1.4)
         hover_brightness: f32,
     },
+    /// Configure indent guide rendering
+    SetIndentGuideConfig {
+        enabled: bool,
+        /// Color as sRGB 0.0-1.0
+        r: f32, g: f32, b: f32,
+        /// Opacity 0.0-1.0
+        opacity: f32,
+    },
 }
 
 /// Wakeup pipe for signaling Emacs from render thread

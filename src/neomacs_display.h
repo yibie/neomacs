@@ -1271,6 +1271,12 @@ void neomacs_display_set_scroll_bar_config(
     int track_opacity,
     int hover_brightness);
 
+void neomacs_display_set_indent_guides(
+    struct NeomacsDisplay *handle,
+    int enabled,
+    int r, int g, int b,
+    int opacity);
+
 /**
  * Get dropped file paths (call after NEOMACS_EVENT_FILE_DROP).
  * Returns number of paths written to out_paths.

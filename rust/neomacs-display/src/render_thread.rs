@@ -633,6 +633,10 @@ struct RenderApp {
     scroll_bar_thumb_radius: f32,
     scroll_bar_track_opacity: f32,
     scroll_bar_hover_brightness: f32,
+
+    /// Indent guide config
+    indent_guides_enabled: bool,
+    indent_guide_color: (f32, f32, f32, f32),
 }
 
 /// State for a tooltip displayed as GPU overlay
@@ -796,6 +800,8 @@ impl RenderApp {
             scroll_bar_thumb_radius: 0.4,
             scroll_bar_track_opacity: 0.6,
             scroll_bar_hover_brightness: 1.4,
+            indent_guides_enabled: false,
+            indent_guide_color: (0.3, 0.3, 0.3, 0.3),
         }
     }
 
@@ -1479,6 +1485,18 @@ impl RenderApp {
                         renderer.set_scroll_bar_config(
                             thumb_radius, track_opacity, hover_brightness,
                         );
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetIndentGuideConfig {
+                    enabled, r, g, b, opacity,
+                } => {
+                    // Convert sRGB to linear for GPU rendering
+                    let c = crate::core::types::Color::new(r, g, b, opacity).srgb_to_linear();
+                    self.indent_guides_enabled = enabled;
+                    self.indent_guide_color = (c.r, c.g, c.b, c.a);
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_indent_guide_config(enabled, (c.r, c.g, c.b, c.a));
                     }
                     self.frame_dirty = true;
                 }

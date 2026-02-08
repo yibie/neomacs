@@ -567,6 +567,36 @@ Set to nil to disable.  Colors are strings like \"#1a1a2e\"."
                 neomacs-scroll-bar-track-opacity 60)
             val))))
 
+;;; Indent guides
+
+(declare-function neomacs-set-indent-guides "neomacsterm.c"
+  (&optional enabled color))
+
+(defcustom neomacs-indent-guides nil
+  "Enable indent guide rendering.
+Non-nil enables thin vertical lines at indentation levels."
+  :type 'boolean
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-indent-guides)
+           (neomacs-set-indent-guides
+            val
+            (if (boundp 'neomacs-indent-guide-color)
+                neomacs-indent-guide-color
+              "gray30")))))
+
+(defcustom neomacs-indent-guide-color "gray30"
+  "Color for indent guide lines."
+  :type 'color
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-indent-guides)
+                    (boundp 'neomacs-indent-guides)
+                    neomacs-indent-guides)
+           (neomacs-set-indent-guides t val))))
+
 ;; Provide the feature
 (provide 'neomacs-win)
 (provide 'term/neomacs-win)
