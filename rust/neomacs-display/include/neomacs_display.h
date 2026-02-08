@@ -1492,6 +1492,24 @@ int neomacs_display_get_threaded_wakeup_fd(void);
 struct NeomacsDisplay *neomacs_display_get_threaded_handle(void);
 
 /**
+ * Set clipboard text.  The text is a UTF-8 C string.
+ * Returns 0 on success, -1 on failure.
+ */
+int neomacs_clipboard_set_text(const char *text);
+
+/**
+ * Get clipboard text.  Returns a newly allocated UTF-8 C string
+ * that the caller must free with neomacs_clipboard_free_text(),
+ * or NULL if the clipboard is empty or an error occurred.
+ */
+char *neomacs_clipboard_get_text(void);
+
+/**
+ * Free a string returned by neomacs_clipboard_get_text().
+ */
+void neomacs_clipboard_free_text(char *text);
+
+/**
  * Get a byte from buffer text at the given byte position.
  * Handles the gap buffer transparently.
  * Returns -1 if pos is out of range.

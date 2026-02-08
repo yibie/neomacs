@@ -113,6 +113,10 @@ DISPLAY is the name of the display Emacs should connect to."
   ;; Set up animations (smooth cursor, crossfade, scroll slide)
   (neomacs--setup-animations)
 
+  ;; Clipboard integration via Rust arboard crate
+  (setq interprogram-cut-function #'neomacs--clipboard-cut)
+  (setq interprogram-paste-function #'neomacs--clipboard-paste)
+
   (setq neomacs-initialized t))
 
 ;; Handle args function (required by common-win)
@@ -126,6 +130,10 @@ DISPLAY is the name of the display Emacs should connect to."
 
 ;; Cursor blink integration: delegate to render thread
 (declare-function neomacs-set-cursor-blink "neomacsterm.c" (enabled &optional interval))
+
+;; Clipboard integration
+(declare-function neomacs-clipboard-set "neomacsfns.c" (text))
+(declare-function neomacs-clipboard-get "neomacsfns.c" ())
 
 ;; Animation configuration
 (declare-function neomacs-set-cursor-animation "neomacsterm.c" (enabled &optional speed))
@@ -209,6 +217,26 @@ Crossfade easing (crossfade-easing parameter, symbol or integer):
   Default is `ease-out-quad'."
   (when (fboundp 'neomacs-set-animation-config)
     (neomacs-set-animation-config t 15.0 'spring 150 t 200 t 150 'slide 'ease-out-quad 0.7 'crossfade 'ease-out-quad)))
+
+;; Clipboard integration
+(defvar neomacs--last-clipboard-text nil
+  "Last text sent to the clipboard, used to detect external changes.")
+
+(defun neomacs--clipboard-cut (text)
+  "Send TEXT to the system clipboard.
+Used as `interprogram-cut-function'."
+  (when (fboundp 'neomacs-clipboard-set)
+    (setq neomacs--last-clipboard-text text)
+    (neomacs-clipboard-set text)))
+
+(defun neomacs--clipboard-paste ()
+  "Return text from the system clipboard if it has changed.
+Used as `interprogram-paste-function'."
+  (when (fboundp 'neomacs-clipboard-get)
+    (let ((text (neomacs-clipboard-get)))
+      (when (and text (not (string= text neomacs--last-clipboard-text)))
+        (setq neomacs--last-clipboard-text text)
+        text))))
 
 ;; Provide the feature
 (provide 'neomacs-win)

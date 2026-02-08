@@ -1834,6 +1834,36 @@ DEFUN ("x-scroll-bar-background", Fx_scroll_bar_background,
 
 
 /* ============================================================================
+ * Clipboard Functions
+ * ============================================================================ */
+
+DEFUN ("neomacs-clipboard-set", Fneomacs_clipboard_set,
+       Sneomacs_clipboard_set, 1, 1, 0,
+       doc: /* Set the system clipboard to TEXT.
+Returns t on success, nil on failure.  */)
+  (Lisp_Object text)
+{
+  CHECK_STRING (text);
+  const char *str = SSDATA (text);
+  int result = neomacs_clipboard_set_text (str);
+  return result == 0 ? Qt : Qnil;
+}
+
+DEFUN ("neomacs-clipboard-get", Fneomacs_clipboard_get,
+       Sneomacs_clipboard_get, 0, 0, 0,
+       doc: /* Get text from the system clipboard.
+Returns a string, or nil if the clipboard is empty or an error occurred.  */)
+  (void)
+{
+  char *text = neomacs_clipboard_get_text ();
+  if (!text)
+    return Qnil;
+  Lisp_Object result = build_string (text);
+  neomacs_clipboard_free_text (text);
+  return result;
+}
+
+/* ============================================================================
  * Initialization
  * ============================================================================ */
 
@@ -1859,6 +1889,10 @@ syms_of_neomacsfns (void)
   /* Scroll bar functions */
   defsubr (&Sx_scroll_bar_foreground);
   defsubr (&Sx_scroll_bar_background);
+
+  /* Clipboard functions */
+  defsubr (&Sneomacs_clipboard_set);
+  defsubr (&Sneomacs_clipboard_get);
 
   /* Symbols */
   DEFSYM (Qdisplay, "display");

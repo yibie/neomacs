@@ -1055,4 +1055,26 @@ void neomacs_display_terminal_set_float(uint32_t terminal_id,
  */
 char *neomacs_display_terminal_get_text(uint32_t terminal_id);
 
+/* ============================================================================
+ * Clipboard API
+ * ============================================================================ */
+
+/**
+ * Set clipboard text.
+ * Returns 0 on success, -1 on error.
+ */
+int neomacs_clipboard_set_text(const char *text);
+
+/**
+ * Get clipboard text.
+ * Returns a string that must be freed with neomacs_clipboard_free_text(),
+ * or NULL if clipboard is empty or an error occurred.
+ */
+char *neomacs_clipboard_get_text(void);
+
+/**
+ * Free a string returned by neomacs_clipboard_get_text().
+ */
+void neomacs_clipboard_free_text(char *text);
+
 #endif  /* NEOMACS_DISPLAY_H */
