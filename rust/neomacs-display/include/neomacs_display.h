@@ -1171,6 +1171,11 @@ void neomacs_display_set_show_whitespace(struct NeomacsDisplay *handle,
                                          int opacity);
 
 /**
+ * Configure inactive window dimming (threaded mode)
+ */
+void neomacs_display_set_inactive_dim(struct NeomacsDisplay *handle, int enabled, int opacity);
+
+/**
  * Set the window title (threaded mode)
  */
 void neomacs_display_set_title(struct NeomacsDisplay *handle, const char *title);

@@ -645,6 +645,10 @@ struct RenderApp {
     /// Visible whitespace config
     show_whitespace_enabled: bool,
     show_whitespace_color: (f32, f32, f32, f32),
+
+    /// Inactive window dimming
+    inactive_dim_enabled: bool,
+    inactive_dim_opacity: f32,
 }
 
 /// State for a tooltip displayed as GPU overlay
@@ -814,6 +818,8 @@ impl RenderApp {
             line_highlight_color: (0.2, 0.2, 0.3, 0.15),
             show_whitespace_enabled: false,
             show_whitespace_color: (0.4, 0.4, 0.4, 0.3),
+            inactive_dim_enabled: false,
+            inactive_dim_opacity: 0.15,
         }
     }
 
@@ -1531,6 +1537,14 @@ impl RenderApp {
                     self.show_whitespace_color = (c.r, c.g, c.b, c.a);
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_show_whitespace_config(enabled, (c.r, c.g, c.b, c.a));
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetInactiveDim { enabled, opacity } => {
+                    self.inactive_dim_enabled = enabled;
+                    self.inactive_dim_opacity = opacity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_inactive_dim_config(enabled, opacity);
                     }
                     self.frame_dirty = true;
                 }

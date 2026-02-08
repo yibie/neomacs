@@ -661,6 +661,32 @@ A color string, or nil for default gray."
                     neomacs-show-whitespace)
            (neomacs-set-show-whitespace t val))))
 
+(defcustom neomacs-inactive-dim nil
+  "Enable dimming of inactive windows.
+Non-nil draws a dark overlay on non-selected windows."
+  :type 'boolean
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-inactive-dim)
+           (neomacs-set-inactive-dim
+            val
+            (if (boundp 'neomacs-inactive-dim-opacity)
+                neomacs-inactive-dim-opacity
+              nil)))))
+
+(defcustom neomacs-inactive-dim-opacity 0.15
+  "Opacity for inactive window dimming overlay.
+A number between 0.0 (no dimming) and 1.0 (fully black)."
+  :type '(number :tag "Opacity")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-inactive-dim)
+                    (boundp 'neomacs-inactive-dim)
+                    neomacs-inactive-dim)
+           (neomacs-set-inactive-dim t val))))
+
 ;; Provide the feature
 (provide 'neomacs-win)
 (provide 'term/neomacs-win)

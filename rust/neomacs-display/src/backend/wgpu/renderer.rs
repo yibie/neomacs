@@ -61,6 +61,10 @@ pub struct WgpuRenderer {
     show_whitespace_enabled: bool,
     /// Visible whitespace color (linear RGBA)
     show_whitespace_color: (f32, f32, f32, f32),
+    /// Inactive window dimming enabled
+    inactive_dim_enabled: bool,
+    /// Inactive window dimming opacity
+    inactive_dim_opacity: f32,
 }
 
 impl WgpuRenderer {
@@ -535,7 +539,15 @@ impl WgpuRenderer {
             line_highlight_color: (0.2, 0.2, 0.3, 0.15),
             show_whitespace_enabled: false,
             show_whitespace_color: (0.4, 0.4, 0.4, 0.3),
+            inactive_dim_enabled: false,
+            inactive_dim_opacity: 0.15,
         }
+    }
+
+    /// Update inactive window dim config
+    pub fn set_inactive_dim_config(&mut self, enabled: bool, opacity: f32) {
+        self.inactive_dim_enabled = enabled;
+        self.inactive_dim_opacity = opacity;
     }
 
     /// Update visible whitespace config
@@ -2607,6 +2619,31 @@ impl WgpuRenderer {
                 render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
                 render_pass.set_vertex_buffer(0, thumb_buffer.slice(..));
                 render_pass.draw(0..rounded_verts.len() as u32, 0..1);
+            }
+
+            // === Draw inactive window dimming overlays ===
+            if self.inactive_dim_enabled && frame_glyphs.window_infos.len() > 1 {
+                let dim_color = Color::new(0.0, 0.0, 0.0, self.inactive_dim_opacity);
+                let mut dim_vertices: Vec<RectVertex> = Vec::new();
+                for info in &frame_glyphs.window_infos {
+                    if !info.selected {
+                        let b = &info.bounds;
+                        self.add_rect(&mut dim_vertices, b.x, b.y, b.width, b.height, &dim_color);
+                    }
+                }
+                if !dim_vertices.is_empty() {
+                    let dim_buffer = self.device.create_buffer_init(
+                        &wgpu::util::BufferInitDescriptor {
+                            label: Some("Inactive Dim Buffer"),
+                            contents: bytemuck::cast_slice(&dim_vertices),
+                            usage: wgpu::BufferUsages::VERTEX,
+                        },
+                    );
+                    render_pass.set_pipeline(&self.rect_pipeline);
+                    render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                    render_pass.set_vertex_buffer(0, dim_buffer.slice(..));
+                    render_pass.draw(0..dim_vertices.len() as u32, 0..1);
+                }
             }
         }
 

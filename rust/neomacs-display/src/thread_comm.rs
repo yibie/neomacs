@@ -300,6 +300,12 @@ pub enum RenderCommand {
         /// Opacity 0.0-1.0
         opacity: f32,
     },
+    /// Configure inactive window dimming
+    SetInactiveDim {
+        enabled: bool,
+        /// Dimming opacity 0.0-1.0 (how much to darken)
+        opacity: f32,
+    },
 }
 
 /// Wakeup pipe for signaling Emacs from render thread

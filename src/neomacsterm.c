@@ -8002,6 +8002,33 @@ Optional COLOR is a color string (default \"gray50\").  */)
   return on ? Qt : Qnil;
 }
 
+DEFUN ("neomacs-set-inactive-dim",
+       Fneomacs_set_inactive_dim,
+       Sneomacs_set_inactive_dim, 0, 2, 0,
+       doc: /* Configure inactive window dimming.
+ENABLED non-nil dims inactive windows with a dark overlay.
+Optional OPACITY is a number 0.0-1.0 for dimming strength (default 0.15).  */)
+  (Lisp_Object enabled, Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+
+  int on = !NILP (enabled);
+  int op = 15; /* default 0.15 */
+
+  if (NUMBERP (opacity))
+    {
+      double val = XFLOATINT (opacity);
+      if (val < 0.0) val = 0.0;
+      if (val > 1.0) val = 1.0;
+      op = (int)(val * 100.0);
+    }
+
+  neomacs_display_set_inactive_dim (dpyinfo->display_handle, on, op);
+  return on ? Qt : Qnil;
+}
+
 DEFUN ("neomacs-set-indent-guides",
        Fneomacs_set_indent_guides,
        Sneomacs_set_indent_guides, 0, 2, 0,
@@ -9261,6 +9288,7 @@ syms_of_neomacsterm (void)
   defsubr (&Sneomacs_set_indent_guides);
   defsubr (&Sneomacs_set_line_highlight);
   defsubr (&Sneomacs_set_show_whitespace);
+  defsubr (&Sneomacs_set_inactive_dim);
 
   /* Cursor blink */
   defsubr (&Sneomacs_set_cursor_blink);
