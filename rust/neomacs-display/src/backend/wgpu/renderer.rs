@@ -1391,6 +1391,28 @@ impl WgpuRenderer {
                 } => {
                     self.add_rect(&mut cursor_vertices, *x, *y, *width, *height, color);
                 }
+                FrameGlyph::ScrollBar {
+                    horizontal,
+                    x,
+                    y,
+                    width,
+                    height,
+                    thumb_start,
+                    thumb_size,
+                    track_color,
+                    thumb_color,
+                } => {
+                    // Draw scroll bar track
+                    self.add_rect(&mut cursor_vertices, *x, *y, *width, *height, track_color);
+                    // Draw scroll bar thumb
+                    if *horizontal {
+                        let tx = *x + *thumb_start;
+                        self.add_rect(&mut cursor_vertices, tx, *y, *thumb_size, *height, thumb_color);
+                    } else {
+                        let ty = *y + *thumb_start;
+                        self.add_rect(&mut cursor_vertices, *x, ty, *width, *thumb_size, thumb_color);
+                    }
+                }
                 FrameGlyph::Cursor {
                     window_id,
                     x,

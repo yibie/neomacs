@@ -412,6 +412,36 @@ pub unsafe extern "C" fn neomacs_display_draw_border(
     );
 }
 
+/// Add a GPU-rendered scroll bar
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_add_scroll_bar(
+    handle: *mut NeomacsDisplay,
+    horizontal: c_int,
+    x: c_int,
+    y: c_int,
+    width: c_int,
+    height: c_int,
+    thumb_start: c_int,
+    thumb_size: c_int,
+    track_color: u32,
+    thumb_color: u32,
+) {
+    if handle.is_null() {
+        return;
+    }
+
+    let display = &mut *handle;
+
+    display.frame_glyphs.add_scroll_bar(
+        horizontal != 0,
+        x as f32, y as f32,
+        width as f32, height as f32,
+        thumb_start as f32, thumb_size as f32,
+        Color::from_pixel(track_color),
+        Color::from_pixel(thumb_color),
+    );
+}
+
 // ============================================================================
 // Glyph Row Management
 // ============================================================================

@@ -3572,6 +3572,43 @@ neomacs_extract_full_frame (struct frame *f)
             }
         }
     }
+
+  /* Render GPU scroll bars for all active scroll bars on the frame.
+     Walk the frame's scroll bar list and emit FrameGlyph::ScrollBar
+     for each one. */
+  {
+    Lisp_Object bar;
+    struct face *sb_face = FACE_FROM_ID_OR_NULL (f, SCROLL_BAR_FACE_ID);
+    /* Scroll bar face colors: background for track, foreground for thumb */
+    unsigned long track_pixel = sb_face ? sb_face->background
+      : FRAME_BACKGROUND_PIXEL (f);
+    unsigned long thumb_pixel = sb_face ? sb_face->foreground
+      : 0x808080UL;  /* gray fallback */
+    uint32_t track_rgb = ((RED_FROM_ULONG (track_pixel) << 16)
+                          | (GREEN_FROM_ULONG (track_pixel) << 8)
+                          | BLUE_FROM_ULONG (track_pixel));
+    uint32_t thumb_rgb = ((RED_FROM_ULONG (thumb_pixel) << 16)
+                          | (GREEN_FROM_ULONG (thumb_pixel) << 8)
+                          | BLUE_FROM_ULONG (thumb_pixel));
+
+    for (bar = FRAME_SCROLL_BARS (f); !NILP (bar);
+         bar = XSCROLL_BAR (bar)->next)
+      {
+        struct scroll_bar *b = XSCROLL_BAR (bar);
+        int thumb_start = b->start;
+        int thumb_size = b->end - b->start;
+        if (thumb_size < 1)
+          thumb_size = 1;
+
+        neomacs_display_add_scroll_bar (
+            dpyinfo->display_handle,
+            b->horizontal ? 1 : 0,
+            b->left, b->top,
+            b->width, b->height,
+            thumb_start, thumb_size,
+            track_rgb, thumb_rgb);
+      }
+  }
 }
 
 /* Called at the end of updating a frame */
@@ -3806,13 +3843,96 @@ neomacs_set_window_size (struct frame *f, bool change_gravity,
  * allow Emacs to function without scroll bars while that work is completed.
  */
 
+/* Create a scroll bar pseudovector for window W */
+static struct scroll_bar *
+neomacs_scroll_bar_create (struct window *w, int top, int left,
+                           int width, int height, bool horizontal)
+{
+  struct frame *f = XFRAME (w->frame);
+  struct scroll_bar *bar
+    = ALLOCATE_PSEUDOVECTOR (struct scroll_bar, prev, PVEC_OTHER);
+  Lisp_Object barobj;
+
+  XSETWINDOW (bar->window, w);
+  bar->top = top;
+  bar->left = left;
+  bar->width = width;
+  bar->height = height;
+  bar->start = 0;
+  bar->end = 0;
+  bar->dragging = -1;
+  bar->horizontal = horizontal;
+
+  /* Link into frame's scroll bar list */
+  bar->next = FRAME_SCROLL_BARS (f);
+  bar->prev = Qnil;
+  XSETVECTOR (barobj, bar);
+  fset_scroll_bars (f, barobj);
+  if (!NILP (bar->next))
+    XSCROLL_BAR (bar->next)->prev = barobj;
+
+  return bar;
+}
+
 /* Set vertical scroll bar for window W */
 static void
 neomacs_set_vertical_scroll_bar (struct window *w, int portion, int whole,
                                  int position)
 {
-  /* TODO: Create/update GTK scroll bar widget
-     For now, this is a stub that allows Emacs to function without scroll bars */
+  struct frame *f = XFRAME (w->frame);
+  Lisp_Object barobj;
+  struct scroll_bar *bar;
+  int top, height, left, width;
+  int window_y, window_height;
+
+  /* Get window dimensions */
+  window_box (w, ANY_AREA, 0, &window_y, 0, &window_height);
+  top = window_y;
+  height = window_height;
+  left = WINDOW_SCROLL_BAR_AREA_X (w);
+  width = WINDOW_SCROLL_BAR_AREA_WIDTH (w);
+
+  if (NILP (w->vertical_scroll_bar))
+    {
+      bar = neomacs_scroll_bar_create (w, top, left, width,
+                                       max (height, 1), false);
+    }
+  else
+    {
+      bar = XSCROLL_BAR (w->vertical_scroll_bar);
+      bar->left = left;
+      bar->top = top;
+      bar->width = width;
+      bar->height = height;
+    }
+
+  /* Compute thumb position from portion/whole/position.
+     portion = visible part of buffer (in buffer positions)
+     whole = total buffer size (in buffer positions)
+     position = start of visible region (in buffer positions) */
+  if (whole > 0 && height > 0)
+    {
+      int thumb_size = (int) ((double) portion / whole * height);
+      int thumb_start = (int) ((double) position / whole * height);
+      /* Enforce minimum thumb size */
+      if (thumb_size < 10)
+        thumb_size = 10;
+      /* Clamp */
+      if (thumb_start + thumb_size > height)
+        thumb_start = height - thumb_size;
+      if (thumb_start < 0)
+        thumb_start = 0;
+      bar->start = thumb_start;
+      bar->end = thumb_start + thumb_size;
+    }
+  else
+    {
+      bar->start = 0;
+      bar->end = height;
+    }
+
+  XSETVECTOR (barobj, bar);
+  wset_vertical_scroll_bar (w, barobj);
 }
 
 /* Set horizontal scroll bar for window W */
@@ -3820,8 +3940,55 @@ static void
 neomacs_set_horizontal_scroll_bar (struct window *w, int portion, int whole,
                                    int position)
 {
-  /* TODO: Create/update GTK scroll bar widget
-     For now, this is a stub */
+  struct frame *f = XFRAME (w->frame);
+  Lisp_Object barobj;
+  struct scroll_bar *bar;
+  int top, height, left, width;
+  int window_x, window_width;
+
+  /* Get window dimensions */
+  window_box (w, ANY_AREA, &window_x, 0, &window_width, 0);
+  left = window_x;
+  width = window_width;
+  top = WINDOW_SCROLL_BAR_AREA_Y (w);
+  height = WINDOW_SCROLL_BAR_AREA_HEIGHT (w);
+
+  if (NILP (w->horizontal_scroll_bar))
+    {
+      bar = neomacs_scroll_bar_create (w, top, left, max (width, 1),
+                                       height, true);
+    }
+  else
+    {
+      bar = XSCROLL_BAR (w->horizontal_scroll_bar);
+      bar->left = left;
+      bar->top = top;
+      bar->width = width;
+      bar->height = height;
+    }
+
+  /* Compute thumb position */
+  if (whole > 0 && width > 0)
+    {
+      int thumb_size = (int) ((double) portion / whole * width);
+      int thumb_start = (int) ((double) position / whole * width);
+      if (thumb_size < 10)
+        thumb_size = 10;
+      if (thumb_start + thumb_size > width)
+        thumb_start = width - thumb_size;
+      if (thumb_start < 0)
+        thumb_start = 0;
+      bar->start = thumb_start;
+      bar->end = thumb_start + thumb_size;
+    }
+  else
+    {
+      bar->start = 0;
+      bar->end = width;
+    }
+
+  XSETVECTOR (barobj, bar);
+  wset_horizontal_scroll_bar (w, barobj);
 }
 
 /* Mark all scroll bars on FRAME for deletion */
@@ -3929,8 +4096,17 @@ neomacs_judge_scroll_bars (struct frame *f)
     {
       struct scroll_bar *b = XSCROLL_BAR (bar);
 
-      /* TODO: Actually destroy the GTK scroll bar widget here
-         For now, just unlink the scroll bar */
+      /* Clear the window's reference to this scroll bar */
+      if (!NILP (b->window))
+        {
+          struct window *w = XWINDOW (b->window);
+          if (!NILP (w->vertical_scroll_bar)
+              && XSCROLL_BAR (w->vertical_scroll_bar) == b)
+            wset_vertical_scroll_bar (w, Qnil);
+          if (!NILP (w->horizontal_scroll_bar)
+              && XSCROLL_BAR (w->horizontal_scroll_bar) == b)
+            wset_horizontal_scroll_bar (w, Qnil);
+        }
 
       next = b->next;
       b->next = b->prev = Qnil;

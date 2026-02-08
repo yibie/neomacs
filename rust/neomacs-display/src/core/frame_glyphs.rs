@@ -119,6 +119,25 @@ pub enum FrameGlyph {
         color: Color,
     },
 
+    /// Scroll bar (GPU-rendered)
+    ScrollBar {
+        /// True for horizontal, false for vertical
+        horizontal: bool,
+        /// Frame-absolute position and dimensions of the scroll bar track
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+        /// Thumb start position (pixels from track start)
+        thumb_start: f32,
+        /// Thumb size (pixels)
+        thumb_size: f32,
+        /// Track background color
+        track_color: Color,
+        /// Thumb color
+        thumb_color: Color,
+    },
+
     /// Terminal glyph (inline in buffer or window-mode)
     #[cfg(feature = "neo-term")]
     Terminal {
@@ -476,6 +495,15 @@ impl FrameGlyphBuffer {
     /// Add border
     pub fn add_border(&mut self, x: f32, y: f32, width: f32, height: f32, color: Color) {
         self.glyphs.push(FrameGlyph::Border { x, y, width, height, color });
+    }
+
+    /// Add a scroll bar glyph (GPU-rendered)
+    pub fn add_scroll_bar(&mut self, horizontal: bool, x: f32, y: f32, width: f32, height: f32,
+                          thumb_start: f32, thumb_size: f32, track_color: Color, thumb_color: Color) {
+        self.glyphs.push(FrameGlyph::ScrollBar {
+            horizontal, x, y, width, height,
+            thumb_start, thumb_size, track_color, thumb_color,
+        });
     }
 
     /// Add terminal glyph (inline or window mode)

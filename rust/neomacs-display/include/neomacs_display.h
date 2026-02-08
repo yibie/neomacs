@@ -683,6 +683,20 @@ void neomacs_display_draw_border(struct NeomacsDisplay *handle,
                                  uint32_t color);
 
 /**
+ * Add a GPU-rendered scroll bar
+ */
+void neomacs_display_add_scroll_bar(struct NeomacsDisplay *handle,
+                                    int horizontal,
+                                    int x,
+                                    int y,
+                                    int width,
+                                    int height,
+                                    int thumbStart,
+                                    int thumbSize,
+                                    uint32_t trackColor,
+                                    uint32_t thumbColor);
+
+/**
  * Begin a new glyph row for the current window
  */
 void neomacs_display_begin_row(struct NeomacsDisplay *handle,

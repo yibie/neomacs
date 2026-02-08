@@ -1017,6 +1017,28 @@ int neomacs_display_get_threaded_wakeup_fd(void);
 struct NeomacsDisplay *neomacs_display_get_threaded_handle(void);
 
 /* ============================================================================
+ * Scroll Bar API
+ * ============================================================================ */
+
+/**
+ * Add a GPU-rendered scroll bar to the current frame.
+ * @param horizontal  1 for horizontal, 0 for vertical
+ * @param x, y        Frame-absolute position of the scroll bar track
+ * @param width, height  Dimensions of the scroll bar track
+ * @param thumb_start  Thumb start position (pixels from track start)
+ * @param thumb_size   Thumb size in pixels
+ * @param track_color  Track background color (0xRRGGBB)
+ * @param thumb_color  Thumb color (0xRRGGBB)
+ */
+void neomacs_display_add_scroll_bar(struct NeomacsDisplay *handle,
+                                     int horizontal,
+                                     int x, int y,
+                                     int width, int height,
+                                     int thumb_start, int thumb_size,
+                                     uint32_t track_color,
+                                     uint32_t thumb_color);
+
+/* ============================================================================
  * Terminal (neo-term) API
  * ============================================================================ */
 
