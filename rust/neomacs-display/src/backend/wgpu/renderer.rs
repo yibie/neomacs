@@ -4449,6 +4449,151 @@ impl WgpuRenderer {
         self.render_overlay_glyphs(view, &mut overlay_glyphs, glyph_atlas);
     }
 
+    /// Render a custom title bar overlay for borderless/undecorated windows.
+    /// Draws a dark bar at the top with the window title and close/maximize/minimize buttons.
+    pub fn render_custom_titlebar(
+        &self,
+        view: &wgpu::TextureView,
+        title: &str,
+        titlebar_height: f32,
+        glyph_atlas: &mut WgpuGlyphAtlas,
+        surface_width: u32,
+        surface_height: u32,
+    ) {
+        use wgpu::util::DeviceExt;
+
+        let logical_w = surface_width as f32 / self.scale_factor;
+        let logical_h = surface_height as f32 / self.scale_factor;
+        let uniforms = Uniforms {
+            screen_size: [logical_w, logical_h],
+            _padding: [0.0, 0.0],
+        };
+        self.queue
+            .write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
+
+        let tb_h = titlebar_height;
+        let btn_w = 46.0_f32;
+
+        // Colors (sRGB → linear for Bgra8UnormSrgb surface)
+        let bg_color = Color::new(0.12, 0.12, 0.14, 0.95).srgb_to_linear();
+        let border_color = Color::new(0.25, 0.25, 0.28, 1.0).srgb_to_linear();
+        let _close_hover = Color::new(0.9, 0.2, 0.2, 0.9).srgb_to_linear();
+        let _btn_hover = Color::new(0.3, 0.3, 0.35, 0.7).srgb_to_linear();
+        let text_color = {
+            let c = Color::new(0.8, 0.8, 0.82, 1.0).srgb_to_linear();
+            [c.r, c.g, c.b, c.a]
+        };
+        let btn_icon_color = {
+            let c = Color::new(0.7, 0.7, 0.72, 1.0).srgb_to_linear();
+            [c.r, c.g, c.b, c.a]
+        };
+
+        // === Pass 1: Background and button rectangles ===
+        let mut rect_vertices: Vec<RectVertex> = Vec::new();
+
+        // Title bar background
+        self.add_rect(&mut rect_vertices, 0.0, 0.0, logical_w, tb_h, &bg_color);
+
+        // Bottom border (1px)
+        self.add_rect(&mut rect_vertices, 0.0, tb_h - 1.0, logical_w, 1.0, &border_color);
+
+        // Button hover highlights (check mouse position via stored state)
+        // We don't have mouse state here, so we render static buttons.
+        // The hover effect would require storing hover state - keep it simple for now.
+        // Close button background (subtle red hint)
+        let close_x = logical_w - btn_w;
+        let _max_x = logical_w - btn_w * 2.0;
+        let _min_x = logical_w - btn_w * 3.0;
+
+        // Subtle button separator lines
+        let sep_color = Color::new(0.2, 0.2, 0.22, 0.5).srgb_to_linear();
+        self.add_rect(&mut rect_vertices, close_x, 4.0, 1.0, tb_h - 8.0, &sep_color);
+        self.add_rect(&mut rect_vertices, _max_x, 4.0, 1.0, tb_h - 8.0, &sep_color);
+        self.add_rect(&mut rect_vertices, _min_x, 4.0, 1.0, tb_h - 8.0, &sep_color);
+
+        // Render rect pass
+        if !rect_vertices.is_empty() {
+            let rect_buffer =
+                self.device
+                    .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some("Titlebar Rect Buffer"),
+                        contents: bytemuck::cast_slice(&rect_vertices),
+                        usage: wgpu::BufferUsages::VERTEX,
+                    });
+
+            let mut encoder =
+                self.device
+                    .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                        label: Some("Titlebar Rect Encoder"),
+                    });
+            {
+                let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("Titlebar Rect Pass"),
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Load,
+                            store: wgpu::StoreOp::Store,
+                        },
+                    })],
+                    depth_stencil_attachment: None,
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
+                });
+                pass.set_pipeline(&self.rect_pipeline);
+                pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                pass.set_vertex_buffer(0, rect_buffer.slice(..));
+                pass.draw(0..rect_vertices.len() as u32, 0..1);
+            }
+            self.queue.submit(Some(encoder.finish()));
+        }
+
+        // === Pass 2: Title text and button icons ===
+        let font_size = glyph_atlas.default_font_size();
+        let char_width = font_size * 0.6;
+        let font_size_bits = 0.0_f32.to_bits();
+        let mut overlay_glyphs: Vec<(GlyphKey, f32, f32, [f32; 4])> = Vec::new();
+
+        // Center title text
+        let title_pixel_width = title.chars().count() as f32 * char_width;
+        let title_x = (logical_w - title_pixel_width) / 2.0;
+        let title_y = (tb_h - font_size) / 2.0;
+
+        for (ci, ch) in title.chars().enumerate() {
+            let key = GlyphKey {
+                charcode: ch as u32,
+                face_id: 0,
+                font_size_bits,
+            };
+            glyph_atlas.get_or_create(&self.device, &self.queue, &key, None);
+            overlay_glyphs.push((key, title_x + ci as f32 * char_width, title_y, text_color));
+        }
+
+        // Button icons: minimize (─), maximize (□), close (×)
+        let btn_center_y = (tb_h - font_size) / 2.0;
+
+        // Minimize: ─ (U+2500 or simple -)
+        let min_icon_x = _min_x + (btn_w - char_width) / 2.0;
+        let min_key = GlyphKey { charcode: 0x2500, face_id: 0, font_size_bits };
+        glyph_atlas.get_or_create(&self.device, &self.queue, &min_key, None);
+        overlay_glyphs.push((min_key, min_icon_x, btn_center_y, btn_icon_color));
+
+        // Maximize: □ (U+25A1)
+        let max_icon_x = _max_x + (btn_w - char_width) / 2.0;
+        let max_key = GlyphKey { charcode: 0x25A1, face_id: 0, font_size_bits };
+        glyph_atlas.get_or_create(&self.device, &self.queue, &max_key, None);
+        overlay_glyphs.push((max_key, max_icon_x, btn_center_y, btn_icon_color));
+
+        // Close: × (U+00D7)
+        let close_icon_x = close_x + (btn_w - char_width) / 2.0;
+        let close_key = GlyphKey { charcode: 0x00D7, face_id: 0, font_size_bits };
+        glyph_atlas.get_or_create(&self.device, &self.queue, &close_key, None);
+        overlay_glyphs.push((close_key, close_icon_x, btn_center_y, btn_icon_color));
+
+        self.render_overlay_glyphs(view, &mut overlay_glyphs, glyph_atlas);
+    }
+
     /// Render thin scroll position indicators on the right edge of each window.
     pub fn render_scroll_indicators(
         &self,

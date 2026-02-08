@@ -428,6 +428,10 @@ struct RenderApp {
     decorations_enabled: bool,
     /// Resize edge under cursor (None = not on edge)
     resize_edge: Option<winit::window::ResizeDirection>,
+    /// Window title for custom title bar
+    window_title: String,
+    /// Custom title bar height in logical pixels (0 = hidden)
+    custom_titlebar_height: f32,
 }
 
 /// State for a tooltip displayed as GPU overlay
@@ -570,6 +574,8 @@ impl RenderApp {
             scroll_indicators_enabled: true,
             decorations_enabled: true,
             resize_edge: None,
+            window_title: String::from("neomacs"),
+            custom_titlebar_height: 30.0,
         }
     }
 
@@ -976,8 +982,12 @@ impl RenderApp {
                     }
                 }
                 RenderCommand::SetWindowTitle { title } => {
+                    self.window_title = title.clone();
                     if let Some(ref window) = self.window {
                         window.set_title(&title);
+                    }
+                    if !self.decorations_enabled {
+                        self.frame_dirty = true;
                     }
                 }
                 RenderCommand::SetWindowFullscreen { mode } => {
@@ -1021,6 +1031,7 @@ impl RenderApp {
                     if let Some(ref window) = self.window {
                         window.set_decorations(decorated);
                     }
+                    self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorBlink { enabled, interval_ms } => {
                     log::debug!("Cursor blink: enabled={}, interval={}ms", enabled, interval_ms);
@@ -2360,6 +2371,22 @@ impl RenderApp {
             }
         }
 
+        // Render custom title bar when decorations are disabled
+        if !self.decorations_enabled && self.custom_titlebar_height > 0.0 {
+            if let (Some(ref renderer), Some(ref mut glyph_atlas)) =
+                (&self.renderer, &mut self.glyph_atlas)
+            {
+                renderer.render_custom_titlebar(
+                    &surface_view,
+                    &self.window_title,
+                    self.custom_titlebar_height,
+                    glyph_atlas,
+                    self.width,
+                    self.height,
+                );
+            }
+        }
+
         // Render floating WebKit overlays on top of everything
         #[cfg(feature = "wpe-webkit")]
         if !self.floating_webkits.is_empty() {
@@ -2516,6 +2543,36 @@ impl RenderApp {
             (_, _, true, _) => Some(ResizeDirection::North),
             (_, _, _, true) => Some(ResizeDirection::South),
             _ => None,
+        }
+    }
+
+    /// Title bar button width in logical pixels.
+    const TITLEBAR_BUTTON_WIDTH: f32 = 46.0;
+
+    /// Check if a point is in the custom title bar area.
+    /// Returns: 0 = not in title bar, 1 = drag area, 2 = close, 3 = maximize, 4 = minimize
+    fn titlebar_hit_test(&self, x: f32, y: f32) -> u32 {
+        if self.decorations_enabled || self.custom_titlebar_height <= 0.0 {
+            return 0;
+        }
+        let w = self.width as f32 / self.scale_factor as f32;
+        let tb_h = self.custom_titlebar_height;
+        if y >= tb_h {
+            return 0; // Below title bar
+        }
+        // Buttons are on the right: [minimize] [maximize] [close]
+        let btn_w = Self::TITLEBAR_BUTTON_WIDTH;
+        let close_x = w - btn_w;
+        let max_x = w - btn_w * 2.0;
+        let min_x = w - btn_w * 3.0;
+        if x >= close_x {
+            2 // Close
+        } else if x >= max_x {
+            3 // Maximize
+        } else if x >= min_x {
+            4 // Minimize
+        } else {
+            1 // Drag area
         }
     }
 }
@@ -2696,6 +2753,40 @@ impl ApplicationHandler for RenderApp {
                         (self.resize_edge, self.window.as_ref())
                     {
                         let _ = window.drag_resize_window(dir);
+                    }
+                } else if state == ElementState::Pressed
+                    && button == MouseButton::Left
+                    && self.titlebar_hit_test(self.mouse_pos.0, self.mouse_pos.1) > 0
+                {
+                    // Custom title bar click
+                    match self.titlebar_hit_test(self.mouse_pos.0, self.mouse_pos.1) {
+                        1 => {
+                            // Drag area
+                            if let Some(ref window) = self.window {
+                                let _ = window.drag_window();
+                            }
+                        }
+                        2 => {
+                            // Close button
+                            self.comms.send_input(InputEvent::WindowClose);
+                        }
+                        3 => {
+                            // Maximize/restore toggle
+                            if let Some(ref window) = self.window {
+                                if window.is_maximized() {
+                                    window.set_maximized(false);
+                                } else {
+                                    window.set_maximized(true);
+                                }
+                            }
+                        }
+                        4 => {
+                            // Minimize
+                            if let Some(ref window) = self.window {
+                                window.set_minimized(true);
+                            }
+                        }
+                        _ => {}
                     }
                 } else if state == ElementState::Pressed
                     && button == MouseButton::Left
