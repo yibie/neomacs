@@ -1558,10 +1558,11 @@ impl WgpuRenderer {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: bg.r as f64,
-                            g: bg.g as f64,
-                            b: bg.b as f64,
-                            a: 1.0,
+                            // Pre-multiply RGB by alpha for correct compositing
+                            r: (bg.r * bg.a) as f64,
+                            g: (bg.g * bg.a) as f64,
+                            b: (bg.b * bg.a) as f64,
+                            a: bg.a as f64,
                         }),
                         store: wgpu::StoreOp::Store,
                     },

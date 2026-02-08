@@ -615,13 +615,19 @@ impl RenderApp {
             .find(|f| f.is_srgb())
             .unwrap_or(caps.formats[0]);
 
+        // Prefer PreMultiplied alpha for window transparency support
+        let alpha_mode = if caps.alpha_modes.contains(&wgpu::CompositeAlphaMode::PreMultiplied) {
+            wgpu::CompositeAlphaMode::PreMultiplied
+        } else {
+            caps.alpha_modes[0]
+        };
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format,
             width: self.width,
             height: self.height,
             present_mode: wgpu::PresentMode::Fifo, // VSync
-            alpha_mode: caps.alpha_modes[0],
+            alpha_mode,
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
         };
@@ -2402,7 +2408,8 @@ impl ApplicationHandler for RenderApp {
             // Use LogicalSize so winit applies the display scale
             let attrs = Window::default_attributes()
                 .with_title(&self.title)
-                .with_inner_size(winit::dpi::LogicalSize::new(self.width, self.height));
+                .with_inner_size(winit::dpi::LogicalSize::new(self.width, self.height))
+                .with_transparent(true);
 
             match event_loop.create_window(attrs) {
                 Ok(window) => {
