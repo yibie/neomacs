@@ -362,10 +362,6 @@ extern void neomacs_scroll_run (struct window *, struct run *);
 /* Expose */
 extern void neomacs_expose_frame (struct frame *);
 
-/* Mouse */
-extern void neomacs_frame_up_to_date (struct frame *);
-extern void neomacs_focus_frame (struct frame *, bool);
-
 /* Event queue for input events */
 extern void neomacs_evq_enqueue (union buffered_input_event *ev);
 

@@ -97,6 +97,21 @@ static void neomacs_mouse_position (struct frame **fp, int insist,
                                     enum scroll_bar_part *part,
                                     Lisp_Object *x, Lisp_Object *y,
                                     Time *timestamp);
+static void neomacs_ring_bell (struct frame *f);
+static void neomacs_toggle_invisible_pointer (struct frame *f, bool invisible);
+static void neomacs_frame_up_to_date (struct frame *f);
+static void neomacs_frame_rehighlight (struct neomacs_display_info *dpyinfo);
+static void neomacs_frame_rehighlight_hook (struct frame *f);
+static void neomacs_frame_raise_lower (struct frame *f, bool raise_flag);
+static void neomacs_fullscreen_hook (struct frame *f);
+static void neomacs_iconify_frame (struct frame *f);
+static void neomacs_implicit_set_name (struct frame *f, Lisp_Object arg,
+                                       Lisp_Object oldval);
+static void neomacs_set_frame_offset (struct frame *f, int xoff, int yoff,
+                                      int change_gravity);
+static void neomacs_delete_frame (struct frame *f);
+static void neomacs_focus_frame (struct frame *f, bool noactivate);
+static void neomacs_buffer_flipping_unblocked (struct frame *f);
 static uint32_t neomacs_get_or_load_image (struct neomacs_display_info *dpyinfo,
                                            struct image *img);
 
@@ -454,6 +469,20 @@ neomacs_create_terminal (struct neomacs_display_info *dpyinfo)
   terminal->set_scroll_bar_default_width_hook = neomacs_set_scroll_bar_default_width;
   terminal->set_scroll_bar_default_height_hook = neomacs_set_scroll_bar_default_height;
   terminal->mouse_position_hook = neomacs_mouse_position;
+
+  /* Frame management hooks */
+  terminal->ring_bell_hook = neomacs_ring_bell;
+  terminal->toggle_invisible_pointer_hook = neomacs_toggle_invisible_pointer;
+  terminal->frame_up_to_date_hook = neomacs_frame_up_to_date;
+  terminal->frame_rehighlight_hook = neomacs_frame_rehighlight_hook;
+  terminal->frame_raise_lower_hook = neomacs_frame_raise_lower;
+  terminal->fullscreen_hook = neomacs_fullscreen_hook;
+  terminal->iconify_frame_hook = neomacs_iconify_frame;
+  terminal->implicit_set_name_hook = neomacs_implicit_set_name;
+  terminal->set_frame_offset_hook = neomacs_set_frame_offset;
+  terminal->delete_frame_hook = neomacs_delete_frame;
+  terminal->focus_frame_hook = neomacs_focus_frame;
+  terminal->buffer_flipping_unblocked_hook = neomacs_buffer_flipping_unblocked;
 
   /* Register the display connection fd for event handling */
   if (dpyinfo->connection >= 0)
@@ -5592,27 +5621,195 @@ neomacs_expose_frame (struct frame *f)
 }
 
 /* Called when frame is fully up to date */
-void
+static void
 neomacs_frame_up_to_date (struct frame *f)
 {
-  /* Nothing special needed */
+  /* Nothing special needed for neomacs.  The frame has already been
+     sent to the render thread in update_end.  */
 }
 
 
 /* ============================================================================
- * Focus Management
+ * Focus and Frame Management
  * ============================================================================ */
 
-/* Change focus to frame */
-void
-neomacs_focus_frame (struct frame *f, bool raise_flag)
+/* Highlight/unhighlight frame (update cursor appearance).  */
+static void
+neomacs_frame_highlight (struct frame *f)
+{
+  gui_update_cursor (f, true);
+}
+
+static void
+neomacs_frame_unhighlight (struct frame *f)
+{
+  gui_update_cursor (f, true);
+}
+
+/* Recompute which frame should be highlighted based on focus state.  */
+static void
+neomacs_frame_rehighlight (struct neomacs_display_info *dpyinfo)
+{
+  struct frame *old_highlight = dpyinfo->highlight_frame;
+
+  if (dpyinfo->x_focus_frame)
+    {
+      dpyinfo->highlight_frame
+        = ((FRAMEP (FRAME_FOCUS_FRAME (dpyinfo->x_focus_frame)))
+           ? XFRAME (FRAME_FOCUS_FRAME (dpyinfo->x_focus_frame))
+           : dpyinfo->x_focus_frame);
+      if (!FRAME_LIVE_P (dpyinfo->highlight_frame))
+        {
+          fset_focus_frame (dpyinfo->x_focus_frame, Qnil);
+          dpyinfo->highlight_frame = dpyinfo->x_focus_frame;
+        }
+    }
+  else
+    dpyinfo->highlight_frame = 0;
+
+  if (old_highlight)
+    neomacs_frame_unhighlight (old_highlight);
+  if (dpyinfo->highlight_frame)
+    neomacs_frame_highlight (dpyinfo->highlight_frame);
+}
+
+static void
+neomacs_frame_rehighlight_hook (struct frame *frame)
+{
+  neomacs_frame_rehighlight (FRAME_DISPLAY_INFO (frame));
+}
+
+/* Change focus to frame F.  */
+static void
+neomacs_focus_frame (struct frame *f, bool noactivate)
 {
   struct neomacs_display_info *dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
 
   if (!dpyinfo)
     return;
 
+  dpyinfo->x_focus_frame = f;
   dpyinfo->focus_frame = f;
+  neomacs_frame_rehighlight (dpyinfo);
+}
+
+/* Raise or lower frame F.  */
+static void
+neomacs_frame_raise_lower (struct frame *f, bool raise_flag)
+{
+  /* With a single-window GPU renderer, raise/lower is mostly a no-op.
+     We just ensure the frame is visible when raising.  */
+  if (raise_flag)
+    {
+      if (!FRAME_VISIBLE_P (f))
+        neomacs_make_frame_visible_invisible (f, true);
+    }
+}
+
+/* Fullscreen handling.  */
+static void
+neomacs_fullscreen_hook (struct frame *f)
+{
+  /* TODO: Send fullscreen command to render thread when supported.  */
+  f->want_fullscreen = FULLSCREEN_NONE;
+}
+
+/* Iconify (minimize) frame.  */
+static void
+neomacs_iconify_frame (struct frame *f)
+{
+  /* TODO: Send iconify command to render thread when supported.  */
+  SET_FRAME_ICONIFIED (f, true);
+  SET_FRAME_VISIBLE (f, 0);
+}
+
+/* Set frame title implicitly (from buffer name, etc.).  */
+static void
+neomacs_implicit_set_name (struct frame *f, Lisp_Object arg,
+                           Lisp_Object oldval)
+{
+  /* TODO: Send title to render thread when supported.
+     For now, just store it in the frame.  */
+  if (FRAME_NEOMACS_P (f) && !NILP (arg))
+    fset_name (f, arg);
+}
+
+/* Set frame offset/position.  */
+static void
+neomacs_set_frame_offset (struct frame *f, int xoff, int yoff,
+                          int change_gravity)
+{
+  /* TODO: Send position to render thread when supported.  */
+  if (change_gravity > 0)
+    {
+      f->top_pos = yoff;
+      f->left_pos = xoff;
+      f->size_hint_flags &= ~(XNegative | YNegative);
+      if (xoff < 0)
+        f->size_hint_flags |= XNegative;
+      if (yoff < 0)
+        f->size_hint_flags |= YNegative;
+      f->win_gravity = NorthWestGravity;
+    }
+}
+
+/* Delete/destroy a frame.  */
+static void
+neomacs_delete_frame (struct frame *f)
+{
+  struct neomacs_output *output = FRAME_NEOMACS_OUTPUT (f);
+  struct neomacs_display_info *dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
+
+  if (!output || !dpyinfo)
+    return;
+
+  /* Clean up display info references to this frame.  */
+  if (dpyinfo->focus_frame == f)
+    dpyinfo->focus_frame = NULL;
+  if (dpyinfo->x_focus_frame == f)
+    dpyinfo->x_focus_frame = NULL;
+  if (dpyinfo->highlight_frame == f)
+    dpyinfo->highlight_frame = NULL;
+  if (dpyinfo->x_highlight_frame == f)
+    dpyinfo->x_highlight_frame = NULL;
+  if (dpyinfo->last_mouse_frame == f)
+    dpyinfo->last_mouse_frame = NULL;
+  if (dpyinfo->last_mouse_motion_frame == f)
+    dpyinfo->last_mouse_motion_frame = NULL;
+  if (dpyinfo->last_mouse_glyph_frame == f)
+    dpyinfo->last_mouse_glyph_frame = NULL;
+}
+
+/* Ring the bell (visual flash).  */
+static void
+neomacs_ring_bell (struct frame *f)
+{
+  /* For now, use GDK beep if available.  */
+  struct neomacs_display_info *dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
+  if (dpyinfo && dpyinfo->gdpy)
+    gdk_display_beep (dpyinfo->gdpy);
+}
+
+/* Toggle invisible mouse pointer.  */
+static void
+neomacs_toggle_invisible_pointer (struct frame *f, bool invisible)
+{
+  /* TODO: Send pointer visibility to render thread when supported.
+     For now, just track the state.  */
+  if (invisible)
+    neomacs_display_set_mouse_cursor (
+      FRAME_NEOMACS_DISPLAY_INFO (f)->display_handle, 0);
+  else
+    neomacs_define_frame_cursor (f, FRAME_OUTPUT_DATA (f)->current_cursor);
+}
+
+/* Called when buffer flipping becomes unblocked.  */
+static void
+neomacs_buffer_flipping_unblocked (struct frame *f)
+{
+  /* Nothing needed — neomacs doesn't use double-buffered flipping
+     at the Emacs level (the GPU renderer handles its own
+     double-buffering).  */
 }
 
 
