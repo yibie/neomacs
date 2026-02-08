@@ -5,6 +5,7 @@
 //! produces FrameGlyphBuffer compatible with the existing wgpu renderer.
 
 use std::ffi::CStr;
+use std::ffi::c_int;
 
 use crate::core::frame_glyphs::FrameGlyphBuffer;
 use crate::core::types::{Color, Rect};
@@ -108,6 +109,7 @@ impl LayoutEngine {
                 escape_glyph_fg: wp.escape_glyph_fg,
                 nobreak_char_display: wp.nobreak_char_display,
                 nobreak_char_fg: wp.nobreak_char_fg,
+                glyphless_char_fg: wp.glyphless_char_fg,
                 wrap_prefix: if wp.wrap_prefix_len > 0 {
                     wp.wrap_prefix[..wp.wrap_prefix_len as usize].to_vec()
                 } else {
@@ -143,7 +145,7 @@ impl LayoutEngine {
             );
 
             // Layout this window's content
-            self.layout_window(&params, &wp, frame_glyphs);
+            self.layout_window(&params, &wp, frame, frame_glyphs);
 
             // Draw vertical border on right side if window doesn't reach frame edge
             let right_edge = params.bounds.x + params.bounds.width;
@@ -223,6 +225,7 @@ impl LayoutEngine {
         &mut self,
         params: &WindowParams,
         wp: &WindowParamsFFI,
+        frame: EmacsFrame,
         frame_glyphs: &mut FrameGlyphBuffer,
     ) {
         let buffer = wp.buffer_ptr;
@@ -1111,8 +1114,9 @@ impl LayoutEngine {
                     }
                     // Otherwise: carriage return is just skipped
                 }
-                _ if ch < ' ' => {
+                _ if ch < ' ' || ch == '\x7F' => {
                     // Control character: display as ^X (2 columns)
+                    // DEL (0x7F) displays as ^?
                     // Use escape-glyph face for control char display
                     let escape_fg = Color::from_pixel(params.escape_glyph_fg);
                     frame_glyphs.set_face(
@@ -1123,10 +1127,11 @@ impl LayoutEngine {
                     let gx = content_x + col as f32 * char_w;
                     let gy = text_y + row as f32 * char_h;
 
+                    let ctrl_ch = if ch == '\x7F' { '?' } else { char::from((ch as u8) + b'@') };
                     if col + 2 <= cols {
                         frame_glyphs.add_char('^', gx, gy, char_w, char_h, ascent, false);
                         frame_glyphs.add_char(
-                            char::from((ch as u8) + b'@'),
+                            ctrl_ch,
                             gx + char_w,
                             gy,
                             char_w,
@@ -1194,6 +1199,102 @@ impl LayoutEngine {
                         // Don't advance column
                         window_end_charpos = charpos;
                         continue;
+                    }
+
+                    // Glyphless character check for C1 control and other
+                    // non-printable chars
+                    if is_potentially_glyphless(ch) {
+                        let mut method: c_int = 0;
+                        let mut str_buf = [0u8; 64];
+                        let mut str_len: c_int = 0;
+                        neomacs_layout_check_glyphless(
+                            frame,
+                            ch as c_int,
+                            &mut method,
+                            str_buf.as_mut_ptr(),
+                            64,
+                            &mut str_len,
+                        );
+                        if method != 0 {
+                            let glyph_fg = Color::from_pixel(params.glyphless_char_fg);
+                            frame_glyphs.set_face(
+                                0, glyph_fg, Some(face_bg),
+                                false, false, 0, None, 0, None, 0, None,
+                            );
+                            let gx = content_x + col as f32 * char_w;
+                            let gy = text_y + row as f32 * char_h;
+                            match method {
+                                1 => {
+                                    // thin-space: 1-pixel-wide stretch
+                                    frame_glyphs.add_stretch(
+                                        gx, gy, 1.0, char_h,
+                                        face_bg, 0, false,
+                                    );
+                                }
+                                2 => {
+                                    // empty-box: render as hollow box char
+                                    if col < cols {
+                                        frame_glyphs.add_char(
+                                            '\u{25A1}', gx, gy,
+                                            char_w, char_h, ascent, false,
+                                        );
+                                        col += 1;
+                                    }
+                                }
+                                3 => {
+                                    // hex-code: render as [U+XXXX]
+                                    let hex = if (ch as u32) < 0x10000 {
+                                        format!("U+{:04X}", ch as u32)
+                                    } else {
+                                        format!("U+{:06X}", ch as u32)
+                                    };
+                                    let needed = hex.len() as i32;
+                                    if col + needed <= cols {
+                                        for (i, hch) in hex.chars().enumerate() {
+                                            frame_glyphs.add_char(
+                                                hch,
+                                                gx + i as f32 * char_w,
+                                                gy, char_w, char_h, ascent, false,
+                                            );
+                                        }
+                                        col += needed;
+                                    } else if col < cols {
+                                        col = cols; // truncate
+                                    }
+                                }
+                                4 => {
+                                    // acronym: render the string
+                                    if str_len > 0 {
+                                        let s = std::str::from_utf8_unchecked(
+                                            &str_buf[..str_len as usize],
+                                        );
+                                        let needed = s.len() as i32;
+                                        if col + needed <= cols {
+                                            for (i, ach) in s.chars().enumerate() {
+                                                frame_glyphs.add_char(
+                                                    ach,
+                                                    gx + i as f32 * char_w,
+                                                    gy, char_w, char_h, ascent, false,
+                                                );
+                                            }
+                                            col += needed;
+                                        } else if col < cols {
+                                            col = cols;
+                                        }
+                                    }
+                                }
+                                5 => {
+                                    // zero-width: skip entirely
+                                }
+                                _ => {}
+                            }
+                            // Restore face
+                            if current_face_id >= 0 {
+                                self.apply_face(&self.face_data, frame_glyphs);
+                            }
+                            window_end_charpos = charpos;
+                            continue;
+                        }
                     }
 
                     // Track word-wrap breakpoints: after space/tab
@@ -1723,4 +1824,26 @@ fn is_wide_char(ch: char) -> bool {
     || (0x3040..=0x309F).contains(&cp)
     || (0x30A0..=0x30FF).contains(&cp)
     || (0x31F0..=0x31FF).contains(&cp)
+}
+
+/// Check if a character is potentially glyphless and should be looked up
+/// in the glyphless-char-display char-table.
+/// This is a fast pre-filter — only chars in these ranges trigger the FFI call.
+fn is_potentially_glyphless(ch: char) -> bool {
+    let cp = ch as u32;
+    // C1 control characters (0x80-0x9F)
+    (0x80..=0x9F).contains(&cp)
+    // Soft hyphen (sometimes glyphless)
+    || cp == 0xAD
+    // Unicode format/control characters
+    || (0x200B..=0x200F).contains(&cp)  // ZWSP, ZWNJ, ZWJ, LRM, RLM
+    || (0x202A..=0x202E).contains(&cp)  // bidi embedding
+    || (0x2060..=0x2069).contains(&cp)  // word joiner, invisible separators
+    || (0x2028..=0x2029).contains(&cp)  // line/paragraph separator
+    || cp == 0xFEFF                      // BOM / ZWNBSP
+    || (0xFFF0..=0xFFFD).contains(&cp)  // specials (interlinear annotation, replacement)
+    // Emacs raw bytes (BYTE8 encoding: 0x3FFF80..0x3FFFFF)
+    || (0x3FFF80..=0x3FFFFF).contains(&cp)
+    // Unassigned/private use — only very high ranges
+    || (0xE0000..=0xE007F).contains(&cp)  // tags block
 }

@@ -260,6 +260,24 @@ extern "C" {
         after_buf_len: c_int,
         after_len_out: *mut c_int,
     ) -> c_int;
+
+    // ========================================================================
+    // Glyphless characters
+    // ========================================================================
+
+    /// Check if a character should display as a glyphless glyph.
+    /// Looks up Vglyphless_char_display char-table.
+    /// method_out: 0=normal, 1=thin_space, 2=empty_box, 3=hex_code,
+    ///             4=acronym, 5=zero_width.
+    /// For method=4 (acronym), writes the string into str_buf.
+    pub fn neomacs_layout_check_glyphless(
+        frame: EmacsFrame,
+        codepoint: c_int,
+        method_out: *mut c_int,
+        str_buf: *mut u8,
+        str_buf_len: c_int,
+        str_len_out: *mut c_int,
+    ) -> c_int;
 }
 
 /// FFI-safe line number configuration struct.
@@ -403,6 +421,8 @@ pub struct WindowParamsFFI {
     pub nobreak_char_display: c_int,
     /// nobreak-char face foreground color
     pub nobreak_char_fg: u32,
+    /// glyphless-char face foreground color
+    pub glyphless_char_fg: u32,
     /// wrap-prefix: string rendered at start of continuation lines
     pub wrap_prefix: [u8; 128],
     pub wrap_prefix_len: c_int,

@@ -1148,6 +1148,8 @@ struct neomacs_window_params_ffi {
   int nobreak_char_display;
   /* nobreak-char face foreground color */
   uint32_t nobreak_char_fg;
+  /* glyphless-char face foreground color */
+  uint32_t glyphless_char_fg;
   /* wrap-prefix: string rendered at start of continuation lines */
   uint8_t wrap_prefix[128];
   int wrap_prefix_len;
@@ -1443,6 +1445,24 @@ neomacs_layout_get_window_params (void *frame_ptr, int window_index,
             }
         }
     }
+
+  /* glyphless-char face for unrenderable characters */
+  params->glyphless_char_fg = params->default_fg;
+  {
+    int gc_face_id = lookup_named_face (w, f, Qglyphless_char, false);
+    if (gc_face_id >= 0)
+      {
+        struct face *gc_face = FACE_FROM_ID_OR_NULL (f, gc_face_id);
+        if (gc_face)
+          {
+            unsigned long fg = gc_face->foreground;
+            params->glyphless_char_fg
+              = (uint32_t) ((RED_FROM_ULONG (fg) << 16)
+                            | (GREEN_FROM_ULONG (fg) << 8)
+                            | BLUE_FROM_ULONG (fg));
+          }
+      }
+  }
 
   /* selective-display: when a fixnum, hide lines indented deeper */
   params->selective_display = 0;
@@ -2473,6 +2493,72 @@ neomacs_layout_overlay_strings_at (void *buffer_ptr, void *window_ptr,
   *after_len_out = after_offset;
 
   set_buffer_internal_1 (old);
+  return 0;
+}
+
+/* Check if a character should be displayed as a glyphless glyph.
+   Looks up Vglyphless_char_display char-table.
+   Returns 0 on success, -1 on error.
+   method_out: 0=normal, 1=thin_space, 2=empty_box, 3=hex_code,
+               4=acronym, 5=zero_width.
+   For method=4 (acronym), writes the acronym string into str_buf. */
+int
+neomacs_layout_check_glyphless (void *frame_ptr, int codepoint,
+                                int *method_out,
+                                uint8_t *str_buf, int str_buf_len,
+                                int *str_len_out)
+{
+  struct frame *f = frame_ptr ? (struct frame *) frame_ptr : NULL;
+  *method_out = 0;
+  *str_len_out = 0;
+
+  if (!CHAR_TABLE_P (Vglyphless_char_display))
+    return 0;
+
+  if (CHAR_TABLE_EXTRA_SLOTS (XCHAR_TABLE (Vglyphless_char_display)) < 1)
+    return 0;
+
+  Lisp_Object glyphless_method;
+  if (codepoint >= 0)
+    glyphless_method = CHAR_TABLE_REF (Vglyphless_char_display, codepoint);
+  else
+    glyphless_method = XCHAR_TABLE (Vglyphless_char_display)->extras[0];
+
+  /* Handle (GRAPHICAL . TEXT) cons cells */
+  if (CONSP (glyphless_method))
+    {
+      if (f && FRAME_WINDOW_P (f))
+        glyphless_method = XCAR (glyphless_method);
+      else
+        glyphless_method = XCDR (glyphless_method);
+    }
+
+  if (NILP (glyphless_method))
+    {
+      *method_out = 0;
+      return 0;
+    }
+
+  if (EQ (glyphless_method, Qthin_space))
+    *method_out = 1;
+  else if (EQ (glyphless_method, Qempty_box))
+    *method_out = 2;
+  else if (EQ (glyphless_method, Qhex_code))
+    *method_out = 3;
+  else if (EQ (glyphless_method, Qzero_width))
+    *method_out = 5;
+  else if (STRINGP (glyphless_method))
+    {
+      *method_out = 4;
+      ptrdiff_t slen = SBYTES (glyphless_method);
+      ptrdiff_t copy = slen < str_buf_len - 1 ? slen : str_buf_len - 1;
+      memcpy (str_buf, SDATA (glyphless_method), copy);
+      str_buf[copy] = 0;
+      *str_len_out = (int) copy;
+    }
+  else
+    *method_out = 2; /* unknown method -> empty-box */
+
   return 0;
 }
 

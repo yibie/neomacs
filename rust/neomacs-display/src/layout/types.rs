@@ -213,6 +213,8 @@ pub struct WindowParams {
     pub nobreak_char_display: i32,
     /// nobreak-char face foreground color
     pub nobreak_char_fg: u32,
+    /// glyphless-char face foreground color
+    pub glyphless_char_fg: u32,
     /// wrap-prefix: bytes rendered at start of continuation lines
     pub wrap_prefix: Vec<u8>,
     /// line-prefix: bytes rendered at start of all visual lines
