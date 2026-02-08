@@ -634,6 +634,21 @@ void neomacs_display_show_popup_menu(struct NeomacsDisplay *handle,
 void neomacs_display_hide_popup_menu(struct NeomacsDisplay *handle);
 
 /**
+ * Show a tooltip at position (x, y) with the given text and colors.
+ * Colors are in sRGB float format (0.0-1.0).
+ */
+void neomacs_display_show_tooltip(struct NeomacsDisplay *handle,
+                                   float x, float y,
+                                   const char *text,
+                                   float fg_r, float fg_g, float fg_b,
+                                   float bg_r, float bg_g, float bg_b);
+
+/**
+ * Hide the active tooltip.
+ */
+void neomacs_display_hide_tooltip(struct NeomacsDisplay *handle);
+
+/**
  * Set the window title (threaded mode - sends to render thread)
  */
 void neomacs_display_set_title(struct NeomacsDisplay *handle,

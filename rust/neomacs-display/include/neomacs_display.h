@@ -1046,6 +1046,25 @@ void neomacs_display_show_popup_menu(struct NeomacsDisplay *handle,
 void neomacs_display_hide_popup_menu(struct NeomacsDisplay *handle);
 
 /**
+ * Show a tooltip at the given position with specified colors.
+ */
+void neomacs_display_show_tooltip(struct NeomacsDisplay *handle,
+                                  float x,
+                                  float y,
+                                  const char *text,
+                                  float fgR,
+                                  float fgG,
+                                  float fgB,
+                                  float bgR,
+                                  float bgG,
+                                  float bgB);
+
+/**
+ * Hide the active tooltip.
+ */
+void neomacs_display_hide_tooltip(struct NeomacsDisplay *handle);
+
+/**
  * Set the window title (threaded mode)
  */
 void neomacs_display_set_title(struct NeomacsDisplay *handle, const char *title);

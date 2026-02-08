@@ -2252,7 +2252,7 @@ DEFUN ("x-show-tip", Fx_show_tip, Sx_show_tip, 1, 6, 0,
 
   if (NILP (frame))
     frame = selected_frame;
-  decode_window_system_frame (frame);
+  struct frame *f = decode_window_system_frame (frame);
 
   if (NILP (timeout))
     timeout = Vx_show_tooltip_timeout;
@@ -2275,10 +2275,39 @@ DEFUN ("x-show-tip", Fx_show_tip, Sx_show_tip, 1, 6, 0,
   tip_last_string = string;
   tip_last_parms = parms;
 
-  /* Display tooltip text via echo area message.
-     This is a temporary implementation until GPU overlay tooltips
-     are added.  */
-  message_with_string ("%s", string, false);
+  /* Get tooltip colors from the "tooltip" face.  */
+  float fg_r = 0.9f, fg_g = 0.9f, fg_b = 0.9f;
+  float bg_r = 0.15f, bg_g = 0.15f, bg_b = 0.18f;
+
+  int tooltip_face_id = lookup_named_face (NULL, f, intern ("tooltip"), false);
+  if (tooltip_face_id >= 0)
+    {
+      struct face *tooltip_face = FACE_FROM_ID_OR_NULL (f, tooltip_face_id);
+      if (tooltip_face)
+        {
+          unsigned long fg = tooltip_face->foreground;
+          unsigned long bg = tooltip_face->background;
+          fg_r = ((fg >> 16) & 0xff) / 255.0f;
+          fg_g = ((fg >> 8) & 0xff) / 255.0f;
+          fg_b = (fg & 0xff) / 255.0f;
+          bg_r = ((bg >> 16) & 0xff) / 255.0f;
+          bg_g = ((bg >> 8) & 0xff) / 255.0f;
+          bg_b = (bg & 0xff) / 255.0f;
+        }
+    }
+
+  /* Get mouse position from display info.  */
+  struct neomacs_display_info *dpyinfo = FRAME_DISPLAY_INFO (f);
+  float tip_x = (float) dpyinfo->last_mouse_motion_x + XFIXNUM (dx);
+  float tip_y = (float) dpyinfo->last_mouse_motion_y + XFIXNUM (dy);
+
+  /* Show GPU overlay tooltip.  */
+  const char *text = SSDATA (ENCODE_UTF_8 (string));
+  if (dpyinfo->display_handle)
+    neomacs_display_show_tooltip (dpyinfo->display_handle,
+                                  tip_x, tip_y, text,
+                                  fg_r, fg_g, fg_b,
+                                  bg_r, bg_g, bg_b);
   tip_showing = true;
 
   /* Let the tip disappear after timeout seconds.  */
@@ -2303,8 +2332,14 @@ Value is t if tooltip was open, nil otherwise.  */)
 
   if (tip_showing)
     {
-      /* Clear echo area.  */
-      message1 (NULL);
+      /* Hide GPU overlay tooltip.  */
+      struct frame *f = SELECTED_FRAME ();
+      if (FRAME_NEOMACS_P (f))
+        {
+          struct neomacs_display_info *dpyinfo = FRAME_DISPLAY_INFO (f);
+          if (dpyinfo->display_handle)
+            neomacs_display_hide_tooltip (dpyinfo->display_handle);
+        }
       tip_showing = false;
       was_open = Qt;
     }

@@ -4124,6 +4124,109 @@ impl WgpuRenderer {
         }
         self.queue.submit(Some(encoder.finish()));
     }
+
+    /// Render a tooltip overlay on top of the scene.
+    pub fn render_tooltip(
+        &self,
+        view: &wgpu::TextureView,
+        tooltip: &crate::render_thread::TooltipState,
+        glyph_atlas: &mut WgpuGlyphAtlas,
+        surface_width: u32,
+        surface_height: u32,
+    ) {
+        use wgpu::util::DeviceExt;
+
+        let logical_w = surface_width as f32 / self.scale_factor;
+        let logical_h = surface_height as f32 / self.scale_factor;
+        let uniforms = Uniforms {
+            screen_size: [logical_w, logical_h],
+            _padding: [0.0, 0.0],
+        };
+        self.queue
+            .write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
+
+        let (tx, ty, tw, th) = tooltip.bounds;
+
+        // Convert user-specified colors to linear space (surface is sRGB)
+        let bg_color = Color::new(tooltip.bg.0, tooltip.bg.1, tooltip.bg.2, 0.95).srgb_to_linear();
+        let border_color = Color::new(
+            (tooltip.bg.0 * 0.6 + 0.15).min(1.0),
+            (tooltip.bg.1 * 0.6 + 0.15).min(1.0),
+            (tooltip.bg.2 * 0.6 + 0.15).min(1.0),
+            1.0,
+        ).srgb_to_linear();
+        let text_color = {
+            let c = Color::new(tooltip.fg.0, tooltip.fg.1, tooltip.fg.2, 1.0).srgb_to_linear();
+            [c.r, c.g, c.b, c.a]
+        };
+
+        // === Pass 1: Background and border rectangles ===
+        let mut rect_vertices: Vec<RectVertex> = Vec::new();
+
+        // Background
+        self.add_rect(&mut rect_vertices, tx, ty, tw, th, &bg_color);
+
+        // Border (1px)
+        let bw = 1.0_f32;
+        self.add_rect(&mut rect_vertices, tx, ty, tw, bw, &border_color); // top
+        self.add_rect(&mut rect_vertices, tx, ty + th - bw, tw, bw, &border_color); // bottom
+        self.add_rect(&mut rect_vertices, tx, ty, bw, th, &border_color); // left
+        self.add_rect(&mut rect_vertices, tx + tw - bw, ty, bw, th, &border_color); // right
+
+        if !rect_vertices.is_empty() {
+            let rect_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Tooltip Rect Buffer"),
+                contents: bytemuck::cast_slice(&rect_vertices),
+                usage: wgpu::BufferUsages::VERTEX,
+            });
+
+            let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Tooltip Rect Encoder"),
+            });
+            {
+                let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("Tooltip Rect Pass"),
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Load,
+                            store: wgpu::StoreOp::Store,
+                        },
+                    })],
+                    depth_stencil_attachment: None,
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
+                });
+                pass.set_pipeline(&self.rect_pipeline);
+                pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                pass.set_vertex_buffer(0, rect_buffer.slice(..));
+                pass.draw(0..rect_vertices.len() as u32, 0..1);
+            }
+            self.queue.submit(Some(encoder.finish()));
+        }
+
+        // === Pass 2: Text glyphs ===
+        let padding = 6.0_f32;
+        let line_height = 18.0_f32;
+        let char_width = 7.5_f32;
+        let font_size_bits = 0.0_f32.to_bits();
+
+        for (line_idx, line) in tooltip.lines.iter().enumerate() {
+            let ly = ty + padding + line_idx as f32 * line_height;
+            for (ci, ch) in line.chars().enumerate() {
+                let key = GlyphKey {
+                    charcode: ch as u32,
+                    face_id: 0,
+                    font_size_bits,
+                };
+                if let Some(cached) = glyph_atlas.get_or_create(&self.device, &self.queue, &key, None) {
+                    let gx = tx + padding + (ci as f32) * char_width;
+                    self.render_single_glyph(view, cached, gx, ly, &text_color);
+                }
+            }
+        }
+    }
 }
 
 impl Default for WgpuRenderer {

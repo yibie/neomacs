@@ -222,6 +222,16 @@ pub enum RenderCommand {
     },
     /// Hide the active popup menu
     HidePopupMenu,
+    /// Show a tooltip at position (x, y)
+    ShowTooltip {
+        x: f32,
+        y: f32,
+        text: String,
+        fg_r: f32, fg_g: f32, fg_b: f32,
+        bg_r: f32, bg_g: f32, bg_b: f32,
+    },
+    /// Hide the active tooltip
+    HideTooltip,
 }
 
 /// Wakeup pipe for signaling Emacs from render thread

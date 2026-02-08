@@ -368,6 +368,51 @@ struct RenderApp {
 
     // Active popup menu (shown by x-popup-menu)
     popup_menu: Option<PopupMenuState>,
+
+    // Active tooltip overlay
+    tooltip: Option<TooltipState>,
+}
+
+/// State for a tooltip displayed as GPU overlay
+pub(crate) struct TooltipState {
+    /// Position (logical pixels, near mouse cursor)
+    pub(crate) x: f32,
+    pub(crate) y: f32,
+    /// Tooltip text (may be multi-line)
+    pub(crate) lines: Vec<String>,
+    /// Foreground color (sRGB)
+    pub(crate) fg: (f32, f32, f32),
+    /// Background color (sRGB)
+    pub(crate) bg: (f32, f32, f32),
+    /// Computed bounds (x, y, w, h)
+    pub(crate) bounds: (f32, f32, f32, f32),
+}
+
+impl TooltipState {
+    fn new(x: f32, y: f32, text: &str, fg: (f32, f32, f32), bg: (f32, f32, f32),
+           screen_w: f32, screen_h: f32) -> Self {
+        let padding = 6.0_f32;
+        let line_height = 18.0_f32;
+        let char_width = 7.5_f32;
+
+        let lines: Vec<String> = text.lines().map(|l| l.to_string()).collect();
+        let max_line_len = lines.iter().map(|l| l.len()).max().unwrap_or(1);
+        let w = (max_line_len as f32 * char_width + padding * 2.0).max(40.0);
+        let h = lines.len() as f32 * line_height + padding * 2.0;
+
+        // Position tooltip below and to the right of cursor, clamping to screen
+        let mut tx = x + 10.0;
+        let mut ty = y + 20.0;
+        if tx + w > screen_w { tx = screen_w - w - 2.0; }
+        if ty + h > screen_h { ty = y - h - 5.0; } // flip above cursor
+        if tx < 0.0 { tx = 0.0; }
+        if ty < 0.0 { ty = 0.0; }
+
+        TooltipState {
+            x: tx, y: ty, lines, fg, bg,
+            bounds: (tx, ty, w, h),
+        }
+    }
 }
 
 impl RenderApp {
@@ -456,6 +501,7 @@ impl RenderApp {
             #[cfg(feature = "neo-term")]
             terminal_manager: crate::terminal::TerminalManager::new(),
             popup_menu: None,
+            tooltip: None,
         }
     }
 
@@ -1025,6 +1071,22 @@ impl RenderApp {
                 RenderCommand::HidePopupMenu => {
                     log::info!("HidePopupMenu");
                     self.popup_menu = None;
+                    self.frame_dirty = true;
+                }
+                RenderCommand::ShowTooltip { x, y, text, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b } => {
+                    log::debug!("ShowTooltip at ({}, {})", x, y);
+                    self.tooltip = Some(TooltipState::new(
+                        x, y, &text,
+                        (fg_r, fg_g, fg_b),
+                        (bg_r, bg_g, bg_b),
+                        self.width as f32 / self.scale_factor as f32,
+                        self.height as f32 / self.scale_factor as f32,
+                    ));
+                    self.frame_dirty = true;
+                }
+                RenderCommand::HideTooltip => {
+                    log::debug!("HideTooltip");
+                    self.tooltip = None;
                     self.frame_dirty = true;
                 }
             }
@@ -2165,6 +2227,15 @@ impl RenderApp {
                 (&self.renderer, &mut self.glyph_atlas)
             {
                 renderer.render_popup_menu(&surface_view, menu, glyph_atlas, self.width, self.height);
+            }
+        }
+
+        // Render tooltip overlay (above everything including popup menu)
+        if let Some(ref tip) = self.tooltip {
+            if let (Some(ref renderer), Some(ref mut glyph_atlas)) =
+                (&self.renderer, &mut self.glyph_atlas)
+            {
+                renderer.render_tooltip(&surface_view, tip, glyph_atlas, self.width, self.height);
             }
         }
 

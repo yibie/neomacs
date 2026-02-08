@@ -2073,6 +2073,47 @@ pub unsafe extern "C" fn neomacs_display_hide_popup_menu(
     }
 }
 
+/// Show a tooltip at the given position with specified colors.
+#[cfg(feature = "winit-backend")]
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_show_tooltip(
+    _handle: *mut NeomacsDisplay,
+    x: f32,
+    y: f32,
+    text: *const c_char,
+    fg_r: f32, fg_g: f32, fg_b: f32,
+    bg_r: f32, bg_g: f32, bg_b: f32,
+) {
+    let text_str = if text.is_null() {
+        return;
+    } else {
+        match CStr::from_ptr(text).to_str() {
+            Ok(s) => s.to_string(),
+            Err(_) => return,
+        }
+    };
+    let cmd = RenderCommand::ShowTooltip {
+        x, y, text: text_str,
+        fg_r, fg_g, fg_b,
+        bg_r, bg_g, bg_b,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
+/// Hide the active tooltip.
+#[cfg(feature = "winit-backend")]
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_hide_tooltip(
+    _handle: *mut NeomacsDisplay,
+) {
+    let cmd = RenderCommand::HideTooltip;
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
 /// Set the window title (threaded mode)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_set_title(
