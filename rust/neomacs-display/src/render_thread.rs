@@ -187,6 +187,10 @@ pub(crate) struct PopupMenuState {
     pub(crate) item_offsets: Vec<f32>,
     /// Item height
     pub(crate) item_height: f32,
+    /// Face foreground color (sRGB 0.0-1.0), None = default
+    pub(crate) face_fg: Option<(f32, f32, f32)>,
+    /// Face background color (sRGB 0.0-1.0), None = default
+    pub(crate) face_bg: Option<(f32, f32, f32)>,
 }
 
 impl PopupMenuState {
@@ -232,6 +236,8 @@ impl PopupMenuState {
             bounds: (x, y, total_w, total_h),
             item_offsets: offsets,
             item_height,
+            face_fg: None,
+            face_bg: None,
         }
     }
 
@@ -1077,12 +1083,15 @@ impl RenderApp {
                         view.float_opacity = opacity;
                     }
                 }
-                RenderCommand::ShowPopupMenu { x, y, items, title } => {
+                RenderCommand::ShowPopupMenu { x, y, items, title, fg, bg } => {
                     log::info!("ShowPopupMenu at ({}, {}) with {} items", x, y, items.len());
                     let (fs, lh) = self.glyph_atlas.as_ref()
                         .map(|a| (a.default_font_size(), a.default_line_height()))
                         .unwrap_or((13.0, 17.0));
-                    self.popup_menu = Some(PopupMenuState::new(x, y, items, title, fs, lh));
+                    let mut menu = PopupMenuState::new(x, y, items, title, fs, lh);
+                    menu.face_fg = fg;
+                    menu.face_bg = bg;
+                    self.popup_menu = Some(menu);
                     self.frame_dirty = true;
                 }
                 RenderCommand::HidePopupMenu => {

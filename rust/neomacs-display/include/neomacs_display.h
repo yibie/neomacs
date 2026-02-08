@@ -1043,7 +1043,9 @@ void neomacs_display_show_popup_menu(struct NeomacsDisplay *handle,
                                      int y,
                                      const struct CPopupMenuItem *items,
                                      int itemCount,
-                                     const char *title);
+                                     const char *title,
+                                     uint32_t fgColor,
+                                     uint32_t bgColor);
 
 /**
  * Hide the active popup menu.

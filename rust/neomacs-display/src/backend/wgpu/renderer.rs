@@ -3975,26 +3975,60 @@ impl WgpuRenderer {
 
         let (mx, my, mw, mh) = menu.bounds;
 
-        // Colors (dark theme popup) — values are in linear space
-        // since the surface format (Bgra8UnormSrgb) applies sRGB gamma on output
-        let bg_color = Color::new(0.15, 0.15, 0.18, 0.95).srgb_to_linear();
-        let border_color = Color::new(0.35, 0.35, 0.40, 1.0).srgb_to_linear();
-        let hover_color = Color::new(0.25, 0.40, 0.65, 0.9).srgb_to_linear();
+        // Derive colors from face colors if provided, otherwise use defaults.
+        // Values are in sRGB space and converted to linear for the Bgra8UnormSrgb surface.
+        let (fg_r, fg_g, fg_b) = menu.face_fg.unwrap_or((0.9, 0.9, 0.9));
+        let (bg_r, bg_g, bg_b) = menu.face_bg.unwrap_or((0.15, 0.15, 0.18));
+
+        let bg_color = Color::new(bg_r, bg_g, bg_b, 0.95).srgb_to_linear();
+        let border_color = Color::new(
+            (bg_r * 0.6 + 0.15).min(1.0),
+            (bg_g * 0.6 + 0.15).min(1.0),
+            (bg_b * 0.6 + 0.15).min(1.0),
+            1.0,
+        ).srgb_to_linear();
+        // Hover: blend foreground into background
+        let hover_color = Color::new(
+            bg_r * 0.5 + fg_r * 0.3,
+            bg_g * 0.5 + fg_g * 0.3,
+            bg_b * 0.5 + fg_b * 0.3,
+            0.9,
+        ).srgb_to_linear();
         let text_color = {
-            let c = Color::new(0.9, 0.9, 0.9, 1.0).srgb_to_linear();
+            let c = Color::new(fg_r, fg_g, fg_b, 1.0).srgb_to_linear();
             [c.r, c.g, c.b, c.a]
         };
         let disabled_color = {
-            let c = Color::new(0.5, 0.5, 0.5, 1.0).srgb_to_linear();
+            let c = Color::new(
+                fg_r * 0.5 + bg_r * 0.5,
+                fg_g * 0.5 + bg_g * 0.5,
+                fg_b * 0.5 + bg_b * 0.5,
+                1.0,
+            ).srgb_to_linear();
             [c.r, c.g, c.b, c.a]
         };
-        let separator_color = Color::new(0.3, 0.3, 0.35, 0.8).srgb_to_linear();
+        let separator_color = Color::new(
+            bg_r * 0.7 + fg_r * 0.3,
+            bg_g * 0.7 + fg_g * 0.3,
+            bg_b * 0.7 + fg_b * 0.3,
+            0.8,
+        ).srgb_to_linear();
         let title_color = {
-            let c = Color::new(0.7, 0.8, 0.9, 1.0).srgb_to_linear();
+            let c = Color::new(
+                fg_r * 0.8 + bg_r * 0.2,
+                fg_g * 0.8 + bg_g * 0.2,
+                fg_b * 0.85 + bg_b * 0.15,
+                1.0,
+            ).srgb_to_linear();
             [c.r, c.g, c.b, c.a]
         };
         let shortcut_color = {
-            let c = Color::new(0.6, 0.6, 0.65, 1.0).srgb_to_linear();
+            let c = Color::new(
+                fg_r * 0.65 + bg_r * 0.35,
+                fg_g * 0.65 + bg_g * 0.35,
+                fg_b * 0.65 + bg_b * 0.35,
+                1.0,
+            ).srgb_to_linear();
             [c.r, c.g, c.b, c.a]
         };
 

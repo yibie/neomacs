@@ -583,9 +583,31 @@ neomacs_menu_show (struct frame *f, int x, int y, int menuflags,
   if (!NILP (title) && STRINGP (title))
     title_str = SSDATA (title);
 
+  /* Resolve menu face colors for themed popup rendering */
+  uint32_t menu_fg = 0, menu_bg = 0;
+  {
+    int face_id = lookup_named_face (NULL, f, Qmenu, false);
+    if (face_id >= 0)
+      {
+        struct face *mface = FACE_FROM_ID (f, face_id);
+        if (mface)
+          {
+            unsigned long fg = mface->foreground;
+            unsigned long bg = mface->background;
+            menu_fg = ((RED_FROM_ULONG (fg) << 16)
+                       | (GREEN_FROM_ULONG (fg) << 8)
+                       | BLUE_FROM_ULONG (fg));
+            menu_bg = ((RED_FROM_ULONG (bg) << 16)
+                       | (GREEN_FROM_ULONG (bg) << 8)
+                       | BLUE_FROM_ULONG (bg));
+          }
+      }
+  }
+
   neomacs_popup_activated_flag = 1;
   neomacs_display_show_popup_menu (dpyinfo->display_handle,
-                                   x, y, c_items, item_count, title_str);
+                                   x, y, c_items, item_count,
+                                   title_str, menu_fg, menu_bg);
 
   /* Block waiting for menu selection event from render thread.
      We poll the input event queue until we get a MenuSelection event.

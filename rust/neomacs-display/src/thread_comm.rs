@@ -225,6 +225,9 @@ pub enum RenderCommand {
         y: f32,
         items: Vec<PopupMenuItem>,
         title: Option<String>,
+        /// Menu face colors (sRGB 0.0-1.0). None = use defaults.
+        fg: Option<(f32, f32, f32)>,
+        bg: Option<(f32, f32, f32)>,
     },
     /// Hide the active popup menu
     HidePopupMenu,

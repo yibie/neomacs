@@ -2027,6 +2027,8 @@ pub unsafe extern "C" fn neomacs_display_show_popup_menu(
     items: *const CPopupMenuItem,
     item_count: c_int,
     title: *const c_char,
+    fg_color: u32,
+    bg_color: u32,
 ) {
     let mut menu_items = Vec::new();
     for i in 0..item_count as usize {
@@ -2064,11 +2066,33 @@ pub unsafe extern "C" fn neomacs_display_show_popup_menu(
         )
     };
 
+    // Convert 0xRRGGBB colors to sRGB float tuples
+    let fg = if fg_color != 0 {
+        Some((
+            ((fg_color >> 16) & 0xFF) as f32 / 255.0,
+            ((fg_color >> 8) & 0xFF) as f32 / 255.0,
+            (fg_color & 0xFF) as f32 / 255.0,
+        ))
+    } else {
+        None
+    };
+    let bg = if bg_color != 0 {
+        Some((
+            ((bg_color >> 16) & 0xFF) as f32 / 255.0,
+            ((bg_color >> 8) & 0xFF) as f32 / 255.0,
+            (bg_color & 0xFF) as f32 / 255.0,
+        ))
+    } else {
+        None
+    };
+
     let cmd = RenderCommand::ShowPopupMenu {
         x: x as f32,
         y: y as f32,
         items: menu_items,
         title: title_str,
+        fg,
+        bg,
     };
     if let Some(ref state) = THREADED_STATE {
         let _ = state.emacs_comms.cmd_tx.try_send(cmd);
