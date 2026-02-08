@@ -16,13 +16,16 @@
 
 ## The Problem
 
-Emacs's display engine (~50,000 lines of C in `xdisp.c`) was designed for text terminals in the 1980s. Despite decades of patches, it fundamentally struggles with:
+Emacs is a 40-year-old C codebase that hasn't kept up with modern hardware or software engineering:
 
-- **Large images** — rendering slows down significantly
-- **Video playback** — not natively supported
-- **Modern animations** — no smooth cursor movement, buffer transitions, or visual effects
-- **Web content** — limited browser integration
-- **GPU utilization** — everything runs on CPU while your GPU sits idle
+- **Display engine** — ~50,000 lines of C in `xdisp.c`, designed for text terminals in the 1980s. CPU-only rendering, no GPU acceleration, no native video/animations, no smooth visual effects
+  - **Large images** — rendering slows down significantly
+  - **Video playback** — not natively supported
+  - **Modern animations** — no smooth cursor movement, buffer transitions, or visual effects
+  - **Web content** — limited browser integration
+  - **GPU utilization** — everything runs on CPU while your GPU sits idle
+- **Elisp performance** — no JIT compilation, no inline caching, stop-the-world GC, dynamic dispatch overhead. Elisp is orders of magnitude slower than it needs to be
+- **Unsafe C codebase** — ~300,000 lines of unsafe C with manual memory management, monolithic architecture (runtime and editor entangled), single-threaded design that prevents real concurrency
 
 ## The Solution
 
@@ -30,11 +33,14 @@ Throw it all away and start fresh.
 
 **Neomacs** is rewriting Emacs from the ground up in **Rust** — starting with the display engine and expanding to the core:
 
-- **GPU display engine** — ~4,000 lines of Rust replacing ~50,000 lines of legacy C, powered by wgpu (Vulkan/Metal/DX12/OpenGL)
-- **Rewriting Emacs C core in Rust** — incrementally replacing critical C subsystems with safe, modern Rust
-- **True multi-threaded Elisp** — real concurrency for the Lisp machine, not just cooperative threading
-- **10x Elisp performance** — Rust-optimized Lisp machine to dramatically speed up Elisp execution
-- **Zero-copy DMA-BUF** — efficient GPU texture sharing (Linux)
+- **GPU display engine** *(done)* — ~4,000 lines of Rust replacing ~50,000 lines of legacy C, powered by wgpu (Vulkan/Metal/DX12/OpenGL)
+- **Rust layout engine** *(done)* — bypasses `xdisp.c` entirely, reads buffer text via FFI and computes layout in Rust
+- **Inline video/images/WebKit** *(done)* — 4K video, GPU-decoded images, and WPE WebKit browser views embedded directly in buffers
+- **21 scroll effects, 8 cursor modes, 10 buffer transitions** *(done)* — GPU-accelerated animations running on the render thread at display refresh rate
+- **Zero-copy DMA-BUF** *(done)* — efficient GPU texture sharing (Linux)
+- **Rewrite entire Emacs core in Rust** *(in progress)* — replacing all ~300,000 lines of C with safe, modern Rust: Elisp runtime, evaluator, bytecode VM, GC, buffer/window/frame subsystems, and all editor internals
+- **True multi-threaded Elisp** *(planned)* — real concurrency for the Lisp machine, not just cooperative threading
+- **10x Elisp performance** *(planned)* — Rust-optimized Lisp machine with JIT compilation and inline caching
 - **Full Emacs compatibility** — your config and packages still work
 
 ---
