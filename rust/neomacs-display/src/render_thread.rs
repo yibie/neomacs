@@ -775,6 +775,10 @@ struct RenderApp {
     window_content_shadow_enabled: bool,
     window_content_shadow_size: f32,
     window_content_shadow_opacity: f32,
+    /// Scroll velocity fade overlay
+    scroll_velocity_fade_enabled: bool,
+    scroll_velocity_fade_max_opacity: f32,
+    scroll_velocity_fade_ms: u32,
     /// Mini-buffer completion highlight glow
     minibuffer_highlight_enabled: bool,
     minibuffer_highlight_color: (f32, f32, f32),
@@ -1104,6 +1108,9 @@ impl RenderApp {
             window_content_shadow_enabled: false,
             window_content_shadow_size: 6.0,
             window_content_shadow_opacity: 0.15,
+            scroll_velocity_fade_enabled: false,
+            scroll_velocity_fade_max_opacity: 0.15,
+            scroll_velocity_fade_ms: 300,
             minibuffer_highlight_enabled: false,
             minibuffer_highlight_color: (0.4, 0.6, 1.0),
             minibuffer_highlight_opacity: 0.25,
@@ -2194,6 +2201,15 @@ impl RenderApp {
                     }
                     self.frame_dirty = true;
                 }
+                RenderCommand::SetScrollVelocityFade { enabled, max_opacity, fade_ms } => {
+                    self.scroll_velocity_fade_enabled = enabled;
+                    self.scroll_velocity_fade_max_opacity = max_opacity;
+                    self.scroll_velocity_fade_ms = fade_ms;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_scroll_velocity_fade(enabled, max_opacity, fade_ms);
+                    }
+                    self.frame_dirty = true;
+                }
                 RenderCommand::SetMinibufferHighlight { enabled, r, g, b, opacity } => {
                     self.minibuffer_highlight_enabled = enabled;
                     self.minibuffer_highlight_color = (r, g, b);
@@ -3062,6 +3078,13 @@ impl RenderApp {
                             let dir = if info.window_start > prev.window_start { 1 } else { -1 };
                             if let Some(renderer) = self.renderer.as_mut() {
                                 renderer.trigger_scroll_momentum(info.window_id, info.bounds, dir, now);
+                            }
+                        }
+                        // Scroll velocity fade overlay
+                        if self.scroll_velocity_fade_enabled && !info.is_minibuffer {
+                            let delta = (info.window_start - prev.window_start).unsigned_abs() as f32;
+                            if let Some(renderer) = self.renderer.as_mut() {
+                                renderer.trigger_scroll_velocity_fade(info.window_id, info.bounds, delta, now);
                             }
                         }
                         // Scroll → slide (content area only, excluding mode-line)

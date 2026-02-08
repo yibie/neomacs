@@ -8909,6 +8909,30 @@ OPACITY is 0-100 percentage (default 15).  */)
   return on ? Qt : Qnil;
 }
 
+DEFUN ("neomacs-set-scroll-velocity-fade",
+       Fneomacs_set_scroll_velocity_fade,
+       Sneomacs_set_scroll_velocity_fade, 0, 3, 0,
+       doc: /* Configure scroll velocity fade overlay.
+ENABLED non-nil darkens window content briefly during fast scrolling,
+providing visual feedback of scroll speed that fades when scrolling stops.
+MAX-OPACITY is 0-100 percentage at peak velocity (default 15).
+FADE-MS is the fade-out duration in milliseconds (default 300).  */)
+  (Lisp_Object enabled, Lisp_Object max_opacity, Lisp_Object fade_ms)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+
+  int on = !NILP (enabled);
+  int op = 15;
+  int fade = 300;
+  if (FIXNUMP (max_opacity)) op = XFIXNUM (max_opacity);
+  if (FIXNUMP (fade_ms)) fade = XFIXNUM (fade_ms);
+
+  neomacs_display_set_scroll_velocity_fade (dpyinfo->display_handle, on, op, fade);
+  return on ? Qt : Qnil;
+}
+
 DEFUN ("neomacs-set-minibuffer-highlight",
        Fneomacs_set_minibuffer_highlight,
        Sneomacs_set_minibuffer_highlight, 0, 3, 0,
@@ -10594,6 +10618,7 @@ syms_of_neomacsterm (void)
   defsubr (&Sneomacs_set_window_content_shadow);
   defsubr (&Sneomacs_set_resize_padding);
   defsubr (&Sneomacs_set_minibuffer_highlight);
+  defsubr (&Sneomacs_set_scroll_velocity_fade);
   defsubr (&Sneomacs_set_region_glow);
   defsubr (&Sneomacs_set_window_glow);
   defsubr (&Sneomacs_set_scroll_progress);

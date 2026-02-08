@@ -264,6 +264,11 @@ pub struct WgpuRenderer {
     window_content_shadow_enabled: bool,
     window_content_shadow_size: f32,
     window_content_shadow_opacity: f32,
+    /// Scroll velocity fade overlay
+    scroll_velocity_fade_enabled: bool,
+    scroll_velocity_fade_max_opacity: f32,
+    scroll_velocity_fade_ms: u32,
+    scroll_velocity_fades: Vec<ScrollVelocityFadeEntry>,
     /// Mini-buffer completion highlight glow
     minibuffer_highlight_enabled: bool,
     minibuffer_highlight_color: (f32, f32, f32),
@@ -295,6 +300,16 @@ struct ScrollMomentumEntry {
     window_id: i64,
     bounds: Rect,
     direction: i32, // 1 = down, -1 = up
+    started: std::time::Instant,
+    duration: std::time::Duration,
+}
+
+/// Entry for scroll velocity fade overlay
+struct ScrollVelocityFadeEntry {
+    window_id: i64,
+    bounds: Rect,
+    /// Scroll delta magnitude (characters scrolled)
+    velocity: f32,
     started: std::time::Instant,
     duration: std::time::Duration,
 }
@@ -966,6 +981,10 @@ impl WgpuRenderer {
             window_content_shadow_enabled: false,
             window_content_shadow_size: 6.0,
             window_content_shadow_opacity: 0.15,
+            scroll_velocity_fade_enabled: false,
+            scroll_velocity_fade_max_opacity: 0.15,
+            scroll_velocity_fade_ms: 300,
+            scroll_velocity_fades: Vec::new(),
             minibuffer_highlight_enabled: false,
             minibuffer_highlight_color: (0.4, 0.6, 1.0),
             minibuffer_highlight_opacity: 0.25,
@@ -1233,6 +1252,26 @@ impl WgpuRenderer {
         self.minibuffer_highlight_enabled = enabled;
         self.minibuffer_highlight_color = color;
         self.minibuffer_highlight_opacity = opacity;
+    }
+
+    /// Update scroll velocity fade config
+    pub fn set_scroll_velocity_fade(&mut self, enabled: bool, max_opacity: f32, fade_ms: u32) {
+        self.scroll_velocity_fade_enabled = enabled;
+        self.scroll_velocity_fade_max_opacity = max_opacity;
+        self.scroll_velocity_fade_ms = fade_ms;
+    }
+
+    /// Trigger scroll velocity fade for a window
+    pub fn trigger_scroll_velocity_fade(&mut self, window_id: i64, bounds: Rect, delta: f32, now: std::time::Instant) {
+        // Replace existing entry for this window
+        self.scroll_velocity_fades.retain(|e| e.window_id != window_id);
+        self.scroll_velocity_fades.push(ScrollVelocityFadeEntry {
+            window_id,
+            bounds,
+            velocity: delta,
+            started: now,
+            duration: std::time::Duration::from_millis(self.scroll_velocity_fade_ms as u64),
+        });
     }
 
     /// Update resize padding config
@@ -5367,6 +5406,49 @@ impl WgpuRenderer {
                     render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
                     render_pass.set_vertex_buffer(0, hl_buffer.slice(..));
                     render_pass.draw(0..highlight_vertices.len() as u32, 0..1);
+                }
+            }
+
+            // === Scroll velocity fade overlay ===
+            if !self.scroll_velocity_fades.is_empty() {
+                let max_op = self.scroll_velocity_fade_max_opacity.clamp(0.0, 1.0);
+                let mut fade_vertices: Vec<RectVertex> = Vec::new();
+
+                for entry in &self.scroll_velocity_fades {
+                    let elapsed = entry.started.elapsed().as_millis() as f32;
+                    let duration = entry.duration.as_millis() as f32;
+                    if elapsed >= duration { continue; }
+
+                    let t = elapsed / duration;
+                    let fade = (1.0 - t) * (1.0 - t); // quadratic ease-out
+                    // Velocity factor: higher scroll delta = stronger effect (clamped)
+                    let vel_factor = (entry.velocity / 50.0).min(1.0);
+                    let alpha = max_op * fade * vel_factor;
+                    if alpha < 0.005 { continue; }
+
+                    let b = &entry.bounds;
+                    let c = Color::new(0.0, 0.0, 0.0, alpha);
+                    self.add_rect(&mut fade_vertices, b.x, b.y, b.width, b.height, &c);
+                }
+
+                if !fade_vertices.is_empty() {
+                    let fade_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some("Scroll Velocity Fade Buffer"),
+                        contents: bytemuck::cast_slice(&fade_vertices),
+                        usage: wgpu::BufferUsages::VERTEX,
+                    });
+                    render_pass.set_pipeline(&self.rect_pipeline);
+                    render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                    render_pass.set_vertex_buffer(0, fade_buffer.slice(..));
+                    render_pass.draw(0..fade_vertices.len() as u32, 0..1);
+                }
+
+                // Cleanup expired entries
+                self.scroll_velocity_fades.retain(|e| {
+                    e.started.elapsed() < e.duration
+                });
+                if !self.scroll_velocity_fades.is_empty() {
+                    self.needs_continuous_redraw = true;
                 }
             }
 

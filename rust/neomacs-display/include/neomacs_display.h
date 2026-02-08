@@ -1467,6 +1467,14 @@ void neomacs_display_set_window_content_shadow(struct NeomacsDisplay *handle,
                                                int opacity);
 
 /**
+ * Configure scroll velocity fade overlay
+ */
+void neomacs_display_set_scroll_velocity_fade(struct NeomacsDisplay *handle,
+                                              int enabled,
+                                              int maxOpacity,
+                                              int fadeMs);
+
+/**
  * Configure mini-buffer completion highlight glow
  */
 void neomacs_display_set_minibuffer_highlight(struct NeomacsDisplay *handle,

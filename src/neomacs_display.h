@@ -1473,6 +1473,12 @@ void neomacs_display_set_window_content_shadow(
     int size,
     int opacity);
 
+void neomacs_display_set_scroll_velocity_fade(
+    struct NeomacsDisplay *handle,
+    int enabled,
+    int max_opacity,
+    int fade_ms);
+
 void neomacs_display_set_minibuffer_highlight(
     struct NeomacsDisplay *handle,
     int enabled,

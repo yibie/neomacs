@@ -600,6 +600,14 @@ pub enum RenderCommand {
         /// Shadow opacity 0.0-1.0
         opacity: f32,
     },
+    /// Configure scroll velocity fade overlay
+    SetScrollVelocityFade {
+        enabled: bool,
+        /// Maximum overlay opacity at peak velocity (0.0-1.0)
+        max_opacity: f32,
+        /// Fade-out duration in milliseconds after scroll stops
+        fade_ms: u32,
+    },
     /// Configure mini-buffer completion highlight glow
     SetMinibufferHighlight {
         enabled: bool,

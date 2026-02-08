@@ -1778,6 +1778,53 @@ are visible, creating a depth/raised pane illusion."
                 neomacs-window-content-shadow-size nil)
             val))))
 
+;; --- Scroll velocity fade ---
+
+(declare-function neomacs-set-scroll-velocity-fade "neomacsterm.c"
+  (&optional enabled max-opacity fade-ms))
+
+(defcustom neomacs-scroll-velocity-fade nil
+  "Enable scroll velocity fade overlay.
+Non-nil briefly darkens window content during fast scrolling to
+provide visual feedback of scroll speed."
+  :type 'boolean
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-scroll-velocity-fade)
+           (neomacs-set-scroll-velocity-fade val
+            (if (boundp 'neomacs-scroll-velocity-fade-opacity)
+                neomacs-scroll-velocity-fade-opacity nil)
+            (if (boundp 'neomacs-scroll-velocity-fade-ms)
+                neomacs-scroll-velocity-fade-ms nil)))))
+
+(defcustom neomacs-scroll-velocity-fade-opacity 15
+  "Maximum fade overlay opacity at peak velocity (0-100)."
+  :type '(integer :tag "Opacity (%)")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-scroll-velocity-fade)
+                    (boundp 'neomacs-scroll-velocity-fade)
+                    neomacs-scroll-velocity-fade)
+           (neomacs-set-scroll-velocity-fade t val
+            (if (boundp 'neomacs-scroll-velocity-fade-ms)
+                neomacs-scroll-velocity-fade-ms nil)))))
+
+(defcustom neomacs-scroll-velocity-fade-ms 300
+  "Fade-out duration in milliseconds after scrolling stops."
+  :type '(integer :tag "Fade (ms)")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-scroll-velocity-fade)
+                    (boundp 'neomacs-scroll-velocity-fade)
+                    neomacs-scroll-velocity-fade)
+           (neomacs-set-scroll-velocity-fade t
+            (if (boundp 'neomacs-scroll-velocity-fade-opacity)
+                neomacs-scroll-velocity-fade-opacity nil)
+            val))))
+
 ;; --- Mini-buffer completion highlight ---
 
 (declare-function neomacs-set-minibuffer-highlight "neomacsterm.c"
