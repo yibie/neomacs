@@ -303,8 +303,6 @@ static void
 neomacs_initialize_display_info (struct neomacs_display_info *dpyinfo)
 {
   dpyinfo->reference_count = 0;
-  dpyinfo->width = 800;
-  dpyinfo->height = 600;
   dpyinfo->n_planes = 24;
   dpyinfo->black_pixel = 0x000000;
   dpyinfo->white_pixel = 0xffffff;
@@ -318,6 +316,10 @@ neomacs_initialize_display_info (struct neomacs_display_info *dpyinfo)
   /* Initialize DPI to a reasonable default - required for font sizing */
   dpyinfo->resx = 96;
   dpyinfo->resy = 96;
+
+  /* Default display dimensions (overridden below from GDK monitors) */
+  dpyinfo->width = 1920;
+  dpyinfo->height = 1080;
 
   /* Get the GDK display */
   GdkDisplay *gdpy = gdk_display_get_default ();
@@ -374,6 +376,38 @@ neomacs_initialize_display_info (struct neomacs_display_info *dpyinfo)
 	}
 
       nlog_debug ("Display connection fd: %d", dpyinfo->connection);
+
+      /* Query actual screen dimensions from GDK monitors.  */
+      GListModel *monitors = gdk_display_get_monitors (gdpy);
+      if (monitors)
+        {
+          guint n = g_list_model_get_n_items (monitors);
+          int max_width = 0, max_height = 0;
+          for (guint i = 0; i < n; i++)
+            {
+              GdkMonitor *mon = g_list_model_get_item (monitors, i);
+              if (mon)
+                {
+                  GdkRectangle geom;
+                  gdk_monitor_get_geometry (mon, &geom);
+                  int scale = gdk_monitor_get_scale_factor (mon);
+                  int right = (geom.x + geom.width) * scale;
+                  int bottom = (geom.y + geom.height) * scale;
+                  if (right > max_width)
+                    max_width = right;
+                  if (bottom > max_height)
+                    max_height = bottom;
+                  g_object_unref (mon);
+                }
+            }
+          if (max_width > 0 && max_height > 0)
+            {
+              dpyinfo->width = max_width;
+              dpyinfo->height = max_height;
+              nlog_debug ("Display size: %dx%d",
+                          dpyinfo->width, dpyinfo->height);
+            }
+        }
     }
 }
 
@@ -8264,13 +8298,6 @@ neomacs_display_wakeup_handler (int fd, void *data)
             struct neomacs_display_info *dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
             int new_width = ev->width;
             int new_height = ev->height;
-
-            /* Update dpyinfo dimensions */
-            if (dpyinfo)
-              {
-                dpyinfo->width = new_width;
-                dpyinfo->height = new_height;
-              }
 
             /* Update the Rust display handle */
             if (dpyinfo && dpyinfo->display_handle)
