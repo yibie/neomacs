@@ -268,6 +268,9 @@ impl LayoutEngine {
         let mut face_fg = default_fg;
         let mut face_bg = default_bg;
 
+        // Invisible text state: next charpos where we need to re-check
+        let mut next_invis_check: i64 = params.window_start;
+
         // Walk through text, placing characters on the grid
         let mut col = 0i32;
         let mut row = 0i32;
@@ -277,6 +280,53 @@ impl LayoutEngine {
         let mut byte_idx = 0usize;
 
         while byte_idx < bytes_read as usize && row < max_rows {
+            // Check for invisible text at property change boundaries
+            if charpos >= next_invis_check {
+                let mut next_visible: i64 = 0;
+                let invis = neomacs_layout_check_invisible(
+                    buffer,
+                    window,
+                    charpos,
+                    &mut next_visible,
+                );
+
+                if invis > 0 {
+                    // Skip invisible characters: advance byte_idx
+                    // and charpos to next_visible
+                    let chars_to_skip = next_visible - charpos;
+                    for _ in 0..chars_to_skip {
+                        if byte_idx >= bytes_read as usize {
+                            break;
+                        }
+                        let (_, ch_len) = decode_utf8(&text[byte_idx..]);
+                        byte_idx += ch_len;
+                    }
+                    // Show ellipsis for invis==2
+                    if invis == 2 && col + 3 <= cols && row < max_rows {
+                        let gy = text_y + row as f32 * char_h;
+                        for _ in 0..3 {
+                            let dx = text_x + col as f32 * char_w;
+                            frame_glyphs.add_char(
+                                '.', dx, gy, char_w, char_h, ascent, false,
+                            );
+                            col += 1;
+                        }
+                    }
+                    charpos = next_visible;
+                    next_invis_check = next_visible;
+                    // Force face re-check at new position
+                    current_face_id = -1;
+                    continue;
+                } else {
+                    // Visible: next_visible tells us when to re-check
+                    next_invis_check = if next_visible > charpos {
+                        next_visible
+                    } else {
+                        charpos + 1
+                    };
+                }
+            }
+
             // Resolve face if needed (when entering a new face region)
             if charpos >= next_face_check || current_face_id < 0 {
                 let mut next_check: i64 = 0;

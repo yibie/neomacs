@@ -141,6 +141,20 @@ extern "C" {
     ) -> c_int;
 
     // ========================================================================
+    // Invisible text
+    // ========================================================================
+
+    /// Check if text at charpos is invisible.
+    /// Returns 0 = visible, 1 = invisible (hidden), 2 = invisible (ellipsis).
+    /// If invisible, *next_visible_out is set to the next visible position.
+    pub fn neomacs_layout_check_invisible(
+        buffer: EmacsBuffer,
+        window: EmacsWindow,
+        charpos: i64,
+        next_visible_out: *mut i64,
+    ) -> c_int;
+
+    // ========================================================================
     // Mode-line
     // ========================================================================
 

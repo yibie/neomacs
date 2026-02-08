@@ -46,6 +46,7 @@ struct wl_display;
 #include "pdumper.h"
 #include "fontset.h"
 #include "composite.h"  /* For composition_gstring_from_id, LGSTRING_GLYPH, etc. */
+#include "intervals.h"  /* For TEXT_PROP_MEANS_INVISIBLE */
 #include "process.h"  /* For add_read_fd, delete_read_fd */
 
 /* List of Neomacs display info structures */
@@ -1324,6 +1325,82 @@ neomacs_layout_ensure_fontified (void *buffer_ptr, int64_t from, int64_t to)
 
   set_buffer_internal_1 (old);
   return 1;
+}
+
+/* Check if text at charpos is invisible.
+   Returns 0 = visible, 1 = invisible (hidden), 2 = invisible (ellipsis).
+   If invisible, *next_visible_out is set to the next visible position.  */
+int
+neomacs_layout_check_invisible (void *buffer_ptr, void *window_ptr,
+                                int64_t charpos, int64_t *next_visible_out)
+{
+  struct buffer *buf = (struct buffer *) buffer_ptr;
+  if (!buf)
+    return 0;
+
+  struct buffer *old = current_buffer;
+  set_buffer_internal_1 (buf);
+
+  ptrdiff_t zv = BUF_ZV (buf);
+  if (charpos >= zv)
+    {
+      set_buffer_internal_1 (old);
+      return 0;
+    }
+
+  /* Get the invisible property at this position.  */
+  Lisp_Object prop = Fget_char_property (make_fixnum (charpos),
+                                         Qinvisible, Qnil);
+
+  int invis = TEXT_PROP_MEANS_INVISIBLE (prop);
+  if (invis == 0)
+    {
+      /* Text is visible. Set next_visible_out to the position where
+         the invisible property next changes so caller knows when to
+         re-check.  */
+      if (next_visible_out)
+        {
+          Lisp_Object limit = make_fixnum (zv);
+          Lisp_Object next = Fnext_single_char_property_change (
+              make_fixnum (charpos), Qinvisible, Qnil, limit);
+          *next_visible_out = XFIXNUM (next);
+        }
+      set_buffer_internal_1 (old);
+      return 0;
+    }
+
+  /* Find the next visible position efficiently by jumping to
+     property change boundaries.  */
+  if (next_visible_out)
+    {
+      Lisp_Object limit = make_fixnum (zv);
+      Lisp_Object pos_obj = make_fixnum (charpos);
+
+      /* Jump forward through invisible regions.  */
+      while (1)
+        {
+          /* Find where the invisible property next changes.  */
+          Lisp_Object next = Fnext_single_char_property_change (
+              pos_obj, Qinvisible, Qnil, limit);
+          int64_t next_pos = XFIXNUM (next);
+          if (next_pos >= zv)
+            {
+              *next_visible_out = zv;
+              break;
+            }
+          /* Check if text at the new position is visible.  */
+          Lisp_Object p = Fget_char_property (next, Qinvisible, Qnil);
+          if (TEXT_PROP_MEANS_INVISIBLE (p) == 0)
+            {
+              *next_visible_out = next_pos;
+              break;
+            }
+          pos_obj = next;
+        }
+    }
+
+  set_buffer_internal_1 (old);
+  return invis;
 }
 
 /* Helper: fill a FaceDataFFI struct from a resolved Emacs face.
