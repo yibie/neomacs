@@ -424,6 +424,10 @@ pub enum RenderCommand {
         /// Fade duration in milliseconds
         duration_ms: u32,
     },
+    /// Configure typing speed indicator overlay
+    SetTypingSpeed {
+        enabled: bool,
+    },
     /// Configure cursor color cycling (rainbow hue rotation)
     SetCursorColorCycle {
         enabled: bool,

@@ -716,6 +716,12 @@ struct RenderApp {
     /// Title fade animation for breadcrumbs
     title_fade_enabled: bool,
     title_fade_duration_ms: u32,
+    /// Typing speed indicator
+    typing_speed_enabled: bool,
+    /// Key press timestamps for WPM calculation
+    key_press_times: Vec<std::time::Instant>,
+    /// Smoothed WPM value for display
+    displayed_wpm: f32,
     /// Active window border glow
     window_glow_enabled: bool,
     window_glow_color: (f32, f32, f32),
@@ -949,6 +955,9 @@ impl RenderApp {
             breadcrumb_opacity: 0.7,
             title_fade_enabled: false,
             title_fade_duration_ms: 300,
+            typing_speed_enabled: false,
+            key_press_times: Vec::new(),
+            displayed_wpm: 0.0,
             window_glow_enabled: false,
             window_glow_color: (0.4, 0.6, 1.0),
             window_glow_radius: 8.0,
@@ -1872,6 +1881,14 @@ impl RenderApp {
                     self.title_fade_duration_ms = duration_ms;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_title_fade(enabled, duration_ms);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetTypingSpeed { enabled } => {
+                    self.typing_speed_enabled = enabled;
+                    if !enabled {
+                        self.key_press_times.clear();
+                        self.displayed_wpm = 0.0;
                     }
                     self.frame_dirty = true;
                 }
@@ -3423,6 +3440,40 @@ impl RenderApp {
             }
         }
 
+        // Render typing speed indicator
+        if self.typing_speed_enabled {
+            let now = std::time::Instant::now();
+            let window_secs = 5.0_f64;
+            // Remove key presses older than the window
+            self.key_press_times.retain(|t| now.duration_since(*t).as_secs_f64() < window_secs);
+            // Calculate chars/second, then WPM (5 chars per word, * 60 for minutes)
+            let count = self.key_press_times.len() as f64;
+            let target_wpm = if count > 1.0 {
+                let span = now.duration_since(self.key_press_times[0]).as_secs_f64();
+                if span > 0.1 {
+                    (count / span) * 60.0 / 5.0
+                } else {
+                    0.0
+                }
+            } else {
+                0.0
+            };
+            // Exponential smoothing
+            let alpha = 0.15_f32;
+            self.displayed_wpm += (target_wpm as f32 - self.displayed_wpm) * alpha;
+            if self.displayed_wpm < 0.5 { self.displayed_wpm = 0.0; }
+
+            if let (Some(ref renderer), Some(ref mut glyph_atlas), Some(ref frame)) =
+                (&self.renderer, &mut self.glyph_atlas, &self.current_frame)
+            {
+                renderer.render_typing_speed(&surface_view, frame, glyph_atlas, self.displayed_wpm);
+            }
+            // Keep redrawing while WPM is decaying
+            if self.displayed_wpm > 0.5 || !self.key_press_times.is_empty() {
+                self.frame_dirty = true;
+            }
+        }
+
         // Render corner mask for rounded window corners (borderless only, not fullscreen)
         if !self.decorations_enabled && !self.is_fullscreen && self.corner_radius > 0.0 {
             if let Some(ref renderer) = self.renderer {
@@ -3734,6 +3785,10 @@ impl ApplicationHandler for RenderApp {
                                 window.set_cursor_visible(false);
                                 self.mouse_hidden_for_typing = true;
                             }
+                        }
+                        // Track key presses for typing speed indicator
+                        if self.typing_speed_enabled && state == ElementState::Pressed {
+                            self.key_press_times.push(std::time::Instant::now());
                         }
                         self.comms.send_input(InputEvent::Key {
                             keysym,

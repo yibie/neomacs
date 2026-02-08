@@ -6847,6 +6847,105 @@ impl WgpuRenderer {
         }
     }
 
+    /// Render typing speed (WPM) indicator in the bottom-right of the selected window
+    pub fn render_typing_speed(
+        &self,
+        view: &wgpu::TextureView,
+        frame_glyphs: &FrameGlyphBuffer,
+        glyph_atlas: &mut WgpuGlyphAtlas,
+        wpm: f32,
+    ) {
+        use wgpu::util::DeviceExt;
+
+        // Find the selected window (non-minibuffer)
+        let selected = frame_glyphs.window_infos.iter().find(|w| w.selected && !w.is_minibuffer);
+        let info = match selected {
+            Some(i) => i,
+            None => return,
+        };
+
+        let wpm_int = wpm.round() as u32;
+        let label = format!("{} WPM", wpm_int);
+
+        let char_width = glyph_atlas.default_font_size() * 0.6;
+        let line_height = glyph_atlas.default_line_height();
+        let padding_x = 8.0_f32;
+        let padding_y = 2.0_f32;
+        let bar_w = label.len() as f32 * char_width + padding_x * 2.0;
+        let bar_h = line_height + padding_y * 2.0;
+        let b = &info.bounds;
+        let bar_x = b.x + b.width - bar_w - 4.0;
+        // Place just above the mode-line
+        let bar_y = b.y + b.height - info.mode_line_height - bar_h - 2.0;
+
+        let mut rect_vertices: Vec<RectVertex> = Vec::new();
+        let bg_color = Color::new(0.0, 0.0, 0.0, 0.6);
+        self.add_rect(&mut rect_vertices, bar_x, bar_y, bar_w, bar_h, &bg_color);
+
+        // Color the label based on WPM: gray→green→yellow→red
+        let text_color = if wpm_int == 0 {
+            [0.5, 0.5, 0.5, 0.8]
+        } else if wpm_int < 40 {
+            [0.4, 0.8, 0.4, 1.0] // green
+        } else if wpm_int < 80 {
+            [0.8, 0.8, 0.2, 1.0] // yellow
+        } else {
+            [1.0, 0.4, 0.2, 1.0] // orange-red
+        };
+
+        let font_size_bits = 0.0_f32.to_bits();
+        let mut text_glyphs: Vec<(GlyphKey, f32, f32, [f32; 4])> = Vec::new();
+        let text_y = bar_y + padding_y;
+        for (ci, ch) in label.chars().enumerate() {
+            let cx = bar_x + padding_x + ci as f32 * char_width;
+            let key = GlyphKey {
+                charcode: ch as u32,
+                face_id: 0,
+                font_size_bits,
+            };
+            glyph_atlas.get_or_create(&self.device, &self.queue, &key, None);
+            text_glyphs.push((key, cx, text_y, text_color));
+        }
+
+        // Draw background
+        if !rect_vertices.is_empty() {
+            let rect_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Typing Speed Rect Buffer"),
+                contents: bytemuck::cast_slice(&rect_vertices),
+                usage: wgpu::BufferUsages::VERTEX,
+            });
+            let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Typing Speed Rect Encoder"),
+            });
+            {
+                let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("Typing Speed Rect Pass"),
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Load,
+                            store: wgpu::StoreOp::Store,
+                        },
+                    })],
+                    depth_stencil_attachment: None,
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
+                });
+                pass.set_pipeline(&self.rect_pipeline);
+                pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                pass.set_vertex_buffer(0, rect_buffer.slice(..));
+                pass.draw(0..rect_vertices.len() as u32, 0..1);
+            }
+            self.queue.submit(Some(encoder.finish()));
+        }
+
+        // Draw text
+        if !text_glyphs.is_empty() {
+            self.render_overlay_glyphs(view, &mut text_glyphs, glyph_atlas);
+        }
+    }
+
     pub fn render_fps_overlay(
         &self,
         view: &wgpu::TextureView,

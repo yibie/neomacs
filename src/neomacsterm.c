@@ -8533,6 +8533,23 @@ DURATION-MS is the fade duration in milliseconds (default 300).  */)
   return on ? Qt : Qnil;
 }
 
+DEFUN ("neomacs-set-typing-speed",
+       Fneomacs_set_typing_speed,
+       Sneomacs_set_typing_speed, 0, 1, 0,
+       doc: /* Configure typing speed (WPM) indicator overlay.
+ENABLED non-nil shows a live words-per-minute counter in the bottom-right
+corner of the active window, calculated from recent keystroke rate.  */)
+  (Lisp_Object enabled)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+
+  int on = !NILP (enabled);
+  neomacs_display_set_typing_speed (dpyinfo->display_handle, on);
+  return on ? Qt : Qnil;
+}
+
 DEFUN ("neomacs-set-window-switch-fade",
        Fneomacs_set_window_switch_fade,
        Sneomacs_set_window_switch_fade, 0, 3, 0,
@@ -9938,6 +9955,7 @@ syms_of_neomacsterm (void)
   defsubr (&Sneomacs_set_window_switch_fade);
   defsubr (&Sneomacs_set_breadcrumb);
   defsubr (&Sneomacs_set_title_fade);
+  defsubr (&Sneomacs_set_typing_speed);
   defsubr (&Sneomacs_set_window_glow);
   defsubr (&Sneomacs_set_scroll_progress);
   defsubr (&Sneomacs_set_inactive_tint);

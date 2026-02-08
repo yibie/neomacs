@@ -1402,6 +1402,10 @@ void neomacs_display_set_title_fade(
     int enabled,
     int duration_ms);
 
+void neomacs_display_set_typing_speed(
+    struct NeomacsDisplay *handle,
+    int enabled);
+
 void neomacs_display_set_window_switch_fade(
     struct NeomacsDisplay *handle,
     int enabled,

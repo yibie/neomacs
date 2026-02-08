@@ -2699,6 +2699,20 @@ pub unsafe extern "C" fn neomacs_display_set_breadcrumb(
     }
 }
 
+/// Configure typing speed indicator overlay
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_typing_speed(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+) {
+    let cmd = RenderCommand::SetTypingSpeed {
+        enabled: enabled != 0,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
 /// Configure breadcrumb title fade animation
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_set_title_fade(

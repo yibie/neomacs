@@ -1311,6 +1311,21 @@ when switching buffers in a window."
                     neomacs-title-fade)
            (neomacs-set-title-fade t val))))
 
+;; --- Typing speed indicator ---
+(declare-function neomacs-set-typing-speed "neomacsterm.c"
+  (&optional enabled))
+
+(defcustom neomacs-typing-speed nil
+  "Enable typing speed (WPM) indicator overlay.
+Non-nil shows a live words-per-minute counter in the bottom-right
+corner of the active window."
+  :type 'boolean
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-typing-speed)
+           (neomacs-set-typing-speed val))))
+
 ;; --- Window switch highlight fade ---
 (declare-function neomacs-set-window-switch-fade "neomacsterm.c"
   (&optional enabled duration-ms intensity))
