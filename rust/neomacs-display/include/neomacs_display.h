@@ -1385,6 +1385,18 @@ void neomacs_display_set_region_glow(struct NeomacsDisplay *handle,
                                      int opacity);
 
 /**
+ * Configure animated focus ring around selected window
+ */
+void neomacs_display_set_focus_ring(struct NeomacsDisplay *handle,
+                                    int enabled,
+                                    int r,
+                                    int g,
+                                    int b,
+                                    int opacity,
+                                    int dashLength,
+                                    int speed);
+
+/**
  * Configure window background tint based on file type
  */
 void neomacs_display_set_window_mode_tint(struct NeomacsDisplay *handle, int enabled, int opacity);

@@ -2801,6 +2801,28 @@ pub unsafe extern "C" fn neomacs_display_set_region_glow(
     }
 }
 
+/// Configure animated focus ring around selected window
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_focus_ring(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    r: c_int, g: c_int, b: c_int,
+    opacity: c_int,
+    dash_length: c_int,
+    speed: c_int,
+) {
+    let cmd = RenderCommand::SetFocusRing {
+        enabled: enabled != 0,
+        color: (r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0),
+        opacity: opacity as f32 / 100.0,
+        dash_length: dash_length as f32,
+        speed: speed as f32,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
 /// Configure window background tint based on file type
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_set_window_mode_tint(

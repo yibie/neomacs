@@ -739,6 +739,12 @@ struct RenderApp {
     cursor_trail_fade_enabled: bool,
     cursor_trail_fade_length: u32,
     cursor_trail_fade_ms: u32,
+    /// Animated focus ring
+    focus_ring_enabled: bool,
+    focus_ring_color: (f32, f32, f32),
+    focus_ring_opacity: f32,
+    focus_ring_dash_length: f32,
+    focus_ring_speed: f32,
     /// Window background tint based on file type
     window_mode_tint_enabled: bool,
     window_mode_tint_opacity: f32,
@@ -1028,6 +1034,11 @@ impl RenderApp {
             cursor_trail_fade_enabled: false,
             cursor_trail_fade_length: 8,
             cursor_trail_fade_ms: 300,
+            focus_ring_enabled: false,
+            focus_ring_color: (0.4, 0.6, 1.0),
+            focus_ring_opacity: 0.5,
+            focus_ring_dash_length: 8.0,
+            focus_ring_speed: 40.0,
             window_mode_tint_enabled: false,
             window_mode_tint_opacity: 0.03,
             window_watermark_enabled: false,
@@ -2011,6 +2022,17 @@ impl RenderApp {
                     self.cursor_trail_fade_ms = fade_ms;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_trail_fade(enabled, length as usize, fade_ms);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetFocusRing { enabled, color, opacity, dash_length, speed } => {
+                    self.focus_ring_enabled = enabled;
+                    self.focus_ring_color = color;
+                    self.focus_ring_opacity = opacity;
+                    self.focus_ring_dash_length = dash_length;
+                    self.focus_ring_speed = speed;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_focus_ring(enabled, color, opacity, dash_length, speed);
                     }
                     self.frame_dirty = true;
                 }

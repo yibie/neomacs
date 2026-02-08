@@ -1430,6 +1430,14 @@ void neomacs_display_set_region_glow(
     int radius,
     int opacity);
 
+void neomacs_display_set_focus_ring(
+    struct NeomacsDisplay *handle,
+    int enabled,
+    int r, int g, int b,
+    int opacity,
+    int dash_length,
+    int speed);
+
 void neomacs_display_set_window_mode_tint(
     struct NeomacsDisplay *handle,
     int enabled,

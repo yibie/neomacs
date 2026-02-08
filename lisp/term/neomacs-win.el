@@ -1506,6 +1506,60 @@ activity, then smoothly restores brightness on any input."
                     neomacs-idle-dim)
            (neomacs-set-idle-dim t nil nil val))))
 
+;; --- Animated focus ring ---
+(declare-function neomacs-set-focus-ring "neomacsterm.c"
+  (&optional enabled r g b opacity dash-length speed))
+
+(defcustom neomacs-focus-ring nil
+  "Enable animated focus ring around the selected window.
+Non-nil renders a marching-ants-style dashed border around the
+focused window with continuous animation."
+  :type 'boolean
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-focus-ring)
+           (neomacs-set-focus-ring val nil nil nil
+            (if (boundp 'neomacs-focus-ring-opacity)
+                neomacs-focus-ring-opacity nil)
+            (if (boundp 'neomacs-focus-ring-dash-length)
+                neomacs-focus-ring-dash-length nil)
+            (if (boundp 'neomacs-focus-ring-speed)
+                neomacs-focus-ring-speed nil)))))
+
+(defcustom neomacs-focus-ring-opacity 50
+  "Focus ring opacity (0-100)."
+  :type '(integer :tag "Opacity")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-focus-ring)
+                    (boundp 'neomacs-focus-ring)
+                    neomacs-focus-ring)
+           (neomacs-set-focus-ring t nil nil nil val))))
+
+(defcustom neomacs-focus-ring-dash-length 8
+  "Dash segment length in pixels for focus ring."
+  :type '(integer :tag "Dash length")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-focus-ring)
+                    (boundp 'neomacs-focus-ring)
+                    neomacs-focus-ring)
+           (neomacs-set-focus-ring t nil nil nil nil val))))
+
+(defcustom neomacs-focus-ring-speed 40
+  "Animation speed in pixels per second for focus ring."
+  :type '(integer :tag "Speed")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-focus-ring)
+                    (boundp 'neomacs-focus-ring)
+                    neomacs-focus-ring)
+           (neomacs-set-focus-ring t nil nil nil nil nil val))))
+
 ;; --- Window background tint based on file type ---
 (declare-function neomacs-set-window-mode-tint "neomacsterm.c"
   (&optional enabled opacity))

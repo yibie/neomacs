@@ -496,6 +496,18 @@ pub enum RenderCommand {
         /// Width of gradient in pixels
         width: f32,
     },
+    /// Configure animated focus ring around selected window
+    SetFocusRing {
+        enabled: bool,
+        /// Ring color (sRGB 0.0-1.0)
+        color: (f32, f32, f32),
+        /// Ring opacity (0.0-1.0)
+        opacity: f32,
+        /// Dash length in pixels
+        dash_length: f32,
+        /// Animation speed (pixels per second)
+        speed: f32,
+    },
     /// Configure window background tint based on file type
     SetWindowModeTint {
         enabled: bool,

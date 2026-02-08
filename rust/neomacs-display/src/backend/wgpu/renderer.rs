@@ -176,6 +176,13 @@ pub struct WgpuRenderer {
     cursor_trail_fade_duration: std::time::Duration,
     cursor_trail_positions: Vec<(f32, f32, f32, f32, std::time::Instant)>,
     cursor_trail_last_pos: (f32, f32),
+    /// Animated focus ring
+    focus_ring_enabled: bool,
+    focus_ring_color: (f32, f32, f32),
+    focus_ring_opacity: f32,
+    focus_ring_dash_length: f32,
+    focus_ring_speed: f32,
+    focus_ring_start: std::time::Instant,
     /// Window background tint based on file type
     window_mode_tint_enabled: bool,
     window_mode_tint_opacity: f32,
@@ -799,6 +806,12 @@ impl WgpuRenderer {
             cursor_trail_fade_duration: std::time::Duration::from_millis(300),
             cursor_trail_positions: Vec::new(),
             cursor_trail_last_pos: (0.0, 0.0),
+            focus_ring_enabled: false,
+            focus_ring_color: (0.4, 0.6, 1.0),
+            focus_ring_opacity: 0.5,
+            focus_ring_dash_length: 8.0,
+            focus_ring_speed: 40.0,
+            focus_ring_start: std::time::Instant::now(),
             window_mode_tint_enabled: false,
             window_mode_tint_opacity: 0.03,
             window_watermark_enabled: false,
@@ -1006,6 +1019,18 @@ impl WgpuRenderer {
     pub fn set_accent_strip(&mut self, enabled: bool, width: f32) {
         self.accent_strip_enabled = enabled;
         self.accent_strip_width = width;
+    }
+
+    /// Update focus ring config
+    pub fn set_focus_ring(&mut self, enabled: bool, color: (f32, f32, f32), opacity: f32, dash_length: f32, speed: f32) {
+        self.focus_ring_enabled = enabled;
+        self.focus_ring_color = color;
+        self.focus_ring_opacity = opacity;
+        self.focus_ring_dash_length = dash_length.max(2.0);
+        self.focus_ring_speed = speed;
+        if enabled {
+            self.focus_ring_start = std::time::Instant::now();
+        }
     }
 
     /// Update window mode tint config
@@ -3547,6 +3572,73 @@ impl WgpuRenderer {
                     render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
                     render_pass.set_vertex_buffer(0, tint_buffer.slice(..));
                     render_pass.draw(0..tint_vertices.len() as u32, 0..1);
+                }
+            }
+
+            // === Animated focus ring (marching ants) around selected window ===
+            if self.focus_ring_enabled {
+                let elapsed = self.focus_ring_start.elapsed().as_secs_f32();
+                let offset = (elapsed * self.focus_ring_speed) % (self.focus_ring_dash_length * 2.0);
+                let dash = self.focus_ring_dash_length;
+                let period = dash * 2.0;
+                let thickness = 2.0_f32;
+                let (cr, cg, cb) = self.focus_ring_color;
+                let alpha = self.focus_ring_opacity.clamp(0.0, 1.0);
+                let c = Color::new(cr, cg, cb, alpha);
+
+                let mut ring_vertices: Vec<RectVertex> = Vec::new();
+
+                for info in &frame_glyphs.window_infos {
+                    if !info.selected || info.is_minibuffer { continue; }
+                    let b = &info.bounds;
+                    let content_h = b.height - info.mode_line_height;
+                    if content_h <= 0.0 { continue; }
+
+                    // Helper: generate dashes along a line segment
+                    let mut add_dashes = |x0: f32, y0: f32, x1: f32, y1: f32, horizontal: bool| {
+                        let length = if horizontal { (x1 - x0).abs() } else { (y1 - y0).abs() };
+                        let mut pos = -offset;
+                        while pos < length {
+                            let dash_start = pos.max(0.0);
+                            let dash_end = (pos + dash).min(length);
+                            if dash_end > dash_start {
+                                if horizontal {
+                                    self.add_rect(&mut ring_vertices,
+                                        x0.min(x1) + dash_start, y0,
+                                        dash_end - dash_start, thickness, &c);
+                                } else {
+                                    self.add_rect(&mut ring_vertices,
+                                        x0, y0.min(y1) + dash_start,
+                                        thickness, dash_end - dash_start, &c);
+                                }
+                            }
+                            pos += period;
+                        }
+                    };
+
+                    // Top edge
+                    add_dashes(b.x, b.y, b.x + b.width, b.y, true);
+                    // Bottom edge (above mode-line)
+                    add_dashes(b.x, b.y + content_h - thickness, b.x + b.width, b.y + content_h - thickness, true);
+                    // Left edge
+                    add_dashes(b.x, b.y, b.x, b.y + content_h, false);
+                    // Right edge
+                    add_dashes(b.x + b.width - thickness, b.y, b.x + b.width - thickness, b.y + content_h, false);
+                }
+
+                if !ring_vertices.is_empty() {
+                    self.needs_continuous_redraw = true;
+                    let ring_buffer = self.device.create_buffer_init(
+                        &wgpu::util::BufferInitDescriptor {
+                            label: Some("Focus Ring Buffer"),
+                            contents: bytemuck::cast_slice(&ring_vertices),
+                            usage: wgpu::BufferUsages::VERTEX,
+                        },
+                    );
+                    render_pass.set_pipeline(&self.rect_pipeline);
+                    render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                    render_pass.set_vertex_buffer(0, ring_buffer.slice(..));
+                    render_pass.draw(0..ring_vertices.len() as u32, 0..1);
                 }
             }
 

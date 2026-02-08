@@ -8690,6 +8690,39 @@ FADE-MS is the fade transition duration in milliseconds (default 500).  */)
   return on ? Qt : Qnil;
 }
 
+DEFUN ("neomacs-set-focus-ring",
+       Fneomacs_set_focus_ring,
+       Sneomacs_set_focus_ring, 0, 7, 0,
+       doc: /* Configure animated focus ring around selected window.
+ENABLED non-nil renders a marching-ants-style dashed border around
+the focused window with continuous animation.
+R, G, B are 0-255 ring color components (default 102, 153, 255).
+OPACITY is 0-100 for ring intensity (default 50).
+DASH-LENGTH is the dash segment length in pixels (default 8).
+SPEED is the animation speed in pixels per second (default 40).  */)
+  (Lisp_Object enabled, Lisp_Object r, Lisp_Object g, Lisp_Object b,
+   Lisp_Object opacity, Lisp_Object dash_length, Lisp_Object speed)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+
+  int on = !NILP (enabled);
+  int cr = 102, cg = 153, cb = 255;
+  int op = 50;
+  int dl = 8;
+  int sp = 40;
+  if (FIXNUMP (r)) cr = XFIXNUM (r);
+  if (FIXNUMP (g)) cg = XFIXNUM (g);
+  if (FIXNUMP (b)) cb = XFIXNUM (b);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+  if (FIXNUMP (dash_length)) dl = XFIXNUM (dash_length);
+  if (FIXNUMP (speed)) sp = XFIXNUM (speed);
+
+  neomacs_display_set_focus_ring (dpyinfo->display_handle, on, cr, cg, cb, op, dl, sp);
+  return on ? Qt : Qnil;
+}
+
 DEFUN ("neomacs-set-window-mode-tint",
        Fneomacs_set_window_mode_tint,
        Sneomacs_set_window_mode_tint, 0, 2, 0,
@@ -10252,6 +10285,7 @@ syms_of_neomacsterm (void)
   defsubr (&Sneomacs_set_padding_gradient);
   defsubr (&Sneomacs_set_noise_grain);
   defsubr (&Sneomacs_set_idle_dim);
+  defsubr (&Sneomacs_set_focus_ring);
   defsubr (&Sneomacs_set_window_mode_tint);
   defsubr (&Sneomacs_set_window_watermark);
   defsubr (&Sneomacs_set_cursor_trail_fade);
