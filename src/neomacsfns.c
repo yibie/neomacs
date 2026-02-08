@@ -2400,6 +2400,36 @@ The position is returned as a cons cell (X . Y).  */)
                 make_fixnum (dpyinfo->last_mouse_motion_y));
 }
 
+DEFUN ("neomacs-set-mouse-absolute-pixel-position",
+       Fneomacs_set_mouse_absolute_pixel_position,
+       Sneomacs_set_mouse_absolute_pixel_position, 2, 2, 0,
+       doc: /* Move mouse pointer to absolute pixel position (X, Y).
+The coordinates X and Y are interpreted in pixels relative to a position
+\(0, 0) of the selected frame's display.  */)
+  (Lisp_Object x, Lisp_Object y)
+{
+  struct frame *f = SELECTED_FRAME ();
+  struct neomacs_output *output = FRAME_NEOMACS_OUTPUT (f);
+  struct neomacs_display_info *dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
+  if (!dpyinfo || !output)
+    return Qnil;
+
+  int abs_x = check_integer_range (x, INT_MIN, INT_MAX);
+  int abs_y = check_integer_range (y, INT_MIN, INT_MAX);
+
+  /* Convert absolute screen coordinates to frame-relative coordinates.  */
+  int rel_x = abs_x - output->left_pos;
+  int rel_y = abs_y - output->top_pos;
+
+  if (dpyinfo->display_handle)
+    neomacs_display_warp_mouse (dpyinfo->display_handle, rel_x, rel_y);
+
+  dpyinfo->last_mouse_motion_x = abs_x;
+  dpyinfo->last_mouse_motion_y = abs_y;
+
+  return Qnil;
+}
+
 DEFUN ("neomacs-display-monitor-attributes-list",
        Fneomacs_display_monitor_attributes_list,
        Sneomacs_display_monitor_attributes_list,
@@ -2708,6 +2738,7 @@ syms_of_neomacsfns (void)
   defsubr (&Sneomacs_frame_geometry);
   defsubr (&Sneomacs_frame_edges);
   defsubr (&Sneomacs_mouse_absolute_pixel_position);
+  defsubr (&Sneomacs_set_mouse_absolute_pixel_position);
   defsubr (&Sneomacs_display_monitor_attributes_list);
 
   /* Connection functions */

@@ -2160,6 +2160,7 @@ live frame and defaults to the selected one."
 (declare-function pgtk-frame-geometry "pgtkfns.c" (&optional frame))
 (declare-function haiku-frame-geometry "haikufns.c" (&optional frame))
 (declare-function android-frame-geometry "androidfns.c" (&optional frame))
+(declare-function neomacs-frame-geometry "neomacsfns.c" (&optional frame))
 (declare-function tty-frame-geometry "term.c" (&optional frame))
 
 (defun frame-geometry (&optional frame)
@@ -2216,6 +2217,8 @@ and width values are in pixels.
       (haiku-frame-geometry frame))
      ((eq frame-type 'android)
       (android-frame-geometry frame))
+     ((eq frame-type 'neomacs)
+      (neomacs-frame-geometry frame))
      (t
       (tty-frame-geometry frame)))))
 
@@ -2326,6 +2329,7 @@ of frames like calls to map a frame or change its visibility."
 (declare-function pgtk-frame-edges "pgtkfns.c" (&optional frame type))
 (declare-function haiku-frame-edges "haikufns.c" (&optional frame type))
 (declare-function android-frame-edges "androidfns.c" (&optional frame type))
+(declare-function neomacs-frame-edges "neomacsfns.c" (&optional frame type))
 (declare-function tty-frame-edges "term.c" (&optional frame type))
 
 (defun frame-edges (&optional frame type)
@@ -2356,6 +2360,8 @@ FRAME."
       (haiku-frame-edges frame type))
      ((eq frame-type 'android)
       (android-frame-edges frame type))
+     ((eq frame-type 'neomacs)
+      (neomacs-frame-edges frame type))
      (t
       (tty-frame-edges frame type)))))
 
@@ -2365,6 +2371,7 @@ FRAME."
 (declare-function pgtk-mouse-absolute-pixel-position "pgtkfns.c")
 (declare-function haiku-mouse-absolute-pixel-position "haikufns.c")
 (declare-function android-mouse-absolute-pixel-position "androidfns.c")
+(declare-function neomacs-mouse-absolute-pixel-position "neomacsfns.c")
 
 (defun mouse-absolute-pixel-position ()
   "Return absolute position of mouse cursor in pixels.
@@ -2385,6 +2392,8 @@ position (0, 0) of the selected frame's terminal."
       (haiku-mouse-absolute-pixel-position))
      ((eq frame-type 'android)
       (android-mouse-absolute-pixel-position))
+     ((eq frame-type 'neomacs)
+      (neomacs-mouse-absolute-pixel-position))
      (t
       (cons 0 0)))))
 
@@ -2395,6 +2404,8 @@ position (0, 0) of the selected frame's terminal."
 (declare-function haiku-set-mouse-absolute-pixel-position "haikufns.c" (x y))
 (declare-function android-set-mouse-absolute-pixel-position
                   "androidfns.c" (x y))
+(declare-function neomacs-set-mouse-absolute-pixel-position
+                  "neomacsfns.c" (x y))
 
 (defun set-mouse-absolute-pixel-position (x y)
   "Move mouse pointer to absolute pixel position (X, Y).
@@ -2413,7 +2424,9 @@ position (0, 0) of the selected frame's terminal."
      ((eq frame-type 'haiku)
       (haiku-set-mouse-absolute-pixel-position x y))
      ((eq frame-type 'android)
-      (android-set-mouse-absolute-pixel-position x y)))))
+      (android-set-mouse-absolute-pixel-position x y))
+     ((eq frame-type 'neomacs)
+      (neomacs-set-mouse-absolute-pixel-position x y)))))
 
 (defun frame-monitor-attributes (&optional frame)
   "Return the attributes of the physical monitor dominating FRAME.
@@ -2535,6 +2548,9 @@ Return nil if DISPLAY contains no Emacs frame."
       ;; This is currently not supported on PGTK.
       ;; (pgtk-frame-list-z-order display)
       nil)
+     ((eq frame-type 'neomacs)
+      ;; Not yet supported on neomacs.
+      nil)
      ((eq frame-type 'haiku)
       (haiku-frame-list-z-order display))
      ((eq frame-type 'android)
@@ -2635,7 +2651,7 @@ frame's display)."
      ((eq frame-type 'w32)
       (with-no-warnings
        (> w32-num-mouse-buttons 0)))
-     ((memq frame-type '(x ns haiku pgtk))
+     ((memq frame-type '(x ns haiku pgtk neomacs))
       t)    ;; We assume X, NeXTstep, GTK, and Haiku *always* have a pointing device
      ((eq frame-type 'android)
       (android-detect-mouse))
@@ -2708,7 +2724,7 @@ frame's display)."
       ;; a Windows DOS Box.
       (with-no-warnings
        (not (null dos-windows-version))))
-     ((memq frame-type '(x w32 ns pgtk))
+     ((memq frame-type '(x w32 ns pgtk neomacs))
       t)
      ((and tty-select-active-regions
            (terminal-parameter nil 'xterm--set-selection))
@@ -2721,7 +2737,7 @@ frame's display)."
 This means that, for example, DISPLAY can differentiate between
 the keybinding RET and [return]."
   (let ((frame-type (framep-on-display display)))
-    (or (memq frame-type '(x w32 ns pc pgtk haiku android))
+    (or (memq frame-type '(x w32 ns pc pgtk haiku android neomacs))
         ;; MS-DOS and MS-Windows terminals have built-in support for
         ;; function (symbol) keys
         (memq system-type '(ms-dos windows-nt)))))
@@ -2734,7 +2750,7 @@ DISPLAY should be either a frame or a display name (a string).
 If DISPLAY is omitted or nil, it defaults to the selected frame's display."
   (let ((frame-type (framep-on-display display)))
     (cond
-     ((memq frame-type '(x w32 ns haiku pgtk android))
+     ((memq frame-type '(x w32 ns haiku pgtk android neomacs))
       (x-display-screens display))
      (t
       1))))
@@ -2755,7 +2771,7 @@ with DISPLAY.  To get information for each physical monitor, use
 `display-monitor-attributes-list'."
   (let ((frame-type (framep-on-display display)))
     (cond
-     ((memq frame-type '(x w32 ns haiku pgtk android))
+     ((memq frame-type '(x w32 ns haiku pgtk android neomacs))
       (x-display-pixel-height display))
      (t
       (tty-display-pixel-height display)))))
@@ -2776,7 +2792,7 @@ with DISPLAY.  To get information for each physical monitor, use
 `display-monitor-attributes-list'."
   (let ((frame-type (framep-on-display display)))
     (cond
-     ((memq frame-type '(x w32 ns haiku pgtk android))
+     ((memq frame-type '(x w32 ns haiku pgtk android neomacs))
       (x-display-pixel-width display))
      (t
       (tty-display-pixel-width display)))))
@@ -2814,7 +2830,7 @@ For graphical terminals, note that on \"multi-monitor\" setups this
 refers to the height in millimeters for all physical monitors
 associated with DISPLAY.  To get information for each physical
 monitor, use `display-monitor-attributes-list'."
-  (and (memq (framep-on-display display) '(x w32 ns haiku pgtk android))
+  (and (memq (framep-on-display display) '(x w32 ns haiku pgtk android neomacs))
        (or (cddr (assoc (or display (frame-parameter nil 'display))
 			display-mm-dimensions-alist))
 	   (cddr (assoc t display-mm-dimensions-alist))
@@ -2835,7 +2851,7 @@ For graphical terminals, note that on \"multi-monitor\" setups this
 refers to the width in millimeters for all physical monitors
 associated with DISPLAY.  To get information for each physical
 monitor, use `display-monitor-attributes-list'."
-  (and (memq (framep-on-display display) '(x w32 ns haiku pgtk android))
+  (and (memq (framep-on-display display) '(x w32 ns haiku pgtk android neomacs))
        (or (cadr (assoc (or display (frame-parameter nil 'display))
 			display-mm-dimensions-alist))
 	   (cadr (assoc t display-mm-dimensions-alist))
@@ -2853,7 +2869,7 @@ DISPLAY can be a display name or a frame.
 If DISPLAY is omitted or nil, it defaults to the selected frame's display."
   (let ((frame-type (framep-on-display display)))
     (cond
-     ((memq frame-type '(x w32 ns haiku pgtk android))
+     ((memq frame-type '(x w32 ns haiku pgtk android neomacs))
       (x-display-backing-store display))
      (t
       'not-useful))))
@@ -2866,7 +2882,7 @@ DISPLAY can be a display name or a frame.
 If DISPLAY is omitted or nil, it defaults to the selected frame's display."
   (let ((frame-type (framep-on-display display)))
     (cond
-     ((memq frame-type '(x w32 ns haiku pgtk android))
+     ((memq frame-type '(x w32 ns haiku pgtk android neomacs))
       (x-display-save-under display))
      (t
       'not-useful))))
@@ -2879,7 +2895,7 @@ DISPLAY can be a display name or a frame.
 If DISPLAY is omitted or nil, it defaults to the selected frame's display."
   (let ((frame-type (framep-on-display display)))
     (cond
-     ((memq frame-type '(x w32 ns haiku pgtk android))
+     ((memq frame-type '(x w32 ns haiku pgtk android neomacs))
       (x-display-planes display))
      ((eq frame-type 'pc)
       4)
