@@ -482,8 +482,16 @@ neomacs_set_sticky (struct frame *f, Lisp_Object arg, Lisp_Object oldval)
 static void
 neomacs_set_tool_bar_position (struct frame *f, Lisp_Object arg, Lisp_Object oldval)
 {
-  /* Neomacs uses external tool bar (rendered by toolkit), so position
-     is not applicable.  PGTK also does not implement this.  */
+  if (!EQ (arg, Qtop) && !EQ (arg, Qbottom))
+    error ("Tool bar position must be either `top' or `bottom'");
+
+  if (EQ (arg, oldval))
+    return;
+
+  fset_tool_bar_position (f, arg);
+  adjust_frame_size (f, -1, -1, 3, false, Qtool_bar_position);
+  adjust_frame_glyphs (f);
+  SET_FRAME_GARBAGED (f);
 }
 
 static void
