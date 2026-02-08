@@ -693,6 +693,9 @@ struct RenderApp {
     vignette_enabled: bool,
     vignette_intensity: f32,
     vignette_radius: f32,
+    /// Line insertion/deletion animation
+    line_animation_enabled: bool,
+    line_animation_duration_ms: u32,
 }
 
 /// State for a tooltip displayed as GPU overlay
@@ -895,6 +898,8 @@ impl RenderApp {
             vignette_enabled: false,
             vignette_intensity: 0.3,
             vignette_radius: 50.0,
+            line_animation_enabled: false,
+            line_animation_duration_ms: 150,
         }
     }
 
@@ -1729,6 +1734,14 @@ impl RenderApp {
                     }
                     self.frame_dirty = true;
                 }
+                RenderCommand::SetLineAnimation { enabled, duration_ms } => {
+                    self.line_animation_enabled = enabled;
+                    self.line_animation_duration_ms = duration_ms;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_line_animation(enabled, duration_ms);
+                    }
+                    self.frame_dirty = true;
+                }
             }
         }
 
@@ -2467,6 +2480,39 @@ impl RenderApp {
                                     old_view: view,
                                     old_bind_group: bg,
                                 });
+                            }
+                        }
+                    } else if self.line_animation_enabled
+                        && prev.buffer_size != info.buffer_size
+                        && !info.is_minibuffer
+                    {
+                        // Buffer size changed with same window_start → line insertion/deletion
+                        // Find cursor Y from frame glyphs as the edit point
+                        let mut cursor_y: Option<f32> = None;
+                        for g in &frame.glyphs {
+                            if let crate::core::frame_glyphs::FrameGlyph::Cursor { x, y, style, .. } = g {
+                                // Check cursor is within this window
+                                if *x >= info.bounds.x && *x < info.bounds.x + info.bounds.width
+                                    && *y >= info.bounds.y && *y < info.bounds.y + info.bounds.height
+                                    && *style != 3
+                                {
+                                    cursor_y = Some(*y);
+                                    break;
+                                }
+                            }
+                        }
+                        if let Some(edit_y) = cursor_y {
+                            let ch = info.char_height;
+                            let delta = info.buffer_size - prev.buffer_size;
+                            // Positive delta = insertion (lines move down), negative = deletion (lines move up)
+                            let offset = if delta > 0 { -ch } else { ch };
+                            if let Some(renderer) = self.renderer.as_mut() {
+                                renderer.start_line_animation(
+                                    info.bounds,
+                                    edit_y + ch, // animate rows below cursor
+                                    offset,
+                                    self.line_animation_duration_ms,
+                                );
                             }
                         }
                     } else if (prev.bounds.width - info.bounds.width).abs() > 2.0

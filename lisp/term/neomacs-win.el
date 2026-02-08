@@ -1124,6 +1124,35 @@ text content for a focused writing experience."
                 neomacs-zen-content-width nil)
             val))))
 
+;; --- Line insertion/deletion animation ---
+(declare-function neomacs-set-line-animation "neomacsterm.c"
+  (&optional enabled duration-ms))
+
+(defcustom neomacs-line-animation nil
+  "Enable smooth line insertion/deletion animation.
+Non-nil animates lines sliding into position when text is
+inserted or deleted, creating a smoother editing experience."
+  :type 'boolean
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-line-animation)
+           (neomacs-set-line-animation
+            val
+            (if (boundp 'neomacs-line-animation-duration)
+                neomacs-line-animation-duration nil)))))
+
+(defcustom neomacs-line-animation-duration 150
+  "Duration of line animation in milliseconds (50-500)."
+  :type '(integer :tag "Duration (ms)")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-line-animation)
+                    (boundp 'neomacs-line-animation)
+                    neomacs-line-animation)
+           (neomacs-set-line-animation t val))))
+
 ;; --- Vignette (edge darkening) ---
 (declare-function neomacs-set-vignette "neomacsterm.c"
   (&optional enabled intensity radius))

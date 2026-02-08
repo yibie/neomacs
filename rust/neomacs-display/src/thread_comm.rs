@@ -365,6 +365,11 @@ pub enum RenderCommand {
         /// Face ID of the isearch face (used to identify matching glyphs)
         face_id: u32,
     },
+    /// Configure line insertion/deletion animation
+    SetLineAnimation {
+        enabled: bool,
+        duration_ms: u32,
+    },
     /// Configure vignette effect (edge darkening)
     SetVignette {
         enabled: bool,

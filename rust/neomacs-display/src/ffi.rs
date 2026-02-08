@@ -2546,6 +2546,22 @@ pub unsafe extern "C" fn neomacs_display_set_background_pattern(
     }
 }
 
+/// Configure line insertion/deletion animation
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_line_animation(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    duration_ms: c_int,
+) {
+    let cmd = RenderCommand::SetLineAnimation {
+        enabled: enabled != 0,
+        duration_ms: duration_ms as u32,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
 /// Configure vignette effect (edge darkening)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_set_vignette(

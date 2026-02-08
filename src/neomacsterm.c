@@ -8281,6 +8281,28 @@ MARGIN-OPACITY is 0-100 for margin overlay opacity (default 30).  */)
   return on ? Qt : Qnil;
 }
 
+DEFUN ("neomacs-set-line-animation",
+       Fneomacs_set_line_animation,
+       Sneomacs_set_line_animation, 0, 2, 0,
+       doc: /* Configure smooth line insertion/deletion animation.
+ENABLED non-nil activates the animation.
+DURATION-MS is the animation duration in milliseconds (default 150).  */)
+  (Lisp_Object enabled, Lisp_Object duration_ms)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+
+  int on = !NILP (enabled);
+  int dur = 150;
+  if (FIXNUMP (duration_ms))
+    dur = XFIXNUM (duration_ms);
+
+  neomacs_display_set_line_animation (
+    dpyinfo->display_handle, on, dur);
+  return on ? Qt : Qnil;
+}
+
 DEFUN ("neomacs-set-vignette",
        Fneomacs_set_vignette,
        Sneomacs_set_vignette, 0, 3, 0,
@@ -9680,6 +9702,7 @@ syms_of_neomacsterm (void)
   defsubr (&Sneomacs_set_background_pattern);
   defsubr (&Sneomacs_set_zen_mode);
   defsubr (&Sneomacs_set_vignette);
+  defsubr (&Sneomacs_set_line_animation);
 
   /* Cursor blink */
   defsubr (&Sneomacs_set_cursor_blink);

@@ -135,6 +135,24 @@ pub struct WgpuRenderer {
     bg_pattern_color: (f32, f32, f32),
     /// Pattern opacity
     bg_pattern_opacity: f32,
+    /// Line insertion/deletion animation
+    line_animation_enabled: bool,
+    line_animation_duration_ms: u32,
+    active_line_anims: Vec<LineAnimEntry>,
+}
+
+/// Entry for an active line insertion/deletion animation
+struct LineAnimEntry {
+    /// Window bounds where the animation is active
+    window_bounds: Rect,
+    /// Y position below which glyphs are displaced
+    edit_y: f32,
+    /// Initial Y offset (negative=insertion slide-down, positive=deletion slide-up)
+    initial_offset: f32,
+    /// When the animation started
+    started: std::time::Instant,
+    /// Duration of the animation
+    duration: std::time::Duration,
 }
 
 impl WgpuRenderer {
@@ -648,6 +666,9 @@ impl WgpuRenderer {
             bg_pattern_spacing: 20.0,
             bg_pattern_color: (0.5, 0.5, 0.5),
             bg_pattern_opacity: 0.05,
+            line_animation_enabled: false,
+            line_animation_duration_ms: 150,
+            active_line_anims: Vec::new(),
         }
     }
 
@@ -711,6 +732,51 @@ impl WgpuRenderer {
         self.bg_pattern_spacing = spacing;
         self.bg_pattern_color = (r, g, b);
         self.bg_pattern_opacity = opacity;
+    }
+
+    /// Update line animation config
+    pub fn set_line_animation(&mut self, enabled: bool, duration_ms: u32) {
+        self.line_animation_enabled = enabled;
+        self.line_animation_duration_ms = duration_ms;
+        if !enabled {
+            self.active_line_anims.clear();
+        }
+    }
+
+    /// Start a line animation for a window
+    pub fn start_line_animation(&mut self, window_bounds: Rect, edit_y: f32, offset: f32, duration_ms: u32) {
+        // Remove any existing animation for this window region
+        self.active_line_anims.retain(|a| {
+            (a.window_bounds.x - window_bounds.x).abs() > 1.0
+            || (a.window_bounds.y - window_bounds.y).abs() > 1.0
+        });
+        self.active_line_anims.push(LineAnimEntry {
+            window_bounds,
+            edit_y,
+            initial_offset: offset,
+            started: std::time::Instant::now(),
+            duration: std::time::Duration::from_millis(duration_ms as u64),
+        });
+        self.needs_continuous_redraw = true;
+    }
+
+    /// Compute Y offset for a glyph due to active line animations
+    fn line_y_offset(&self, gx: f32, gy: f32) -> f32 {
+        for anim in &self.active_line_anims {
+            let b = &anim.window_bounds;
+            // Check if glyph is in this window and below the edit point
+            if gx >= b.x && gx < b.x + b.width
+                && gy >= b.y && gy < b.y + b.height
+                && gy >= anim.edit_y
+            {
+                let elapsed = anim.started.elapsed();
+                let t = (elapsed.as_secs_f32() / anim.duration.as_secs_f32()).min(1.0);
+                // Ease-out quadratic: t * (2 - t)
+                let eased = t * (2.0 - t);
+                return anim.initial_offset * (1.0 - eased);
+            }
+        }
+        0.0
     }
 
     /// Update search pulse config
@@ -1493,6 +1559,12 @@ impl WgpuRenderer {
         // Reset continuous redraw flag (will be set by dim fade or other animations)
         self.needs_continuous_redraw = false;
 
+        // Clean up expired line animations
+        self.active_line_anims.retain(|a| a.started.elapsed() < a.duration);
+        if !self.active_line_anims.is_empty() {
+            self.needs_continuous_redraw = true;
+        }
+
         // Advance glyph atlas generation for LRU tracking
         glyph_atlas.advance_generation();
 
@@ -1668,10 +1740,12 @@ impl WgpuRenderer {
             }
         }
         // Non-overlay stretches (skip those inside a box span)
+        let has_line_anims = !self.active_line_anims.is_empty();
         for glyph in &frame_glyphs.glyphs {
             if let FrameGlyph::Stretch { x, y, width, height, bg, is_overlay, .. } = glyph {
                 if !*is_overlay && !overlaps_rounded_box_span(*x, *y, false, &box_spans) {
-                    self.add_rect(&mut non_overlay_rect_vertices, *x, *y, *width, *height, bg);
+                    let ya = if has_line_anims { *y + self.line_y_offset(*x, *y) } else { *y };
+                    self.add_rect(&mut non_overlay_rect_vertices, *x, ya, *width, *height, bg);
                 }
             }
         }
@@ -1681,7 +1755,8 @@ impl WgpuRenderer {
                 if !*is_overlay {
                     if let Some(bg_color) = bg {
                         if !overlaps_rounded_box_span(*x, *y, false, &box_spans) {
-                            self.add_rect(&mut non_overlay_rect_vertices, *x, *y, *width, *height, bg_color);
+                            let ya = if has_line_anims { *y + self.line_y_offset(*x, *y) } else { *y };
+                            self.add_rect(&mut non_overlay_rect_vertices, *x, ya, *width, *height, bg_color);
                         }
                     }
                 }
@@ -2402,8 +2477,9 @@ impl WgpuRenderer {
                             // Divide bearing/size by scale_factor to get logical pixel positions
                             // that match Emacs coordinate space.
                             let sf = self.scale_factor;
+                            let ya = if has_line_anims { *y + self.line_y_offset(*x, *y) } else { *y };
                             let glyph_x = *x + cached.bearing_x / sf;
-                            let baseline = *y + *ascent;
+                            let baseline = ya + *ascent;
                             let glyph_y = baseline - cached.bearing_y / sf;
                             let glyph_w = cached.width as f32 / sf;
                             let glyph_h = cached.height as f32 / sf;
@@ -2562,7 +2638,8 @@ impl WgpuRenderer {
                                 continue;
                             }
 
-                            let baseline_y = *y + *ascent;
+                            let ya = if has_line_anims { *y + self.line_y_offset(*x, *y) } else { *y };
+                            let baseline_y = ya + *ascent;
 
                             // Get per-face font metrics for proper decoration positioning
                             let (ul_pos, ul_thick) = frame_glyphs.faces.get(face_id)
@@ -2627,7 +2704,7 @@ impl WgpuRenderer {
                             // --- Overline ---
                             if *overline > 0 {
                                 let ol_color = overline_color.as_ref().unwrap_or(fg);
-                                self.add_rect(&mut decoration_vertices, *x, *y, *width, ul_thick.max(1.0), ol_color);
+                                self.add_rect(&mut decoration_vertices, *x, ya, *width, ul_thick.max(1.0), ol_color);
                             }
 
                             // --- Strike-through ---
