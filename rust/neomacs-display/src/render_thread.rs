@@ -735,18 +735,24 @@ impl RenderApp {
                     }
                 }
                 RenderCommand::SetMouseCursor { cursor_type } => {
-                    use winit::window::CursorIcon;
-                    let icon = match cursor_type {
-                        2 => CursorIcon::Text,      // I-beam
-                        3 => CursorIcon::Pointer,    // Hand/pointer
-                        4 => CursorIcon::Crosshair,
-                        5 => CursorIcon::EwResize,   // Horizontal resize
-                        6 => CursorIcon::NsResize,   // Vertical resize
-                        7 => CursorIcon::Wait,       // Hourglass
-                        _ => CursorIcon::Default,    // Arrow
-                    };
                     if let Some(ref window) = self.window {
-                        window.set_cursor(icon);
+                        if cursor_type == 0 {
+                            // Hidden/invisible cursor
+                            window.set_cursor_visible(false);
+                        } else {
+                            use winit::window::CursorIcon;
+                            window.set_cursor_visible(true);
+                            let icon = match cursor_type {
+                                2 => CursorIcon::Text,      // I-beam
+                                3 => CursorIcon::Pointer,    // Hand/pointer
+                                4 => CursorIcon::Crosshair,
+                                5 => CursorIcon::EwResize,   // Horizontal resize
+                                6 => CursorIcon::NsResize,   // Vertical resize
+                                7 => CursorIcon::Wait,       // Hourglass
+                                _ => CursorIcon::Default,    // Arrow
+                            };
+                            window.set_cursor(icon);
+                        }
                     }
                 }
                 RenderCommand::SetWindowTitle { title } => {

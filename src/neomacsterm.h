@@ -376,6 +376,9 @@ extern struct neomacs_display_info *neomacs_open_display (const char *);
 extern struct terminal *neomacs_create_terminal (struct neomacs_display_info *);
 extern void neomacs_delete_terminal (struct terminal *);
 
+/* Frame name/title */
+extern void neomacs_set_name (struct frame *, Lisp_Object, bool);
+
 /* Lisp symbols */
 extern void syms_of_neomacsterm (void);
 extern void syms_of_neomacsfns (void);

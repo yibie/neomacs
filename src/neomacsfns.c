@@ -50,6 +50,7 @@ struct neomacs_frame_data
 
 /* Forward declarations */
 static void neomacs_set_title (struct frame *f);
+static void neomacs_set_title_handler (struct frame *, Lisp_Object, Lisp_Object);
 static struct neomacs_display_info *check_neomacs_display_info (Lisp_Object);
 static int x_decode_color (struct frame *f, Lisp_Object color_name, int mono_color);
 
@@ -300,7 +301,7 @@ neomacs_set_child_frame_border_width (struct frame *f, Lisp_Object value, Lisp_O
 static void
 neomacs_explicitly_set_name (struct frame *f, Lisp_Object arg, Lisp_Object oldval)
 {
-  neomacs_set_title (f);
+  neomacs_set_name (f, arg, true);
 }
 
 static void
@@ -313,6 +314,32 @@ static void
 neomacs_set_icon_type (struct frame *f, Lisp_Object arg, Lisp_Object oldval)
 {
   /* Icon type - not implemented yet */
+}
+
+/* Change the title of frame F to NAME.
+   If NAME is nil, use the frame name as the title.  */
+static void
+neomacs_set_title_handler (struct frame *f, Lisp_Object name,
+                           Lisp_Object old_name)
+{
+  if (EQ (name, f->title))
+    return;
+
+  update_mode_lines = 22;
+  fset_title (f, name);
+
+  if (NILP (name))
+    name = f->name;
+  else
+    CHECK_STRING (name);
+
+  struct neomacs_display_info *dpyinfo = FRAME_DISPLAY_INFO (f);
+  if (dpyinfo && dpyinfo->display_handle)
+    {
+      Lisp_Object encoded = ENCODE_UTF_8 (name);
+      neomacs_display_set_title (dpyinfo->display_handle,
+                                 SSDATA (encoded));
+    }
 }
 
 static void
@@ -410,7 +437,7 @@ frame_parm_handler neomacs_frame_parm_handlers[] =
     neomacs_explicitly_set_name,	/* name */
     gui_set_scroll_bar_width,		/* scroll-bar-width */
     gui_set_scroll_bar_height,		/* scroll-bar-height */
-    NULL,				/* title - set via set_name */
+    neomacs_set_title_handler,		/* title */
     gui_set_unsplittable,		/* unsplittable */
     gui_set_vertical_scroll_bars,	/* vertical-scroll-bars */
     gui_set_horizontal_scroll_bars,	/* horizontal-scroll-bars */

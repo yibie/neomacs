@@ -5855,7 +5855,7 @@ neomacs_iconify_frame (struct frame *f)
 }
 
 /* Set frame name/title — common logic for implicit and explicit.  */
-static void
+void
 neomacs_set_name (struct frame *f, Lisp_Object name, bool explicit_p)
 {
   if (explicit_p)
@@ -5961,8 +5961,6 @@ neomacs_ring_bell (struct frame *f)
 static void
 neomacs_toggle_invisible_pointer (struct frame *f, bool invisible)
 {
-  /* TODO: Send pointer visibility to render thread when supported.
-     For now, just track the state.  */
   if (invisible)
     neomacs_display_set_mouse_cursor (
       FRAME_NEOMACS_DISPLAY_INFO (f)->display_handle, 0);
