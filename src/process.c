@@ -128,6 +128,11 @@ static struct rlimit nofile_limit;
 #include TERM_HEADER
 #endif /* HAVE_WINDOW_SYSTEM */
 
+#ifdef HAVE_NEOMACS
+#define NLOG_MODULE "process"
+#include "neomacs_log.h"
+#endif
+
 #ifdef HAVE_GLIB
 #include "xgselect.h"
 #ifndef WINDOWSNT
@@ -2159,6 +2164,9 @@ static_assert (PROCESS_OPEN_FDS == EXEC_MONITOR_OUTPUT + 1);
 static void
 create_process (Lisp_Object process, char **new_argv, Lisp_Object current_dir)
 {
+#ifdef HAVE_NEOMACS
+  nlog_info ("create_process");
+#endif
   struct Lisp_Process *p = XPROCESS (process);
   int inchannel = -1, outchannel = -1;
   pid_t pid = -1;

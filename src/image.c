@@ -154,6 +154,8 @@ typedef struct pgtk_bitmap_record Bitmap_Record;
 typedef struct neomacs_bitmap_record Bitmap_Record;
 #include "neomacsterm.h"
 #include "neomacs_display.h"
+#define NLOG_MODULE "image"
+#include "neomacs_log.h"
 #endif /* HAVE_NEOMACS */
 
 #if (defined HAVE_X_WINDOWS \
@@ -3529,6 +3531,9 @@ image_set_transform (struct frame *f, struct image *img)
 ptrdiff_t
 lookup_image (struct frame *f, Lisp_Object spec, int face_id)
 {
+#ifdef HAVE_NEOMACS
+  nlog_debug ("lookup_image: face_id=%d", face_id);
+#endif
   struct image *img;
   EMACS_UINT hash;
 

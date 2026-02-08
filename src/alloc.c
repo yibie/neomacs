@@ -52,6 +52,11 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include TERM_HEADER
 #endif /* HAVE_WINDOW_SYSTEM */
 
+#ifdef HAVE_NEOMACS
+#define NLOG_MODULE "alloc"
+#include "neomacs_log.h"
+#endif
+
 #if defined HAVE_ANDROID && !defined ANDROID_STUBIFY
 #include "sfntfont.h"
 #endif
@@ -5778,6 +5783,9 @@ static inline bool mark_stack_empty_p (void);
 void
 garbage_collect (void)
 {
+#ifdef HAVE_NEOMACS
+  nlog_debug ("garbage_collect");
+#endif
   Lisp_Object tail, buffer;
   char stack_top_variable;
   bool message_p;

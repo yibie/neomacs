@@ -88,6 +88,11 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include TERM_HEADER
 #endif /* HAVE_WINDOW_SYSTEM */
 
+#ifdef HAVE_NEOMACS
+#define NLOG_MODULE "keyboard"
+#include "neomacs_log.h"
+#endif
+
 #ifdef WINDOWSNT
 char const DEV_TTY[] = "CONOUT$";
 #else
@@ -1317,6 +1322,9 @@ static void adjust_point_for_property (ptrdiff_t, bool);
 static Lisp_Object
 command_loop_1 (void)
 {
+#ifdef HAVE_NEOMACS
+  nlog_trace ("command_loop_1");
+#endif
   modiff_count prev_modiff = 0;
   struct buffer *prev_buffer = NULL;
 
@@ -2537,6 +2545,9 @@ read_char (int commandflag, Lisp_Object map,
 	   Lisp_Object prev_event,
 	   bool *used_mouse_menu, struct timespec *end_time)
 {
+#ifdef HAVE_NEOMACS
+  nlog_trace ("read_char: commandflag=%d", commandflag);
+#endif
   Lisp_Object c;
   sys_jmp_buf local_getcjmp;
   sys_jmp_buf save_jump;

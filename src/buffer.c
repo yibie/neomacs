@@ -44,6 +44,11 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include "itree.h"
 #include "pdumper.h"
 
+#ifdef HAVE_NEOMACS
+#define NLOG_MODULE "buffer"
+#include "neomacs_log.h"
+#endif
+
 #ifdef WINDOWSNT
 #include "w32heap.h"		/* for mmap_* */
 #endif
@@ -2324,6 +2329,9 @@ DEFUN ("current-buffer", Fcurrent_buffer, Scurrent_buffer, 0, 0, 0,
 void
 set_buffer_internal_1 (register struct buffer *b)
 {
+#ifdef HAVE_NEOMACS
+  nlog_trace ("set_buffer_internal: %s", SSDATA (BVAR (b, name)));
+#endif
 #ifdef USE_MMAP_FOR_BUFFERS
   if (b->text->beg == NULL)
     enlarge_buffer_text (b, 0);

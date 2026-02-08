@@ -503,6 +503,8 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #ifdef HAVE_NEOMACS
 #include "neomacsterm.h"
 #include "neomacs_display.h"
+#define NLOG_MODULE "xdisp"
+#include "neomacs_log.h"
 #endif
 
 #ifndef FRAME_OUTPUT_DATA
@@ -17359,6 +17361,9 @@ do { if (polling_stopped_here) start_polling ();	\
 static void
 redisplay_internal (void)
 {
+#ifdef HAVE_NEOMACS
+  nlog_trace ("redisplay_internal");
+#endif
   struct window *w = XWINDOW (selected_window);
   struct window *sw;
   struct frame *fr;
@@ -20479,6 +20484,9 @@ optimizations mean and when they are in effect.  */)
 static void
 redisplay_window (Lisp_Object window, bool just_this_one_p)
 {
+#ifdef HAVE_NEOMACS
+  nlog_trace ("redisplay_window: window=%p", (void *) XWINDOW (window));
+#endif
   struct window *w = XWINDOW (window);
   struct frame *f = XFRAME (w->frame);
   struct buffer *buffer = XBUFFER (w->contents);
