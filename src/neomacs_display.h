@@ -1518,6 +1518,14 @@ void neomacs_display_set_edge_snap(
     int b,
     int duration_ms);
 
+void neomacs_display_set_cursor_crosshair(
+    struct NeomacsDisplay *handle,
+    int enabled,
+    int r,
+    int g,
+    int b,
+    int opacity);
+
 void neomacs_display_set_wrap_indicator(
     struct NeomacsDisplay *handle,
     int enabled,

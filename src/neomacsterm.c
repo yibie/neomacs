@@ -9067,6 +9067,41 @@ DURATION-MS is the pulse duration in milliseconds (default 250).  */)
   return on ? Qt : Qnil;
 }
 
+DEFUN ("neomacs-set-cursor-crosshair",
+       Fneomacs_set_cursor_crosshair,
+       Sneomacs_set_cursor_crosshair, 0, 3, 0,
+       doc: /* Configure cursor crosshair guide lines.
+ENABLED non-nil draws thin semi-transparent horizontal and vertical
+guide lines extending from the cursor position across the window.
+COLOR is an RGB hex string (default "#808080").
+OPACITY is a percentage 0-100 (default 15).  */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+
+  int on = !NILP (enabled);
+  int r = 128, g = 128, b = 128;
+  int op = 15;
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned int hex;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_cursor_crosshair (dpyinfo->display_handle, on, r, g, b, op);
+  return on ? Qt : Qnil;
+}
+
 DEFUN ("neomacs-set-edge-snap",
        Fneomacs_set_edge_snap,
        Sneomacs_set_edge_snap, 0, 3, 0,
@@ -10696,6 +10731,7 @@ syms_of_neomacsterm (void)
   defsubr (&Sneomacs_set_scroll_velocity_fade);
   defsubr (&Sneomacs_set_click_halo);
   defsubr (&Sneomacs_set_edge_snap);
+  defsubr (&Sneomacs_set_cursor_crosshair);
   defsubr (&Sneomacs_set_region_glow);
   defsubr (&Sneomacs_set_window_glow);
   defsubr (&Sneomacs_set_scroll_progress);

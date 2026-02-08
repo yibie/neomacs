@@ -1477,6 +1477,16 @@ void neomacs_display_set_edge_snap(struct NeomacsDisplay *handle,
                                    int durationMs);
 
 /**
+ * Configure cursor crosshair guide lines
+ */
+void neomacs_display_set_cursor_crosshair(struct NeomacsDisplay *handle,
+                                          int enabled,
+                                          int r,
+                                          int g,
+                                          int b,
+                                          int opacity);
+
+/**
  * Configure cursor click halo effect
  */
 void neomacs_display_set_click_halo(struct NeomacsDisplay *handle,

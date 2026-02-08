@@ -779,6 +779,10 @@ struct RenderApp {
     edge_snap_enabled: bool,
     edge_snap_color: (f32, f32, f32),
     edge_snap_duration_ms: u32,
+    /// Cursor crosshair guide lines
+    cursor_crosshair_enabled: bool,
+    cursor_crosshair_color: (f32, f32, f32),
+    cursor_crosshair_opacity: f32,
     /// Click halo effect
     click_halo_enabled: bool,
     click_halo_color: (f32, f32, f32),
@@ -1120,6 +1124,9 @@ impl RenderApp {
             edge_snap_enabled: false,
             edge_snap_color: (1.0, 0.5, 0.2),
             edge_snap_duration_ms: 200,
+            cursor_crosshair_enabled: false,
+            cursor_crosshair_color: (0.5, 0.5, 0.5),
+            cursor_crosshair_opacity: 0.15,
             click_halo_enabled: false,
             click_halo_color: (0.4, 0.6, 1.0),
             click_halo_duration_ms: 300,
@@ -2247,6 +2254,15 @@ impl RenderApp {
                     self.edge_snap_duration_ms = duration_ms;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_edge_snap(enabled, (r, g, b), duration_ms);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetCursorCrosshair { enabled, r, g, b, opacity } => {
+                    self.cursor_crosshair_enabled = enabled;
+                    self.cursor_crosshair_color = (r, g, b);
+                    self.cursor_crosshair_opacity = opacity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_cursor_crosshair(enabled, (r, g, b), opacity);
                     }
                     self.frame_dirty = true;
                 }

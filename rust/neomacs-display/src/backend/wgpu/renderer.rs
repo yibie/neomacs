@@ -275,6 +275,10 @@ pub struct WgpuRenderer {
     edge_snap_color: (f32, f32, f32),
     edge_snap_duration_ms: u32,
     edge_snaps: Vec<EdgeSnapEntry>,
+    /// Cursor crosshair guide lines
+    cursor_crosshair_enabled: bool,
+    cursor_crosshair_color: (f32, f32, f32),
+    cursor_crosshair_opacity: f32,
     /// Scroll velocity fade overlay
     scroll_velocity_fade_enabled: bool,
     scroll_velocity_fade_max_opacity: f32,
@@ -1019,6 +1023,9 @@ impl WgpuRenderer {
             edge_snap_color: (1.0, 0.5, 0.2),
             edge_snap_duration_ms: 200,
             edge_snaps: Vec::new(),
+            cursor_crosshair_enabled: false,
+            cursor_crosshair_color: (0.5, 0.5, 0.5),
+            cursor_crosshair_opacity: 0.15,
             scroll_velocity_fade_enabled: false,
             scroll_velocity_fade_max_opacity: 0.15,
             scroll_velocity_fade_ms: 300,
@@ -1309,6 +1316,13 @@ impl WgpuRenderer {
             started: now,
             duration: std::time::Duration::from_millis(self.edge_snap_duration_ms as u64),
         });
+    }
+
+    /// Update cursor crosshair config
+    pub fn set_cursor_crosshair(&mut self, enabled: bool, color: (f32, f32, f32), opacity: f32) {
+        self.cursor_crosshair_enabled = enabled;
+        self.cursor_crosshair_color = color;
+        self.cursor_crosshair_opacity = opacity;
     }
 
     /// Update click halo config
@@ -3381,6 +3395,56 @@ impl WgpuRenderer {
                         render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
                         render_pass.set_vertex_buffer(0, glow_buffer.slice(..));
                         render_pass.draw(0..glow_vertices.len() as u32, 0..1);
+                    }
+                }
+            }
+
+            // === Step 1d: Draw cursor crosshair guide lines ===
+            if self.cursor_crosshair_enabled && cursor_visible {
+                let mut cross_pos: Option<(f32, f32, f32, f32)> = None;
+                if let Some(ref anim) = animated_cursor {
+                    cross_pos = Some((anim.x, anim.y, anim.width, anim.height));
+                } else {
+                    for glyph in &frame_glyphs.glyphs {
+                        if let FrameGlyph::Cursor { x, y, width, height, style, .. } = glyph {
+                            if *style != 3 {
+                                cross_pos = Some((*x, *y, *width, *height));
+                                break;
+                            }
+                        }
+                    }
+                }
+                if let Some((cx, cy, cw, ch)) = cross_pos {
+                    // Find the window that contains this cursor
+                    let cursor_center_x = cx + cw / 2.0;
+                    let cursor_center_y = cy + ch / 2.0;
+                    if let Some(win_info) = frame_glyphs.window_infos.iter()
+                        .find(|w| w.selected && !w.is_minibuffer)
+                    {
+                        let (cr, cg, cb) = self.cursor_crosshair_color;
+                        let alpha = self.cursor_crosshair_opacity;
+                        let c = Color::new(cr, cg, cb, alpha);
+                        let mut cross_verts: Vec<RectVertex> = Vec::new();
+                        let wb = &win_info.bounds;
+                        // Don't extend into mode-line area
+                        let win_bottom = wb.y + wb.height - win_info.mode_line_height;
+                        // Horizontal line (full window width, 1px height at cursor center Y)
+                        self.add_rect(&mut cross_verts, wb.x, cursor_center_y, wb.width, 1.0, &c);
+                        // Vertical line (1px width, from window top to above mode-line)
+                        self.add_rect(&mut cross_verts, cursor_center_x, wb.y, 1.0, win_bottom - wb.y, &c);
+                        if !cross_verts.is_empty() {
+                            let cross_buf = self.device.create_buffer_init(
+                                &wgpu::util::BufferInitDescriptor {
+                                    label: Some("Cursor Crosshair Buffer"),
+                                    contents: bytemuck::cast_slice(&cross_verts),
+                                    usage: wgpu::BufferUsages::VERTEX,
+                                },
+                            );
+                            render_pass.set_pipeline(&self.rect_pipeline);
+                            render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                            render_pass.set_vertex_buffer(0, cross_buf.slice(..));
+                            render_pass.draw(0..cross_verts.len() as u32, 0..1);
+                        }
                     }
                 }
             }

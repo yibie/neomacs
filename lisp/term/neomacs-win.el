@@ -2126,6 +2126,52 @@ of each window during scrolling."
                 neomacs-scroll-momentum-fade nil)
             val))))
 
+;; --- Cursor crosshair guide lines ---
+(declare-function neomacs-set-cursor-crosshair "neomacsterm.c"
+  (&optional enabled color opacity))
+
+(defcustom neomacs-cursor-crosshair nil
+  "Enable cursor crosshair guide lines.
+Non-nil draws thin semi-transparent horizontal and vertical lines
+from the cursor position across the selected window."
+  :type 'boolean
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-cursor-crosshair)
+           (neomacs-set-cursor-crosshair val
+            (if (boundp 'neomacs-cursor-crosshair-color)
+                neomacs-cursor-crosshair-color nil)
+            (if (boundp 'neomacs-cursor-crosshair-opacity)
+                neomacs-cursor-crosshair-opacity nil)))))
+
+(defcustom neomacs-cursor-crosshair-color "#808080"
+  "Crosshair guide line color as hex RGB string."
+  :type '(string :tag "Color (#RRGGBB)")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-crosshair)
+                    (boundp 'neomacs-cursor-crosshair)
+                    neomacs-cursor-crosshair)
+           (neomacs-set-cursor-crosshair t val
+            (if (boundp 'neomacs-cursor-crosshair-opacity)
+                neomacs-cursor-crosshair-opacity nil)))))
+
+(defcustom neomacs-cursor-crosshair-opacity 15
+  "Crosshair guide line opacity (0-100)."
+  :type '(integer :tag "Opacity (%)")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-crosshair)
+                    (boundp 'neomacs-cursor-crosshair)
+                    neomacs-cursor-crosshair)
+           (neomacs-set-cursor-crosshair t
+            (if (boundp 'neomacs-cursor-crosshair-color)
+                neomacs-cursor-crosshair-color nil)
+            val))))
+
 ;; --- Window edge snap indicator ---
 (declare-function neomacs-set-edge-snap "neomacsterm.c"
   (&optional enabled color duration-ms))

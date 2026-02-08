@@ -610,6 +610,16 @@ pub enum RenderCommand {
         /// Flash duration in milliseconds
         duration_ms: u32,
     },
+    /// Configure cursor crosshair guide lines
+    SetCursorCrosshair {
+        enabled: bool,
+        /// Line color (sRGB floats)
+        r: f32,
+        g: f32,
+        b: f32,
+        /// Line opacity (0.0-1.0)
+        opacity: f32,
+    },
     /// Configure cursor click halo effect
     SetClickHalo {
         enabled: bool,
