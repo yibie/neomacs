@@ -314,6 +314,8 @@ struct RenderApp {
 
     // Last known cursor position
     mouse_pos: (f32, f32),
+    /// Whether the mouse cursor is hidden during keyboard input
+    mouse_hidden_for_typing: bool,
 
     // Shared image dimensions (written here, read from main thread)
     image_dimensions: SharedImageDimensions,
@@ -480,6 +482,7 @@ impl RenderApp {
             faces: HashMap::new(),
             modifiers: 0,
             mouse_pos: (0.0, 0.0),
+            mouse_hidden_for_typing: false,
             image_dimensions,
             frame_dirty: false,
             cursor_blink_on: true,
@@ -2538,6 +2541,13 @@ impl ApplicationHandler for RenderApp {
                 } else {
                     let keysym = Self::translate_key(&logical_key);
                     if keysym != 0 {
+                        // Hide mouse cursor on keyboard input
+                        if state == ElementState::Pressed && !self.mouse_hidden_for_typing {
+                            if let Some(ref window) = self.window {
+                                window.set_cursor_visible(false);
+                                self.mouse_hidden_for_typing = true;
+                            }
+                        }
                         self.comms.send_input(InputEvent::Key {
                             keysym,
                             modifiers: self.modifiers,
@@ -2586,6 +2596,14 @@ impl ApplicationHandler for RenderApp {
                 let lx = (position.x / self.scale_factor) as f32;
                 let ly = (position.y / self.scale_factor) as f32;
                 self.mouse_pos = (lx, ly);
+
+                // Restore mouse cursor visibility when mouse moves
+                if self.mouse_hidden_for_typing {
+                    if let Some(ref window) = self.window {
+                        window.set_cursor_visible(true);
+                    }
+                    self.mouse_hidden_for_typing = false;
+                }
 
                 // Update popup menu hover state
                 if let Some(ref mut menu) = self.popup_menu {
