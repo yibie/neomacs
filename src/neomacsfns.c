@@ -49,7 +49,6 @@ struct neomacs_frame_data
 };
 
 /* Forward declarations */
-static void neomacs_set_title (struct frame *f);
 static void neomacs_set_title_handler (struct frame *, Lisp_Object, Lisp_Object);
 static struct neomacs_display_info *check_neomacs_display_info (Lisp_Object);
 static int x_decode_color (struct frame *f, Lisp_Object color_name, int mono_color);
@@ -343,15 +342,21 @@ neomacs_set_title_handler (struct frame *f, Lisp_Object name,
 }
 
 static void
-neomacs_set_scroll_bar_foreground (struct frame *f, Lisp_Object arg, Lisp_Object oldval)
+neomacs_set_scroll_bar_foreground (struct frame *f, Lisp_Object arg,
+                                    Lisp_Object oldval)
 {
-  /* Scroll bar foreground - not implemented yet */
+  if (FRAME_TOOLTIP_P (f))
+    return;
+  update_face_from_frame_parameter (f, Qscroll_bar_foreground, arg);
 }
 
 static void
-neomacs_set_scroll_bar_background (struct frame *f, Lisp_Object arg, Lisp_Object oldval)
+neomacs_set_scroll_bar_background (struct frame *f, Lisp_Object arg,
+                                    Lisp_Object oldval)
 {
-  /* Scroll bar background - not implemented yet */
+  if (FRAME_TOOLTIP_P (f))
+    return;
+  update_face_from_frame_parameter (f, Qscroll_bar_background, arg);
 }
 
 static void
@@ -2023,31 +2028,6 @@ DEFUN ("x-display-list", Fx_display_list, Sx_display_list, 0, 0, 0,
  * Set Frame Title
  * ============================================================================ */
 
-static void
-neomacs_set_title (struct frame *f)
-{
-  struct neomacs_display_info *dpyinfo = FRAME_DISPLAY_INFO (f);
-  Lisp_Object name;
-
-  if (FRAME_ICONIFIED_P (f))
-    return;
-
-  if (STRINGP (f->title))
-    name = f->title;
-  else if (STRINGP (f->name))
-    name = f->name;
-  else
-    name = build_string ("Emacs");
-
-  if (dpyinfo && dpyinfo->display_handle)
-    {
-      Lisp_Object encoded = ENCODE_UTF_8 (name);
-      neomacs_display_set_title (dpyinfo->display_handle,
-                                 SSDATA (encoded));
-    }
-}
-
-
 /* Set up the default font for frame F from parameters PARMS.
    Called during frame creation and when font-backend changes.  */
 void
@@ -2097,7 +2077,7 @@ neomacs_default_font_parameter (struct frame *f, Lisp_Object parms)
 
 
 /* ============================================================================
- * Scroll Bar Functions (stubs)
+ * Scroll Bar Functions
  * ============================================================================ */
 
 DEFUN ("x-scroll-bar-foreground", Fx_scroll_bar_foreground,
@@ -2105,7 +2085,8 @@ DEFUN ("x-scroll-bar-foreground", Fx_scroll_bar_foreground,
        doc: /* Return the foreground color of scroll bars on FRAME.  */)
   (Lisp_Object frame)
 {
-  return Qnil;
+  decode_window_system_frame (frame);
+  return Fframe_parameter (frame, Qscroll_bar_foreground);
 }
 
 DEFUN ("x-scroll-bar-background", Fx_scroll_bar_background,
@@ -2113,7 +2094,8 @@ DEFUN ("x-scroll-bar-background", Fx_scroll_bar_background,
        doc: /* Return the background color of scroll bars on FRAME.  */)
   (Lisp_Object frame)
 {
-  return Qnil;
+  decode_window_system_frame (frame);
+  return Fframe_parameter (frame, Qscroll_bar_background);
 }
 
 

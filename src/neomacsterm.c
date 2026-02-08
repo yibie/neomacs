@@ -203,6 +203,8 @@ static void neomacs_update_window_begin (struct window *);
 static void neomacs_update_window_end (struct window *, bool, bool);
 static void neomacs_draw_vertical_window_border (struct window *, int, int, int);
 static void neomacs_draw_window_divider (struct window *, int, int, int, int);
+static void neomacs_define_fringe_bitmap (int, unsigned short *, int, int);
+static void neomacs_destroy_fringe_bitmap (int);
 
 /* The redisplay interface for Neomacs frames - statically initialized.
    All function pointers are declared extern in neomacsterm.h */
@@ -221,8 +223,8 @@ static struct redisplay_interface neomacs_redisplay_interface = {
   .get_glyph_overhangs = gui_get_glyph_overhangs,
   .fix_overlapping_area = gui_fix_overlapping_area,
   .draw_fringe_bitmap = neomacs_draw_fringe_bitmap,
-  .define_fringe_bitmap = NULL,
-  .destroy_fringe_bitmap = NULL,
+  .define_fringe_bitmap = neomacs_define_fringe_bitmap,
+  .destroy_fringe_bitmap = neomacs_destroy_fringe_bitmap,
   .compute_glyph_string_overhangs = neomacs_compute_glyph_string_overhangs,
   .draw_glyph_string = neomacs_draw_glyph_string,
   .define_frame_cursor = neomacs_define_frame_cursor,
@@ -5563,6 +5565,24 @@ neomacs_draw_fringe_bitmap (struct window *w, struct glyph_row *row,
             }
         }
     }
+}
+
+
+/* Define a fringe bitmap.  Neomacs draws fringe bitmaps directly from
+   p->bits in neomacs_draw_fringe_bitmap, so no backend-specific caching
+   is needed.  This function exists so gui_init_fringe does not bail. */
+static void
+neomacs_define_fringe_bitmap (int which, unsigned short *bits,
+                               int h, int wd)
+{
+  /* No-op: neomacs renders directly from raw bitmap bits. */
+}
+
+/* Destroy a fringe bitmap.  No-op since we don't cache anything. */
+static void
+neomacs_destroy_fringe_bitmap (int which)
+{
+  /* No-op: nothing to free. */
 }
 
 
