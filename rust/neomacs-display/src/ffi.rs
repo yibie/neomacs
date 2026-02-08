@@ -1349,12 +1349,14 @@ pub unsafe extern "C" fn neomacs_display_get_video_size(
 // Image Functions (stubs - no GTK4 backend)
 // ============================================================================
 
-/// Load an image from a file path (stub)
+/// Load an image from a file path (delegates to load_image_file)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_load_image(
-    _handle: *mut NeomacsDisplay,
-    _path: *const c_char,
-) -> u32 { 0 }
+    handle: *mut NeomacsDisplay,
+    path: *const c_char,
+) -> u32 {
+    neomacs_display_load_image_file(handle, path)
+}
 
 /// Load an image from raw bytes (encoded image format)
 #[no_mangle]
