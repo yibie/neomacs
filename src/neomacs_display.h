@@ -1430,6 +1430,12 @@ void neomacs_display_set_region_glow(
     int radius,
     int opacity);
 
+void neomacs_display_set_cursor_trail_fade(
+    struct NeomacsDisplay *handle,
+    int enabled,
+    int length,
+    int fade_ms);
+
 void neomacs_display_set_idle_dim(
     struct NeomacsDisplay *handle,
     int enabled,

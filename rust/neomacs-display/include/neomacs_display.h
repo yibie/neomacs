@@ -1385,6 +1385,14 @@ void neomacs_display_set_region_glow(struct NeomacsDisplay *handle,
                                      int opacity);
 
 /**
+ * Configure cursor trail fade effect
+ */
+void neomacs_display_set_cursor_trail_fade(struct NeomacsDisplay *handle,
+                                           int enabled,
+                                           int length,
+                                           int fadeMs);
+
+/**
  * Configure idle screen dimming after inactivity
  */
 void neomacs_display_set_idle_dim(struct NeomacsDisplay *handle,

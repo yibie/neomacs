@@ -2801,6 +2801,24 @@ pub unsafe extern "C" fn neomacs_display_set_region_glow(
     }
 }
 
+/// Configure cursor trail fade effect
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_cursor_trail_fade(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    length: c_int,
+    fade_ms: c_int,
+) {
+    let cmd = RenderCommand::SetCursorTrailFade {
+        enabled: enabled != 0,
+        length: length as u32,
+        fade_ms: fade_ms as u32,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
 /// Configure idle screen dimming after inactivity
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_set_idle_dim(

@@ -450,6 +450,14 @@ pub enum RenderCommand {
         /// Blur radius (noise spread in pixels)
         blur: f32,
     },
+    /// Configure cursor trail fade (afterimage ghost trail)
+    SetCursorTrailFade {
+        enabled: bool,
+        /// Number of trail positions to keep
+        length: u32,
+        /// Fade duration in milliseconds
+        fade_ms: u32,
+    },
     /// Configure selection region glow highlight
     SetRegionGlow {
         enabled: bool,

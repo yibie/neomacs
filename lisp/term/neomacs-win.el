@@ -1506,6 +1506,47 @@ activity, then smoothly restores brightness on any input."
                     neomacs-idle-dim)
            (neomacs-set-idle-dim t nil nil val))))
 
+;; --- Cursor trail fade ---
+(declare-function neomacs-set-cursor-trail-fade "neomacsterm.c"
+  (&optional enabled length fade-ms))
+
+(defcustom neomacs-cursor-trail-fade nil
+  "Enable cursor trail fade effect.
+Non-nil leaves fading ghost rectangles at previous cursor positions
+as the cursor moves, creating a trail effect."
+  :type 'boolean
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-cursor-trail-fade)
+           (neomacs-set-cursor-trail-fade val
+            (if (boundp 'neomacs-cursor-trail-fade-length)
+                neomacs-cursor-trail-fade-length nil)
+            (if (boundp 'neomacs-cursor-trail-fade-ms)
+                neomacs-cursor-trail-fade-ms nil)))))
+
+(defcustom neomacs-cursor-trail-fade-length 8
+  "Maximum number of trail ghost positions to keep."
+  :type '(integer :tag "Length")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-trail-fade)
+                    (boundp 'neomacs-cursor-trail-fade)
+                    neomacs-cursor-trail-fade)
+           (neomacs-set-cursor-trail-fade t val))))
+
+(defcustom neomacs-cursor-trail-fade-ms 300
+  "Fade duration in milliseconds for each trail ghost."
+  :type '(integer :tag "Fade (ms)")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-trail-fade)
+                    (boundp 'neomacs-cursor-trail-fade)
+                    neomacs-cursor-trail-fade)
+           (neomacs-set-cursor-trail-fade t nil val))))
+
 ;; --- Noise/film grain overlay ---
 (declare-function neomacs-set-noise-grain "neomacsterm.c"
   (&optional enabled intensity size))

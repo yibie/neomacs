@@ -170,6 +170,12 @@ pub struct WgpuRenderer {
     /// Buffer-local accent color strip
     accent_strip_enabled: bool,
     accent_strip_width: f32,
+    /// Cursor trail fade (afterimage)
+    cursor_trail_fade_enabled: bool,
+    cursor_trail_fade_length: usize,
+    cursor_trail_fade_duration: std::time::Duration,
+    cursor_trail_positions: Vec<(f32, f32, f32, f32, std::time::Instant)>,
+    cursor_trail_last_pos: (f32, f32),
     /// Selection region glow
     region_glow_enabled: bool,
     region_glow_face_id: u32,
@@ -781,6 +787,11 @@ impl WgpuRenderer {
             prev_border_selected: 0,
             accent_strip_enabled: false,
             accent_strip_width: 3.0,
+            cursor_trail_fade_enabled: false,
+            cursor_trail_fade_length: 8,
+            cursor_trail_fade_duration: std::time::Duration::from_millis(300),
+            cursor_trail_positions: Vec::new(),
+            cursor_trail_last_pos: (0.0, 0.0),
             region_glow_enabled: false,
             region_glow_face_id: 0,
             region_glow_radius: 6.0,
@@ -983,6 +994,30 @@ impl WgpuRenderer {
     pub fn set_accent_strip(&mut self, enabled: bool, width: f32) {
         self.accent_strip_enabled = enabled;
         self.accent_strip_width = width;
+    }
+
+    /// Update cursor trail fade config
+    pub fn set_cursor_trail_fade(&mut self, enabled: bool, length: usize, fade_ms: u32) {
+        self.cursor_trail_fade_enabled = enabled;
+        self.cursor_trail_fade_length = length;
+        self.cursor_trail_fade_duration = std::time::Duration::from_millis(fade_ms as u64);
+        if !enabled {
+            self.cursor_trail_positions.clear();
+        }
+    }
+
+    /// Record a new cursor position for the trail
+    pub fn record_cursor_trail(&mut self, x: f32, y: f32, w: f32, h: f32) {
+        if !self.cursor_trail_fade_enabled { return; }
+        let dist = ((x - self.cursor_trail_last_pos.0).powi(2)
+            + (y - self.cursor_trail_last_pos.1).powi(2)).sqrt();
+        if dist < 2.0 { return; } // Skip tiny movements
+        self.cursor_trail_positions.push((x, y, w, h, std::time::Instant::now()));
+        self.cursor_trail_last_pos = (x, y);
+        // Trim to max length
+        while self.cursor_trail_positions.len() > self.cursor_trail_fade_length {
+            self.cursor_trail_positions.remove(0);
+        }
     }
 
     /// Update region glow config
@@ -3971,6 +4006,42 @@ impl WgpuRenderer {
                     render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
                     render_pass.set_vertex_buffer(0, zen_buffer.slice(..));
                     render_pass.draw(0..zen_vertices.len() as u32, 0..1);
+                }
+            }
+
+            // === Cursor trail fade (afterimage ghost) ===
+            if self.cursor_trail_fade_enabled && !self.cursor_trail_positions.is_empty() {
+                let now = std::time::Instant::now();
+                let fade_dur = self.cursor_trail_fade_duration;
+                let mut trail_vertices: Vec<RectVertex> = Vec::new();
+
+                // Remove expired positions
+                self.cursor_trail_positions.retain(|&(_, _, _, _, t)| {
+                    now.duration_since(t) < fade_dur
+                });
+
+                for &(tx, ty, tw, th, spawn) in &self.cursor_trail_positions {
+                    let elapsed = now.duration_since(spawn).as_secs_f32();
+                    let t = (elapsed / fade_dur.as_secs_f32()).min(1.0);
+                    let alpha = 0.3 * (1.0 - t) * (1.0 - t);
+                    if alpha < 0.005 { continue; }
+                    let c = Color::new(0.5, 0.7, 1.0, alpha);
+                    self.add_rect(&mut trail_vertices, tx, ty, tw, th, &c);
+                }
+
+                if !trail_vertices.is_empty() {
+                    let trail_buffer = self.device.create_buffer_init(
+                        &wgpu::util::BufferInitDescriptor {
+                            label: Some("Cursor Trail Buffer"),
+                            contents: bytemuck::cast_slice(&trail_vertices),
+                            usage: wgpu::BufferUsages::VERTEX,
+                        },
+                    );
+                    render_pass.set_pipeline(&self.rect_pipeline);
+                    render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                    render_pass.set_vertex_buffer(0, trail_buffer.slice(..));
+                    render_pass.draw(0..trail_vertices.len() as u32, 0..1);
+                    self.needs_continuous_redraw = true;
                 }
             }
 

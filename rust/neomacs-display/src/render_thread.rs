@@ -735,6 +735,10 @@ struct RenderApp {
     /// Buffer-local accent color strip
     accent_strip_enabled: bool,
     accent_strip_width: f32,
+    /// Cursor trail fade
+    cursor_trail_fade_enabled: bool,
+    cursor_trail_fade_length: u32,
+    cursor_trail_fade_ms: u32,
     /// Selection region glow
     region_glow_enabled: bool,
     region_glow_face_id: u32,
@@ -1014,6 +1018,9 @@ impl RenderApp {
             border_transition_duration_ms: 200,
             accent_strip_enabled: false,
             accent_strip_width: 3.0,
+            cursor_trail_fade_enabled: false,
+            cursor_trail_fade_length: 8,
+            cursor_trail_fade_ms: 300,
             region_glow_enabled: false,
             region_glow_face_id: 0,
             region_glow_radius: 6.0,
@@ -1986,6 +1993,15 @@ impl RenderApp {
                     }
                     self.frame_dirty = true;
                 }
+                RenderCommand::SetCursorTrailFade { enabled, length, fade_ms } => {
+                    self.cursor_trail_fade_enabled = enabled;
+                    self.cursor_trail_fade_length = length;
+                    self.cursor_trail_fade_ms = fade_ms;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_cursor_trail_fade(enabled, length as usize, fade_ms);
+                    }
+                    self.frame_dirty = true;
+                }
                 RenderCommand::SetRegionGlow { enabled, face_id, radius, opacity } => {
                     self.region_glow_enabled = enabled;
                     self.region_glow_face_id = face_id;
@@ -2171,6 +2187,18 @@ impl RenderApp {
                         let cx = new_target.x + new_target.width / 2.0;
                         let cy = new_target.y + new_target.height / 2.0;
                         renderer.spawn_ripple(cx, cy);
+                    }
+                }
+
+                // Record cursor trail fade position when cursor moves
+                if target_moved && had_target && self.cursor_trail_fade_enabled {
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.record_cursor_trail(
+                            self.cursor_current_x,
+                            self.cursor_current_y,
+                            self.cursor_current_w,
+                            self.cursor_current_h,
+                        );
                     }
                 }
 

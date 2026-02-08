@@ -8690,6 +8690,30 @@ FADE-MS is the fade transition duration in milliseconds (default 500).  */)
   return on ? Qt : Qnil;
 }
 
+DEFUN ("neomacs-set-cursor-trail-fade",
+       Fneomacs_set_cursor_trail_fade,
+       Sneomacs_set_cursor_trail_fade, 0, 3, 0,
+       doc: /* Configure cursor trail fade effect.
+ENABLED non-nil leaves fading ghost rectangles at previous cursor
+positions as the cursor moves, creating a trail effect.
+LENGTH is the maximum number of trail positions to keep (default 8).
+FADE-MS is the fade duration in milliseconds for each ghost (default 300).  */)
+  (Lisp_Object enabled, Lisp_Object length, Lisp_Object fade_ms)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+
+  int on = !NILP (enabled);
+  int len = 8;
+  int fade = 300;
+  if (FIXNUMP (length)) len = XFIXNUM (length);
+  if (FIXNUMP (fade_ms)) fade = XFIXNUM (fade_ms);
+
+  neomacs_display_set_cursor_trail_fade (dpyinfo->display_handle, on, len, fade);
+  return on ? Qt : Qnil;
+}
+
 DEFUN ("neomacs-set-noise-grain",
        Fneomacs_set_noise_grain,
        Sneomacs_set_noise_grain, 0, 3, 0,
@@ -10182,6 +10206,7 @@ syms_of_neomacsterm (void)
   defsubr (&Sneomacs_set_padding_gradient);
   defsubr (&Sneomacs_set_noise_grain);
   defsubr (&Sneomacs_set_idle_dim);
+  defsubr (&Sneomacs_set_cursor_trail_fade);
   defsubr (&Sneomacs_set_region_glow);
   defsubr (&Sneomacs_set_window_glow);
   defsubr (&Sneomacs_set_scroll_progress);
