@@ -12,6 +12,8 @@
 
 > **Fork notice:** Neomacs is a hard fork of GNU Emacs, forked from commit [`705c0e3729`](https://git.savannah.gnu.org/cgit/emacs.git/commit/?id=705c0e3729bf53db9e84ae7c8b932ebc3b2da934). The changes are too invasive to ever be accepted upstream, so we did not preserve the original git history to keep the repository lightweight. If you need the full Emacs git history for reference, open an issue and we can re-add it.
 
+> **Why a fork, not from scratch?** Neomacs aims for 100% compatibility with official GNU Emacs — every config, package, and workflow should just work. By forking, we keep the original Emacs C code as a reference and test oracle: we can verify that each Rust rewrite produces identical behavior, ensuring nothing breaks as subsystems are replaced one by one.
+
 ---
 
 ## The Problem
