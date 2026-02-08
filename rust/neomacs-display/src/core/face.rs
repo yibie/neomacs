@@ -89,6 +89,16 @@ pub struct Face {
 
     /// Box corner radius (0 = sharp corners)
     pub box_corner_radius: i32,
+
+    /// Font metrics from Emacs's realized font
+    /// Font ascent (FONT_BASE) in pixels
+    pub font_ascent: i32,
+    /// Font descent (FONT_DESCENT) in pixels
+    pub font_descent: i32,
+    /// Underline position below baseline (font->underline_position)
+    pub underline_position: i32,
+    /// Underline thickness (font->underline_thickness)
+    pub underline_thickness: i32,
 }
 
 impl Default for Face {
@@ -109,6 +119,10 @@ impl Default for Face {
             box_type: BoxType::None,
             box_line_width: 0,
             box_corner_radius: 0,
+            font_ascent: 0,
+            font_descent: 0,
+            underline_position: 1,
+            underline_thickness: 1,
         }
     }
 }

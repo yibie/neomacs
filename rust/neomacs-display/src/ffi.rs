@@ -799,6 +799,10 @@ pub unsafe extern "C" fn neomacs_display_set_face(
     strike_through_color: u32, // 0xRRGGBB
     overline: c_int,  // 0=none, 1=enabled
     overline_color: u32, // 0xRRGGBB
+    font_ascent: c_int,  // FONT_BASE(font) in pixels
+    font_descent: c_int, // FONT_DESCENT(font) in pixels
+    ul_position: c_int,  // font->underline_position
+    ul_thickness: c_int, // font->underline_thickness
 ) {
     if handle.is_null() {
         return;
@@ -944,6 +948,10 @@ pub unsafe extern "C" fn neomacs_display_set_face(
         box_type: bx_type,
         box_line_width,
         box_corner_radius,
+        font_ascent: font_ascent as i32,
+        font_descent: font_descent as i32,
+        underline_position: if ul_position > 0 { ul_position as i32 } else { 1 },
+        underline_thickness: if ul_thickness > 0 { ul_thickness as i32 } else { 1 },
     };
 
     // Store face for later lookup during rendering

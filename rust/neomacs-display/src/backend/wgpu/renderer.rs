@@ -1806,6 +1806,7 @@ impl WgpuRenderer {
                     for glyph in &frame_glyphs.glyphs {
                         if let FrameGlyph::Char {
                             x, y, width, height, ascent, fg,
+                            face_id,
                             underline, underline_color,
                             strike_through, strike_through_color,
                             overline, overline_color,
@@ -1817,11 +1818,16 @@ impl WgpuRenderer {
 
                             let baseline_y = *y + *ascent;
 
+                            // Get per-face font metrics for proper decoration positioning
+                            let (ul_pos, ul_thick) = frame_glyphs.faces.get(face_id)
+                                .map(|f| (f.underline_position as f32, f.underline_thickness as f32))
+                                .unwrap_or((1.0, 1.0));
+
                             // --- Underline ---
                             if *underline > 0 {
                                 let ul_color = underline_color.as_ref().unwrap_or(fg);
-                                let ul_y = baseline_y + 1.0;
-                                let line_thickness = 1.0;
+                                let ul_y = baseline_y + ul_pos;
+                                let line_thickness = ul_thick.max(1.0);
 
                                 match underline {
                                     1 => {
@@ -1844,15 +1850,15 @@ impl WgpuRenderer {
                                     3 => {
                                         // Double line
                                         self.add_rect(&mut decoration_vertices, *x, ul_y, *width, line_thickness, ul_color);
-                                        self.add_rect(&mut decoration_vertices, *x, ul_y + 2.0, *width, line_thickness, ul_color);
+                                        self.add_rect(&mut decoration_vertices, *x, ul_y + line_thickness + 1.0, *width, line_thickness, ul_color);
                                     }
                                     4 => {
-                                        // Dots (1px with 2px gap)
+                                        // Dots (dot size = thickness, gap = 2px)
                                         let mut cx = *x;
                                         while cx < *x + *width {
-                                            let dw = 1.0_f32.min(*x + *width - cx);
+                                            let dw = line_thickness.min(*x + *width - cx);
                                             self.add_rect(&mut decoration_vertices, cx, ul_y, dw, line_thickness, ul_color);
-                                            cx += 3.0;
+                                            cx += line_thickness + 2.0;
                                         }
                                     }
                                     5 => {
@@ -1874,14 +1880,15 @@ impl WgpuRenderer {
                             // --- Overline ---
                             if *overline > 0 {
                                 let ol_color = overline_color.as_ref().unwrap_or(fg);
-                                self.add_rect(&mut decoration_vertices, *x, *y, *width, 1.0, ol_color);
+                                self.add_rect(&mut decoration_vertices, *x, *y, *width, ul_thick.max(1.0), ol_color);
                             }
 
                             // --- Strike-through ---
                             if *strike_through > 0 {
                                 let st_color = strike_through_color.as_ref().unwrap_or(fg);
-                                let center_y = *y + *height / 2.0;
-                                self.add_rect(&mut decoration_vertices, *x, center_y, *width, 1.0, st_color);
+                                // Position at ~1/3 of ascent above baseline (standard typographic position)
+                                let st_y = baseline_y - *ascent / 3.0;
+                                self.add_rect(&mut decoration_vertices, *x, st_y, *width, ul_thick.max(1.0), st_color);
                             }
                         }
                     }

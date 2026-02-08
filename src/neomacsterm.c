@@ -634,8 +634,20 @@ neomacs_send_face (void *handle, struct frame *f, struct face *face)
                       BLUE_FROM_ULONG (face->overline_color));
 
   int font_size = 14;
+  int font_ascent = 0;
+  int font_descent = 0;
+  int ul_position = 1;
+  int ul_thickness = 1;
   if (face->font)
-    font_size = face->font->pixel_size;
+    {
+      font_size = face->font->pixel_size;
+      font_ascent = FONT_BASE (face->font);
+      font_descent = FONT_DESCENT (face->font);
+      if (face->font->underline_position > 0)
+        ul_position = face->font->underline_position;
+      if (face->font->underline_thickness > 0)
+        ul_thickness = face->font->underline_thickness;
+    }
 
   neomacs_display_set_face (handle, face->id,
                             fg_rgb, bg_rgb, font_family,
@@ -644,7 +656,9 @@ neomacs_send_face (void *handle, struct frame *f, struct face *face)
                             box_type, box_color, box_line_width,
                             box_corner_radius,
                             strike_through, strike_through_color,
-                            overline, overline_color);
+                            overline, overline_color,
+                            font_ascent, font_descent,
+                            ul_position, ul_thickness);
 }
 
 /* Callback for foreach_window: extract all visible glyphs from a window's
@@ -4184,10 +4198,22 @@ neomacs_draw_glyph_string (struct glyph_string *s)
                                   (GREEN_FROM_ULONG(face->overline_color) << 8) |
                                   BLUE_FROM_ULONG(face->overline_color));
 
-              /* Get font size from the face's font (for text-scale-increase support) */
+              /* Get font metrics from the face's font */
               int font_size = 14;  /* default */
+              int font_ascent = 0;
+              int font_descent = 0;
+              int ul_position = 1;
+              int ul_thickness = 1;
               if (face->font)
-                font_size = face->font->pixel_size;
+                {
+                  font_size = face->font->pixel_size;
+                  font_ascent = FONT_BASE (face->font);
+                  font_descent = FONT_DESCENT (face->font);
+                  if (face->font->underline_position > 0)
+                    ul_position = face->font->underline_position;
+                  if (face->font->underline_thickness > 0)
+                    ul_thickness = face->font->underline_thickness;
+                }
 
               neomacs_display_set_face (dpyinfo->display_handle,
                                         face_id,
@@ -4206,7 +4232,11 @@ neomacs_draw_glyph_string (struct glyph_string *s)
                                         strike_through,
                                         strike_through_color,
                                         overline,
-                                        overline_color);
+                                        overline_color,
+                                        font_ascent,
+                                        font_descent,
+                                        ul_position,
+                                        ul_thickness);
             }
 
           switch (s->first_glyph->type)
