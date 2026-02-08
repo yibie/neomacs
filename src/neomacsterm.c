@@ -595,7 +595,7 @@ neomacs_send_face (void *handle, struct frame *f, struct face *face)
       if (!NILP (family_attr) && SYMBOLP (family_attr))
         font_family = SSDATA (SYMBOL_NAME (family_attr));
     }
-  if (!font_family && face->lface != NULL)
+  if (!font_family)
     {
       Lisp_Object family_attr = face->lface[LFACE_FAMILY_INDEX];
       if (!NILP (family_attr) && STRINGP (family_attr))
@@ -1855,7 +1855,7 @@ fill_face_data (struct frame *f, struct face *face, struct FaceDataFFI *out)
       if (!NILP (family_attr) && SYMBOLP (family_attr))
         out->font_family = SSDATA (SYMBOL_NAME (family_attr));
     }
-  if (!out->font_family && face->lface != NULL)
+  if (!out->font_family)
     {
       Lisp_Object family_attr = face->lface[LFACE_FAMILY_INDEX];
       if (!NILP (family_attr) && STRINGP (family_attr))
@@ -3758,13 +3758,11 @@ neomacs_update_window_begin (struct window *w)
 {
   struct frame *f = XFRAME (WINDOW_FRAME (w));
   struct neomacs_display_info *dpyinfo;
-  struct neomacs_output *output;
 
   if (!FRAME_NEOMACS_P (f))
     return;
 
   dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
-  output = FRAME_NEOMACS_OUTPUT (f);
 
   /* Disable matrix-level scroll optimization.  With full-frame rendering
      from current_matrix, we don't need scroll optimization.  Keeping this
@@ -3918,7 +3916,6 @@ static void
 neomacs_set_vertical_scroll_bar (struct window *w, int portion, int whole,
                                  int position)
 {
-  struct frame *f = XFRAME (w->frame);
   Lisp_Object barobj;
   struct scroll_bar *bar;
   int top, height, left, width;
@@ -3979,7 +3976,6 @@ static void
 neomacs_set_horizontal_scroll_bar (struct window *w, int portion, int whole,
                                    int position)
 {
-  struct frame *f = XFRAME (w->frame);
   Lisp_Object barobj;
   struct scroll_bar *bar;
   int top, height, left, width;
@@ -4458,7 +4454,7 @@ neomacs_draw_glyph_string (struct glyph_string *s)
 
               /* Get font family from lface */
               const char *font_family = NULL;  /* NULL means default */
-              if (face->lface != NULL) {
+              {
                 Lisp_Object family_attr = face->lface[LFACE_FAMILY_INDEX];
                 if (!NILP (family_attr) && STRINGP (family_attr))
                   font_family = SSDATA (family_attr);
@@ -5584,7 +5580,6 @@ neomacs_scroll_run (struct window *w, struct run *run)
         }
 
       /* Get background color from frame's default face */
-      Lisp_Object bg = Qnil;
       struct face *face = FACE_FROM_ID_OR_NULL (f, DEFAULT_FACE_ID);
       float bg_r = 1.0f, bg_g = 1.0f, bg_b = 1.0f;
       if (face)
@@ -7666,8 +7661,6 @@ free_frame_menubar (struct frame *f)
 static int threaded_mode_active = 0;
 static int wakeup_fd = -1;
 
-/* Forward declaration */
-static void neomacs_display_wakeup_handler (int fd, void *data);
 
 /* Resolve a safe target frame for an input event from the render thread.  */
 static struct frame *
