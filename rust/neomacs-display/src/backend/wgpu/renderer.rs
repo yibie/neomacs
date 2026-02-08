@@ -155,6 +155,9 @@ pub struct WgpuRenderer {
     window_switch_fade_intensity: f32,
     /// Active window switch fades: (window_id, bounds, started, duration, intensity)
     active_window_fades: Vec<WindowFadeEntry>,
+    /// Breadcrumb/path bar overlay
+    breadcrumb_enabled: bool,
+    breadcrumb_opacity: f32,
 }
 
 /// Entry for an active window switch highlight fade
@@ -706,6 +709,8 @@ impl WgpuRenderer {
             window_switch_fade_duration_ms: 200,
             window_switch_fade_intensity: 0.15,
             active_window_fades: Vec::new(),
+            breadcrumb_enabled: false,
+            breadcrumb_opacity: 0.7,
         }
     }
 
@@ -832,6 +837,12 @@ impl WgpuRenderer {
         self.window_switch_fade_enabled = enabled;
         self.window_switch_fade_duration_ms = duration_ms;
         self.window_switch_fade_intensity = intensity;
+    }
+
+    /// Update breadcrumb/path bar config
+    pub fn set_breadcrumb(&mut self, enabled: bool, opacity: f32) {
+        self.breadcrumb_enabled = enabled;
+        self.breadcrumb_opacity = opacity;
     }
 
     /// Start a window switch fade for a specific window
@@ -6423,6 +6434,145 @@ impl WgpuRenderer {
             pass.draw(0..vertices.len() as u32, 0..1);
         }
         self.queue.submit(Some(encoder.finish()));
+    }
+
+    /// Render breadcrumb/path bars for windows with file-backed buffers
+    pub fn render_breadcrumbs(
+        &self,
+        view: &wgpu::TextureView,
+        frame_glyphs: &FrameGlyphBuffer,
+        glyph_atlas: &mut WgpuGlyphAtlas,
+    ) {
+        use wgpu::util::DeviceExt;
+
+        if !self.breadcrumb_enabled {
+            return;
+        }
+
+        let char_width = glyph_atlas.default_font_size() * 0.6;
+        let line_height = glyph_atlas.default_line_height();
+        let bar_height = line_height + 4.0;
+        let padding_x = 6.0_f32;
+        let separator = " \u{203A} "; // " › "
+        let opacity = self.breadcrumb_opacity.clamp(0.0, 1.0);
+
+        let mut all_rect_vertices: Vec<RectVertex> = Vec::new();
+        let mut all_text_glyphs: Vec<(GlyphKey, f32, f32, [f32; 4])> = Vec::new();
+        let font_size_bits = 0.0_f32.to_bits();
+        let text_color = [0.85_f32, 0.85, 0.85, 1.0]; // light gray in linear
+        let sep_color = [0.5_f32, 0.5, 0.5, 1.0]; // dimmer separator
+
+        for info in &frame_glyphs.window_infos {
+            if info.is_minibuffer || info.buffer_file_name.is_empty() {
+                continue;
+            }
+
+            let b = &info.bounds;
+
+            // Split path into components
+            let path = &info.buffer_file_name;
+            let components: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
+            if components.is_empty() {
+                continue;
+            }
+
+            // Abbreviate: show last 3 components at most (or fewer)
+            let show_start = if components.len() > 3 { components.len() - 3 } else { 0 };
+            let shown = &components[show_start..];
+
+            // Build display string and track component positions
+            let mut display_chars: Vec<(char, bool)> = Vec::new(); // (char, is_separator)
+            if show_start > 0 {
+                // Prefix with "…"
+                display_chars.push(('\u{2026}', true));
+                for c in separator.chars() {
+                    display_chars.push((c, true));
+                }
+            }
+            for (i, comp) in shown.iter().enumerate() {
+                if i > 0 {
+                    for c in separator.chars() {
+                        display_chars.push((c, true));
+                    }
+                }
+                let is_last = i == shown.len() - 1;
+                for c in comp.chars() {
+                    display_chars.push((c, !is_last)); // last component gets bright color
+                }
+            }
+
+            let text_width = display_chars.len() as f32 * char_width;
+            let bar_w = (text_width + padding_x * 2.0).min(b.width);
+            let bar_x = b.x;
+            let bar_y = b.y;
+
+            // Background rect (semi-transparent dark)
+            let bg_color = Color::new(0.0, 0.0, 0.0, opacity);
+            self.add_rect(&mut all_rect_vertices, bar_x, bar_y, bar_w, bar_height, &bg_color);
+
+            // Bottom edge line for visual separation
+            let edge_color = Color::new(0.3, 0.3, 0.3, opacity * 0.5);
+            self.add_rect(&mut all_rect_vertices, bar_x, bar_y + bar_height, bar_w, 1.0, &edge_color);
+
+            // Text glyphs
+            let text_y = bar_y + 2.0;
+            for (ci, &(ch, is_dim)) in display_chars.iter().enumerate() {
+                let cx = bar_x + padding_x + ci as f32 * char_width;
+                if cx + char_width > bar_x + bar_w {
+                    break; // clip to bar width
+                }
+                let key = GlyphKey {
+                    charcode: ch as u32,
+                    face_id: 0,
+                    font_size_bits,
+                };
+                glyph_atlas.get_or_create(&self.device, &self.queue, &key, None);
+                all_text_glyphs.push((
+                    key,
+                    cx,
+                    text_y,
+                    if is_dim { sep_color } else { text_color },
+                ));
+            }
+        }
+
+        // Draw background rects
+        if !all_rect_vertices.is_empty() {
+            let rect_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Breadcrumb Rect Buffer"),
+                contents: bytemuck::cast_slice(&all_rect_vertices),
+                usage: wgpu::BufferUsages::VERTEX,
+            });
+            let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Breadcrumb Rect Encoder"),
+            });
+            {
+                let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("Breadcrumb Rect Pass"),
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Load,
+                            store: wgpu::StoreOp::Store,
+                        },
+                    })],
+                    depth_stencil_attachment: None,
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
+                });
+                pass.set_pipeline(&self.rect_pipeline);
+                pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                pass.set_vertex_buffer(0, rect_buffer.slice(..));
+                pass.draw(0..all_rect_vertices.len() as u32, 0..1);
+            }
+            self.queue.submit(Some(encoder.finish()));
+        }
+
+        // Draw text glyphs
+        if !all_text_glyphs.is_empty() {
+            self.render_overlay_glyphs(view, &mut all_text_glyphs, glyph_atlas);
+        }
     }
 
     pub fn render_fps_overlay(

@@ -1194,6 +1194,34 @@ spectrum, creating a colorful animated cursor effect."
                 neomacs-cursor-color-cycle-saturation nil)
             val))))
 
+;; --- Breadcrumb/path bar ---
+(declare-function neomacs-set-breadcrumb "neomacsterm.c"
+  (&optional enabled opacity))
+
+(defcustom neomacs-breadcrumb nil
+  "Enable breadcrumb/path bar overlay at top of windows.
+Non-nil shows the buffer file path as a breadcrumb bar with
+directory hierarchy and separator characters."
+  :type 'boolean
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-breadcrumb)
+           (neomacs-set-breadcrumb val
+            (if (boundp 'neomacs-breadcrumb-opacity)
+                neomacs-breadcrumb-opacity nil)))))
+
+(defcustom neomacs-breadcrumb-opacity 70
+  "Background opacity of the breadcrumb bar (0-100)."
+  :type '(integer :tag "Opacity")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-breadcrumb)
+                    (boundp 'neomacs-breadcrumb)
+                    neomacs-breadcrumb)
+           (neomacs-set-breadcrumb t val))))
+
 ;; --- Window switch highlight fade ---
 (declare-function neomacs-set-window-switch-fade "neomacsterm.c"
   (&optional enabled duration-ms intensity))

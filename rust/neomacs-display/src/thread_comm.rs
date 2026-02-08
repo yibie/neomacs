@@ -384,6 +384,12 @@ pub enum RenderCommand {
         duration_ms: u32,
         intensity: f32,
     },
+    /// Configure breadcrumb/path bar overlay
+    SetBreadcrumb {
+        enabled: bool,
+        /// Background opacity (0.0-1.0)
+        opacity: f32,
+    },
     /// Configure cursor color cycling (rainbow hue rotation)
     SetCursorColorCycle {
         enabled: bool,

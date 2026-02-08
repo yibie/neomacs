@@ -501,6 +501,8 @@ pub struct WindowParamsFFI {
     /// Margin widths in pixels
     pub left_margin_width: f32,
     pub right_margin_width: f32,
+    /// Buffer file name (NULL if no file)
+    pub buffer_file_name: *const std::ffi::c_char,
 }
 
 impl Default for WindowParamsFFI {

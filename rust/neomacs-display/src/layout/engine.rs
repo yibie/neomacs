@@ -135,6 +135,12 @@ impl LayoutEngine {
             );
 
             // Add window info for animation detection
+            // Extract buffer file name from FFI
+            let buffer_file_name = if wp.buffer_file_name.is_null() {
+                String::new()
+            } else {
+                CStr::from_ptr(wp.buffer_file_name).to_string_lossy().into_owned()
+            };
             frame_glyphs.add_window_info(
                 params.window_id,
                 params.buffer_id,
@@ -149,6 +155,7 @@ impl LayoutEngine {
                 params.selected,
                 params.is_minibuffer,
                 params.char_height,
+                buffer_file_name,
             );
 
             // Layout this window's content

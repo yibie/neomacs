@@ -1042,6 +1042,14 @@ neomacs_extract_window_glyphs (struct window *w, void *user_data)
           w_char_height = (float) (asc + desc);
         }
     }
+    const char *buf_fname = NULL;
+    if (BUFFERP (w->contents))
+      {
+        struct buffer *b = XBUFFER (w->contents);
+        Lisp_Object fn = BVAR (b, filename);
+        if (STRINGP (fn))
+          buf_fname = SSDATA (fn);
+      }
     neomacs_display_add_window_info (
         handle,
         (int64_t)(intptr_t) w,
@@ -1052,7 +1060,8 @@ neomacs_extract_window_glyphs (struct window *w, void *user_data)
         (float) win_x, (float) win_y,
         (float) win_w, (float) win_h,
         (float) WINDOW_MODE_LINE_HEIGHT (w),
-        selected, is_mini, w_char_height);
+        selected, is_mini, w_char_height,
+        buf_fname);
   }
 
   /* Check mouse-face highlight for this window */
@@ -1723,6 +1732,8 @@ struct neomacs_window_params_ffi {
   /* Margin widths in pixels */
   float left_margin_width;
   float right_margin_width;
+  /* Buffer file name (NULL if no file) */
+  const char *buffer_file_name;
 };
 
 /* Get window parameters for the Nth leaf window.
@@ -1796,6 +1807,8 @@ neomacs_layout_get_window_params (void *frame_ptr, int window_index,
                              ? XFIXNAT (BVAR (buf, tab_width)) : 8);
       params->truncate_lines = !NILP (BVAR (buf, truncate_lines));
       params->word_wrap = !NILP (BVAR (buf, word_wrap));
+      Lisp_Object fn = BVAR (buf, filename);
+      params->buffer_file_name = STRINGP (fn) ? SSDATA (fn) : NULL;
     }
   else
     {
@@ -1807,6 +1820,7 @@ neomacs_layout_get_window_params (void *frame_ptr, int window_index,
       params->tab_width = 8;
       params->truncate_lines = 0;
       params->word_wrap = 0;
+      params->buffer_file_name = NULL;
     }
 
   params->x = (float) WINDOW_LEFT_EDGE_X (w);
@@ -8385,6 +8399,29 @@ RADIUS is the inset in pixels from each edge (default 80).  */)
   return on ? Qt : Qnil;
 }
 
+DEFUN ("neomacs-set-breadcrumb",
+       Fneomacs_set_breadcrumb,
+       Sneomacs_set_breadcrumb, 0, 2, 0,
+       doc: /* Configure breadcrumb/path bar overlay.
+ENABLED non-nil shows the buffer file path as a breadcrumb bar at
+the top of each window.
+OPACITY is 0-100 for background opacity (default 70).  */)
+  (Lisp_Object enabled, Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+
+  int on = !NILP (enabled);
+  int op = 70;
+  if (FIXNUMP (opacity))
+    op = XFIXNUM (opacity);
+
+  neomacs_display_set_breadcrumb (
+    dpyinfo->display_handle, on, op);
+  return on ? Qt : Qnil;
+}
+
 DEFUN ("neomacs-set-window-switch-fade",
        Fneomacs_set_window_switch_fade,
        Sneomacs_set_window_switch_fade, 0, 3, 0,
@@ -9788,6 +9825,7 @@ syms_of_neomacsterm (void)
   defsubr (&Sneomacs_set_header_shadow);
   defsubr (&Sneomacs_set_cursor_color_cycle);
   defsubr (&Sneomacs_set_window_switch_fade);
+  defsubr (&Sneomacs_set_breadcrumb);
 
   /* Cursor blink */
   defsubr (&Sneomacs_set_cursor_blink);

@@ -732,7 +732,8 @@ void neomacs_display_add_window_info(struct NeomacsDisplay *handle,
                                       float mode_line_height,
                                       int selected,
                                       int is_minibuffer,
-                                      float char_height);
+                                      float char_height,
+                                      const char *buffer_file_name);
 
 /**
  * Check if animations are active
@@ -1376,6 +1377,11 @@ void neomacs_display_set_vignette(
     int enabled,
     int intensity,
     int radius);
+
+void neomacs_display_set_breadcrumb(
+    struct NeomacsDisplay *handle,
+    int enabled,
+    int opacity);
 
 void neomacs_display_set_window_switch_fade(
     struct NeomacsDisplay *handle,

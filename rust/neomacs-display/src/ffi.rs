@@ -295,10 +295,16 @@ pub unsafe extern "C" fn neomacs_display_add_window_info(
     selected: c_int,
     is_minibuffer: c_int,
     char_height: f32,
+    buffer_file_name: *const c_char,
 ) {
     if handle.is_null() {
         return;
     }
+    let file_name = if buffer_file_name.is_null() {
+        String::new()
+    } else {
+        CStr::from_ptr(buffer_file_name).to_string_lossy().into_owned()
+    };
     let display = &mut *handle;
     display.frame_glyphs.add_window_info(
         window_id, buffer_id, window_start, window_end, buffer_size,
@@ -307,6 +313,7 @@ pub unsafe extern "C" fn neomacs_display_add_window_info(
         selected != 0,
         is_minibuffer != 0,
         char_height,
+        file_name,
     );
 }
 
@@ -2612,6 +2619,22 @@ pub unsafe extern "C" fn neomacs_display_set_vignette(
         enabled: enabled != 0,
         intensity: intensity as f32 / 100.0,
         radius: radius as f32,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
+/// Configure breadcrumb/path bar overlay
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_breadcrumb(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    opacity: c_int,
+) {
+    let cmd = RenderCommand::SetBreadcrumb {
+        enabled: enabled != 0,
+        opacity: opacity as f32 / 100.0,
     };
     if let Some(ref state) = THREADED_STATE {
         let _ = state.emacs_comms.cmd_tx.try_send(cmd);

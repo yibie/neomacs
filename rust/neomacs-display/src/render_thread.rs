@@ -710,6 +710,9 @@ struct RenderApp {
     window_switch_fade_duration_ms: u32,
     window_switch_fade_intensity: f32,
     prev_selected_window_id: i64,
+    /// Breadcrumb/path bar overlay
+    breadcrumb_enabled: bool,
+    breadcrumb_opacity: f32,
 }
 
 /// State for a tooltip displayed as GPU overlay
@@ -925,6 +928,8 @@ impl RenderApp {
             window_switch_fade_duration_ms: 200,
             window_switch_fade_intensity: 0.15,
             prev_selected_window_id: 0,
+            breadcrumb_enabled: false,
+            breadcrumb_opacity: 0.7,
         }
     }
 
@@ -1792,6 +1797,14 @@ impl RenderApp {
                     self.window_switch_fade_intensity = intensity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_window_switch_fade(enabled, duration_ms, intensity);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetBreadcrumb { enabled, opacity } => {
+                    self.breadcrumb_enabled = enabled;
+                    self.breadcrumb_opacity = opacity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_breadcrumb(enabled, opacity);
                     }
                     self.frame_dirty = true;
                 }
@@ -3201,6 +3214,15 @@ impl RenderApp {
                 self.mouse_pos,
                 bg_gradient,
             );
+        }
+
+        // Render breadcrumb/path bar overlay
+        if self.breadcrumb_enabled {
+            if let (Some(ref renderer), Some(ref mut glyph_atlas), Some(ref frame)) =
+                (&self.renderer, &mut self.glyph_atlas, &self.current_frame)
+            {
+                renderer.render_breadcrumbs(&surface_view, frame, glyph_atlas);
+            }
         }
 
         // Render scroll position indicators and focus ring
