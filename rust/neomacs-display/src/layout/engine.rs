@@ -205,8 +205,13 @@ impl LayoutEngine {
             return;
         }
 
-        // Read buffer text from window_start
+        // Trigger fontification (jit-lock) for the visible region so that
+        // face text properties are set before we read them.
         let read_chars = (params.buffer_size - params.window_start + 1).min(cols as i64 * max_rows as i64 * 2);
+        let fontify_end = (params.window_start + read_chars).min(params.buffer_size);
+        neomacs_layout_ensure_fontified(buffer, params.window_start, fontify_end);
+
+        // Read buffer text from window_start
         if read_chars <= 0 {
             return;
         }
@@ -499,12 +504,85 @@ impl LayoutEngine {
             }
         }
 
+        // Render mode-line if this window has one
+        if params.mode_line_height > 0.0 {
+            self.render_mode_line(params, wp, frame_glyphs);
+        }
+
         // Write layout results back to Emacs
         neomacs_layout_set_window_end(
             wp.window_ptr,
             window_end_charpos,
             row.min(max_rows - 1),
         );
+    }
+
+    /// Render the mode-line at the bottom of a window.
+    unsafe fn render_mode_line(
+        &mut self,
+        params: &WindowParams,
+        wp: &WindowParamsFFI,
+        frame_glyphs: &mut FrameGlyphBuffer,
+    ) {
+        let ml_x = params.bounds.x;
+        let ml_y = params.bounds.y + params.bounds.height - params.mode_line_height;
+        let ml_w = params.bounds.width;
+        let ml_h = params.mode_line_height;
+        let char_w = params.char_width;
+        let ascent = params.font_ascent;
+
+        // Get mode-line text and face from Emacs
+        let mut ml_face = FaceDataFFI::default();
+        let buf_size = 1024usize;
+        let mut ml_buf = vec![0u8; buf_size];
+
+        let bytes = neomacs_layout_mode_line_text(
+            wp.window_ptr,
+            // frame pointer: we need it but WindowParamsFFI doesn't have it.
+            // The frame is available from the FFI call that got window params.
+            // For now, pass null and handle in C by getting frame from window.
+            std::ptr::null_mut(),
+            ml_buf.as_mut_ptr(),
+            buf_size as i64,
+            &mut ml_face,
+        );
+
+        // Apply mode-line face
+        self.apply_face(&ml_face, frame_glyphs);
+        let ml_bg = Color::from_pixel(ml_face.bg);
+
+        // Draw mode-line background
+        frame_glyphs.add_stretch(ml_x, ml_y, ml_w, ml_h, ml_bg, ml_face.face_id, true);
+
+        if bytes <= 0 {
+            return;
+        }
+
+        // Render mode-line text
+        let ml_text = &ml_buf[..bytes as usize];
+        let cols = (ml_w / char_w).floor() as i32;
+        let mut col = 0i32;
+        let mut byte_idx = 0usize;
+
+        while byte_idx < ml_text.len() && col < cols {
+            let (ch, ch_len) = decode_utf8(&ml_text[byte_idx..]);
+            byte_idx += ch_len;
+
+            if ch == '\n' || ch == '\r' {
+                continue; // mode-line shouldn't have newlines
+            }
+
+            let gx = ml_x + col as f32 * char_w;
+            frame_glyphs.add_char(ch, gx, ml_y, char_w, ml_h, ascent, true);
+            col += 1;
+        }
+
+        // Fill remaining mode-line with background
+        if col < cols {
+            let gx = ml_x + col as f32 * char_w;
+            let remaining = (cols - col) as f32 * char_w;
+            frame_glyphs.add_stretch(gx, ml_y, remaining, ml_h, ml_bg, ml_face.face_id, true);
+        }
     }
 }
 

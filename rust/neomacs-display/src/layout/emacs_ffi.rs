@@ -139,6 +139,21 @@ extern "C" {
         from: i64,
         to: i64,
     ) -> c_int;
+
+    // ========================================================================
+    // Mode-line
+    // ========================================================================
+
+    /// Get mode-line text for a window as plain UTF-8.
+    /// Returns the number of bytes written, or -1 on error.
+    /// Also fills face_out with the mode-line face (active or inactive).
+    pub fn neomacs_layout_mode_line_text(
+        window: EmacsWindow,
+        frame: EmacsFrame,
+        out_buf: *mut u8,
+        out_buf_len: i64,
+        face_out: *mut FaceDataFFI,
+    ) -> i64;
 }
 
 /// FFI-safe window parameters struct.
