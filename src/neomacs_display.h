@@ -1542,6 +1542,37 @@ void neomacs_display_set_stained_glass(
     int opacity,
     int saturation);
 
+void neomacs_display_set_focus_gradient_border(
+    struct NeomacsDisplay *handle,
+    int enabled,
+    int top_r, int top_g, int top_b,
+    int bot_r, int bot_g, int bot_b,
+    int width,
+    int opacity);
+
+void neomacs_display_set_cursor_magnetism(
+    struct NeomacsDisplay *handle,
+    int enabled,
+    int r, int g, int b,
+    int ring_count,
+    int duration_ms,
+    int opacity);
+
+void neomacs_display_set_depth_shadow(
+    struct NeomacsDisplay *handle,
+    int enabled,
+    int layers,
+    int offset,
+    int r, int g, int b,
+    int opacity);
+
+void neomacs_display_set_mode_line_gradient(
+    struct NeomacsDisplay *handle,
+    int enabled,
+    int left_r, int left_g, int left_b,
+    int right_r, int right_g, int right_b,
+    int opacity);
+
 void neomacs_display_set_corner_fold(
     struct NeomacsDisplay *handle,
     int enabled,

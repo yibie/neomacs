@@ -792,6 +792,29 @@ struct RenderApp {
     stained_glass_enabled: bool,
     stained_glass_opacity: f32,
     stained_glass_saturation: f32,
+    /// Focus gradient border
+    focus_gradient_border_enabled: bool,
+    focus_gradient_border_top_color: (f32, f32, f32),
+    focus_gradient_border_bot_color: (f32, f32, f32),
+    focus_gradient_border_width: f32,
+    focus_gradient_border_opacity: f32,
+    /// Cursor magnetism effect
+    cursor_magnetism_enabled: bool,
+    cursor_magnetism_color: (f32, f32, f32),
+    cursor_magnetism_ring_count: u32,
+    cursor_magnetism_duration_ms: u32,
+    cursor_magnetism_opacity: f32,
+    /// Depth shadow layers
+    depth_shadow_enabled: bool,
+    depth_shadow_layers: u32,
+    depth_shadow_offset: f32,
+    depth_shadow_color: (f32, f32, f32),
+    depth_shadow_opacity: f32,
+    /// Mode-line gradient background
+    mode_line_gradient_enabled: bool,
+    mode_line_gradient_left_color: (f32, f32, f32),
+    mode_line_gradient_right_color: (f32, f32, f32),
+    mode_line_gradient_opacity: f32,
     /// Window corner fold effect
     corner_fold_enabled: bool,
     corner_fold_size: f32,
@@ -1201,6 +1224,25 @@ impl RenderApp {
             stained_glass_enabled: false,
             stained_glass_opacity: 0.08,
             stained_glass_saturation: 0.6,
+            focus_gradient_border_enabled: false,
+            focus_gradient_border_top_color: (0.3, 0.6, 1.0),
+            focus_gradient_border_bot_color: (0.6, 0.3, 1.0),
+            focus_gradient_border_width: 2.0,
+            focus_gradient_border_opacity: 0.6,
+            cursor_magnetism_enabled: false,
+            cursor_magnetism_color: (0.4, 0.7, 1.0),
+            cursor_magnetism_ring_count: 3,
+            cursor_magnetism_duration_ms: 300,
+            cursor_magnetism_opacity: 0.5,
+            depth_shadow_enabled: false,
+            depth_shadow_layers: 3,
+            depth_shadow_offset: 2.0,
+            depth_shadow_color: (0.0, 0.0, 0.0),
+            depth_shadow_opacity: 0.15,
+            mode_line_gradient_enabled: false,
+            mode_line_gradient_left_color: (0.2, 0.3, 0.5),
+            mode_line_gradient_right_color: (0.5, 0.3, 0.2),
+            mode_line_gradient_opacity: 0.3,
             corner_fold_enabled: false,
             corner_fold_size: 20.0,
             corner_fold_color: (0.6, 0.4, 0.2),
@@ -2403,6 +2445,49 @@ impl RenderApp {
                     self.stained_glass_saturation = saturation;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_stained_glass(enabled, opacity, saturation);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetFocusGradientBorder { enabled, top_r, top_g, top_b, bot_r, bot_g, bot_b, width, opacity } => {
+                    self.focus_gradient_border_enabled = enabled;
+                    self.focus_gradient_border_top_color = (top_r, top_g, top_b);
+                    self.focus_gradient_border_bot_color = (bot_r, bot_g, bot_b);
+                    self.focus_gradient_border_width = width;
+                    self.focus_gradient_border_opacity = opacity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_focus_gradient_border(enabled, (top_r, top_g, top_b), (bot_r, bot_g, bot_b), width, opacity);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetCursorMagnetism { enabled, r, g, b, ring_count, duration_ms, opacity } => {
+                    self.cursor_magnetism_enabled = enabled;
+                    self.cursor_magnetism_color = (r, g, b);
+                    self.cursor_magnetism_ring_count = ring_count;
+                    self.cursor_magnetism_duration_ms = duration_ms;
+                    self.cursor_magnetism_opacity = opacity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_cursor_magnetism(enabled, (r, g, b), ring_count, duration_ms, opacity);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetDepthShadow { enabled, layers, offset, r, g, b, opacity } => {
+                    self.depth_shadow_enabled = enabled;
+                    self.depth_shadow_layers = layers;
+                    self.depth_shadow_offset = offset;
+                    self.depth_shadow_color = (r, g, b);
+                    self.depth_shadow_opacity = opacity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_depth_shadow(enabled, layers, offset, (r, g, b), opacity);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetModeLineGradient { enabled, left_r, left_g, left_b, right_r, right_g, right_b, opacity } => {
+                    self.mode_line_gradient_enabled = enabled;
+                    self.mode_line_gradient_left_color = (left_r, left_g, left_b);
+                    self.mode_line_gradient_right_color = (right_r, right_g, right_b);
+                    self.mode_line_gradient_opacity = opacity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_mode_line_gradient(enabled, (left_r, left_g, left_b), (right_r, right_g, right_b), opacity);
                     }
                     self.frame_dirty = true;
                 }

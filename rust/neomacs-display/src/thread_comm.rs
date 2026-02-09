@@ -640,6 +640,52 @@ pub enum RenderCommand {
         /// Saturation of the generated color (0.0-1.0)
         saturation: f32,
     },
+    /// Configure focused window gradient border
+    SetFocusGradientBorder {
+        enabled: bool,
+        /// Top color (sRGB floats)
+        top_r: f32, top_g: f32, top_b: f32,
+        /// Bottom color (sRGB floats)
+        bot_r: f32, bot_g: f32, bot_b: f32,
+        /// Border width in pixels
+        width: f32,
+        /// Opacity (0.0-1.0)
+        opacity: f32,
+    },
+    /// Configure cursor magnetism effect on click
+    SetCursorMagnetism {
+        enabled: bool,
+        /// Ring color (sRGB floats)
+        r: f32, g: f32, b: f32,
+        /// Number of concentric rings
+        ring_count: u32,
+        /// Animation duration in ms
+        duration_ms: u32,
+        /// Max opacity (0.0-1.0)
+        opacity: f32,
+    },
+    /// Configure window depth shadow layers
+    SetDepthShadow {
+        enabled: bool,
+        /// Number of shadow layers
+        layers: u32,
+        /// Offset per layer in pixels
+        offset: f32,
+        /// Shadow color (sRGB floats)
+        r: f32, g: f32, b: f32,
+        /// Base opacity (0.0-1.0)
+        opacity: f32,
+    },
+    /// Configure mode-line gradient background
+    SetModeLineGradient {
+        enabled: bool,
+        /// Left color (sRGB floats)
+        left_r: f32, left_g: f32, left_b: f32,
+        /// Right color (sRGB floats)
+        right_r: f32, right_g: f32, right_b: f32,
+        /// Opacity (0.0-1.0)
+        opacity: f32,
+    },
     /// Configure window corner fold effect
     SetCornerFold {
         enabled: bool,

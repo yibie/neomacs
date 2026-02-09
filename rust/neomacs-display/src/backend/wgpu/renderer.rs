@@ -283,6 +283,30 @@ pub struct WgpuRenderer {
     stained_glass_enabled: bool,
     stained_glass_opacity: f32,
     stained_glass_saturation: f32,
+    /// Focus gradient border
+    focus_gradient_border_enabled: bool,
+    focus_gradient_border_top_color: (f32, f32, f32),
+    focus_gradient_border_bot_color: (f32, f32, f32),
+    focus_gradient_border_width: f32,
+    focus_gradient_border_opacity: f32,
+    /// Cursor magnetism effect
+    cursor_magnetism_enabled: bool,
+    cursor_magnetism_color: (f32, f32, f32),
+    cursor_magnetism_ring_count: u32,
+    cursor_magnetism_duration_ms: u32,
+    cursor_magnetism_opacity: f32,
+    cursor_magnetism_entries: Vec<(f32, f32, std::time::Instant)>, // x, y, time
+    /// Window depth shadow layers
+    depth_shadow_enabled: bool,
+    depth_shadow_layers: u32,
+    depth_shadow_offset: f32,
+    depth_shadow_color: (f32, f32, f32),
+    depth_shadow_opacity: f32,
+    /// Mode-line gradient background
+    mode_line_gradient_enabled: bool,
+    mode_line_gradient_left_color: (f32, f32, f32),
+    mode_line_gradient_right_color: (f32, f32, f32),
+    mode_line_gradient_opacity: f32,
     /// Window corner fold effect
     corner_fold_enabled: bool,
     corner_fold_size: f32,
@@ -1116,6 +1140,26 @@ impl WgpuRenderer {
             stained_glass_enabled: false,
             stained_glass_opacity: 0.08,
             stained_glass_saturation: 0.6,
+            focus_gradient_border_enabled: false,
+            focus_gradient_border_top_color: (0.3, 0.6, 1.0),
+            focus_gradient_border_bot_color: (0.6, 0.3, 1.0),
+            focus_gradient_border_width: 2.0,
+            focus_gradient_border_opacity: 0.6,
+            cursor_magnetism_enabled: false,
+            cursor_magnetism_color: (0.4, 0.7, 1.0),
+            cursor_magnetism_ring_count: 3,
+            cursor_magnetism_duration_ms: 300,
+            cursor_magnetism_opacity: 0.5,
+            cursor_magnetism_entries: Vec::new(),
+            depth_shadow_enabled: false,
+            depth_shadow_layers: 3,
+            depth_shadow_offset: 2.0,
+            depth_shadow_color: (0.0, 0.0, 0.0),
+            depth_shadow_opacity: 0.15,
+            mode_line_gradient_enabled: false,
+            mode_line_gradient_left_color: (0.2, 0.3, 0.5),
+            mode_line_gradient_right_color: (0.5, 0.3, 0.2),
+            mode_line_gradient_opacity: 0.3,
             corner_fold_enabled: false,
             corner_fold_size: 20.0,
             corner_fold_color: (0.6, 0.4, 0.2),
@@ -1473,6 +1517,44 @@ impl WgpuRenderer {
         self.stained_glass_enabled = enabled;
         self.stained_glass_opacity = opacity;
         self.stained_glass_saturation = saturation;
+    }
+
+    /// Update focus gradient border config
+    pub fn set_focus_gradient_border(&mut self, enabled: bool, top_color: (f32, f32, f32), bot_color: (f32, f32, f32), width: f32, opacity: f32) {
+        self.focus_gradient_border_enabled = enabled;
+        self.focus_gradient_border_top_color = top_color;
+        self.focus_gradient_border_bot_color = bot_color;
+        self.focus_gradient_border_width = width;
+        self.focus_gradient_border_opacity = opacity;
+    }
+
+    /// Update cursor magnetism config
+    pub fn set_cursor_magnetism(&mut self, enabled: bool, color: (f32, f32, f32), ring_count: u32, duration_ms: u32, opacity: f32) {
+        self.cursor_magnetism_enabled = enabled;
+        self.cursor_magnetism_color = color;
+        self.cursor_magnetism_ring_count = ring_count;
+        self.cursor_magnetism_duration_ms = duration_ms;
+        self.cursor_magnetism_opacity = opacity;
+        if !enabled {
+            self.cursor_magnetism_entries.clear();
+        }
+    }
+
+    /// Update depth shadow config
+    pub fn set_depth_shadow(&mut self, enabled: bool, layers: u32, offset: f32, color: (f32, f32, f32), opacity: f32) {
+        self.depth_shadow_enabled = enabled;
+        self.depth_shadow_layers = layers;
+        self.depth_shadow_offset = offset;
+        self.depth_shadow_color = color;
+        self.depth_shadow_opacity = opacity;
+    }
+
+    /// Update mode-line gradient config
+    pub fn set_mode_line_gradient(&mut self, enabled: bool, left_color: (f32, f32, f32), right_color: (f32, f32, f32), opacity: f32) {
+        self.mode_line_gradient_enabled = enabled;
+        self.mode_line_gradient_left_color = left_color;
+        self.mode_line_gradient_right_color = right_color;
+        self.mode_line_gradient_opacity = opacity;
     }
 
     /// Update corner fold config
@@ -3883,7 +3965,192 @@ impl WgpuRenderer {
                 }
             }
 
-            // === Step 1i: Window corner fold effect ===
+            // === Step 1i_focus: Focus gradient border ===
+            if self.focus_gradient_border_enabled {
+                let bw = self.focus_gradient_border_width;
+                let (tr, tg, tb) = self.focus_gradient_border_top_color;
+                let (br2, bg2, bb2) = self.focus_gradient_border_bot_color;
+                let alpha = self.focus_gradient_border_opacity;
+                let mut grad_verts: Vec<RectVertex> = Vec::new();
+                for win_info in &frame_glyphs.window_infos {
+                    if !win_info.selected || win_info.is_minibuffer { continue; }
+                    let b = &win_info.bounds;
+                    // Vertical gradient using horizontal strips
+                    let strips = b.height.ceil() as u32;
+                    for s in 0..strips {
+                        let t = s as f32 / strips as f32;
+                        let r = tr + (br2 - tr) * t;
+                        let g = tg + (bg2 - tg) * t;
+                        let b_color = tb + (bb2 - tb) * t;
+                        let c = Color::new(r, g, b_color, alpha);
+                        let y = b.y + s as f32;
+                        // Left edge
+                        self.add_rect(&mut grad_verts, b.x, y, bw, 1.0, &c);
+                        // Right edge
+                        self.add_rect(&mut grad_verts, b.x + b.width - bw, y, bw, 1.0, &c);
+                    }
+                    // Top
+                    let tc = Color::new(tr, tg, tb, alpha);
+                    self.add_rect(&mut grad_verts, b.x, b.y, b.width, bw, &tc);
+                    // Bottom
+                    let bc = Color::new(br2, bg2, bb2, alpha);
+                    self.add_rect(&mut grad_verts, b.x, b.y + b.height - bw, b.width, bw, &bc);
+                }
+                if !grad_verts.is_empty() {
+                    let grad_buf = self.device.create_buffer_init(
+                        &wgpu::util::BufferInitDescriptor {
+                            label: Some("Focus Gradient Border Buffer"),
+                            contents: bytemuck::cast_slice(&grad_verts),
+                            usage: wgpu::BufferUsages::VERTEX,
+                        },
+                    );
+                    render_pass.set_pipeline(&self.rect_pipeline);
+                    render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                    render_pass.set_vertex_buffer(0, grad_buf.slice(..));
+                    render_pass.draw(0..grad_verts.len() as u32, 0..1);
+                }
+            }
+
+            // === Step 1i_depth: Window depth shadow layers ===
+            if self.depth_shadow_enabled {
+                let (dr, dg, db) = self.depth_shadow_color;
+                let mut shadow_verts: Vec<RectVertex> = Vec::new();
+                for win_info in &frame_glyphs.window_infos {
+                    if win_info.is_minibuffer { continue; }
+                    let b = &win_info.bounds;
+                    for layer in (1..=self.depth_shadow_layers).rev() {
+                        let off = layer as f32 * self.depth_shadow_offset;
+                        let alpha = self.depth_shadow_opacity * (1.0 - (layer - 1) as f32 / self.depth_shadow_layers as f32);
+                        let c = Color::new(dr, dg, db, alpha);
+                        // Bottom edge shadow
+                        self.add_rect(&mut shadow_verts, b.x + off, b.y + b.height, b.width, off, &c);
+                        // Right edge shadow
+                        self.add_rect(&mut shadow_verts, b.x + b.width, b.y + off, off, b.height, &c);
+                    }
+                }
+                if !shadow_verts.is_empty() {
+                    let shadow_buf = self.device.create_buffer_init(
+                        &wgpu::util::BufferInitDescriptor {
+                            label: Some("Depth Shadow Buffer"),
+                            contents: bytemuck::cast_slice(&shadow_verts),
+                            usage: wgpu::BufferUsages::VERTEX,
+                        },
+                    );
+                    render_pass.set_pipeline(&self.rect_pipeline);
+                    render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                    render_pass.set_vertex_buffer(0, shadow_buf.slice(..));
+                    render_pass.draw(0..shadow_verts.len() as u32, 0..1);
+                }
+            }
+
+            // === Step 1i_modeline_grad: Mode-line gradient background ===
+            if self.mode_line_gradient_enabled {
+                let (lr, lg, lb) = self.mode_line_gradient_left_color;
+                let (rr, rg, rb) = self.mode_line_gradient_right_color;
+                let alpha = self.mode_line_gradient_opacity;
+                let mut ml_verts: Vec<RectVertex> = Vec::new();
+                for win_info in &frame_glyphs.window_infos {
+                    if win_info.is_minibuffer { continue; }
+                    let b = &win_info.bounds;
+                    let ml_h = win_info.mode_line_height;
+                    if ml_h < 1.0 { continue; }
+                    let ml_y = b.y + b.height - ml_h;
+                    // Horizontal gradient using vertical strips
+                    let strips = b.width.ceil() as u32;
+                    let strip_w = (b.width / strips.max(1) as f32).max(1.0);
+                    let actual_strips = (b.width / strip_w).ceil() as u32;
+                    for s in 0..actual_strips {
+                        let t = s as f32 / actual_strips as f32;
+                        let r = lr + (rr - lr) * t;
+                        let g = lg + (rg - lg) * t;
+                        let b_c = lb + (rb - lb) * t;
+                        let c = Color::new(r, g, b_c, alpha);
+                        self.add_rect(&mut ml_verts, b.x + s as f32 * strip_w, ml_y, strip_w, ml_h, &c);
+                    }
+                }
+                if !ml_verts.is_empty() {
+                    let ml_buf = self.device.create_buffer_init(
+                        &wgpu::util::BufferInitDescriptor {
+                            label: Some("Mode-line Gradient Buffer"),
+                            contents: bytemuck::cast_slice(&ml_verts),
+                            usage: wgpu::BufferUsages::VERTEX,
+                        },
+                    );
+                    render_pass.set_pipeline(&self.rect_pipeline);
+                    render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                    render_pass.set_vertex_buffer(0, ml_buf.slice(..));
+                    render_pass.draw(0..ml_verts.len() as u32, 0..1);
+                }
+            }
+
+            // === Step 1i_magnetism: Cursor magnetism effect ===
+            if self.cursor_magnetism_enabled {
+                let now = std::time::Instant::now();
+                let dur = std::time::Duration::from_millis(self.cursor_magnetism_duration_ms as u64);
+
+                // Detect cursor jump (large movement) and record
+                if let Some(ref anim) = animated_cursor {
+                    let cx = anim.x + anim.width / 2.0;
+                    let cy = anim.y + anim.height / 2.0;
+                    let should_add = self.cursor_magnetism_entries.last()
+                        .map(|(px, py, _)| {
+                            let dx = (cx - px).abs();
+                            let dy = (cy - py).abs();
+                            dx > 50.0 || dy > 20.0 // jump threshold
+                        })
+                        .unwrap_or(false);
+                    if should_add {
+                        self.cursor_magnetism_entries.push((cx, cy, now));
+                    }
+                    // Initial entry
+                    if self.cursor_magnetism_entries.is_empty() {
+                        self.cursor_magnetism_entries.push((cx, cy, now));
+                    }
+                }
+
+                // Prune expired
+                self.cursor_magnetism_entries.retain(|&(_, _, t)| now.duration_since(t) < dur);
+
+                // Render collapsing rings
+                if !self.cursor_magnetism_entries.is_empty() {
+                    let (mr, mg, mb) = self.cursor_magnetism_color;
+                    let max_alpha = self.cursor_magnetism_opacity;
+                    let ring_count = self.cursor_magnetism_ring_count;
+                    let mut mag_verts: Vec<RectVertex> = Vec::new();
+                    for &(cx, cy, started) in &self.cursor_magnetism_entries {
+                        let t = now.duration_since(started).as_secs_f32() / dur.as_secs_f32();
+                        if t >= 1.0 { continue; }
+                        let alpha = max_alpha * (1.0 - t);
+                        for ring in 0..ring_count {
+                            let ring_t = ring as f32 / ring_count as f32;
+                            let radius = (1.0 - t) * (30.0 + ring_t * 40.0); // collapse inward
+                            let c = Color::new(mr, mg, mb, alpha * (1.0 - ring_t * 0.5));
+                            let line_w = 1.5;
+                            // Approximate ring with 4 rects (top, bottom, left, right)
+                            self.add_rect(&mut mag_verts, cx - radius, cy - radius, radius * 2.0, line_w, &c);
+                            self.add_rect(&mut mag_verts, cx - radius, cy + radius - line_w, radius * 2.0, line_w, &c);
+                            self.add_rect(&mut mag_verts, cx - radius, cy - radius, line_w, radius * 2.0, &c);
+                            self.add_rect(&mut mag_verts, cx + radius - line_w, cy - radius, line_w, radius * 2.0, &c);
+                        }
+                    }
+                    if !mag_verts.is_empty() {
+                        let mag_buf = self.device.create_buffer_init(
+                            &wgpu::util::BufferInitDescriptor {
+                                label: Some("Cursor Magnetism Buffer"),
+                                contents: bytemuck::cast_slice(&mag_verts),
+                                usage: wgpu::BufferUsages::VERTEX,
+                            },
+                        );
+                        render_pass.set_pipeline(&self.rect_pipeline);
+                        render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                        render_pass.set_vertex_buffer(0, mag_buf.slice(..));
+                        render_pass.draw(0..mag_verts.len() as u32, 0..1);
+                    }
+                    self.needs_continuous_redraw = true;
+                }
+            }
+
+            // === Step 1i2: Window corner fold effect ===
             if self.corner_fold_enabled {
                 let fold_size = self.corner_fold_size;
                 let (fr, fg, fb) = self.corner_fold_color;

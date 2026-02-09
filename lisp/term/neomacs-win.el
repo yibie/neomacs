@@ -2286,6 +2286,352 @@ buffer's identity, creating a stained-glass appearance."
                 neomacs-stained-glass-opacity nil)
             val))))
 
+;; --- Focus gradient border ---
+(declare-function neomacs-set-focus-gradient-border "neomacsterm.c"
+  (&optional enabled top-color bottom-color width opacity))
+
+(defcustom neomacs-focus-gradient-border nil
+  "Enable focused window gradient border.
+Non-nil renders a vertical gradient border on the active window."
+  :type 'boolean
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-focus-gradient-border)
+           (neomacs-set-focus-gradient-border val
+            (if (boundp 'neomacs-focus-gradient-border-top-color)
+                neomacs-focus-gradient-border-top-color nil)
+            (if (boundp 'neomacs-focus-gradient-border-bottom-color)
+                neomacs-focus-gradient-border-bottom-color nil)
+            (if (boundp 'neomacs-focus-gradient-border-width)
+                neomacs-focus-gradient-border-width nil)
+            (if (boundp 'neomacs-focus-gradient-border-opacity)
+                neomacs-focus-gradient-border-opacity nil)))))
+
+(defcustom neomacs-focus-gradient-border-top-color "#4D99FF"
+  "Gradient border top color."
+  :type '(string :tag "Color (#RRGGBB)")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-focus-gradient-border)
+                    (boundp 'neomacs-focus-gradient-border)
+                    neomacs-focus-gradient-border)
+           (neomacs-set-focus-gradient-border t val
+            (if (boundp 'neomacs-focus-gradient-border-bottom-color)
+                neomacs-focus-gradient-border-bottom-color nil)
+            (if (boundp 'neomacs-focus-gradient-border-width)
+                neomacs-focus-gradient-border-width nil)
+            (if (boundp 'neomacs-focus-gradient-border-opacity)
+                neomacs-focus-gradient-border-opacity nil)))))
+
+(defcustom neomacs-focus-gradient-border-bottom-color "#994DFF"
+  "Gradient border bottom color."
+  :type '(string :tag "Color (#RRGGBB)")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-focus-gradient-border)
+                    (boundp 'neomacs-focus-gradient-border)
+                    neomacs-focus-gradient-border)
+           (neomacs-set-focus-gradient-border t
+            (if (boundp 'neomacs-focus-gradient-border-top-color)
+                neomacs-focus-gradient-border-top-color nil)
+            val
+            (if (boundp 'neomacs-focus-gradient-border-width)
+                neomacs-focus-gradient-border-width nil)
+            (if (boundp 'neomacs-focus-gradient-border-opacity)
+                neomacs-focus-gradient-border-opacity nil)))))
+
+(defcustom neomacs-focus-gradient-border-width 2
+  "Gradient border width in pixels."
+  :type '(integer :tag "Width (px)")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-focus-gradient-border)
+                    (boundp 'neomacs-focus-gradient-border)
+                    neomacs-focus-gradient-border)
+           (neomacs-set-focus-gradient-border t
+            (if (boundp 'neomacs-focus-gradient-border-top-color)
+                neomacs-focus-gradient-border-top-color nil)
+            (if (boundp 'neomacs-focus-gradient-border-bottom-color)
+                neomacs-focus-gradient-border-bottom-color nil)
+            val
+            (if (boundp 'neomacs-focus-gradient-border-opacity)
+                neomacs-focus-gradient-border-opacity nil)))))
+
+(defcustom neomacs-focus-gradient-border-opacity 60
+  "Gradient border opacity (0-100)."
+  :type '(integer :tag "Opacity (%)")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-focus-gradient-border)
+                    (boundp 'neomacs-focus-gradient-border)
+                    neomacs-focus-gradient-border)
+           (neomacs-set-focus-gradient-border t
+            (if (boundp 'neomacs-focus-gradient-border-top-color)
+                neomacs-focus-gradient-border-top-color nil)
+            (if (boundp 'neomacs-focus-gradient-border-bottom-color)
+                neomacs-focus-gradient-border-bottom-color nil)
+            (if (boundp 'neomacs-focus-gradient-border-width)
+                neomacs-focus-gradient-border-width nil)
+            val))))
+
+;; --- Cursor magnetism effect ---
+(declare-function neomacs-set-cursor-magnetism "neomacsterm.c"
+  (&optional enabled color ring-count duration-ms opacity))
+
+(defcustom neomacs-cursor-magnetism nil
+  "Enable cursor magnetism effect on jump.
+Non-nil renders collapsing rings when cursor jumps far."
+  :type 'boolean
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-cursor-magnetism)
+           (neomacs-set-cursor-magnetism val
+            (if (boundp 'neomacs-cursor-magnetism-color)
+                neomacs-cursor-magnetism-color nil)
+            (if (boundp 'neomacs-cursor-magnetism-ring-count)
+                neomacs-cursor-magnetism-ring-count nil)
+            (if (boundp 'neomacs-cursor-magnetism-duration-ms)
+                neomacs-cursor-magnetism-duration-ms nil)
+            (if (boundp 'neomacs-cursor-magnetism-opacity)
+                neomacs-cursor-magnetism-opacity nil)))))
+
+(defcustom neomacs-cursor-magnetism-color "#66B3FF"
+  "Magnetism ring color."
+  :type '(string :tag "Color (#RRGGBB)")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-magnetism)
+                    (boundp 'neomacs-cursor-magnetism)
+                    neomacs-cursor-magnetism)
+           (neomacs-set-cursor-magnetism t val
+            (if (boundp 'neomacs-cursor-magnetism-ring-count)
+                neomacs-cursor-magnetism-ring-count nil)
+            (if (boundp 'neomacs-cursor-magnetism-duration-ms)
+                neomacs-cursor-magnetism-duration-ms nil)
+            (if (boundp 'neomacs-cursor-magnetism-opacity)
+                neomacs-cursor-magnetism-opacity nil)))))
+
+(defcustom neomacs-cursor-magnetism-ring-count 3
+  "Number of concentric rings."
+  :type '(integer :tag "Ring count")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-magnetism)
+                    (boundp 'neomacs-cursor-magnetism)
+                    neomacs-cursor-magnetism)
+           (neomacs-set-cursor-magnetism t
+            (if (boundp 'neomacs-cursor-magnetism-color)
+                neomacs-cursor-magnetism-color nil)
+            val
+            (if (boundp 'neomacs-cursor-magnetism-duration-ms)
+                neomacs-cursor-magnetism-duration-ms nil)
+            (if (boundp 'neomacs-cursor-magnetism-opacity)
+                neomacs-cursor-magnetism-opacity nil)))))
+
+(defcustom neomacs-cursor-magnetism-duration-ms 300
+  "Magnetism animation duration in milliseconds."
+  :type '(integer :tag "Duration (ms)")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-magnetism)
+                    (boundp 'neomacs-cursor-magnetism)
+                    neomacs-cursor-magnetism)
+           (neomacs-set-cursor-magnetism t
+            (if (boundp 'neomacs-cursor-magnetism-color)
+                neomacs-cursor-magnetism-color nil)
+            (if (boundp 'neomacs-cursor-magnetism-ring-count)
+                neomacs-cursor-magnetism-ring-count nil)
+            val
+            (if (boundp 'neomacs-cursor-magnetism-opacity)
+                neomacs-cursor-magnetism-opacity nil)))))
+
+(defcustom neomacs-cursor-magnetism-opacity 50
+  "Magnetism effect max opacity (0-100)."
+  :type '(integer :tag "Opacity (%)")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-magnetism)
+                    (boundp 'neomacs-cursor-magnetism)
+                    neomacs-cursor-magnetism)
+           (neomacs-set-cursor-magnetism t
+            (if (boundp 'neomacs-cursor-magnetism-color)
+                neomacs-cursor-magnetism-color nil)
+            (if (boundp 'neomacs-cursor-magnetism-ring-count)
+                neomacs-cursor-magnetism-ring-count nil)
+            (if (boundp 'neomacs-cursor-magnetism-duration-ms)
+                neomacs-cursor-magnetism-duration-ms nil)
+            val))))
+
+;; --- Window depth shadow layers ---
+(declare-function neomacs-set-depth-shadow "neomacsterm.c"
+  (&optional enabled layers offset color opacity))
+
+(defcustom neomacs-depth-shadow nil
+  "Enable window depth shadow layers.
+Non-nil renders shadow layers for a 3D stacked paper effect."
+  :type 'boolean
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-depth-shadow)
+           (neomacs-set-depth-shadow val
+            (if (boundp 'neomacs-depth-shadow-layers)
+                neomacs-depth-shadow-layers nil)
+            (if (boundp 'neomacs-depth-shadow-offset)
+                neomacs-depth-shadow-offset nil)
+            (if (boundp 'neomacs-depth-shadow-color)
+                neomacs-depth-shadow-color nil)
+            (if (boundp 'neomacs-depth-shadow-opacity)
+                neomacs-depth-shadow-opacity nil)))))
+
+(defcustom neomacs-depth-shadow-layers 3
+  "Number of shadow layers."
+  :type '(integer :tag "Layers")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-depth-shadow)
+                    (boundp 'neomacs-depth-shadow)
+                    neomacs-depth-shadow)
+           (neomacs-set-depth-shadow t val
+            (if (boundp 'neomacs-depth-shadow-offset)
+                neomacs-depth-shadow-offset nil)
+            (if (boundp 'neomacs-depth-shadow-color)
+                neomacs-depth-shadow-color nil)
+            (if (boundp 'neomacs-depth-shadow-opacity)
+                neomacs-depth-shadow-opacity nil)))))
+
+(defcustom neomacs-depth-shadow-offset 2
+  "Pixels offset per shadow layer."
+  :type '(integer :tag "Offset (px)")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-depth-shadow)
+                    (boundp 'neomacs-depth-shadow)
+                    neomacs-depth-shadow)
+           (neomacs-set-depth-shadow t
+            (if (boundp 'neomacs-depth-shadow-layers)
+                neomacs-depth-shadow-layers nil)
+            val
+            (if (boundp 'neomacs-depth-shadow-color)
+                neomacs-depth-shadow-color nil)
+            (if (boundp 'neomacs-depth-shadow-opacity)
+                neomacs-depth-shadow-opacity nil)))))
+
+(defcustom neomacs-depth-shadow-color "#000000"
+  "Shadow color as hex RGB string."
+  :type '(string :tag "Color (#RRGGBB)")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-depth-shadow)
+                    (boundp 'neomacs-depth-shadow)
+                    neomacs-depth-shadow)
+           (neomacs-set-depth-shadow t
+            (if (boundp 'neomacs-depth-shadow-layers)
+                neomacs-depth-shadow-layers nil)
+            (if (boundp 'neomacs-depth-shadow-offset)
+                neomacs-depth-shadow-offset nil)
+            val
+            (if (boundp 'neomacs-depth-shadow-opacity)
+                neomacs-depth-shadow-opacity nil)))))
+
+(defcustom neomacs-depth-shadow-opacity 15
+  "Shadow opacity (0-100)."
+  :type '(integer :tag "Opacity (%)")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-depth-shadow)
+                    (boundp 'neomacs-depth-shadow)
+                    neomacs-depth-shadow)
+           (neomacs-set-depth-shadow t
+            (if (boundp 'neomacs-depth-shadow-layers)
+                neomacs-depth-shadow-layers nil)
+            (if (boundp 'neomacs-depth-shadow-offset)
+                neomacs-depth-shadow-offset nil)
+            (if (boundp 'neomacs-depth-shadow-color)
+                neomacs-depth-shadow-color nil)
+            val))))
+
+;; --- Mode-line gradient background ---
+(declare-function neomacs-set-mode-line-gradient "neomacsterm.c"
+  (&optional enabled left-color right-color opacity))
+
+(defcustom neomacs-mode-line-gradient nil
+  "Enable mode-line gradient background.
+Non-nil renders a horizontal gradient across the mode-line."
+  :type 'boolean
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-mode-line-gradient)
+           (neomacs-set-mode-line-gradient val
+            (if (boundp 'neomacs-mode-line-gradient-left-color)
+                neomacs-mode-line-gradient-left-color nil)
+            (if (boundp 'neomacs-mode-line-gradient-right-color)
+                neomacs-mode-line-gradient-right-color nil)
+            (if (boundp 'neomacs-mode-line-gradient-opacity)
+                neomacs-mode-line-gradient-opacity nil)))))
+
+(defcustom neomacs-mode-line-gradient-left-color "#334D80"
+  "Mode-line gradient left color."
+  :type '(string :tag "Color (#RRGGBB)")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-mode-line-gradient)
+                    (boundp 'neomacs-mode-line-gradient)
+                    neomacs-mode-line-gradient)
+           (neomacs-set-mode-line-gradient t val
+            (if (boundp 'neomacs-mode-line-gradient-right-color)
+                neomacs-mode-line-gradient-right-color nil)
+            (if (boundp 'neomacs-mode-line-gradient-opacity)
+                neomacs-mode-line-gradient-opacity nil)))))
+
+(defcustom neomacs-mode-line-gradient-right-color "#804D33"
+  "Mode-line gradient right color."
+  :type '(string :tag "Color (#RRGGBB)")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-mode-line-gradient)
+                    (boundp 'neomacs-mode-line-gradient)
+                    neomacs-mode-line-gradient)
+           (neomacs-set-mode-line-gradient t
+            (if (boundp 'neomacs-mode-line-gradient-left-color)
+                neomacs-mode-line-gradient-left-color nil)
+            val
+            (if (boundp 'neomacs-mode-line-gradient-opacity)
+                neomacs-mode-line-gradient-opacity nil)))))
+
+(defcustom neomacs-mode-line-gradient-opacity 30
+  "Mode-line gradient opacity (0-100)."
+  :type '(integer :tag "Opacity (%)")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-mode-line-gradient)
+                    (boundp 'neomacs-mode-line-gradient)
+                    neomacs-mode-line-gradient)
+           (neomacs-set-mode-line-gradient t
+            (if (boundp 'neomacs-mode-line-gradient-left-color)
+                neomacs-mode-line-gradient-left-color nil)
+            (if (boundp 'neomacs-mode-line-gradient-right-color)
+                neomacs-mode-line-gradient-right-color nil)
+            val))))
+
 ;; --- Window corner fold effect ---
 (declare-function neomacs-set-corner-fold "neomacsterm.c"
   (&optional enabled size color opacity))

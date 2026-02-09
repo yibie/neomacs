@@ -3073,6 +3073,92 @@ pub unsafe extern "C" fn neomacs_display_set_stained_glass(
     }
 }
 
+/// Configure focused window gradient border
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_focus_gradient_border(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    top_r: c_int, top_g: c_int, top_b: c_int,
+    bot_r: c_int, bot_g: c_int, bot_b: c_int,
+    width: c_int,
+    opacity: c_int,
+) {
+    let cmd = RenderCommand::SetFocusGradientBorder {
+        enabled: enabled != 0,
+        top_r: top_r as f32 / 255.0, top_g: top_g as f32 / 255.0, top_b: top_b as f32 / 255.0,
+        bot_r: bot_r as f32 / 255.0, bot_g: bot_g as f32 / 255.0, bot_b: bot_b as f32 / 255.0,
+        width: width as f32,
+        opacity: opacity as f32 / 100.0,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
+/// Configure cursor magnetism effect
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_cursor_magnetism(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    r: c_int, g: c_int, b: c_int,
+    ring_count: c_int,
+    duration_ms: c_int,
+    opacity: c_int,
+) {
+    let cmd = RenderCommand::SetCursorMagnetism {
+        enabled: enabled != 0,
+        r: r as f32 / 255.0, g: g as f32 / 255.0, b: b as f32 / 255.0,
+        ring_count: ring_count as u32,
+        duration_ms: duration_ms as u32,
+        opacity: opacity as f32 / 100.0,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
+/// Configure window depth shadow layers
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_depth_shadow(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    layers: c_int,
+    offset: c_int,
+    r: c_int, g: c_int, b: c_int,
+    opacity: c_int,
+) {
+    let cmd = RenderCommand::SetDepthShadow {
+        enabled: enabled != 0,
+        layers: layers as u32,
+        offset: offset as f32,
+        r: r as f32 / 255.0, g: g as f32 / 255.0, b: b as f32 / 255.0,
+        opacity: opacity as f32 / 100.0,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
+/// Configure mode-line gradient background
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_mode_line_gradient(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    left_r: c_int, left_g: c_int, left_b: c_int,
+    right_r: c_int, right_g: c_int, right_b: c_int,
+    opacity: c_int,
+) {
+    let cmd = RenderCommand::SetModeLineGradient {
+        enabled: enabled != 0,
+        left_r: left_r as f32 / 255.0, left_g: left_g as f32 / 255.0, left_b: left_b as f32 / 255.0,
+        right_r: right_r as f32 / 255.0, right_g: right_g as f32 / 255.0, right_b: right_b as f32 / 255.0,
+        opacity: opacity as f32 / 100.0,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
 /// Configure window corner fold effect
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_set_corner_fold(

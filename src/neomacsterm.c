@@ -9169,6 +9169,186 @@ SATURATION is a percentage 0-100 controlling color intensity (default 60).  */)
   return on ? Qt : Qnil;
 }
 
+DEFUN ("neomacs-set-focus-gradient-border",
+       Fneomacs_set_focus_gradient_border,
+       Sneomacs_set_focus_gradient_border, 0, 5, 0,
+       doc: /* Configure focused window gradient border.
+ENABLED non-nil renders a gradient border on the active window that
+transitions from TOP-COLOR to BOTTOM-COLOR vertically.
+TOP-COLOR and BOTTOM-COLOR are RGB hex strings (defaults "#4D99FF" and "#994DFF").
+WIDTH is border width in pixels (default 2).
+OPACITY is a percentage 0-100 (default 60).  */)
+  (Lisp_Object enabled, Lisp_Object top_color, Lisp_Object bottom_color,
+   Lisp_Object width, Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+
+  int on = !NILP (enabled);
+  int w = 2, op = 60;
+  int tr = 0x4D, tg = 0x99, tb = 0xFF;
+  int br = 0x99, bg = 0x4D, bb = 0xFF;
+  if (FIXNUMP (width)) w = XFIXNUM (width);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+  if (STRINGP (top_color))
+    {
+      const char *s = SSDATA (top_color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned hex = 0;
+          sscanf (s + 1, "%06x", &hex);
+          tr = (hex >> 16) & 0xFF;
+          tg = (hex >> 8) & 0xFF;
+          tb = hex & 0xFF;
+        }
+    }
+  if (STRINGP (bottom_color))
+    {
+      const char *s = SSDATA (bottom_color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned hex = 0;
+          sscanf (s + 1, "%06x", &hex);
+          br = (hex >> 16) & 0xFF;
+          bg = (hex >> 8) & 0xFF;
+          bb = hex & 0xFF;
+        }
+    }
+
+  neomacs_display_set_focus_gradient_border (dpyinfo->display_handle, on, tr, tg, tb, br, bg, bb, w, op);
+  return on ? Qt : Qnil;
+}
+
+DEFUN ("neomacs-set-cursor-magnetism",
+       Fneomacs_set_cursor_magnetism,
+       Sneomacs_set_cursor_magnetism, 0, 5, 0,
+       doc: /* Configure cursor magnetism effect on jump.
+ENABLED non-nil renders collapsing concentric rings at the cursor
+destination when it jumps a long distance.
+COLOR is an RGB hex string (default "#66B3FF").
+RING-COUNT is the number of rings (default 3).
+DURATION-MS is animation duration in milliseconds (default 300).
+OPACITY is a percentage 0-100 (default 50).  */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object ring_count,
+   Lisp_Object duration_ms, Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+
+  int on = !NILP (enabled);
+  int rc = 3, dm = 300, op = 50;
+  int r = 0x66, g = 0xB3, b = 0xFF;
+  if (FIXNUMP (ring_count)) rc = XFIXNUM (ring_count);
+  if (FIXNUMP (duration_ms)) dm = XFIXNUM (duration_ms);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned hex = 0;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+
+  neomacs_display_set_cursor_magnetism (dpyinfo->display_handle, on, r, g, b, rc, dm, op);
+  return on ? Qt : Qnil;
+}
+
+DEFUN ("neomacs-set-depth-shadow",
+       Fneomacs_set_depth_shadow,
+       Sneomacs_set_depth_shadow, 0, 5, 0,
+       doc: /* Configure window depth shadow layers.
+ENABLED non-nil renders multiple shadow layers at window edges,
+creating a 3D stacked paper effect.
+LAYERS is the number of shadow layers (default 3).
+OFFSET is pixels per layer (default 2).
+COLOR is an RGB hex string (default "#000000").
+OPACITY is a percentage 0-100 (default 15).  */)
+  (Lisp_Object enabled, Lisp_Object layers, Lisp_Object offset,
+   Lisp_Object color, Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+
+  int on = !NILP (enabled);
+  int ly = 3, off = 2, op = 15;
+  int r = 0, g = 0, b = 0;
+  if (FIXNUMP (layers)) ly = XFIXNUM (layers);
+  if (FIXNUMP (offset)) off = XFIXNUM (offset);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned hex = 0;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+
+  neomacs_display_set_depth_shadow (dpyinfo->display_handle, on, ly, off, r, g, b, op);
+  return on ? Qt : Qnil;
+}
+
+DEFUN ("neomacs-set-mode-line-gradient",
+       Fneomacs_set_mode_line_gradient,
+       Sneomacs_set_mode_line_gradient, 0, 4, 0,
+       doc: /* Configure mode-line gradient background.
+ENABLED non-nil renders a horizontal gradient across the mode-line
+area instead of a flat color.
+LEFT-COLOR and RIGHT-COLOR are RGB hex strings (defaults "#334D80" and "#804D33").
+OPACITY is a percentage 0-100 (default 30).  */)
+  (Lisp_Object enabled, Lisp_Object left_color, Lisp_Object right_color,
+   Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+
+  int on = !NILP (enabled);
+  int op = 30;
+  int lr = 0x33, lg = 0x4D, lb = 0x80;
+  int rr = 0x80, rg = 0x4D, rb = 0x33;
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+  if (STRINGP (left_color))
+    {
+      const char *s = SSDATA (left_color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned hex = 0;
+          sscanf (s + 1, "%06x", &hex);
+          lr = (hex >> 16) & 0xFF;
+          lg = (hex >> 8) & 0xFF;
+          lb = hex & 0xFF;
+        }
+    }
+  if (STRINGP (right_color))
+    {
+      const char *s = SSDATA (right_color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned hex = 0;
+          sscanf (s + 1, "%06x", &hex);
+          rr = (hex >> 16) & 0xFF;
+          rg = (hex >> 8) & 0xFF;
+          rb = hex & 0xFF;
+        }
+    }
+
+  neomacs_display_set_mode_line_gradient (dpyinfo->display_handle, on, lr, lg, lb, rr, rg, rb, op);
+  return on ? Qt : Qnil;
+}
+
 DEFUN ("neomacs-set-corner-fold",
        Fneomacs_set_corner_fold,
        Sneomacs_set_corner_fold, 0, 4, 0,
@@ -11221,6 +11401,10 @@ syms_of_neomacsterm (void)
   defsubr (&Sneomacs_set_frosted_border);
   defsubr (&Sneomacs_set_line_number_pulse);
   defsubr (&Sneomacs_set_breathing_border);
+  defsubr (&Sneomacs_set_focus_gradient_border);
+  defsubr (&Sneomacs_set_cursor_magnetism);
+  defsubr (&Sneomacs_set_depth_shadow);
+  defsubr (&Sneomacs_set_mode_line_gradient);
   defsubr (&Sneomacs_set_region_glow);
   defsubr (&Sneomacs_set_window_glow);
   defsubr (&Sneomacs_set_scroll_progress);

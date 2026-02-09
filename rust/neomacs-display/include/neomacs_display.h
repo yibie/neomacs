@@ -1511,6 +1511,57 @@ void neomacs_display_set_stained_glass(struct NeomacsDisplay *handle,
                                        int saturation);
 
 /**
+ * Configure focused window gradient border
+ */
+void neomacs_display_set_focus_gradient_border(struct NeomacsDisplay *handle,
+                                               int enabled,
+                                               int topR,
+                                               int topG,
+                                               int topB,
+                                               int botR,
+                                               int botG,
+                                               int botB,
+                                               int width,
+                                               int opacity);
+
+/**
+ * Configure cursor magnetism effect
+ */
+void neomacs_display_set_cursor_magnetism(struct NeomacsDisplay *handle,
+                                          int enabled,
+                                          int r,
+                                          int g,
+                                          int b,
+                                          int ringCount,
+                                          int durationMs,
+                                          int opacity);
+
+/**
+ * Configure window depth shadow layers
+ */
+void neomacs_display_set_depth_shadow(struct NeomacsDisplay *handle,
+                                      int enabled,
+                                      int layers,
+                                      int offset,
+                                      int r,
+                                      int g,
+                                      int b,
+                                      int opacity);
+
+/**
+ * Configure mode-line gradient background
+ */
+void neomacs_display_set_mode_line_gradient(struct NeomacsDisplay *handle,
+                                            int enabled,
+                                            int leftR,
+                                            int leftG,
+                                            int leftB,
+                                            int rightR,
+                                            int rightG,
+                                            int rightB,
+                                            int opacity);
+
+/**
  * Configure window corner fold effect
  */
 void neomacs_display_set_corner_fold(struct NeomacsDisplay *handle,
