@@ -2026,6 +2026,46 @@ void neomacs_display_set_cursor_gravity_well(struct NeomacsDisplay *handle,
     int opacity);
 
 /**
+ * Configure target reticle overlay effect.
+ */
+void neomacs_display_set_target_reticle(struct NeomacsDisplay *handle,
+    int enabled,
+    int r, int g, int b,
+    int ring_count,
+    int pulse_speed,
+    int opacity);
+
+/**
+ * Configure cursor feather effect.
+ */
+void neomacs_display_set_cursor_feather(struct NeomacsDisplay *handle,
+    int enabled,
+    int r, int g, int b,
+    int feather_count,
+    int drift_speed,
+    int opacity);
+
+/**
+ * Configure plaid pattern overlay effect.
+ */
+void neomacs_display_set_plaid_pattern(struct NeomacsDisplay *handle,
+    int enabled,
+    int r, int g, int b,
+    int band_width,
+    int band_spacing,
+    int opacity);
+
+/**
+ * Configure cursor stardust effect.
+ */
+void neomacs_display_set_cursor_stardust(struct NeomacsDisplay *handle,
+    int enabled,
+    int r, int g, int b,
+    int particle_count,
+    int fall_speed,
+    int opacity);
+
+/**
  * Configure brick wall overlay effect.
  */
 void neomacs_display_set_brick_wall(struct NeomacsDisplay *handle,

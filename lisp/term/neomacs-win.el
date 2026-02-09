@@ -5982,6 +5982,298 @@ Non-nil renders animated flowing color bands at the top of the frame."
                 neomacs-cursor-gravity-well-line-count nil)
             val))))
 
+;; Target reticle overlay effect
+(declare-function neomacs-set-target-reticle "neomacsterm.c")
+
+(defcustom neomacs-target-reticle nil
+  "Enable target reticle overlay effect."
+  :type 'boolean
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-target-reticle)
+           (if val
+               (neomacs-set-target-reticle t)
+             (neomacs-set-target-reticle nil)))))
+
+(defcustom neomacs-target-reticle-color "#33CC33"
+  "Target reticle color."
+  :type 'color
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-target-reticle)
+                    (boundp 'neomacs-target-reticle)
+                    neomacs-target-reticle)
+           (neomacs-set-target-reticle t val))))
+
+(defcustom neomacs-target-reticle-ring-count 3
+  "Number of reticle rings."
+  :type '(integer :tag "Ring count")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-target-reticle)
+                    (boundp 'neomacs-target-reticle)
+                    neomacs-target-reticle)
+           (neomacs-set-target-reticle t
+            (if (boundp 'neomacs-target-reticle-color)
+                neomacs-target-reticle-color nil)
+            val))))
+
+(defcustom neomacs-target-reticle-pulse-speed 100
+  "Target reticle pulse speed (* 100)."
+  :type '(integer :tag "Pulse speed")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-target-reticle)
+                    (boundp 'neomacs-target-reticle)
+                    neomacs-target-reticle)
+           (neomacs-set-target-reticle t
+            (if (boundp 'neomacs-target-reticle-color)
+                neomacs-target-reticle-color nil)
+            (if (boundp 'neomacs-target-reticle-ring-count)
+                neomacs-target-reticle-ring-count nil)
+            val))))
+
+(defcustom neomacs-target-reticle-opacity 8
+  "Target reticle opacity (0-100)."
+  :type '(integer :tag "Opacity (0-100)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-target-reticle)
+                    (boundp 'neomacs-target-reticle)
+                    neomacs-target-reticle)
+           (neomacs-set-target-reticle t
+            (if (boundp 'neomacs-target-reticle-color)
+                neomacs-target-reticle-color nil)
+            (if (boundp 'neomacs-target-reticle-ring-count)
+                neomacs-target-reticle-ring-count nil)
+            (if (boundp 'neomacs-target-reticle-pulse-speed)
+                neomacs-target-reticle-pulse-speed nil)
+            val))))
+
+;; Cursor feather effect
+(declare-function neomacs-set-cursor-feather "neomacsterm.c")
+
+(defcustom neomacs-cursor-feather nil
+  "Enable cursor feather effect."
+  :type 'boolean
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-cursor-feather)
+           (if val
+               (neomacs-set-cursor-feather t)
+             (neomacs-set-cursor-feather nil)))))
+
+(defcustom neomacs-cursor-feather-color "#E6D9B3"
+  "Cursor feather color."
+  :type 'color
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-feather)
+                    (boundp 'neomacs-cursor-feather)
+                    neomacs-cursor-feather)
+           (neomacs-set-cursor-feather t val))))
+
+(defcustom neomacs-cursor-feather-count 4
+  "Number of feather wisps."
+  :type '(integer :tag "Feather count")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-feather)
+                    (boundp 'neomacs-cursor-feather)
+                    neomacs-cursor-feather)
+           (neomacs-set-cursor-feather t
+            (if (boundp 'neomacs-cursor-feather-color)
+                neomacs-cursor-feather-color nil)
+            val))))
+
+(defcustom neomacs-cursor-feather-drift-speed 100
+  "Cursor feather drift speed (* 100)."
+  :type '(integer :tag "Drift speed")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-feather)
+                    (boundp 'neomacs-cursor-feather)
+                    neomacs-cursor-feather)
+           (neomacs-set-cursor-feather t
+            (if (boundp 'neomacs-cursor-feather-color)
+                neomacs-cursor-feather-color nil)
+            (if (boundp 'neomacs-cursor-feather-count)
+                neomacs-cursor-feather-count nil)
+            val))))
+
+(defcustom neomacs-cursor-feather-opacity 18
+  "Cursor feather opacity (0-100)."
+  :type '(integer :tag "Opacity (0-100)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-feather)
+                    (boundp 'neomacs-cursor-feather)
+                    neomacs-cursor-feather)
+           (neomacs-set-cursor-feather t
+            (if (boundp 'neomacs-cursor-feather-color)
+                neomacs-cursor-feather-color nil)
+            (if (boundp 'neomacs-cursor-feather-count)
+                neomacs-cursor-feather-count nil)
+            (if (boundp 'neomacs-cursor-feather-drift-speed)
+                neomacs-cursor-feather-drift-speed nil)
+            val))))
+
+;; Plaid pattern overlay effect
+(declare-function neomacs-set-plaid-pattern "neomacsterm.c")
+
+(defcustom neomacs-plaid-pattern nil
+  "Enable plaid pattern overlay effect."
+  :type 'boolean
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-plaid-pattern)
+           (if val
+               (neomacs-set-plaid-pattern t)
+             (neomacs-set-plaid-pattern nil)))))
+
+(defcustom neomacs-plaid-pattern-color "#B34D4D"
+  "Plaid pattern color."
+  :type 'color
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-plaid-pattern)
+                    (boundp 'neomacs-plaid-pattern)
+                    neomacs-plaid-pattern)
+           (neomacs-set-plaid-pattern t val))))
+
+(defcustom neomacs-plaid-pattern-band-width 4
+  "Plaid band width in pixels."
+  :type '(integer :tag "Band width (px)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-plaid-pattern)
+                    (boundp 'neomacs-plaid-pattern)
+                    neomacs-plaid-pattern)
+           (neomacs-set-plaid-pattern t
+            (if (boundp 'neomacs-plaid-pattern-color)
+                neomacs-plaid-pattern-color nil)
+            val))))
+
+(defcustom neomacs-plaid-pattern-band-spacing 30
+  "Plaid band spacing in pixels."
+  :type '(integer :tag "Band spacing (px)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-plaid-pattern)
+                    (boundp 'neomacs-plaid-pattern)
+                    neomacs-plaid-pattern)
+           (neomacs-set-plaid-pattern t
+            (if (boundp 'neomacs-plaid-pattern-color)
+                neomacs-plaid-pattern-color nil)
+            (if (boundp 'neomacs-plaid-pattern-band-width)
+                neomacs-plaid-pattern-band-width nil)
+            val))))
+
+(defcustom neomacs-plaid-pattern-opacity 5
+  "Plaid pattern opacity (0-100)."
+  :type '(integer :tag "Opacity (0-100)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-plaid-pattern)
+                    (boundp 'neomacs-plaid-pattern)
+                    neomacs-plaid-pattern)
+           (neomacs-set-plaid-pattern t
+            (if (boundp 'neomacs-plaid-pattern-color)
+                neomacs-plaid-pattern-color nil)
+            (if (boundp 'neomacs-plaid-pattern-band-width)
+                neomacs-plaid-pattern-band-width nil)
+            (if (boundp 'neomacs-plaid-pattern-band-spacing)
+                neomacs-plaid-pattern-band-spacing nil)
+            val))))
+
+;; Cursor stardust effect
+(declare-function neomacs-set-cursor-stardust "neomacsterm.c")
+
+(defcustom neomacs-cursor-stardust nil
+  "Enable cursor stardust effect."
+  :type 'boolean
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-cursor-stardust)
+           (if val
+               (neomacs-set-cursor-stardust t)
+             (neomacs-set-cursor-stardust nil)))))
+
+(defcustom neomacs-cursor-stardust-color "#FFE680"
+  "Cursor stardust color."
+  :type 'color
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-stardust)
+                    (boundp 'neomacs-cursor-stardust)
+                    neomacs-cursor-stardust)
+           (neomacs-set-cursor-stardust t val))))
+
+(defcustom neomacs-cursor-stardust-particle-count 20
+  "Number of stardust particles."
+  :type '(integer :tag "Particle count")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-stardust)
+                    (boundp 'neomacs-cursor-stardust)
+                    neomacs-cursor-stardust)
+           (neomacs-set-cursor-stardust t
+            (if (boundp 'neomacs-cursor-stardust-color)
+                neomacs-cursor-stardust-color nil)
+            val))))
+
+(defcustom neomacs-cursor-stardust-fall-speed 100
+  "Cursor stardust fall speed (* 100)."
+  :type '(integer :tag "Fall speed")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-stardust)
+                    (boundp 'neomacs-cursor-stardust)
+                    neomacs-cursor-stardust)
+           (neomacs-set-cursor-stardust t
+            (if (boundp 'neomacs-cursor-stardust-color)
+                neomacs-cursor-stardust-color nil)
+            (if (boundp 'neomacs-cursor-stardust-particle-count)
+                neomacs-cursor-stardust-particle-count nil)
+            val))))
+
+(defcustom neomacs-cursor-stardust-opacity 20
+  "Cursor stardust opacity (0-100)."
+  :type '(integer :tag "Opacity (0-100)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-stardust)
+                    (boundp 'neomacs-cursor-stardust)
+                    neomacs-cursor-stardust)
+           (neomacs-set-cursor-stardust t
+            (if (boundp 'neomacs-cursor-stardust-color)
+                neomacs-cursor-stardust-color nil)
+            (if (boundp 'neomacs-cursor-stardust-particle-count)
+                neomacs-cursor-stardust-particle-count nil)
+            (if (boundp 'neomacs-cursor-stardust-fall-speed)
+                neomacs-cursor-stardust-fall-speed nil)
+            val))))
+
 ;; Brick wall overlay effect
 (declare-function neomacs-set-brick-wall "neomacsterm.c")
 

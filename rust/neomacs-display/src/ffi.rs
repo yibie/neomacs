@@ -6648,6 +6648,106 @@ pub unsafe extern "C" fn neomacs_display_set_cursor_gravity_well(
     }
 }
 
+/// Configure target reticle overlay effect
+#[cfg(feature = "winit-backend")]
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_target_reticle(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    r: c_int, g: c_int, b: c_int,
+    ring_count: c_int,
+    pulse_speed: c_int,
+    opacity: c_int,
+) {
+    let cmd = RenderCommand::SetTargetReticle {
+        enabled: enabled != 0,
+        r: r as f32 / 255.0,
+        g: g as f32 / 255.0,
+        b: b as f32 / 255.0,
+        ring_count: ring_count as u32,
+        pulse_speed: pulse_speed as f32 / 100.0,
+        opacity: opacity as f32 / 100.0,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
+/// Configure cursor feather effect
+#[cfg(feature = "winit-backend")]
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_cursor_feather(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    r: c_int, g: c_int, b: c_int,
+    feather_count: c_int,
+    drift_speed: c_int,
+    opacity: c_int,
+) {
+    let cmd = RenderCommand::SetCursorFeather {
+        enabled: enabled != 0,
+        r: r as f32 / 255.0,
+        g: g as f32 / 255.0,
+        b: b as f32 / 255.0,
+        feather_count: feather_count as u32,
+        drift_speed: drift_speed as f32 / 100.0,
+        opacity: opacity as f32 / 100.0,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
+/// Configure plaid pattern overlay effect
+#[cfg(feature = "winit-backend")]
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_plaid_pattern(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    r: c_int, g: c_int, b: c_int,
+    band_width: c_int,
+    band_spacing: c_int,
+    opacity: c_int,
+) {
+    let cmd = RenderCommand::SetPlaidPattern {
+        enabled: enabled != 0,
+        r: r as f32 / 255.0,
+        g: g as f32 / 255.0,
+        b: b as f32 / 255.0,
+        band_width: band_width as f32,
+        band_spacing: band_spacing as f32,
+        opacity: opacity as f32 / 100.0,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
+/// Configure cursor stardust effect
+#[cfg(feature = "winit-backend")]
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_cursor_stardust(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    r: c_int, g: c_int, b: c_int,
+    particle_count: c_int,
+    fall_speed: c_int,
+    opacity: c_int,
+) {
+    let cmd = RenderCommand::SetCursorStardust {
+        enabled: enabled != 0,
+        r: r as f32 / 255.0,
+        g: g as f32 / 255.0,
+        b: b as f32 / 255.0,
+        particle_count: particle_count as u32,
+        fall_speed: fall_speed as f32 / 100.0,
+        opacity: opacity as f32 / 100.0,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
 /// Configure brick wall overlay effect
 #[cfg(feature = "winit-backend")]
 #[no_mangle]

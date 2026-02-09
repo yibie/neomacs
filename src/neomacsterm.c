@@ -10967,6 +10967,154 @@ OPACITY is 0-100 (default 20). */)
   return on ? Qt : Qnil;
 }
 
+DEFUN ("neomacs-set-target-reticle",
+       Fneomacs_set_target_reticle,
+       Sneomacs_set_target_reticle, 0, 5, 0,
+       doc: /* Configure target reticle overlay effect.
+ENABLED non-nil activates animated reticle rings overlay.
+COLOR is a hex color string like "#RRGGBB" (default "#33CC33").
+RING-COUNT is number of concentric rings (default 3).
+PULSE-SPEED is speed * 100 (default 100).
+OPACITY is 0-100 (default 8). */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object ring_count,
+   Lisp_Object pulse_speed, Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+  int on = !NILP (enabled);
+  int r = 0x33, g = 0xCC, b = 0x33, rc = 3, ps = 100, op = 8;
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned int hex;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (ring_count)) rc = XFIXNUM (ring_count);
+  if (FIXNUMP (pulse_speed)) ps = XFIXNUM (pulse_speed);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_target_reticle (dpyinfo->display_handle, on, r, g, b, rc, ps, op);
+  return on ? Qt : Qnil;
+}
+
+DEFUN ("neomacs-set-cursor-feather",
+       Fneomacs_set_cursor_feather,
+       Sneomacs_set_cursor_feather, 0, 5, 0,
+       doc: /* Configure cursor feather effect.
+ENABLED non-nil activates floating feather wisps around cursor.
+COLOR is a hex color string like "#RRGGBB" (default "#E6D9B3").
+FEATHER-COUNT is number of feather wisps (default 4).
+DRIFT-SPEED is speed * 100 (default 100).
+OPACITY is 0-100 (default 18). */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object feather_count,
+   Lisp_Object drift_speed, Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+  int on = !NILP (enabled);
+  int r = 0xE6, g = 0xD9, b = 0xB3, fc = 4, ds = 100, op = 18;
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned int hex;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (feather_count)) fc = XFIXNUM (feather_count);
+  if (FIXNUMP (drift_speed)) ds = XFIXNUM (drift_speed);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_cursor_feather (dpyinfo->display_handle, on, r, g, b, fc, ds, op);
+  return on ? Qt : Qnil;
+}
+
+DEFUN ("neomacs-set-plaid-pattern",
+       Fneomacs_set_plaid_pattern,
+       Sneomacs_set_plaid_pattern, 0, 5, 0,
+       doc: /* Configure plaid pattern overlay effect.
+ENABLED non-nil activates crossing bands pattern overlay.
+COLOR is a hex color string like "#RRGGBB" (default "#B34D4D").
+BAND-WIDTH is width of each band in pixels (default 4).
+BAND-SPACING is spacing between bands in pixels (default 30).
+OPACITY is 0-100 (default 5). */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object band_width,
+   Lisp_Object band_spacing, Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+  int on = !NILP (enabled);
+  int r = 0xB3, g = 0x4D, b = 0x4D, bw = 4, bs = 30, op = 5;
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned int hex;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (band_width)) bw = XFIXNUM (band_width);
+  if (FIXNUMP (band_spacing)) bs = XFIXNUM (band_spacing);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_plaid_pattern (dpyinfo->display_handle, on, r, g, b, bw, bs, op);
+  return on ? Qt : Qnil;
+}
+
+DEFUN ("neomacs-set-cursor-stardust",
+       Fneomacs_set_cursor_stardust,
+       Sneomacs_set_cursor_stardust, 0, 5, 0,
+       doc: /* Configure cursor stardust effect.
+ENABLED non-nil activates falling stardust particles around cursor.
+COLOR is a hex color string like "#RRGGBB" (default "#FFE680").
+PARTICLE-COUNT is number of particles (default 20).
+FALL-SPEED is speed * 100 (default 100).
+OPACITY is 0-100 (default 20). */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object particle_count,
+   Lisp_Object fall_speed, Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+  int on = !NILP (enabled);
+  int r = 0xFF, g = 0xE6, b = 0x80, pc = 20, fs = 100, op = 20;
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned int hex;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (particle_count)) pc = XFIXNUM (particle_count);
+  if (FIXNUMP (fall_speed)) fs = XFIXNUM (fall_speed);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_cursor_stardust (dpyinfo->display_handle, on, r, g, b, pc, fs, op);
+  return on ? Qt : Qnil;
+}
+
 DEFUN ("neomacs-set-brick-wall",
        Fneomacs_set_brick_wall,
        Sneomacs_set_brick_wall, 0, 5, 0,
@@ -13698,6 +13846,10 @@ syms_of_neomacsterm (void)
   defsubr (&Sneomacs_set_cursor_shockwave);
   defsubr (&Sneomacs_set_diamond_lattice);
   defsubr (&Sneomacs_set_cursor_gravity_well);
+  defsubr (&Sneomacs_set_target_reticle);
+  defsubr (&Sneomacs_set_cursor_feather);
+  defsubr (&Sneomacs_set_plaid_pattern);
+  defsubr (&Sneomacs_set_cursor_stardust);
   defsubr (&Sneomacs_set_brick_wall);
   defsubr (&Sneomacs_set_cursor_compass_needle);
   defsubr (&Sneomacs_set_sine_wave);

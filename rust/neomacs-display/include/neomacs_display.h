@@ -2775,6 +2775,54 @@ void neomacs_display_set_cursor_gravity_well(struct NeomacsDisplay *handle,
                                              int opacity);
 
 /**
+ * Configure target reticle overlay effect
+ */
+void neomacs_display_set_target_reticle(struct NeomacsDisplay *handle,
+                                        int enabled,
+                                        int r,
+                                        int g,
+                                        int b,
+                                        int ringCount,
+                                        int pulseSpeed,
+                                        int opacity);
+
+/**
+ * Configure cursor feather effect
+ */
+void neomacs_display_set_cursor_feather(struct NeomacsDisplay *handle,
+                                        int enabled,
+                                        int r,
+                                        int g,
+                                        int b,
+                                        int featherCount,
+                                        int driftSpeed,
+                                        int opacity);
+
+/**
+ * Configure plaid pattern overlay effect
+ */
+void neomacs_display_set_plaid_pattern(struct NeomacsDisplay *handle,
+                                       int enabled,
+                                       int r,
+                                       int g,
+                                       int b,
+                                       int bandWidth,
+                                       int bandSpacing,
+                                       int opacity);
+
+/**
+ * Configure cursor stardust effect
+ */
+void neomacs_display_set_cursor_stardust(struct NeomacsDisplay *handle,
+                                         int enabled,
+                                         int r,
+                                         int g,
+                                         int b,
+                                         int particleCount,
+                                         int fallSpeed,
+                                         int opacity);
+
+/**
  * Configure brick wall overlay effect
  */
 void neomacs_display_set_brick_wall(struct NeomacsDisplay *handle,
