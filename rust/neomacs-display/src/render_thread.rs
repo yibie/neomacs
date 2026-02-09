@@ -835,6 +835,33 @@ impl Default for FpsCounter {
     }
 }
 
+/// Borderless window chrome state (title bar, resize edges, decorations).
+struct WindowChrome {
+    decorations_enabled: bool,
+    resize_edge: Option<winit::window::ResizeDirection>,
+    title: String,
+    titlebar_height: f32,
+    titlebar_hover: u32,
+    last_titlebar_click: std::time::Instant,
+    is_fullscreen: bool,
+    corner_radius: f32,
+}
+
+impl Default for WindowChrome {
+    fn default() -> Self {
+        Self {
+            decorations_enabled: true,
+            resize_edge: None,
+            title: String::from("neomacs"),
+            titlebar_height: 30.0,
+            titlebar_hover: 0,
+            last_titlebar_click: std::time::Instant::now(),
+            is_fullscreen: false,
+            corner_radius: 0.0,
+        }
+    }
+}
+
 struct RenderApp {
     comms: RenderComms,
     window: Option<Arc<Window>>,
@@ -917,22 +944,8 @@ struct RenderApp {
     // UI overlay state
     scroll_indicators_enabled: bool,
 
-    // Borderless window state
-    decorations_enabled: bool,
-    /// Resize edge under cursor (None = not on edge)
-    resize_edge: Option<winit::window::ResizeDirection>,
-    /// Window title for custom title bar
-    window_title: String,
-    /// Custom title bar height in logical pixels (0 = hidden)
-    custom_titlebar_height: f32,
-    /// Currently hovered title bar element (0=none, 1=drag, 2=close, 3=max, 4=min)
-    titlebar_hover: u32,
-    /// Last title bar click time (for double-click detection)
-    last_titlebar_click: std::time::Instant,
-    /// Whether the window is currently in fullscreen mode
-    is_fullscreen: bool,
-    /// Corner radius for borderless window rounded corners (0 = no rounding)
-    corner_radius: f32,
+    // Window chrome (borderless title bar, resize, decorations)
+    chrome: WindowChrome,
     // FPS counter state
     fps: FpsCounter,
     /// Extra line spacing in pixels (added between rows)
@@ -1051,14 +1064,7 @@ impl RenderApp {
             ime_preedit_active: false,
             ime_preedit_text: String::new(),
             scroll_indicators_enabled: true,
-            decorations_enabled: true,
-            resize_edge: None,
-            window_title: String::from("neomacs"),
-            custom_titlebar_height: 30.0,
-            titlebar_hover: 0,
-            last_titlebar_click: std::time::Instant::now(),
-            is_fullscreen: false,
-            corner_radius: 0.0,
+            chrome: WindowChrome::default(),
             fps: FpsCounter::default(),
             extra_line_spacing: 0.0,
             extra_letter_spacing: 0.0,
@@ -1490,11 +1496,11 @@ impl RenderApp {
                     }
                 }
                 RenderCommand::SetWindowTitle { title } => {
-                    self.window_title = title.clone();
+                    self.chrome.title = title.clone();
                     if let Some(ref window) = self.window {
                         window.set_title(&title);
                     }
-                    if !self.decorations_enabled {
+                    if !self.chrome.decorations_enabled {
                         self.frame_dirty = true;
                     }
                 }
@@ -1505,18 +1511,18 @@ impl RenderApp {
                             3 => {
                                 // FULLSCREEN_BOTH: borderless fullscreen
                                 window.set_fullscreen(Some(Fullscreen::Borderless(None)));
-                                self.is_fullscreen = true;
+                                self.chrome.is_fullscreen = true;
                             }
                             4 => {
                                 // FULLSCREEN_MAXIMIZED
                                 window.set_maximized(true);
-                                self.is_fullscreen = false;
+                                self.chrome.is_fullscreen = false;
                             }
                             _ => {
                                 // FULLSCREEN_NONE or partial: exit fullscreen
                                 window.set_fullscreen(None);
                                 window.set_maximized(false);
-                                self.is_fullscreen = false;
+                                self.chrome.is_fullscreen = false;
                             }
                         }
                         self.frame_dirty = true;
@@ -1539,7 +1545,7 @@ impl RenderApp {
                     }
                 }
                 RenderCommand::SetWindowDecorated { decorated } => {
-                    self.decorations_enabled = decorated;
+                    self.chrome.decorations_enabled = decorated;
                     if let Some(ref window) = self.window {
                         window.set_decorations(decorated);
                     }
@@ -1764,7 +1770,7 @@ impl RenderApp {
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetTitlebarHeight { height } => {
-                    self.custom_titlebar_height = height;
+                    self.chrome.titlebar_height = height;
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetShowFps { enabled } => {
@@ -1772,7 +1778,7 @@ impl RenderApp {
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCornerRadius { radius } => {
-                    self.corner_radius = radius;
+                    self.chrome.corner_radius = radius;
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetExtraSpacing { line_spacing, letter_spacing } => {
@@ -3183,7 +3189,7 @@ impl RenderApp {
         }
 
         // Render custom title bar when decorations are disabled (not in fullscreen)
-        if !self.decorations_enabled && !self.is_fullscreen && self.custom_titlebar_height > 0.0 {
+        if !self.chrome.decorations_enabled && !self.chrome.is_fullscreen && self.chrome.titlebar_height > 0.0 {
             if let (Some(ref renderer), Some(ref mut glyph_atlas)) =
                 (&self.renderer, &mut self.glyph_atlas)
             {
@@ -3191,9 +3197,9 @@ impl RenderApp {
                     .map(|f| (f.background.r, f.background.g, f.background.b));
                 renderer.render_custom_titlebar(
                     &surface_view,
-                    &self.window_title,
-                    self.custom_titlebar_height,
-                    self.titlebar_hover,
+                    &self.chrome.title,
+                    self.chrome.titlebar_height,
+                    self.chrome.titlebar_hover,
                     frame_bg,
                     glyph_atlas,
                     self.width,
@@ -3336,11 +3342,11 @@ impl RenderApp {
         }
 
         // Render corner mask for rounded window corners (borderless only, not fullscreen)
-        if !self.decorations_enabled && !self.is_fullscreen && self.corner_radius > 0.0 {
+        if !self.chrome.decorations_enabled && !self.chrome.is_fullscreen && self.chrome.corner_radius > 0.0 {
             if let Some(ref renderer) = self.renderer {
                 renderer.render_corner_mask(
                     &surface_view,
-                    self.corner_radius,
+                    self.chrome.corner_radius,
                     self.width,
                     self.height,
                 );
@@ -3420,7 +3426,7 @@ impl RenderApp {
         y: f32,
     ) -> Option<winit::window::ResizeDirection> {
         use winit::window::ResizeDirection;
-        if self.decorations_enabled {
+        if self.chrome.decorations_enabled {
             return None;
         }
         let w = self.width as f32;
@@ -3449,11 +3455,11 @@ impl RenderApp {
     /// Check if a point is in the custom title bar area.
     /// Returns: 0 = not in title bar, 1 = drag area, 2 = close, 3 = maximize, 4 = minimize
     fn titlebar_hit_test(&self, x: f32, y: f32) -> u32 {
-        if self.decorations_enabled || self.is_fullscreen || self.custom_titlebar_height <= 0.0 {
+        if self.chrome.decorations_enabled || self.chrome.is_fullscreen || self.chrome.titlebar_height <= 0.0 {
             return 0;
         }
         let w = self.width as f32 / self.scale_factor as f32;
-        let tb_h = self.custom_titlebar_height;
+        let tb_h = self.chrome.titlebar_height;
         if y >= tb_h {
             return 0; // Below title bar
         }
@@ -3751,11 +3757,11 @@ impl ApplicationHandler for RenderApp {
                     }
                 } else if state == ElementState::Pressed
                     && button == MouseButton::Left
-                    && self.resize_edge.is_some()
+                    && self.chrome.resize_edge.is_some()
                 {
                     // Borderless: initiate window resize drag
                     if let (Some(dir), Some(ref window)) =
-                        (self.resize_edge, self.window.as_ref())
+                        (self.chrome.resize_edge, self.window.as_ref())
                     {
                         let _ = window.drag_resize_window(dir);
                     }
@@ -3768,14 +3774,14 @@ impl ApplicationHandler for RenderApp {
                         1 => {
                             // Drag area: double-click toggles maximize
                             let now = std::time::Instant::now();
-                            if now.duration_since(self.last_titlebar_click).as_millis() < 400 {
+                            if now.duration_since(self.chrome.last_titlebar_click).as_millis() < 400 {
                                 if let Some(ref window) = self.window {
                                     window.set_maximized(!window.is_maximized());
                                 }
                             } else if let Some(ref window) = self.window {
                                 let _ = window.drag_window();
                             }
-                            self.last_titlebar_click = now;
+                            self.chrome.last_titlebar_click = now;
                         }
                         2 => {
                             // Close button
@@ -3801,7 +3807,7 @@ impl ApplicationHandler for RenderApp {
                     }
                 } else if state == ElementState::Pressed
                     && button == MouseButton::Left
-                    && !self.decorations_enabled
+                    && !self.chrome.decorations_enabled
                     && (self.modifiers & NEOMACS_SUPER_MASK) != 0
                 {
                     // Borderless: Super+click to drag-move window
@@ -3854,8 +3860,8 @@ impl ApplicationHandler for RenderApp {
 
                 // Borderless resize edge detection
                 let edge = self.detect_resize_edge(lx, ly);
-                if edge != self.resize_edge {
-                    self.resize_edge = edge;
+                if edge != self.chrome.resize_edge {
+                    self.chrome.resize_edge = edge;
                     if let Some(ref window) = self.window {
                         use winit::window::CursorIcon;
                         let icon = match edge {
@@ -3867,13 +3873,13 @@ impl ApplicationHandler for RenderApp {
                 }
 
                 // Update title bar hover state and cursor
-                if !self.decorations_enabled {
+                if !self.chrome.decorations_enabled {
                     let new_hover = self.titlebar_hit_test(lx, ly);
-                    if new_hover != self.titlebar_hover {
-                        self.titlebar_hover = new_hover;
+                    if new_hover != self.chrome.titlebar_hover {
+                        self.chrome.titlebar_hover = new_hover;
                         self.frame_dirty = true;
                         // Set cursor icon based on title bar region
-                        if self.resize_edge.is_none() {
+                        if self.chrome.resize_edge.is_none() {
                             if let Some(ref window) = self.window {
                                 use winit::window::CursorIcon;
                                 let icon = match new_hover {
