@@ -400,6 +400,37 @@ pub struct WgpuRenderer {
     scroll_momentum_width: f32,
     /// Active scroll momentum entries
     active_scroll_momentums: Vec<ScrollMomentumEntry>,
+    /// Window edge glow on scroll boundaries
+    edge_glow_enabled: bool,
+    edge_glow_color: (f32, f32, f32),
+    edge_glow_height: f32,
+    edge_glow_opacity: f32,
+    edge_glow_fade_ms: u32,
+    edge_glow_entries: Vec<EdgeGlowEntry>,
+    /// Window rain/drip effect
+    rain_effect_enabled: bool,
+    rain_effect_color: (f32, f32, f32),
+    rain_effect_drop_count: u32,
+    rain_effect_speed: f32,
+    rain_effect_opacity: f32,
+    rain_drops: Vec<RainDrop>,
+    rain_last_spawn: std::time::Instant,
+    /// Cursor ripple wave effect
+    cursor_ripple_wave_enabled: bool,
+    cursor_ripple_wave_color: (f32, f32, f32),
+    cursor_ripple_wave_ring_count: u32,
+    cursor_ripple_wave_max_radius: f32,
+    cursor_ripple_wave_duration_ms: u32,
+    cursor_ripple_wave_opacity: f32,
+    cursor_ripple_waves: Vec<RippleWaveEntry>,
+    /// Window aurora/northern lights effect
+    aurora_enabled: bool,
+    aurora_color1: (f32, f32, f32),
+    aurora_color2: (f32, f32, f32),
+    aurora_height: f32,
+    aurora_speed: f32,
+    aurora_opacity: f32,
+    aurora_start: std::time::Instant,
 }
 
 /// Entry for an active scroll momentum indicator
@@ -407,6 +438,32 @@ struct ScrollMomentumEntry {
     window_id: i64,
     bounds: Rect,
     direction: i32, // 1 = down, -1 = up
+    started: std::time::Instant,
+    duration: std::time::Duration,
+}
+
+/// Entry for window edge glow (scroll boundary indicator)
+struct EdgeGlowEntry {
+    window_id: i64,
+    bounds: Rect,
+    at_top: bool,
+    started: std::time::Instant,
+    duration: std::time::Duration,
+}
+
+/// Entry for rain drop
+struct RainDrop {
+    x: f32,
+    y: f32,
+    speed: f32,
+    length: f32,
+    opacity: f32,
+}
+
+/// Entry for cursor ripple wave
+struct RippleWaveEntry {
+    x: f32,
+    y: f32,
     started: std::time::Instant,
     duration: std::time::Duration,
 }
@@ -1235,6 +1292,33 @@ impl WgpuRenderer {
             scroll_momentum_fade_ms: 300,
             scroll_momentum_width: 3.0,
             active_scroll_momentums: Vec::new(),
+            edge_glow_enabled: false,
+            edge_glow_color: (0.4, 0.6, 1.0),
+            edge_glow_height: 40.0,
+            edge_glow_opacity: 0.3,
+            edge_glow_fade_ms: 400,
+            edge_glow_entries: Vec::new(),
+            rain_effect_enabled: false,
+            rain_effect_color: (0.5, 0.6, 0.8),
+            rain_effect_drop_count: 30,
+            rain_effect_speed: 120.0,
+            rain_effect_opacity: 0.15,
+            rain_drops: Vec::new(),
+            rain_last_spawn: std::time::Instant::now(),
+            cursor_ripple_wave_enabled: false,
+            cursor_ripple_wave_color: (0.4, 0.6, 1.0),
+            cursor_ripple_wave_ring_count: 3,
+            cursor_ripple_wave_max_radius: 80.0,
+            cursor_ripple_wave_duration_ms: 500,
+            cursor_ripple_wave_opacity: 0.3,
+            cursor_ripple_waves: Vec::new(),
+            aurora_enabled: false,
+            aurora_color1: (0.2, 0.8, 0.4),
+            aurora_color2: (0.3, 0.4, 0.9),
+            aurora_height: 60.0,
+            aurora_speed: 1.0,
+            aurora_opacity: 0.12,
+            aurora_start: std::time::Instant::now(),
         }
     }
 
@@ -1783,6 +1867,59 @@ impl WgpuRenderer {
             started: now,
             duration: std::time::Duration::from_millis(self.scroll_momentum_fade_ms as u64),
         });
+    }
+
+    /// Update edge glow config
+    pub fn set_edge_glow(&mut self, enabled: bool, color: (f32, f32, f32), height: f32, opacity: f32, fade_ms: u32) {
+        self.edge_glow_enabled = enabled;
+        self.edge_glow_color = color;
+        self.edge_glow_height = height;
+        self.edge_glow_opacity = opacity;
+        self.edge_glow_fade_ms = fade_ms;
+    }
+
+    /// Trigger edge glow for a window (at_top = beginning-of-buffer)
+    pub fn trigger_edge_glow(&mut self, window_id: i64, bounds: Rect, at_top: bool, now: std::time::Instant) {
+        self.edge_glow_entries.retain(|e| e.window_id != window_id || e.at_top != at_top);
+        self.edge_glow_entries.push(EdgeGlowEntry {
+            window_id,
+            bounds,
+            at_top,
+            started: now,
+            duration: std::time::Duration::from_millis(self.edge_glow_fade_ms as u64),
+        });
+    }
+
+    /// Update rain effect config
+    pub fn set_rain_effect(&mut self, enabled: bool, color: (f32, f32, f32), drop_count: u32, speed: f32, opacity: f32) {
+        self.rain_effect_enabled = enabled;
+        self.rain_effect_color = color;
+        self.rain_effect_drop_count = drop_count;
+        self.rain_effect_speed = speed;
+        self.rain_effect_opacity = opacity;
+        if !enabled {
+            self.rain_drops.clear();
+        }
+    }
+
+    /// Update cursor ripple wave config
+    pub fn set_cursor_ripple_wave(&mut self, enabled: bool, color: (f32, f32, f32), ring_count: u32, max_radius: f32, duration_ms: u32, opacity: f32) {
+        self.cursor_ripple_wave_enabled = enabled;
+        self.cursor_ripple_wave_color = color;
+        self.cursor_ripple_wave_ring_count = ring_count;
+        self.cursor_ripple_wave_max_radius = max_radius;
+        self.cursor_ripple_wave_duration_ms = duration_ms;
+        self.cursor_ripple_wave_opacity = opacity;
+    }
+
+    /// Update aurora config
+    pub fn set_aurora(&mut self, enabled: bool, color1: (f32, f32, f32), color2: (f32, f32, f32), height: f32, speed: f32, opacity: f32) {
+        self.aurora_enabled = enabled;
+        self.aurora_color1 = color1;
+        self.aurora_color2 = color2;
+        self.aurora_height = height;
+        self.aurora_speed = speed;
+        self.aurora_opacity = opacity;
     }
 
     /// Update mode-line transition config
@@ -4496,6 +4633,237 @@ impl WgpuRenderer {
                     // Keep redrawing while particles exist
                     self.needs_continuous_redraw = true;
                 }
+            }
+
+            // Edge glow on scroll boundaries
+            if self.edge_glow_enabled {
+                let now = std::time::Instant::now();
+                self.edge_glow_entries.retain(|e| now.duration_since(e.started) < e.duration);
+                if !self.edge_glow_entries.is_empty() {
+                    let (gr, gg, gb) = self.edge_glow_color;
+                    let gh = self.edge_glow_height;
+                    let mut glow_verts: Vec<RectVertex> = Vec::new();
+                    for entry in &self.edge_glow_entries {
+                        let t = now.duration_since(entry.started).as_secs_f32() / entry.duration.as_secs_f32();
+                        let fade = (1.0 - t) * (1.0 - t);
+                        let base_alpha = self.edge_glow_opacity * fade;
+                        let steps = 20u32;
+                        for i in 0..steps {
+                            let frac = i as f32 / steps as f32;
+                            let strip_h = gh / steps as f32;
+                            let alpha = base_alpha * (1.0 - frac);
+                            if alpha < 0.001 { continue; }
+                            let y = if entry.at_top {
+                                entry.bounds.y + frac * gh
+                            } else {
+                                entry.bounds.y + entry.bounds.height - gh + frac * gh
+                            };
+                            let c = Color::new(gr, gg, gb, alpha);
+                            self.add_rect(&mut glow_verts, entry.bounds.x, y, entry.bounds.width, strip_h, &c);
+                        }
+                    }
+                    if !glow_verts.is_empty() {
+                        let glow_buf = self.device.create_buffer_init(
+                            &wgpu::util::BufferInitDescriptor {
+                                label: Some("Edge Glow Buffer"),
+                                contents: bytemuck::cast_slice(&glow_verts),
+                                usage: wgpu::BufferUsages::VERTEX,
+                            },
+                        );
+                        render_pass.set_pipeline(&self.rect_pipeline);
+                        render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                        render_pass.set_vertex_buffer(0, glow_buf.slice(..));
+                        render_pass.draw(0..glow_verts.len() as u32, 0..1);
+                    }
+                    self.needs_continuous_redraw = true;
+                }
+            }
+
+            // Rain/drip ambient effect
+            if self.rain_effect_enabled {
+                let now = std::time::Instant::now();
+                let fw = self.width as f32 / self.scale_factor;
+                let fh = self.height as f32 / self.scale_factor;
+                let dt = 1.0 / 60.0_f32; // approximate frame delta
+
+                // Spawn drops if needed
+                while self.rain_drops.len() < self.rain_effect_drop_count as usize {
+                    let seed = now.elapsed().subsec_nanos() as u64;
+                    let h = seed.wrapping_mul(2654435761).wrapping_add(self.rain_drops.len() as u64 * 6364136223846793005);
+                    let x = ((h >> 16) & 0xFFFF) as f32 / 65535.0 * fw;
+                    let y = -(((h >> 32) & 0xFFFF) as f32) / 65535.0 * fh * 0.5; // start above screen
+                    let speed_var = 0.7 + ((h >> 48) & 0xFFFF) as f32 / 65535.0 * 0.6;
+                    let length = 8.0 + ((h >> 8) & 0xFF) as f32 / 255.0 * 16.0;
+                    let op = self.rain_effect_opacity * (0.5 + ((h >> 4) & 0xFF) as f32 / 255.0 * 0.5);
+                    self.rain_drops.push(RainDrop {
+                        x, y,
+                        speed: self.rain_effect_speed * speed_var,
+                        length,
+                        opacity: op,
+                    });
+                }
+
+                // Update positions
+                for drop in &mut self.rain_drops {
+                    drop.y += drop.speed * dt;
+                    if drop.y > fh {
+                        let seed = now.elapsed().subsec_nanos() as u64;
+                        let h = seed.wrapping_mul(2654435761).wrapping_add((drop.x * 1000.0) as u64);
+                        drop.x = ((h >> 16) & 0xFFFF) as f32 / 65535.0 * fw;
+                        drop.y = -drop.length;
+                        let speed_var = 0.7 + ((h >> 48) & 0xFFFF) as f32 / 65535.0 * 0.6;
+                        drop.speed = self.rain_effect_speed * speed_var;
+                    }
+                }
+
+                // Render drops
+                let (dr, dg, db) = self.rain_effect_color;
+                let mut rain_verts: Vec<RectVertex> = Vec::new();
+                for drop in &self.rain_drops {
+                    let c = Color::new(dr, dg, db, drop.opacity);
+                    self.add_rect(&mut rain_verts, drop.x, drop.y, 1.0, drop.length, &c);
+                }
+                if !rain_verts.is_empty() {
+                    let rain_buf = self.device.create_buffer_init(
+                        &wgpu::util::BufferInitDescriptor {
+                            label: Some("Rain Buffer"),
+                            contents: bytemuck::cast_slice(&rain_verts),
+                            usage: wgpu::BufferUsages::VERTEX,
+                        },
+                    );
+                    render_pass.set_pipeline(&self.rect_pipeline);
+                    render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                    render_pass.set_vertex_buffer(0, rain_buf.slice(..));
+                    render_pass.draw(0..rain_verts.len() as u32, 0..1);
+                }
+                self.needs_continuous_redraw = true;
+            }
+
+            // Cursor ripple wave effect
+            if self.cursor_ripple_wave_enabled {
+                let now = std::time::Instant::now();
+
+                // Detect cursor movement and spawn ripple
+                if let Some(ref anim) = animated_cursor {
+                    let cx = anim.x + anim.width / 2.0;
+                    let cy = anim.y + anim.height / 2.0;
+                    // Spawn a new ripple on each frame where cursor moves (debounced by checking recent entries)
+                    let should_spawn = self.cursor_ripple_waves.is_empty() ||
+                        self.cursor_ripple_waves.last().map_or(true, |last| {
+                            let dx = (cx - last.x).abs();
+                            let dy = (cy - last.y).abs();
+                            (dx > 2.0 || dy > 2.0) && now.duration_since(last.started).as_millis() > 50
+                        });
+                    if should_spawn {
+                        self.cursor_ripple_waves.push(RippleWaveEntry {
+                            x: cx,
+                            y: cy,
+                            started: now,
+                            duration: std::time::Duration::from_millis(self.cursor_ripple_wave_duration_ms as u64),
+                        });
+                    }
+                }
+
+                // Prune expired
+                self.cursor_ripple_waves.retain(|e| now.duration_since(e.started) < e.duration);
+
+                if !self.cursor_ripple_waves.is_empty() {
+                    let (rr, rg, rb) = self.cursor_ripple_wave_color;
+                    let max_r = self.cursor_ripple_wave_max_radius;
+                    let ring_count = self.cursor_ripple_wave_ring_count;
+                    let mut ripple_verts: Vec<RectVertex> = Vec::new();
+                    for entry in &self.cursor_ripple_waves {
+                        let t = now.duration_since(entry.started).as_secs_f32() / entry.duration.as_secs_f32();
+                        let current_r = max_r * t;
+                        let fade = 1.0 - t;
+                        for ring in 0..ring_count {
+                            let ring_r = current_r * (1.0 - ring as f32 * 0.2);
+                            if ring_r < 1.0 { continue; }
+                            let ring_alpha = self.cursor_ripple_wave_opacity * fade * (1.0 - ring as f32 / ring_count as f32);
+                            if ring_alpha < 0.001 { continue; }
+                            // Approximate circle with rect strips
+                            let segments = 32u32;
+                            for s in 0..segments {
+                                let angle = s as f32 * std::f32::consts::TAU / segments as f32;
+                                let next_angle = (s + 1) as f32 * std::f32::consts::TAU / segments as f32;
+                                let x1 = entry.x + angle.cos() * ring_r;
+                                let y1 = entry.y + angle.sin() * ring_r;
+                                let x2 = entry.x + next_angle.cos() * ring_r;
+                                let y2 = entry.y + next_angle.sin() * ring_r;
+                                let mx = x1.min(x2);
+                                let my = y1.min(y2);
+                                let w = (x1 - x2).abs().max(1.5);
+                                let h = (y1 - y2).abs().max(1.5);
+                                let c = Color::new(rr, rg, rb, ring_alpha);
+                                self.add_rect(&mut ripple_verts, mx, my, w, h, &c);
+                            }
+                        }
+                    }
+                    if !ripple_verts.is_empty() {
+                        let ripple_buf = self.device.create_buffer_init(
+                            &wgpu::util::BufferInitDescriptor {
+                                label: Some("Cursor Ripple Buffer"),
+                                contents: bytemuck::cast_slice(&ripple_verts),
+                                usage: wgpu::BufferUsages::VERTEX,
+                            },
+                        );
+                        render_pass.set_pipeline(&self.rect_pipeline);
+                        render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                        render_pass.set_vertex_buffer(0, ripple_buf.slice(..));
+                        render_pass.draw(0..ripple_verts.len() as u32, 0..1);
+                    }
+                    self.needs_continuous_redraw = true;
+                }
+            }
+
+            // Aurora/northern lights effect
+            if self.aurora_enabled {
+                let now = std::time::Instant::now();
+                let elapsed = now.duration_since(self.aurora_start).as_secs_f64() * self.aurora_speed as f64;
+                let fw = self.width as f32 / self.scale_factor;
+                let ah = self.aurora_height;
+                let (r1, g1, b1) = self.aurora_color1;
+                let (r2, g2, b2) = self.aurora_color2;
+                let mut aurora_verts: Vec<RectVertex> = Vec::new();
+                let strips = 60u32;
+                let strip_w = fw / strips as f32;
+                for i in 0..strips {
+                    let x = i as f32 * strip_w;
+                    let phase = elapsed + i as f64 * 0.15;
+                    let wave1 = (phase * 0.7).sin() as f32 * 0.5 + 0.5;
+                    let wave2 = (phase * 1.1 + 2.0).sin() as f32 * 0.5 + 0.5;
+                    let blend = (phase * 0.3 + i as f64 * 0.1).sin() as f32 * 0.5 + 0.5;
+                    let cr = r1 * (1.0 - blend) + r2 * blend;
+                    let cg = g1 * (1.0 - blend) + g2 * blend;
+                    let cb = b1 * (1.0 - blend) + b2 * blend;
+                    let height = ah * (0.3 + 0.7 * wave1);
+                    let alpha = self.aurora_opacity * (0.3 + 0.7 * wave2);
+                    // Vertical gradient for each strip
+                    let sub_strips = 8u32;
+                    let sub_h = height / sub_strips as f32;
+                    for j in 0..sub_strips {
+                        let frac = j as f32 / sub_strips as f32;
+                        let y = frac * height;
+                        let strip_alpha = alpha * (1.0 - frac);
+                        if strip_alpha < 0.001 { continue; }
+                        let c = Color::new(cr, cg, cb, strip_alpha);
+                        self.add_rect(&mut aurora_verts, x, y, strip_w + 1.0, sub_h + 0.5, &c);
+                    }
+                }
+                if !aurora_verts.is_empty() {
+                    let aurora_buf = self.device.create_buffer_init(
+                        &wgpu::util::BufferInitDescriptor {
+                            label: Some("Aurora Buffer"),
+                            contents: bytemuck::cast_slice(&aurora_verts),
+                            usage: wgpu::BufferUsages::VERTEX,
+                        },
+                    );
+                    render_pass.set_pipeline(&self.rect_pipeline);
+                    render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                    render_pass.set_vertex_buffer(0, aurora_buf.slice(..));
+                    render_pass.draw(0..aurora_verts.len() as u32, 0..1);
+                }
+                self.needs_continuous_redraw = true;
             }
 
             // === Step 2: Draw cursor bg rect (inverse video background) ===

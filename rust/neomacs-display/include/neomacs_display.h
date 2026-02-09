@@ -2334,6 +2334,58 @@ void neomacs_display_send_command(int cmdType,
                                   const char *strParam);
 
 /**
+ * Configure window edge glow on scroll boundaries
+ */
+void neomacs_display_set_edge_glow(struct NeomacsDisplay *handle,
+                                   int enabled,
+                                   int r,
+                                   int g,
+                                   int b,
+                                   int height,
+                                   int opacity,
+                                   int fadeMs);
+
+/**
+ * Configure window rain/drip ambient effect
+ */
+void neomacs_display_set_rain_effect(struct NeomacsDisplay *handle,
+                                     int enabled,
+                                     int r,
+                                     int g,
+                                     int b,
+                                     int dropCount,
+                                     int speed,
+                                     int opacity);
+
+/**
+ * Configure cursor ripple wave effect on keystroke
+ */
+void neomacs_display_set_cursor_ripple_wave(struct NeomacsDisplay *handle,
+                                            int enabled,
+                                            int r,
+                                            int g,
+                                            int b,
+                                            int ringCount,
+                                            int maxRadius,
+                                            int durationMs,
+                                            int opacity);
+
+/**
+ * Configure window aurora/northern lights effect
+ */
+void neomacs_display_set_aurora(struct NeomacsDisplay *handle,
+                                int enabled,
+                                int r1,
+                                int g1,
+                                int b1,
+                                int r2,
+                                int g2,
+                                int b2,
+                                int height,
+                                int speed,
+                                int opacity);
+
+/**
  * Shutdown threaded display
  */
 void neomacs_display_shutdown_threaded(void);

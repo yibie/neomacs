@@ -544,6 +544,33 @@ struct RenderApp {
     cursor_size_target_h: f32,
     cursor_size_anim_start: std::time::Instant,
 
+    // Edge glow on scroll boundaries
+    edge_glow_enabled: bool,
+    edge_glow_color: (f32, f32, f32),
+    edge_glow_height: f32,
+    edge_glow_opacity: f32,
+    edge_glow_fade_ms: u32,
+    // Rain/drip ambient effect
+    rain_effect_enabled: bool,
+    rain_effect_color: (f32, f32, f32),
+    rain_effect_drop_count: u32,
+    rain_effect_speed: f32,
+    rain_effect_opacity: f32,
+    // Cursor ripple wave
+    cursor_ripple_wave_enabled: bool,
+    cursor_ripple_wave_color: (f32, f32, f32),
+    cursor_ripple_wave_ring_count: u32,
+    cursor_ripple_wave_max_radius: f32,
+    cursor_ripple_wave_duration_ms: u32,
+    cursor_ripple_wave_opacity: f32,
+    // Aurora/northern lights
+    aurora_enabled: bool,
+    aurora_color1: (f32, f32, f32),
+    aurora_color2: (f32, f32, f32),
+    aurora_height: f32,
+    aurora_speed: f32,
+    aurora_opacity: f32,
+
     // Per-window metadata from previous frame (for transition detection)
     prev_window_infos: HashMap<i64, crate::core::frame_glyphs::WindowInfo>,
 
@@ -1061,6 +1088,28 @@ impl RenderApp {
             cursor_size_target_w: 0.0,
             cursor_size_target_h: 0.0,
             cursor_size_anim_start: std::time::Instant::now(),
+            edge_glow_enabled: false,
+            edge_glow_color: (0.4, 0.6, 1.0),
+            edge_glow_height: 40.0,
+            edge_glow_opacity: 0.3,
+            edge_glow_fade_ms: 400,
+            rain_effect_enabled: false,
+            rain_effect_color: (0.5, 0.6, 0.8),
+            rain_effect_drop_count: 30,
+            rain_effect_speed: 120.0,
+            rain_effect_opacity: 0.15,
+            cursor_ripple_wave_enabled: false,
+            cursor_ripple_wave_color: (0.4, 0.6, 1.0),
+            cursor_ripple_wave_ring_count: 3,
+            cursor_ripple_wave_max_radius: 80.0,
+            cursor_ripple_wave_duration_ms: 500,
+            cursor_ripple_wave_opacity: 0.3,
+            aurora_enabled: false,
+            aurora_color1: (0.2, 0.8, 0.4),
+            aurora_color2: (0.3, 0.4, 0.9),
+            aurora_height: 60.0,
+            aurora_speed: 1.0,
+            aurora_opacity: 0.12,
             prev_window_infos: HashMap::new(),
             crossfade_enabled: true,
             crossfade_duration: std::time::Duration::from_millis(200),
@@ -2710,6 +2759,52 @@ impl RenderApp {
                     self.frosted_glass_blur = blur;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_frosted_glass(enabled, opacity, blur);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetEdgeGlow { enabled, r, g, b, height, opacity, fade_ms } => {
+                    self.edge_glow_enabled = enabled;
+                    self.edge_glow_color = (r, g, b);
+                    self.edge_glow_height = height;
+                    self.edge_glow_opacity = opacity;
+                    self.edge_glow_fade_ms = fade_ms;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_edge_glow(enabled, (r, g, b), height, opacity, fade_ms);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetRainEffect { enabled, r, g, b, drop_count, speed, opacity } => {
+                    self.rain_effect_enabled = enabled;
+                    self.rain_effect_color = (r, g, b);
+                    self.rain_effect_drop_count = drop_count;
+                    self.rain_effect_speed = speed;
+                    self.rain_effect_opacity = opacity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_rain_effect(enabled, (r, g, b), drop_count, speed, opacity);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetCursorRippleWave { enabled, r, g, b, ring_count, max_radius, duration_ms, opacity } => {
+                    self.cursor_ripple_wave_enabled = enabled;
+                    self.cursor_ripple_wave_color = (r, g, b);
+                    self.cursor_ripple_wave_ring_count = ring_count;
+                    self.cursor_ripple_wave_max_radius = max_radius;
+                    self.cursor_ripple_wave_duration_ms = duration_ms;
+                    self.cursor_ripple_wave_opacity = opacity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_cursor_ripple_wave(enabled, (r, g, b), ring_count, max_radius, duration_ms, opacity);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetAurora { enabled, r1, g1, b1, r2, g2, b2, height, speed, opacity } => {
+                    self.aurora_enabled = enabled;
+                    self.aurora_color1 = (r1, g1, b1);
+                    self.aurora_color2 = (r2, g2, b2);
+                    self.aurora_height = height;
+                    self.aurora_speed = speed;
+                    self.aurora_opacity = opacity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_aurora(enabled, (r1, g1, b1), (r2, g2, b2), height, speed, opacity);
                     }
                     self.frame_dirty = true;
                 }

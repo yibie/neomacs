@@ -9901,6 +9901,176 @@ SIZE is the grain cell size in pixels (default 2).  */)
   return on ? Qt : Qnil;
 }
 
+DEFUN ("neomacs-set-edge-glow",
+       Fneomacs_set_edge_glow,
+       Sneomacs_set_edge_glow, 0, 4, 0,
+       doc: /* Configure window edge glow on scroll boundaries.
+ENABLED non-nil shows a soft glow at buffer edges when scrolling reaches
+beginning-of-buffer or end-of-buffer.
+COLOR is an RGB hex string (default "#6699FF").
+HEIGHT is glow height in pixels (default 40).
+OPACITY is a percentage 0-100 (default 30).  */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object height,
+   Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+
+  int on = !NILP (enabled);
+  int r = 0x66, g = 0x99, b = 0xFF;
+  int h = 40, op = 30, fade = 400;
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned hex = 0;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (height)) h = XFIXNUM (height);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_edge_glow (dpyinfo->display_handle, on, r, g, b, h, op, fade);
+  return on ? Qt : Qnil;
+}
+
+DEFUN ("neomacs-set-rain-effect",
+       Fneomacs_set_rain_effect,
+       Sneomacs_set_rain_effect, 0, 5, 0,
+       doc: /* Configure window rain/drip ambient effect.
+ENABLED non-nil renders animated vertical rain drops falling across
+the frame as a decorative ambient animation.
+COLOR is an RGB hex string (default "#8099CC").
+DROP-COUNT is the number of simultaneous drops (default 30).
+SPEED is fall speed in pixels/sec (default 120).
+OPACITY is a percentage 0-100 (default 15).  */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object drop_count,
+   Lisp_Object speed, Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+
+  int on = !NILP (enabled);
+  int r = 0x80, g = 0x99, b = 0xCC;
+  int dc = 30, spd = 120, op = 15;
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned hex = 0;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (drop_count)) dc = XFIXNUM (drop_count);
+  if (FIXNUMP (speed)) spd = XFIXNUM (speed);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_rain_effect (dpyinfo->display_handle, on, r, g, b, dc, spd, op);
+  return on ? Qt : Qnil;
+}
+
+DEFUN ("neomacs-set-cursor-ripple-wave",
+       Fneomacs_set_cursor_ripple_wave,
+       Sneomacs_set_cursor_ripple_wave, 0, 5, 0,
+       doc: /* Configure cursor ripple wave effect.
+ENABLED non-nil draws expanding concentric ring waves from the cursor
+position each time it moves.
+COLOR is an RGB hex string (default "#6699FF").
+MAX-RADIUS is the maximum wave radius in pixels (default 80).
+DURATION-MS is the wave duration in milliseconds (default 500).
+OPACITY is a percentage 0-100 (default 30).  */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object max_radius,
+   Lisp_Object duration_ms, Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+
+  int on = !NILP (enabled);
+  int r = 0x66, g = 0x99, b = 0xFF;
+  int rc = 3, mr = 80, dur = 500, op = 30;
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned hex = 0;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (max_radius)) mr = XFIXNUM (max_radius);
+  if (FIXNUMP (duration_ms)) dur = XFIXNUM (duration_ms);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_cursor_ripple_wave (dpyinfo->display_handle, on, r, g, b, rc, mr, dur, op);
+  return on ? Qt : Qnil;
+}
+
+DEFUN ("neomacs-set-aurora",
+       Fneomacs_set_aurora,
+       Sneomacs_set_aurora, 0, 5, 0,
+       doc: /* Configure window aurora/northern lights effect.
+ENABLED non-nil renders animated flowing color bands at the top
+of the frame, reminiscent of aurora borealis.
+COLOR1 is the primary RGB hex string (default "#33CC66").
+COLOR2 is the secondary RGB hex string (default "#4D66E6").
+HEIGHT is band height in pixels (default 60).
+OPACITY is a percentage 0-100 (default 12).  */)
+  (Lisp_Object enabled, Lisp_Object color1, Lisp_Object color2,
+   Lisp_Object height, Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+
+  int on = !NILP (enabled);
+  int r1 = 0x33, g1 = 0xCC, b1 = 0x66;
+  int r2 = 0x4D, g2 = 0x66, b2 = 0xE6;
+  int h = 60, op = 12, spd = 100;
+  if (STRINGP (color1))
+    {
+      const char *s = SSDATA (color1);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned hex = 0;
+          sscanf (s + 1, "%06x", &hex);
+          r1 = (hex >> 16) & 0xFF;
+          g1 = (hex >> 8) & 0xFF;
+          b1 = hex & 0xFF;
+        }
+    }
+  if (STRINGP (color2))
+    {
+      const char *s = SSDATA (color2);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned hex = 0;
+          sscanf (s + 1, "%06x", &hex);
+          r2 = (hex >> 16) & 0xFF;
+          g2 = (hex >> 8) & 0xFF;
+          b2 = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (height)) h = XFIXNUM (height);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_aurora (dpyinfo->display_handle, on, r1, g1, b1, r2, g2, b2, h, spd, op);
+  return on ? Qt : Qnil;
+}
+
 DEFUN ("neomacs-set-padding-gradient",
        Fneomacs_set_padding_gradient,
        Sneomacs_set_padding_gradient, 0, 6, 0,
@@ -11404,6 +11574,10 @@ syms_of_neomacsterm (void)
   defsubr (&Sneomacs_set_focus_gradient_border);
   defsubr (&Sneomacs_set_cursor_magnetism);
   defsubr (&Sneomacs_set_depth_shadow);
+  defsubr (&Sneomacs_set_edge_glow);
+  defsubr (&Sneomacs_set_rain_effect);
+  defsubr (&Sneomacs_set_cursor_ripple_wave);
+  defsubr (&Sneomacs_set_aurora);
   defsubr (&Sneomacs_set_mode_line_gradient);
   defsubr (&Sneomacs_set_region_glow);
   defsubr (&Sneomacs_set_window_glow);

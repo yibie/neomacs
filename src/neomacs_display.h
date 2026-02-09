@@ -1746,6 +1746,40 @@ void neomacs_display_set_inactive_tint(
     int r, int g, int b,
     int opacity);
 
+void neomacs_display_set_edge_glow(
+    struct NeomacsDisplay *handle,
+    int enabled,
+    int r, int g, int b,
+    int height,
+    int opacity,
+    int fade_ms);
+
+void neomacs_display_set_rain_effect(
+    struct NeomacsDisplay *handle,
+    int enabled,
+    int r, int g, int b,
+    int drop_count,
+    int speed,
+    int opacity);
+
+void neomacs_display_set_cursor_ripple_wave(
+    struct NeomacsDisplay *handle,
+    int enabled,
+    int r, int g, int b,
+    int ring_count,
+    int max_radius,
+    int duration_ms,
+    int opacity);
+
+void neomacs_display_set_aurora(
+    struct NeomacsDisplay *handle,
+    int enabled,
+    int r1, int g1, int b1,
+    int r2, int g2, int b2,
+    int height,
+    int speed,
+    int opacity);
+
 /**
  * Get dropped file paths (call after NEOMACS_EVENT_FILE_DROP).
  * Returns number of paths written to out_paths.

@@ -5754,6 +5754,98 @@ pub unsafe extern "C" fn neomacs_display_send_command(
     let _ = state.emacs_comms.cmd_tx.try_send(cmd);
 }
 
+/// Configure window edge glow on scroll boundaries
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_edge_glow(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    r: c_int, g: c_int, b: c_int,
+    height: c_int,
+    opacity: c_int,
+    fade_ms: c_int,
+) {
+    let cmd = RenderCommand::SetEdgeGlow {
+        enabled: enabled != 0,
+        r: r as f32 / 255.0, g: g as f32 / 255.0, b: b as f32 / 255.0,
+        height: height as f32,
+        opacity: opacity as f32 / 100.0,
+        fade_ms: fade_ms as u32,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
+/// Configure window rain/drip ambient effect
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_rain_effect(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    r: c_int, g: c_int, b: c_int,
+    drop_count: c_int,
+    speed: c_int,
+    opacity: c_int,
+) {
+    let cmd = RenderCommand::SetRainEffect {
+        enabled: enabled != 0,
+        r: r as f32 / 255.0, g: g as f32 / 255.0, b: b as f32 / 255.0,
+        drop_count: drop_count as u32,
+        speed: speed as f32,
+        opacity: opacity as f32 / 100.0,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
+/// Configure cursor ripple wave effect on keystroke
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_cursor_ripple_wave(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    r: c_int, g: c_int, b: c_int,
+    ring_count: c_int,
+    max_radius: c_int,
+    duration_ms: c_int,
+    opacity: c_int,
+) {
+    let cmd = RenderCommand::SetCursorRippleWave {
+        enabled: enabled != 0,
+        r: r as f32 / 255.0, g: g as f32 / 255.0, b: b as f32 / 255.0,
+        ring_count: ring_count as u32,
+        max_radius: max_radius as f32,
+        duration_ms: duration_ms as u32,
+        opacity: opacity as f32 / 100.0,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
+/// Configure window aurora/northern lights effect
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_aurora(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    r1: c_int, g1: c_int, b1: c_int,
+    r2: c_int, g2: c_int, b2: c_int,
+    height: c_int,
+    speed: c_int,
+    opacity: c_int,
+) {
+    let cmd = RenderCommand::SetAurora {
+        enabled: enabled != 0,
+        r1: r1 as f32 / 255.0, g1: g1 as f32 / 255.0, b1: b1 as f32 / 255.0,
+        r2: r2 as f32 / 255.0, g2: g2 as f32 / 255.0, b2: b2 as f32 / 255.0,
+        height: height as f32,
+        speed: speed as f32 / 100.0,
+        opacity: opacity as f32 / 100.0,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
 /// Shutdown threaded display
 #[cfg(feature = "winit-backend")]
 #[no_mangle]

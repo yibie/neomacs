@@ -3952,6 +3952,358 @@ frame, creating a subtle depth/focus effect."
                 neomacs-vignette-intensity nil)
             val))))
 
+;; --- Edge glow on scroll boundaries ---
+(declare-function neomacs-set-edge-glow "neomacsterm.c"
+  (&optional enabled color height opacity))
+
+(defcustom neomacs-edge-glow nil
+  "Enable edge glow effect when scrolling hits buffer boundaries.
+Non-nil flashes a soft gradient glow at the top or bottom edge
+of the selected window."
+  :type 'boolean
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-edge-glow)
+           (neomacs-set-edge-glow
+            val
+            (if (boundp 'neomacs-edge-glow-color)
+                neomacs-edge-glow-color nil)
+            (if (boundp 'neomacs-edge-glow-height)
+                neomacs-edge-glow-height nil)
+            (if (boundp 'neomacs-edge-glow-opacity)
+                neomacs-edge-glow-opacity nil)))))
+
+(defcustom neomacs-edge-glow-color "#6699FF"
+  "Edge glow color as a hex string."
+  :type 'string
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-edge-glow)
+                    (boundp 'neomacs-edge-glow)
+                    neomacs-edge-glow)
+           (neomacs-set-edge-glow t val
+            (if (boundp 'neomacs-edge-glow-height)
+                neomacs-edge-glow-height nil)
+            (if (boundp 'neomacs-edge-glow-opacity)
+                neomacs-edge-glow-opacity nil)))))
+
+(defcustom neomacs-edge-glow-height 40
+  "Edge glow height in pixels."
+  :type '(integer :tag "Height")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-edge-glow)
+                    (boundp 'neomacs-edge-glow)
+                    neomacs-edge-glow)
+           (neomacs-set-edge-glow t
+            (if (boundp 'neomacs-edge-glow-color)
+                neomacs-edge-glow-color nil)
+            val
+            (if (boundp 'neomacs-edge-glow-opacity)
+                neomacs-edge-glow-opacity nil)))))
+
+(defcustom neomacs-edge-glow-opacity 30
+  "Edge glow opacity percentage (0-100)."
+  :type '(integer :tag "Opacity")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-edge-glow)
+                    (boundp 'neomacs-edge-glow)
+                    neomacs-edge-glow)
+           (neomacs-set-edge-glow t
+            (if (boundp 'neomacs-edge-glow-color)
+                neomacs-edge-glow-color nil)
+            (if (boundp 'neomacs-edge-glow-height)
+                neomacs-edge-glow-height nil)
+            val))))
+
+;; --- Rain/drip ambient effect ---
+(declare-function neomacs-set-rain-effect "neomacsterm.c"
+  (&optional enabled color drop-count speed opacity))
+
+(defcustom neomacs-rain-effect nil
+  "Enable rain/drip ambient effect.
+Non-nil renders animated vertical rain drops falling across the frame."
+  :type 'boolean
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-rain-effect)
+           (neomacs-set-rain-effect
+            val
+            (if (boundp 'neomacs-rain-effect-color)
+                neomacs-rain-effect-color nil)
+            (if (boundp 'neomacs-rain-effect-drop-count)
+                neomacs-rain-effect-drop-count nil)
+            (if (boundp 'neomacs-rain-effect-speed)
+                neomacs-rain-effect-speed nil)
+            (if (boundp 'neomacs-rain-effect-opacity)
+                neomacs-rain-effect-opacity nil)))))
+
+(defcustom neomacs-rain-effect-color "#8099CC"
+  "Rain drop color as a hex string."
+  :type 'string
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-rain-effect)
+                    (boundp 'neomacs-rain-effect)
+                    neomacs-rain-effect)
+           (neomacs-set-rain-effect t val
+            (if (boundp 'neomacs-rain-effect-drop-count)
+                neomacs-rain-effect-drop-count nil)
+            (if (boundp 'neomacs-rain-effect-speed)
+                neomacs-rain-effect-speed nil)
+            (if (boundp 'neomacs-rain-effect-opacity)
+                neomacs-rain-effect-opacity nil)))))
+
+(defcustom neomacs-rain-effect-drop-count 30
+  "Number of simultaneous rain drops."
+  :type '(integer :tag "Drop Count")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-rain-effect)
+                    (boundp 'neomacs-rain-effect)
+                    neomacs-rain-effect)
+           (neomacs-set-rain-effect t
+            (if (boundp 'neomacs-rain-effect-color)
+                neomacs-rain-effect-color nil)
+            val
+            (if (boundp 'neomacs-rain-effect-speed)
+                neomacs-rain-effect-speed nil)
+            (if (boundp 'neomacs-rain-effect-opacity)
+                neomacs-rain-effect-opacity nil)))))
+
+(defcustom neomacs-rain-effect-speed 120
+  "Rain drop fall speed in pixels per second."
+  :type '(integer :tag "Speed")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-rain-effect)
+                    (boundp 'neomacs-rain-effect)
+                    neomacs-rain-effect)
+           (neomacs-set-rain-effect t
+            (if (boundp 'neomacs-rain-effect-color)
+                neomacs-rain-effect-color nil)
+            (if (boundp 'neomacs-rain-effect-drop-count)
+                neomacs-rain-effect-drop-count nil)
+            val
+            (if (boundp 'neomacs-rain-effect-opacity)
+                neomacs-rain-effect-opacity nil)))))
+
+(defcustom neomacs-rain-effect-opacity 15
+  "Rain drop opacity percentage (0-100)."
+  :type '(integer :tag "Opacity")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-rain-effect)
+                    (boundp 'neomacs-rain-effect)
+                    neomacs-rain-effect)
+           (neomacs-set-rain-effect t
+            (if (boundp 'neomacs-rain-effect-color)
+                neomacs-rain-effect-color nil)
+            (if (boundp 'neomacs-rain-effect-drop-count)
+                neomacs-rain-effect-drop-count nil)
+            (if (boundp 'neomacs-rain-effect-speed)
+                neomacs-rain-effect-speed nil)
+            val))))
+
+;; --- Cursor ripple wave effect ---
+(declare-function neomacs-set-cursor-ripple-wave "neomacsterm.c"
+  (&optional enabled color max-radius duration-ms opacity))
+
+(defcustom neomacs-cursor-ripple-wave nil
+  "Enable cursor ripple wave effect.
+Non-nil draws expanding concentric ring waves from the cursor
+position each time it moves."
+  :type 'boolean
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-cursor-ripple-wave)
+           (neomacs-set-cursor-ripple-wave
+            val
+            (if (boundp 'neomacs-cursor-ripple-wave-color)
+                neomacs-cursor-ripple-wave-color nil)
+            (if (boundp 'neomacs-cursor-ripple-wave-max-radius)
+                neomacs-cursor-ripple-wave-max-radius nil)
+            (if (boundp 'neomacs-cursor-ripple-wave-duration)
+                neomacs-cursor-ripple-wave-duration nil)
+            (if (boundp 'neomacs-cursor-ripple-wave-opacity)
+                neomacs-cursor-ripple-wave-opacity nil)))))
+
+(defcustom neomacs-cursor-ripple-wave-color "#6699FF"
+  "Cursor ripple wave color as a hex string."
+  :type 'string
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-ripple-wave)
+                    (boundp 'neomacs-cursor-ripple-wave)
+                    neomacs-cursor-ripple-wave)
+           (neomacs-set-cursor-ripple-wave t val
+            (if (boundp 'neomacs-cursor-ripple-wave-max-radius)
+                neomacs-cursor-ripple-wave-max-radius nil)
+            (if (boundp 'neomacs-cursor-ripple-wave-duration)
+                neomacs-cursor-ripple-wave-duration nil)
+            (if (boundp 'neomacs-cursor-ripple-wave-opacity)
+                neomacs-cursor-ripple-wave-opacity nil)))))
+
+(defcustom neomacs-cursor-ripple-wave-max-radius 80
+  "Maximum radius of cursor ripple wave in pixels."
+  :type '(integer :tag "Max Radius")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-ripple-wave)
+                    (boundp 'neomacs-cursor-ripple-wave)
+                    neomacs-cursor-ripple-wave)
+           (neomacs-set-cursor-ripple-wave t
+            (if (boundp 'neomacs-cursor-ripple-wave-color)
+                neomacs-cursor-ripple-wave-color nil)
+            val
+            (if (boundp 'neomacs-cursor-ripple-wave-duration)
+                neomacs-cursor-ripple-wave-duration nil)
+            (if (boundp 'neomacs-cursor-ripple-wave-opacity)
+                neomacs-cursor-ripple-wave-opacity nil)))))
+
+(defcustom neomacs-cursor-ripple-wave-duration 500
+  "Cursor ripple wave duration in milliseconds."
+  :type '(integer :tag "Duration ms")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-ripple-wave)
+                    (boundp 'neomacs-cursor-ripple-wave)
+                    neomacs-cursor-ripple-wave)
+           (neomacs-set-cursor-ripple-wave t
+            (if (boundp 'neomacs-cursor-ripple-wave-color)
+                neomacs-cursor-ripple-wave-color nil)
+            (if (boundp 'neomacs-cursor-ripple-wave-max-radius)
+                neomacs-cursor-ripple-wave-max-radius nil)
+            val
+            (if (boundp 'neomacs-cursor-ripple-wave-opacity)
+                neomacs-cursor-ripple-wave-opacity nil)))))
+
+(defcustom neomacs-cursor-ripple-wave-opacity 30
+  "Cursor ripple wave opacity percentage (0-100)."
+  :type '(integer :tag "Opacity")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-ripple-wave)
+                    (boundp 'neomacs-cursor-ripple-wave)
+                    neomacs-cursor-ripple-wave)
+           (neomacs-set-cursor-ripple-wave t
+            (if (boundp 'neomacs-cursor-ripple-wave-color)
+                neomacs-cursor-ripple-wave-color nil)
+            (if (boundp 'neomacs-cursor-ripple-wave-max-radius)
+                neomacs-cursor-ripple-wave-max-radius nil)
+            (if (boundp 'neomacs-cursor-ripple-wave-duration)
+                neomacs-cursor-ripple-wave-duration nil)
+            val))))
+
+;; --- Aurora/northern lights effect ---
+(declare-function neomacs-set-aurora "neomacsterm.c"
+  (&optional enabled color1 color2 height opacity))
+
+(defcustom neomacs-aurora nil
+  "Enable aurora/northern lights effect.
+Non-nil renders animated flowing color bands at the top of the frame."
+  :type 'boolean
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-aurora)
+           (neomacs-set-aurora
+            val
+            (if (boundp 'neomacs-aurora-color1)
+                neomacs-aurora-color1 nil)
+            (if (boundp 'neomacs-aurora-color2)
+                neomacs-aurora-color2 nil)
+            (if (boundp 'neomacs-aurora-height)
+                neomacs-aurora-height nil)
+            (if (boundp 'neomacs-aurora-opacity)
+                neomacs-aurora-opacity nil)))))
+
+(defcustom neomacs-aurora-color1 "#33CC66"
+  "Primary aurora color as a hex string."
+  :type 'string
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-aurora)
+                    (boundp 'neomacs-aurora)
+                    neomacs-aurora)
+           (neomacs-set-aurora t val
+            (if (boundp 'neomacs-aurora-color2)
+                neomacs-aurora-color2 nil)
+            (if (boundp 'neomacs-aurora-height)
+                neomacs-aurora-height nil)
+            (if (boundp 'neomacs-aurora-opacity)
+                neomacs-aurora-opacity nil)))))
+
+(defcustom neomacs-aurora-color2 "#4D66E6"
+  "Secondary aurora color as a hex string."
+  :type 'string
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-aurora)
+                    (boundp 'neomacs-aurora)
+                    neomacs-aurora)
+           (neomacs-set-aurora t
+            (if (boundp 'neomacs-aurora-color1)
+                neomacs-aurora-color1 nil)
+            val
+            (if (boundp 'neomacs-aurora-height)
+                neomacs-aurora-height nil)
+            (if (boundp 'neomacs-aurora-opacity)
+                neomacs-aurora-opacity nil)))))
+
+(defcustom neomacs-aurora-height 60
+  "Aurora band height in pixels."
+  :type '(integer :tag "Height")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-aurora)
+                    (boundp 'neomacs-aurora)
+                    neomacs-aurora)
+           (neomacs-set-aurora t
+            (if (boundp 'neomacs-aurora-color1)
+                neomacs-aurora-color1 nil)
+            (if (boundp 'neomacs-aurora-color2)
+                neomacs-aurora-color2 nil)
+            val
+            (if (boundp 'neomacs-aurora-opacity)
+                neomacs-aurora-opacity nil)))))
+
+(defcustom neomacs-aurora-opacity 12
+  "Aurora opacity percentage (0-100)."
+  :type '(integer :tag "Opacity")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-aurora)
+                    (boundp 'neomacs-aurora)
+                    neomacs-aurora)
+           (neomacs-set-aurora t
+            (if (boundp 'neomacs-aurora-color1)
+                neomacs-aurora-color1 nil)
+            (if (boundp 'neomacs-aurora-color2)
+                neomacs-aurora-color2 nil)
+            (if (boundp 'neomacs-aurora-height)
+                neomacs-aurora-height nil)
+            val))))
+
 ;; Provide the feature
 (provide 'neomacs-win)
 (provide 'term/neomacs-win)

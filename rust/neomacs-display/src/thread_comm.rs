@@ -886,6 +886,58 @@ pub enum RenderCommand {
         /// Bar width in pixels
         width: f32,
     },
+    /// Configure window edge glow on scroll boundaries
+    SetEdgeGlow {
+        enabled: bool,
+        /// Glow color (sRGB floats)
+        r: f32, g: f32, b: f32,
+        /// Glow height in pixels
+        height: f32,
+        /// Peak opacity (0.0-1.0)
+        opacity: f32,
+        /// Fade duration in milliseconds
+        fade_ms: u32,
+    },
+    /// Configure window rain/drip ambient effect
+    SetRainEffect {
+        enabled: bool,
+        /// Drop color (sRGB floats)
+        r: f32, g: f32, b: f32,
+        /// Number of simultaneous drops
+        drop_count: u32,
+        /// Drop fall speed in pixels/sec
+        speed: f32,
+        /// Drop opacity (0.0-1.0)
+        opacity: f32,
+    },
+    /// Configure cursor ripple wave effect on keystroke
+    SetCursorRippleWave {
+        enabled: bool,
+        /// Ripple color (sRGB floats)
+        r: f32, g: f32, b: f32,
+        /// Number of concentric rings
+        ring_count: u32,
+        /// Max radius in pixels
+        max_radius: f32,
+        /// Duration in milliseconds
+        duration_ms: u32,
+        /// Peak ring opacity (0.0-1.0)
+        opacity: f32,
+    },
+    /// Configure window aurora/northern lights effect
+    SetAurora {
+        enabled: bool,
+        /// Primary color (sRGB floats)
+        r1: f32, g1: f32, b1: f32,
+        /// Secondary color (sRGB floats)
+        r2: f32, g2: f32, b2: f32,
+        /// Band height in pixels
+        height: f32,
+        /// Animation speed multiplier (1.0 = default)
+        speed: f32,
+        /// Opacity (0.0-1.0)
+        opacity: f32,
+    },
     /// Configure background pattern
     SetBackgroundPattern {
         /// 0=none, 1=dots, 2=grid, 3=crosshatch
