@@ -1467,6 +1467,38 @@ pub enum RenderCommand {
         radius: f32,
         opacity: f32,
     },
+    /// Configure celtic knot overlay effect
+    SetCelticKnot {
+        enabled: bool,
+        r: f32, g: f32, b: f32,
+        knot_scale: f32,
+        weave_speed: f32,
+        opacity: f32,
+    },
+    /// Configure cursor candle flame effect
+    SetCursorCandleFlame {
+        enabled: bool,
+        r: f32, g: f32, b: f32,
+        flame_height: u32,
+        flicker_speed: f32,
+        opacity: f32,
+    },
+    /// Configure argyle pattern overlay effect
+    SetArgylePattern {
+        enabled: bool,
+        r: f32, g: f32, b: f32,
+        diamond_size: f32,
+        line_width: f32,
+        opacity: f32,
+    },
+    /// Configure cursor moth flame effect
+    SetCursorMothFlame {
+        enabled: bool,
+        r: f32, g: f32, b: f32,
+        moth_count: u32,
+        orbit_speed: f32,
+        opacity: f32,
+    },
     /// Configure basket weave overlay effect
     SetBasketWeave {
         enabled: bool,

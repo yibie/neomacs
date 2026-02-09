@@ -729,6 +729,30 @@ pub struct WgpuRenderer {
     cursor_crystal_facet_count: u32,
     cursor_crystal_radius: f32,
     cursor_crystal_opacity: f32,
+    /// Celtic knot overlay
+    celtic_knot_enabled: bool,
+    celtic_knot_color: (f32, f32, f32),
+    celtic_knot_scale: f32,
+    celtic_knot_weave_speed: f32,
+    celtic_knot_opacity: f32,
+    /// Cursor candle flame effect
+    cursor_candle_flame_enabled: bool,
+    cursor_candle_flame_color: (f32, f32, f32),
+    cursor_candle_flame_height: u32,
+    cursor_candle_flame_flicker_speed: f32,
+    cursor_candle_flame_opacity: f32,
+    /// Argyle pattern overlay
+    argyle_pattern_enabled: bool,
+    argyle_pattern_color: (f32, f32, f32),
+    argyle_pattern_diamond_size: f32,
+    argyle_pattern_line_width: f32,
+    argyle_pattern_opacity: f32,
+    /// Cursor moth flame effect
+    cursor_moth_flame_enabled: bool,
+    cursor_moth_flame_color: (f32, f32, f32),
+    cursor_moth_flame_moth_count: u32,
+    cursor_moth_flame_orbit_speed: f32,
+    cursor_moth_flame_opacity: f32,
     /// Basket weave overlay
     basket_weave_enabled: bool,
     basket_weave_color: (f32, f32, f32),
@@ -2057,6 +2081,26 @@ impl WgpuRenderer {
             cursor_crystal_facet_count: 6,
             cursor_crystal_radius: 25.0,
             cursor_crystal_opacity: 0.3,
+            celtic_knot_enabled: false,
+            celtic_knot_color: (0.0, 0.6, 0.3),
+            celtic_knot_scale: 60.0,
+            celtic_knot_weave_speed: 1.0,
+            celtic_knot_opacity: 0.06,
+            cursor_candle_flame_enabled: false,
+            cursor_candle_flame_color: (1.0, 0.7, 0.2),
+            cursor_candle_flame_height: 20,
+            cursor_candle_flame_flicker_speed: 1.0,
+            cursor_candle_flame_opacity: 0.2,
+            argyle_pattern_enabled: false,
+            argyle_pattern_color: (0.5, 0.3, 0.3),
+            argyle_pattern_diamond_size: 30.0,
+            argyle_pattern_line_width: 1.0,
+            argyle_pattern_opacity: 0.05,
+            cursor_moth_flame_enabled: false,
+            cursor_moth_flame_color: (0.8, 0.7, 0.5),
+            cursor_moth_flame_moth_count: 5,
+            cursor_moth_flame_orbit_speed: 1.0,
+            cursor_moth_flame_opacity: 0.18,
             basket_weave_enabled: false,
             basket_weave_color: (0.55, 0.4, 0.25),
             basket_weave_strip_width: 6.0,
@@ -3209,6 +3253,42 @@ impl WgpuRenderer {
         self.cursor_crystal_facet_count = facet_count;
         self.cursor_crystal_radius = radius;
         self.cursor_crystal_opacity = opacity;
+    }
+
+    /// Update celtic knot config
+    pub fn set_celtic_knot(&mut self, enabled: bool, color: (f32, f32, f32), knot_scale: f32, weave_speed: f32, opacity: f32) {
+        self.celtic_knot_enabled = enabled;
+        self.celtic_knot_color = color;
+        self.celtic_knot_scale = knot_scale;
+        self.celtic_knot_weave_speed = weave_speed;
+        self.celtic_knot_opacity = opacity;
+    }
+
+    /// Update cursor candle flame config
+    pub fn set_cursor_candle_flame(&mut self, enabled: bool, color: (f32, f32, f32), flame_height: u32, flicker_speed: f32, opacity: f32) {
+        self.cursor_candle_flame_enabled = enabled;
+        self.cursor_candle_flame_color = color;
+        self.cursor_candle_flame_height = flame_height;
+        self.cursor_candle_flame_flicker_speed = flicker_speed;
+        self.cursor_candle_flame_opacity = opacity;
+    }
+
+    /// Update argyle pattern config
+    pub fn set_argyle_pattern(&mut self, enabled: bool, color: (f32, f32, f32), diamond_size: f32, line_width: f32, opacity: f32) {
+        self.argyle_pattern_enabled = enabled;
+        self.argyle_pattern_color = color;
+        self.argyle_pattern_diamond_size = diamond_size;
+        self.argyle_pattern_line_width = line_width;
+        self.argyle_pattern_opacity = opacity;
+    }
+
+    /// Update cursor moth flame config
+    pub fn set_cursor_moth_flame(&mut self, enabled: bool, color: (f32, f32, f32), moth_count: u32, orbit_speed: f32, opacity: f32) {
+        self.cursor_moth_flame_enabled = enabled;
+        self.cursor_moth_flame_color = color;
+        self.cursor_moth_flame_moth_count = moth_count;
+        self.cursor_moth_flame_orbit_speed = orbit_speed;
+        self.cursor_moth_flame_opacity = opacity;
     }
 
     /// Update basket weave config
@@ -8434,6 +8514,239 @@ impl WgpuRenderer {
                         render_pass.draw(0..ct_verts.len() as u32, 0..1);
                     }
                     self.needs_continuous_redraw = true;
+                }
+            }
+
+            // === Celtic knot overlay effect ===
+            if self.celtic_knot_enabled {
+                let width = self.width() as f32;
+                let height = self.height() as f32;
+                let now = std::time::Instant::now().duration_since(self.aurora_start).as_secs_f32();
+                let (kr, kg, kb) = self.celtic_knot_color;
+                let scale = self.celtic_knot_scale;
+                let speed = self.celtic_knot_weave_speed;
+                let alpha = self.celtic_knot_opacity;
+                let mut overlay_verts = Vec::new();
+
+                // Draw interlocking loops in a grid
+                let cols = (width / scale) as i32 + 2;
+                let rows = (height / scale) as i32 + 2;
+                let segments = 16;
+                let line_w = 2.0;
+
+                for row in 0..rows {
+                    for col in 0..cols {
+                        let cx = col as f32 * scale + scale / 2.0;
+                        let cy = row as f32 * scale + scale / 2.0;
+                        let r = scale * 0.35;
+
+                        // Draw a circle (loop) at each grid point
+                        for s in 0..segments {
+                            let angle = (s as f32 / segments as f32) * std::f32::consts::TAU + now * speed;
+                            let px = cx + angle.cos() * r;
+                            let py = cy + angle.sin() * r;
+                            let phase = ((angle * 2.0 + now * speed * 2.0).sin() * 0.3 + 0.7).max(0.0);
+                            let c = Color::new(kr, kg, kb, alpha * phase);
+                            self.add_rect(&mut overlay_verts, px - line_w / 2.0, py - line_w / 2.0, line_w, line_w, &c);
+                        }
+
+                        // Interlocking connector to adjacent cell
+                        if col < cols - 1 {
+                            for s in 0..8 {
+                                let t = s as f32 / 8.0;
+                                let px = cx + r + t * (scale - 2.0 * r);
+                                let py = cy + (t * std::f32::consts::PI).sin() * r * 0.3;
+                                let c = Color::new(kr, kg, kb, alpha * 0.6);
+                                self.add_rect(&mut overlay_verts, px - line_w / 2.0, py - line_w / 2.0, line_w, line_w, &c);
+                            }
+                        }
+                    }
+                }
+
+                if !overlay_verts.is_empty() {
+                    let buf = self.device().create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some("celtic_knot_verts"),
+                        contents: bytemuck::cast_slice(&overlay_verts),
+                        usage: wgpu::BufferUsages::VERTEX,
+                    });
+                    render_pass.set_pipeline(&self.rect_pipeline);
+                    render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                    render_pass.set_vertex_buffer(0, buf.slice(..));
+                    render_pass.draw(0..overlay_verts.len() as u32, 0..1);
+                    self.needs_continuous_redraw = true;
+                }
+            }
+
+            // === Cursor candle flame effect ===
+            if self.cursor_candle_flame_enabled && cursor_visible {
+                if let Some(ref anim) = animated_cursor {
+                    let now = std::time::Instant::now().duration_since(self.aurora_start).as_secs_f32();
+                    let (fr, fg, fb) = self.cursor_candle_flame_color;
+                    let flame_h = self.cursor_candle_flame_height as f32;
+                    let flicker = self.cursor_candle_flame_flicker_speed;
+                    let alpha = self.cursor_candle_flame_opacity;
+                    let mut overlay_verts = Vec::new();
+
+                    let cx = anim.x + anim.width / 2.0;
+                    let base_y = anim.y;
+
+                    // Flame body (tapers upward)
+                    let layers = 12;
+                    for i in 0..layers {
+                        let t = i as f32 / layers as f32;
+                        let y = base_y - t * flame_h;
+                        let w = anim.width * (1.0 - t * 0.8) * (1.0 + (now * flicker * 8.0 + t * 3.0).sin() * 0.2);
+                        let fade = (1.0 - t).powf(0.5);
+
+                        // Color shifts from yellow at base to orange/red at tip
+                        let cr = fr;
+                        let cg = fg * (1.0 - t * 0.6);
+                        let cb = fb * (1.0 - t);
+
+                        let wobble = (now * flicker * 6.0 + t * 5.0).sin() * 2.0 * t;
+                        let c = Color::new(cr, cg, cb, alpha * fade);
+                        self.add_rect(&mut overlay_verts, cx - w / 2.0 + wobble, y, w, flame_h / layers as f32 + 1.0, &c);
+                    }
+
+                    // Wax drip particles
+                    for d in 0..3 {
+                        let drip_t = (now * flicker * 0.5 + d as f32 * 1.1) % 2.0;
+                        if drip_t < 1.5 {
+                            let dy = base_y + anim.height + drip_t * 10.0;
+                            let dx = cx + (d as f32 - 1.0) * 3.0;
+                            let fade = (1.0 - drip_t / 1.5).max(0.0);
+                            let c = Color::new(0.9, 0.85, 0.7, alpha * fade * 0.5);
+                            self.add_rect(&mut overlay_verts, dx - 1.0, dy, 2.0, 3.0, &c);
+                        }
+                    }
+
+                    if !overlay_verts.is_empty() {
+                        let buf = self.device().create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                            label: Some("cursor_candle_flame_verts"),
+                            contents: bytemuck::cast_slice(&overlay_verts),
+                            usage: wgpu::BufferUsages::VERTEX,
+                        });
+                        render_pass.set_pipeline(&self.rect_pipeline);
+                        render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                        render_pass.set_vertex_buffer(0, buf.slice(..));
+                        render_pass.draw(0..overlay_verts.len() as u32, 0..1);
+                        self.needs_continuous_redraw = true;
+                    }
+                }
+            }
+
+            // === Argyle pattern overlay effect ===
+            if self.argyle_pattern_enabled {
+                let width = self.width() as f32;
+                let height = self.height() as f32;
+                let (ar, ag, ab) = self.argyle_pattern_color;
+                let ds = self.argyle_pattern_diamond_size;
+                let lw = self.argyle_pattern_line_width;
+                let alpha = self.argyle_pattern_opacity;
+                let mut overlay_verts = Vec::new();
+
+                let cols = (width / ds) as i32 + 2;
+                let rows = (height / ds) as i32 + 2;
+
+                // Diamond fills (alternating)
+                for row in 0..rows {
+                    for col in 0..cols {
+                        if (row + col) % 2 == 0 {
+                            let cx = col as f32 * ds + ds / 2.0;
+                            let cy = row as f32 * ds + ds / 2.0;
+                            // Approximate diamond with small filled rect at center
+                            let half = ds * 0.4;
+                            let c = Color::new(ar, ag, ab, alpha * 0.3);
+                            self.add_rect(&mut overlay_verts, cx - half / 2.0, cy - half / 2.0, half, half, &c);
+                        }
+                    }
+                }
+
+                // Diagonal lines (top-left to bottom-right)
+                let diags = ((width + height) / ds) as i32 + 2;
+                for d in 0..diags {
+                    let start_x = d as f32 * ds - height;
+                    let steps = (height / 2.0) as i32;
+                    for s in 0..steps {
+                        let t = s as f32 / steps as f32;
+                        let px = start_x + t * height;
+                        let py = t * height;
+                        let c = Color::new(ar, ag, ab, alpha * 0.5);
+                        self.add_rect(&mut overlay_verts, px, py, lw, lw, &c);
+                    }
+                }
+
+                // Diagonal lines (top-right to bottom-left)
+                for d in 0..diags {
+                    let start_x = d as f32 * ds;
+                    let steps = (height / 2.0) as i32;
+                    for s in 0..steps {
+                        let t = s as f32 / steps as f32;
+                        let px = start_x - t * height;
+                        let py = t * height;
+                        let c = Color::new(ar, ag, ab, alpha * 0.5);
+                        self.add_rect(&mut overlay_verts, px, py, lw, lw, &c);
+                    }
+                }
+
+                if !overlay_verts.is_empty() {
+                    let buf = self.device().create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some("argyle_pattern_verts"),
+                        contents: bytemuck::cast_slice(&overlay_verts),
+                        usage: wgpu::BufferUsages::VERTEX,
+                    });
+                    render_pass.set_pipeline(&self.rect_pipeline);
+                    render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                    render_pass.set_vertex_buffer(0, buf.slice(..));
+                    render_pass.draw(0..overlay_verts.len() as u32, 0..1);
+                }
+            }
+
+            // === Cursor moth flame effect ===
+            if self.cursor_moth_flame_enabled && cursor_visible {
+                if let Some(ref anim) = animated_cursor {
+                    let now = std::time::Instant::now().duration_since(self.aurora_start).as_secs_f32();
+                    let (mr, mg, mb) = self.cursor_moth_flame_color;
+                    let moth_count = self.cursor_moth_flame_moth_count;
+                    let orbit = self.cursor_moth_flame_orbit_speed;
+                    let alpha = self.cursor_moth_flame_opacity;
+                    let mut overlay_verts = Vec::new();
+
+                    let cx = anim.x + anim.width / 2.0;
+                    let cy = anim.y + anim.height / 2.0;
+
+                    for m in 0..moth_count {
+                        let phase = m as f32 * std::f32::consts::TAU / moth_count as f32;
+                        let orbit_angle = now * orbit + phase;
+                        let spiral = (now * orbit * 0.3 + m as f32).sin() * 10.0 + 20.0;
+                        let mx = cx + orbit_angle.cos() * spiral;
+                        let my = cy + orbit_angle.sin() * spiral * 0.7;
+
+                        // Moth body
+                        let c = Color::new(mr, mg, mb, alpha);
+                        self.add_rect(&mut overlay_verts, mx - 1.5, my - 1.0, 3.0, 2.0, &c);
+
+                        // Wings (flapping)
+                        let wing_angle = (now * orbit * 8.0 + m as f32 * 2.0).sin() * 0.5;
+                        let wing_w = 4.0 + wing_angle.abs() * 3.0;
+                        let wing_h = 2.0;
+                        let wc = Color::new(mr, mg, mb, alpha * 0.5);
+                        self.add_rect(&mut overlay_verts, mx - wing_w - 1.0, my - wing_h / 2.0, wing_w, wing_h, &wc);
+                        self.add_rect(&mut overlay_verts, mx + 2.0, my - wing_h / 2.0, wing_w, wing_h, &wc);
+                    }
+
+                    if !overlay_verts.is_empty() {
+                        let buf = self.device().create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                            label: Some("cursor_moth_flame_verts"),
+                            contents: bytemuck::cast_slice(&overlay_verts),
+                            usage: wgpu::BufferUsages::VERTEX,
+                        });
+                        render_pass.set_pipeline(&self.rect_pipeline);
+                        render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                        render_pass.set_vertex_buffer(0, buf.slice(..));
+                        render_pass.draw(0..overlay_verts.len() as u32, 0..1);
+                        self.needs_continuous_redraw = true;
+                    }
                 }
             }
 

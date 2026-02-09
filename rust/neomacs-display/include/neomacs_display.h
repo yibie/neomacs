@@ -2775,6 +2775,54 @@ void neomacs_display_set_cursor_gravity_well(struct NeomacsDisplay *handle,
                                              int opacity);
 
 /**
+ * Configure celtic knot overlay effect
+ */
+void neomacs_display_set_celtic_knot(struct NeomacsDisplay *handle,
+                                     int enabled,
+                                     int r,
+                                     int g,
+                                     int b,
+                                     int knotScale,
+                                     int weaveSpeed,
+                                     int opacity);
+
+/**
+ * Configure cursor candle flame effect
+ */
+void neomacs_display_set_cursor_candle_flame(struct NeomacsDisplay *handle,
+                                             int enabled,
+                                             int r,
+                                             int g,
+                                             int b,
+                                             int flameHeight,
+                                             int flickerSpeed,
+                                             int opacity);
+
+/**
+ * Configure argyle pattern overlay effect
+ */
+void neomacs_display_set_argyle_pattern(struct NeomacsDisplay *handle,
+                                        int enabled,
+                                        int r,
+                                        int g,
+                                        int b,
+                                        int diamondSize,
+                                        int lineWidth,
+                                        int opacity);
+
+/**
+ * Configure cursor moth flame effect
+ */
+void neomacs_display_set_cursor_moth_flame(struct NeomacsDisplay *handle,
+                                           int enabled,
+                                           int r,
+                                           int g,
+                                           int b,
+                                           int mothCount,
+                                           int orbitSpeed,
+                                           int opacity);
+
+/**
  * Configure basket weave overlay effect
  */
 void neomacs_display_set_basket_weave(struct NeomacsDisplay *handle,

@@ -6648,6 +6648,106 @@ pub unsafe extern "C" fn neomacs_display_set_cursor_gravity_well(
     }
 }
 
+/// Configure celtic knot overlay effect
+#[cfg(feature = "winit-backend")]
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_celtic_knot(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    r: c_int, g: c_int, b: c_int,
+    knot_scale: c_int,
+    weave_speed: c_int,
+    opacity: c_int,
+) {
+    let cmd = RenderCommand::SetCelticKnot {
+        enabled: enabled != 0,
+        r: r as f32 / 255.0,
+        g: g as f32 / 255.0,
+        b: b as f32 / 255.0,
+        knot_scale: knot_scale as f32,
+        weave_speed: weave_speed as f32 / 100.0,
+        opacity: opacity as f32 / 100.0,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
+/// Configure cursor candle flame effect
+#[cfg(feature = "winit-backend")]
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_cursor_candle_flame(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    r: c_int, g: c_int, b: c_int,
+    flame_height: c_int,
+    flicker_speed: c_int,
+    opacity: c_int,
+) {
+    let cmd = RenderCommand::SetCursorCandleFlame {
+        enabled: enabled != 0,
+        r: r as f32 / 255.0,
+        g: g as f32 / 255.0,
+        b: b as f32 / 255.0,
+        flame_height: flame_height as u32,
+        flicker_speed: flicker_speed as f32 / 100.0,
+        opacity: opacity as f32 / 100.0,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
+/// Configure argyle pattern overlay effect
+#[cfg(feature = "winit-backend")]
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_argyle_pattern(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    r: c_int, g: c_int, b: c_int,
+    diamond_size: c_int,
+    line_width: c_int,
+    opacity: c_int,
+) {
+    let cmd = RenderCommand::SetArgylePattern {
+        enabled: enabled != 0,
+        r: r as f32 / 255.0,
+        g: g as f32 / 255.0,
+        b: b as f32 / 255.0,
+        diamond_size: diamond_size as f32,
+        line_width: line_width as f32,
+        opacity: opacity as f32 / 100.0,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
+/// Configure cursor moth flame effect
+#[cfg(feature = "winit-backend")]
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_cursor_moth_flame(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    r: c_int, g: c_int, b: c_int,
+    moth_count: c_int,
+    orbit_speed: c_int,
+    opacity: c_int,
+) {
+    let cmd = RenderCommand::SetCursorMothFlame {
+        enabled: enabled != 0,
+        r: r as f32 / 255.0,
+        g: g as f32 / 255.0,
+        b: b as f32 / 255.0,
+        moth_count: moth_count as u32,
+        orbit_speed: orbit_speed as f32 / 100.0,
+        opacity: opacity as f32 / 100.0,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
 /// Configure basket weave overlay effect
 #[cfg(feature = "winit-backend")]
 #[no_mangle]

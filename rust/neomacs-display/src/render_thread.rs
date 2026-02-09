@@ -878,6 +878,27 @@ struct RenderApp {
     cursor_crystal_radius: f32,
     cursor_crystal_opacity: f32,
 
+    celtic_knot_enabled: bool,
+    celtic_knot_color: (f32, f32, f32),
+    celtic_knot_scale: f32,
+    celtic_knot_weave_speed: f32,
+    celtic_knot_opacity: f32,
+    cursor_candle_flame_enabled: bool,
+    cursor_candle_flame_color: (f32, f32, f32),
+    cursor_candle_flame_height: u32,
+    cursor_candle_flame_flicker_speed: f32,
+    cursor_candle_flame_opacity: f32,
+    argyle_pattern_enabled: bool,
+    argyle_pattern_color: (f32, f32, f32),
+    argyle_pattern_diamond_size: f32,
+    argyle_pattern_line_width: f32,
+    argyle_pattern_opacity: f32,
+    cursor_moth_flame_enabled: bool,
+    cursor_moth_flame_color: (f32, f32, f32),
+    cursor_moth_flame_moth_count: u32,
+    cursor_moth_flame_orbit_speed: f32,
+    cursor_moth_flame_opacity: f32,
+
     basket_weave_enabled: bool,
     basket_weave_color: (f32, f32, f32),
     basket_weave_strip_width: f32,
@@ -1772,6 +1793,26 @@ impl RenderApp {
             cursor_crystal_facet_count: 6,
             cursor_crystal_radius: 25.0,
             cursor_crystal_opacity: 0.3,
+            celtic_knot_enabled: false,
+            celtic_knot_color: (0.0, 0.6, 0.3),
+            celtic_knot_scale: 60.0,
+            celtic_knot_weave_speed: 1.0,
+            celtic_knot_opacity: 0.06,
+            cursor_candle_flame_enabled: false,
+            cursor_candle_flame_color: (1.0, 0.7, 0.2),
+            cursor_candle_flame_height: 20,
+            cursor_candle_flame_flicker_speed: 1.0,
+            cursor_candle_flame_opacity: 0.2,
+            argyle_pattern_enabled: false,
+            argyle_pattern_color: (0.5, 0.3, 0.3),
+            argyle_pattern_diamond_size: 30.0,
+            argyle_pattern_line_width: 1.0,
+            argyle_pattern_opacity: 0.05,
+            cursor_moth_flame_enabled: false,
+            cursor_moth_flame_color: (0.8, 0.7, 0.5),
+            cursor_moth_flame_moth_count: 5,
+            cursor_moth_flame_orbit_speed: 1.0,
+            cursor_moth_flame_opacity: 0.18,
             basket_weave_enabled: false,
             basket_weave_color: (0.55, 0.4, 0.25),
             basket_weave_strip_width: 6.0,
@@ -3927,6 +3968,50 @@ impl RenderApp {
                     self.cursor_tornado_opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_tornado(enabled, (r, g, b), radius, particle_count, opacity);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetCelticKnot { enabled, r, g, b, knot_scale, weave_speed, opacity } => {
+                    self.celtic_knot_enabled = enabled;
+                    self.celtic_knot_color = (r, g, b);
+                    self.celtic_knot_scale = knot_scale;
+                    self.celtic_knot_weave_speed = weave_speed;
+                    self.celtic_knot_opacity = opacity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_celtic_knot(enabled, (r, g, b), knot_scale, weave_speed, opacity);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetCursorCandleFlame { enabled, r, g, b, flame_height, flicker_speed, opacity } => {
+                    self.cursor_candle_flame_enabled = enabled;
+                    self.cursor_candle_flame_color = (r, g, b);
+                    self.cursor_candle_flame_height = flame_height;
+                    self.cursor_candle_flame_flicker_speed = flicker_speed;
+                    self.cursor_candle_flame_opacity = opacity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_cursor_candle_flame(enabled, (r, g, b), flame_height, flicker_speed, opacity);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetArgylePattern { enabled, r, g, b, diamond_size, line_width, opacity } => {
+                    self.argyle_pattern_enabled = enabled;
+                    self.argyle_pattern_color = (r, g, b);
+                    self.argyle_pattern_diamond_size = diamond_size;
+                    self.argyle_pattern_line_width = line_width;
+                    self.argyle_pattern_opacity = opacity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_argyle_pattern(enabled, (r, g, b), diamond_size, line_width, opacity);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetCursorMothFlame { enabled, r, g, b, moth_count, orbit_speed, opacity } => {
+                    self.cursor_moth_flame_enabled = enabled;
+                    self.cursor_moth_flame_color = (r, g, b);
+                    self.cursor_moth_flame_moth_count = moth_count;
+                    self.cursor_moth_flame_orbit_speed = orbit_speed;
+                    self.cursor_moth_flame_opacity = opacity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_cursor_moth_flame(enabled, (r, g, b), moth_count, orbit_speed, opacity);
                     }
                     self.frame_dirty = true;
                 }

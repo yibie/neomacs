@@ -5982,6 +5982,298 @@ Non-nil renders animated flowing color bands at the top of the frame."
                 neomacs-cursor-gravity-well-line-count nil)
             val))))
 
+;; Celtic knot overlay effect
+(declare-function neomacs-set-celtic-knot "neomacsterm.c")
+
+(defcustom neomacs-celtic-knot nil
+  "Enable celtic knot overlay effect."
+  :type 'boolean
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-celtic-knot)
+           (if val
+               (neomacs-set-celtic-knot t)
+             (neomacs-set-celtic-knot nil)))))
+
+(defcustom neomacs-celtic-knot-color "#009933"
+  "Celtic knot color."
+  :type 'color
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-celtic-knot)
+                    (boundp 'neomacs-celtic-knot)
+                    neomacs-celtic-knot)
+           (neomacs-set-celtic-knot t val))))
+
+(defcustom neomacs-celtic-knot-scale 60
+  "Celtic knot cell size in pixels."
+  :type '(integer :tag "Knot scale (px)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-celtic-knot)
+                    (boundp 'neomacs-celtic-knot)
+                    neomacs-celtic-knot)
+           (neomacs-set-celtic-knot t
+            (if (boundp 'neomacs-celtic-knot-color)
+                neomacs-celtic-knot-color nil)
+            val))))
+
+(defcustom neomacs-celtic-knot-weave-speed 100
+  "Celtic knot weave animation speed (* 100)."
+  :type '(integer :tag "Weave speed")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-celtic-knot)
+                    (boundp 'neomacs-celtic-knot)
+                    neomacs-celtic-knot)
+           (neomacs-set-celtic-knot t
+            (if (boundp 'neomacs-celtic-knot-color)
+                neomacs-celtic-knot-color nil)
+            (if (boundp 'neomacs-celtic-knot-scale)
+                neomacs-celtic-knot-scale nil)
+            val))))
+
+(defcustom neomacs-celtic-knot-opacity 6
+  "Celtic knot opacity (0-100)."
+  :type '(integer :tag "Opacity (0-100)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-celtic-knot)
+                    (boundp 'neomacs-celtic-knot)
+                    neomacs-celtic-knot)
+           (neomacs-set-celtic-knot t
+            (if (boundp 'neomacs-celtic-knot-color)
+                neomacs-celtic-knot-color nil)
+            (if (boundp 'neomacs-celtic-knot-scale)
+                neomacs-celtic-knot-scale nil)
+            (if (boundp 'neomacs-celtic-knot-weave-speed)
+                neomacs-celtic-knot-weave-speed nil)
+            val))))
+
+;; Cursor candle flame effect
+(declare-function neomacs-set-cursor-candle-flame "neomacsterm.c")
+
+(defcustom neomacs-cursor-candle-flame nil
+  "Enable cursor candle flame effect."
+  :type 'boolean
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-cursor-candle-flame)
+           (if val
+               (neomacs-set-cursor-candle-flame t)
+             (neomacs-set-cursor-candle-flame nil)))))
+
+(defcustom neomacs-cursor-candle-flame-color "#FFB333"
+  "Cursor candle flame color."
+  :type 'color
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-candle-flame)
+                    (boundp 'neomacs-cursor-candle-flame)
+                    neomacs-cursor-candle-flame)
+           (neomacs-set-cursor-candle-flame t val))))
+
+(defcustom neomacs-cursor-candle-flame-height 20
+  "Candle flame height in pixels."
+  :type '(integer :tag "Flame height (px)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-candle-flame)
+                    (boundp 'neomacs-cursor-candle-flame)
+                    neomacs-cursor-candle-flame)
+           (neomacs-set-cursor-candle-flame t
+            (if (boundp 'neomacs-cursor-candle-flame-color)
+                neomacs-cursor-candle-flame-color nil)
+            val))))
+
+(defcustom neomacs-cursor-candle-flame-flicker-speed 100
+  "Candle flame flicker speed (* 100)."
+  :type '(integer :tag "Flicker speed")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-candle-flame)
+                    (boundp 'neomacs-cursor-candle-flame)
+                    neomacs-cursor-candle-flame)
+           (neomacs-set-cursor-candle-flame t
+            (if (boundp 'neomacs-cursor-candle-flame-color)
+                neomacs-cursor-candle-flame-color nil)
+            (if (boundp 'neomacs-cursor-candle-flame-height)
+                neomacs-cursor-candle-flame-height nil)
+            val))))
+
+(defcustom neomacs-cursor-candle-flame-opacity 20
+  "Candle flame opacity (0-100)."
+  :type '(integer :tag "Opacity (0-100)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-candle-flame)
+                    (boundp 'neomacs-cursor-candle-flame)
+                    neomacs-cursor-candle-flame)
+           (neomacs-set-cursor-candle-flame t
+            (if (boundp 'neomacs-cursor-candle-flame-color)
+                neomacs-cursor-candle-flame-color nil)
+            (if (boundp 'neomacs-cursor-candle-flame-height)
+                neomacs-cursor-candle-flame-height nil)
+            (if (boundp 'neomacs-cursor-candle-flame-flicker-speed)
+                neomacs-cursor-candle-flame-flicker-speed nil)
+            val))))
+
+;; Argyle pattern overlay effect
+(declare-function neomacs-set-argyle-pattern "neomacsterm.c")
+
+(defcustom neomacs-argyle-pattern nil
+  "Enable argyle pattern overlay effect."
+  :type 'boolean
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-argyle-pattern)
+           (if val
+               (neomacs-set-argyle-pattern t)
+             (neomacs-set-argyle-pattern nil)))))
+
+(defcustom neomacs-argyle-pattern-color "#804D4D"
+  "Argyle pattern color."
+  :type 'color
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-argyle-pattern)
+                    (boundp 'neomacs-argyle-pattern)
+                    neomacs-argyle-pattern)
+           (neomacs-set-argyle-pattern t val))))
+
+(defcustom neomacs-argyle-pattern-diamond-size 30
+  "Argyle diamond size in pixels."
+  :type '(integer :tag "Diamond size (px)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-argyle-pattern)
+                    (boundp 'neomacs-argyle-pattern)
+                    neomacs-argyle-pattern)
+           (neomacs-set-argyle-pattern t
+            (if (boundp 'neomacs-argyle-pattern-color)
+                neomacs-argyle-pattern-color nil)
+            val))))
+
+(defcustom neomacs-argyle-pattern-line-width 1
+  "Argyle diagonal line width in pixels."
+  :type '(integer :tag "Line width (px)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-argyle-pattern)
+                    (boundp 'neomacs-argyle-pattern)
+                    neomacs-argyle-pattern)
+           (neomacs-set-argyle-pattern t
+            (if (boundp 'neomacs-argyle-pattern-color)
+                neomacs-argyle-pattern-color nil)
+            (if (boundp 'neomacs-argyle-pattern-diamond-size)
+                neomacs-argyle-pattern-diamond-size nil)
+            val))))
+
+(defcustom neomacs-argyle-pattern-opacity 5
+  "Argyle pattern opacity (0-100)."
+  :type '(integer :tag "Opacity (0-100)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-argyle-pattern)
+                    (boundp 'neomacs-argyle-pattern)
+                    neomacs-argyle-pattern)
+           (neomacs-set-argyle-pattern t
+            (if (boundp 'neomacs-argyle-pattern-color)
+                neomacs-argyle-pattern-color nil)
+            (if (boundp 'neomacs-argyle-pattern-diamond-size)
+                neomacs-argyle-pattern-diamond-size nil)
+            (if (boundp 'neomacs-argyle-pattern-line-width)
+                neomacs-argyle-pattern-line-width nil)
+            val))))
+
+;; Cursor moth flame effect
+(declare-function neomacs-set-cursor-moth-flame "neomacsterm.c")
+
+(defcustom neomacs-cursor-moth-flame nil
+  "Enable cursor moth flame effect."
+  :type 'boolean
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-cursor-moth-flame)
+           (if val
+               (neomacs-set-cursor-moth-flame t)
+             (neomacs-set-cursor-moth-flame nil)))))
+
+(defcustom neomacs-cursor-moth-flame-color "#CCB380"
+  "Cursor moth flame color."
+  :type 'color
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-moth-flame)
+                    (boundp 'neomacs-cursor-moth-flame)
+                    neomacs-cursor-moth-flame)
+           (neomacs-set-cursor-moth-flame t val))))
+
+(defcustom neomacs-cursor-moth-flame-count 5
+  "Number of moths."
+  :type '(integer :tag "Moth count")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-moth-flame)
+                    (boundp 'neomacs-cursor-moth-flame)
+                    neomacs-cursor-moth-flame)
+           (neomacs-set-cursor-moth-flame t
+            (if (boundp 'neomacs-cursor-moth-flame-color)
+                neomacs-cursor-moth-flame-color nil)
+            val))))
+
+(defcustom neomacs-cursor-moth-flame-orbit-speed 100
+  "Moth orbit speed (* 100)."
+  :type '(integer :tag "Orbit speed")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-moth-flame)
+                    (boundp 'neomacs-cursor-moth-flame)
+                    neomacs-cursor-moth-flame)
+           (neomacs-set-cursor-moth-flame t
+            (if (boundp 'neomacs-cursor-moth-flame-color)
+                neomacs-cursor-moth-flame-color nil)
+            (if (boundp 'neomacs-cursor-moth-flame-count)
+                neomacs-cursor-moth-flame-count nil)
+            val))))
+
+(defcustom neomacs-cursor-moth-flame-opacity 18
+  "Cursor moth flame opacity (0-100)."
+  :type '(integer :tag "Opacity (0-100)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-moth-flame)
+                    (boundp 'neomacs-cursor-moth-flame)
+                    neomacs-cursor-moth-flame)
+           (neomacs-set-cursor-moth-flame t
+            (if (boundp 'neomacs-cursor-moth-flame-color)
+                neomacs-cursor-moth-flame-color nil)
+            (if (boundp 'neomacs-cursor-moth-flame-count)
+                neomacs-cursor-moth-flame-count nil)
+            (if (boundp 'neomacs-cursor-moth-flame-orbit-speed)
+                neomacs-cursor-moth-flame-orbit-speed nil)
+            val))))
+
 ;; Basket weave overlay effect
 (declare-function neomacs-set-basket-weave "neomacsterm.c")
 

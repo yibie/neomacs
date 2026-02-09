@@ -10967,6 +10967,154 @@ OPACITY is 0-100 (default 20). */)
   return on ? Qt : Qnil;
 }
 
+DEFUN ("neomacs-set-celtic-knot",
+       Fneomacs_set_celtic_knot,
+       Sneomacs_set_celtic_knot, 0, 5, 0,
+       doc: /* Configure celtic knot overlay effect.
+ENABLED non-nil activates interlocking loop pattern overlay.
+COLOR is a hex color string like "#RRGGBB" (default "#009933").
+KNOT-SCALE is size of each knot cell in pixels (default 60).
+WEAVE-SPEED is animation speed * 100 (default 100).
+OPACITY is 0-100 (default 6). */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object knot_scale,
+   Lisp_Object weave_speed, Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+  int on = !NILP (enabled);
+  int r = 0x00, g = 0x99, b = 0x33, ks = 60, ws = 100, op = 6;
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned int hex;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (knot_scale)) ks = XFIXNUM (knot_scale);
+  if (FIXNUMP (weave_speed)) ws = XFIXNUM (weave_speed);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_celtic_knot (dpyinfo->display_handle, on, r, g, b, ks, ws, op);
+  return on ? Qt : Qnil;
+}
+
+DEFUN ("neomacs-set-cursor-candle-flame",
+       Fneomacs_set_cursor_candle_flame,
+       Sneomacs_set_cursor_candle_flame, 0, 5, 0,
+       doc: /* Configure cursor candle flame effect.
+ENABLED non-nil activates flickering flame above cursor.
+COLOR is a hex color string like "#RRGGBB" (default "#FFB333").
+FLAME-HEIGHT is height in pixels (default 20).
+FLICKER-SPEED is speed * 100 (default 100).
+OPACITY is 0-100 (default 20). */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object flame_height,
+   Lisp_Object flicker_speed, Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+  int on = !NILP (enabled);
+  int r = 0xFF, g = 0xB3, b = 0x33, fh = 20, fs = 100, op = 20;
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned int hex;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (flame_height)) fh = XFIXNUM (flame_height);
+  if (FIXNUMP (flicker_speed)) fs = XFIXNUM (flicker_speed);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_cursor_candle_flame (dpyinfo->display_handle, on, r, g, b, fh, fs, op);
+  return on ? Qt : Qnil;
+}
+
+DEFUN ("neomacs-set-argyle-pattern",
+       Fneomacs_set_argyle_pattern,
+       Sneomacs_set_argyle_pattern, 0, 5, 0,
+       doc: /* Configure argyle pattern overlay effect.
+ENABLED non-nil activates diamond checker with diagonal lines.
+COLOR is a hex color string like "#RRGGBB" (default "#804D4D").
+DIAMOND-SIZE is size of each diamond in pixels (default 30).
+LINE-WIDTH is width of diagonal lines in pixels (default 1).
+OPACITY is 0-100 (default 5). */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object diamond_size,
+   Lisp_Object line_width, Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+  int on = !NILP (enabled);
+  int r = 0x80, g = 0x4D, b = 0x4D, ds = 30, lw = 1, op = 5;
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned int hex;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (diamond_size)) ds = XFIXNUM (diamond_size);
+  if (FIXNUMP (line_width)) lw = XFIXNUM (line_width);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_argyle_pattern (dpyinfo->display_handle, on, r, g, b, ds, lw, op);
+  return on ? Qt : Qnil;
+}
+
+DEFUN ("neomacs-set-cursor-moth-flame",
+       Fneomacs_set_cursor_moth_flame,
+       Sneomacs_set_cursor_moth_flame, 0, 5, 0,
+       doc: /* Configure cursor moth flame effect.
+ENABLED non-nil activates moth-like particles orbiting cursor.
+COLOR is a hex color string like "#RRGGBB" (default "#CCB380").
+MOTH-COUNT is number of moths (default 5).
+ORBIT-SPEED is speed * 100 (default 100).
+OPACITY is 0-100 (default 18). */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object moth_count,
+   Lisp_Object orbit_speed, Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+  int on = !NILP (enabled);
+  int r = 0xCC, g = 0xB3, b = 0x80, mc = 5, os = 100, op = 18;
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned int hex;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (moth_count)) mc = XFIXNUM (moth_count);
+  if (FIXNUMP (orbit_speed)) os = XFIXNUM (orbit_speed);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_cursor_moth_flame (dpyinfo->display_handle, on, r, g, b, mc, os, op);
+  return on ? Qt : Qnil;
+}
+
 DEFUN ("neomacs-set-basket-weave",
        Fneomacs_set_basket_weave,
        Sneomacs_set_basket_weave, 0, 5, 0,
@@ -14142,6 +14290,10 @@ syms_of_neomacsterm (void)
   defsubr (&Sneomacs_set_cursor_shockwave);
   defsubr (&Sneomacs_set_diamond_lattice);
   defsubr (&Sneomacs_set_cursor_gravity_well);
+  defsubr (&Sneomacs_set_celtic_knot);
+  defsubr (&Sneomacs_set_cursor_candle_flame);
+  defsubr (&Sneomacs_set_argyle_pattern);
+  defsubr (&Sneomacs_set_cursor_moth_flame);
   defsubr (&Sneomacs_set_basket_weave);
   defsubr (&Sneomacs_set_cursor_sparkler);
   defsubr (&Sneomacs_set_fish_scale);
