@@ -2479,6 +2479,58 @@ void neomacs_display_set_cursor_sonar_ping(struct NeomacsDisplay *handle,
                                            int opacity);
 
 /**
+ * Configure lightning bolt effect
+ */
+void neomacs_display_set_lightning_bolt(struct NeomacsDisplay *handle,
+                                        int enabled,
+                                        int r,
+                                        int g,
+                                        int b,
+                                        int frequency,
+                                        int intensity,
+                                        int opacity);
+
+/**
+ * Configure cursor orbit particles effect
+ */
+void neomacs_display_set_cursor_orbit_particles(struct NeomacsDisplay *handle,
+                                                int enabled,
+                                                int r,
+                                                int g,
+                                                int b,
+                                                int particleCount,
+                                                int orbitRadius,
+                                                int speed,
+                                                int opacity);
+
+/**
+ * Configure plasma border effect
+ */
+void neomacs_display_set_plasma_border(struct NeomacsDisplay *handle,
+                                       int enabled,
+                                       int r1,
+                                       int g1,
+                                       int b1,
+                                       int r2,
+                                       int g2,
+                                       int b2,
+                                       int width,
+                                       int speed,
+                                       int opacity);
+
+/**
+ * Configure cursor heartbeat pulse effect
+ */
+void neomacs_display_set_cursor_heartbeat(struct NeomacsDisplay *handle,
+                                          int enabled,
+                                          int r,
+                                          int g,
+                                          int b,
+                                          int bpm,
+                                          int maxRadius,
+                                          int opacity);
+
+/**
  * Shutdown threaded display
  */
 void neomacs_display_shutdown_threaded(void);

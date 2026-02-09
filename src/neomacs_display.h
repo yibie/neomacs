@@ -1858,6 +1858,52 @@ void neomacs_display_set_cursor_sonar_ping(
     int opacity);
 
 /**
+ * Configure lightning bolt effect along window borders.
+ */
+void neomacs_display_set_lightning_bolt(
+    struct NeomacsDisplay *handle,
+    int enabled,
+    int r, int g, int b,
+    int frequency,
+    int intensity,
+    int opacity);
+
+/**
+ * Configure cursor orbit particles effect.
+ */
+void neomacs_display_set_cursor_orbit_particles(
+    struct NeomacsDisplay *handle,
+    int enabled,
+    int r, int g, int b,
+    int particle_count,
+    int orbit_radius,
+    int speed,
+    int opacity);
+
+/**
+ * Configure animated plasma border effect.
+ */
+void neomacs_display_set_plasma_border(
+    struct NeomacsDisplay *handle,
+    int enabled,
+    int r1, int g1, int b1,
+    int r2, int g2, int b2,
+    int width,
+    int speed,
+    int opacity);
+
+/**
+ * Configure cursor heartbeat pulse effect.
+ */
+void neomacs_display_set_cursor_heartbeat(
+    struct NeomacsDisplay *handle,
+    int enabled,
+    int r, int g, int b,
+    int bpm,
+    int max_radius,
+    int opacity);
+
+/**
  * Get dropped file paths (call after NEOMACS_EVENT_FILE_DROP).
  * Returns number of paths written to out_paths.
  * Each path must be freed with neomacs_display_free_dropped_path().

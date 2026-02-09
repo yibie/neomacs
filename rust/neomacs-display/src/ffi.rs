@@ -6034,6 +6034,112 @@ pub unsafe extern "C" fn neomacs_display_set_cursor_sonar_ping(
     }
 }
 
+/// Configure lightning bolt effect
+#[cfg(feature = "winit-backend")]
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_lightning_bolt(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    r: c_int, g: c_int, b: c_int,
+    frequency: c_int,
+    intensity: c_int,
+    opacity: c_int,
+) {
+    let cmd = RenderCommand::SetLightningBolt {
+        enabled: enabled != 0,
+        r: r as f32 / 255.0,
+        g: g as f32 / 255.0,
+        b: b as f32 / 255.0,
+        frequency: frequency as f32 / 100.0,
+        intensity: intensity as f32 / 100.0,
+        opacity: opacity as f32 / 100.0,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
+/// Configure cursor orbit particles effect
+#[cfg(feature = "winit-backend")]
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_cursor_orbit_particles(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    r: c_int, g: c_int, b: c_int,
+    particle_count: c_int,
+    orbit_radius: c_int,
+    speed: c_int,
+    opacity: c_int,
+) {
+    let cmd = RenderCommand::SetCursorOrbitParticles {
+        enabled: enabled != 0,
+        r: r as f32 / 255.0,
+        g: g as f32 / 255.0,
+        b: b as f32 / 255.0,
+        particle_count: particle_count as u32,
+        orbit_radius: orbit_radius as f32,
+        speed: speed as f32 / 100.0,
+        opacity: opacity as f32 / 100.0,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
+/// Configure plasma border effect
+#[cfg(feature = "winit-backend")]
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_plasma_border(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    r1: c_int, g1: c_int, b1: c_int,
+    r2: c_int, g2: c_int, b2: c_int,
+    width: c_int,
+    speed: c_int,
+    opacity: c_int,
+) {
+    let cmd = RenderCommand::SetPlasmaBorder {
+        enabled: enabled != 0,
+        r1: r1 as f32 / 255.0,
+        g1: g1 as f32 / 255.0,
+        b1: b1 as f32 / 255.0,
+        r2: r2 as f32 / 255.0,
+        g2: g2 as f32 / 255.0,
+        b2: b2 as f32 / 255.0,
+        width: width as f32,
+        speed: speed as f32 / 100.0,
+        opacity: opacity as f32 / 100.0,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
+/// Configure cursor heartbeat pulse effect
+#[cfg(feature = "winit-backend")]
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_cursor_heartbeat(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    r: c_int, g: c_int, b: c_int,
+    bpm: c_int,
+    max_radius: c_int,
+    opacity: c_int,
+) {
+    let cmd = RenderCommand::SetCursorHeartbeat {
+        enabled: enabled != 0,
+        r: r as f32 / 255.0,
+        g: g as f32 / 255.0,
+        b: b as f32 / 255.0,
+        bpm: bpm as f32,
+        max_radius: max_radius as f32,
+        opacity: opacity as f32 / 100.0,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
 /// Shutdown threaded display
 #[cfg(feature = "winit-backend")]
 #[no_mangle]

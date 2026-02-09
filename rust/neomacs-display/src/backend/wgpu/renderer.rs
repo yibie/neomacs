@@ -452,6 +452,35 @@ pub struct WgpuRenderer {
     cursor_sonar_ping_duration_ms: u32,
     cursor_sonar_ping_opacity: f32,
     cursor_sonar_ping_entries: Vec<SonarPingEntry>,
+    /// Lightning bolt effect
+    lightning_bolt_enabled: bool,
+    lightning_bolt_color: (f32, f32, f32),
+    lightning_bolt_frequency: f32,
+    lightning_bolt_intensity: f32,
+    lightning_bolt_opacity: f32,
+    lightning_bolt_last: std::time::Instant,
+    lightning_bolt_segments: Vec<(f32, f32, f32, f32)>, // (x1, y1, x2, y2)
+    lightning_bolt_age: f32,
+    /// Cursor orbit particles
+    cursor_orbit_particles_enabled: bool,
+    cursor_orbit_particles_color: (f32, f32, f32),
+    cursor_orbit_particles_count: u32,
+    cursor_orbit_particles_radius: f32,
+    cursor_orbit_particles_speed: f32,
+    cursor_orbit_particles_opacity: f32,
+    /// Plasma border effect
+    plasma_border_enabled: bool,
+    plasma_border_color1: (f32, f32, f32),
+    plasma_border_color2: (f32, f32, f32),
+    plasma_border_width: f32,
+    plasma_border_speed: f32,
+    plasma_border_opacity: f32,
+    /// Cursor heartbeat pulse
+    cursor_heartbeat_enabled: bool,
+    cursor_heartbeat_color: (f32, f32, f32),
+    cursor_heartbeat_bpm: f32,
+    cursor_heartbeat_max_radius: f32,
+    cursor_heartbeat_opacity: f32,
     /// Window edge glow on scroll boundaries
     edge_glow_enabled: bool,
     edge_glow_color: (f32, f32, f32),
@@ -1413,6 +1442,31 @@ impl WgpuRenderer {
             cursor_sonar_ping_duration_ms: 600,
             cursor_sonar_ping_opacity: 0.25,
             cursor_sonar_ping_entries: Vec::new(),
+            lightning_bolt_enabled: false,
+            lightning_bolt_color: (0.7, 0.8, 1.0),
+            lightning_bolt_frequency: 1.0,
+            lightning_bolt_intensity: 0.8,
+            lightning_bolt_opacity: 0.3,
+            lightning_bolt_last: std::time::Instant::now(),
+            lightning_bolt_segments: Vec::new(),
+            lightning_bolt_age: 0.0,
+            cursor_orbit_particles_enabled: false,
+            cursor_orbit_particles_color: (1.0, 0.8, 0.3),
+            cursor_orbit_particles_count: 6,
+            cursor_orbit_particles_radius: 25.0,
+            cursor_orbit_particles_speed: 1.5,
+            cursor_orbit_particles_opacity: 0.35,
+            plasma_border_enabled: false,
+            plasma_border_color1: (1.0, 0.2, 0.5),
+            plasma_border_color2: (0.2, 0.5, 1.0),
+            plasma_border_width: 4.0,
+            plasma_border_speed: 1.0,
+            plasma_border_opacity: 0.3,
+            cursor_heartbeat_enabled: false,
+            cursor_heartbeat_color: (1.0, 0.3, 0.3),
+            cursor_heartbeat_bpm: 72.0,
+            cursor_heartbeat_max_radius: 50.0,
+            cursor_heartbeat_opacity: 0.2,
             edge_glow_enabled: false,
             edge_glow_color: (0.4, 0.6, 1.0),
             edge_glow_height: 40.0,
@@ -2127,6 +2181,47 @@ impl WgpuRenderer {
             started: now,
             duration: std::time::Duration::from_millis(self.cursor_sonar_ping_duration_ms as u64),
         });
+    }
+
+    /// Update lightning bolt config
+    pub fn set_lightning_bolt(&mut self, enabled: bool, color: (f32, f32, f32), frequency: f32, intensity: f32, opacity: f32) {
+        self.lightning_bolt_enabled = enabled;
+        self.lightning_bolt_color = color;
+        self.lightning_bolt_frequency = frequency;
+        self.lightning_bolt_intensity = intensity;
+        self.lightning_bolt_opacity = opacity;
+        if !enabled {
+            self.lightning_bolt_segments.clear();
+        }
+    }
+
+    /// Update cursor orbit particles config
+    pub fn set_cursor_orbit_particles(&mut self, enabled: bool, color: (f32, f32, f32), count: u32, radius: f32, speed: f32, opacity: f32) {
+        self.cursor_orbit_particles_enabled = enabled;
+        self.cursor_orbit_particles_color = color;
+        self.cursor_orbit_particles_count = count;
+        self.cursor_orbit_particles_radius = radius;
+        self.cursor_orbit_particles_speed = speed;
+        self.cursor_orbit_particles_opacity = opacity;
+    }
+
+    /// Update plasma border config
+    pub fn set_plasma_border(&mut self, enabled: bool, color1: (f32, f32, f32), color2: (f32, f32, f32), width: f32, speed: f32, opacity: f32) {
+        self.plasma_border_enabled = enabled;
+        self.plasma_border_color1 = color1;
+        self.plasma_border_color2 = color2;
+        self.plasma_border_width = width;
+        self.plasma_border_speed = speed;
+        self.plasma_border_opacity = opacity;
+    }
+
+    /// Update cursor heartbeat config
+    pub fn set_cursor_heartbeat(&mut self, enabled: bool, color: (f32, f32, f32), bpm: f32, max_radius: f32, opacity: f32) {
+        self.cursor_heartbeat_enabled = enabled;
+        self.cursor_heartbeat_color = color;
+        self.cursor_heartbeat_bpm = bpm;
+        self.cursor_heartbeat_max_radius = max_radius;
+        self.cursor_heartbeat_opacity = opacity;
     }
 
     /// Update mode-line transition config
@@ -5461,6 +5556,228 @@ impl WgpuRenderer {
                     render_pass.draw(0..ping_verts.len() as u32, 0..1);
                 }
                 if !self.cursor_sonar_ping_entries.is_empty() {
+                    self.needs_continuous_redraw = true;
+                }
+            }
+
+            // === Lightning bolt effect ===
+            if self.lightning_bolt_enabled {
+                let now = std::time::Instant::now();
+                let dt = now.duration_since(self.lightning_bolt_last).as_secs_f32();
+                self.lightning_bolt_last = now;
+                self.lightning_bolt_age += dt;
+                let bolt_interval = 1.0 / self.lightning_bolt_frequency;
+                let fw = self.width() as f32;
+                let fh = self.height() as f32;
+                // Generate new bolt if timer expired
+                if self.lightning_bolt_age >= bolt_interval || self.lightning_bolt_segments.is_empty() {
+                    self.lightning_bolt_age = 0.0;
+                    self.lightning_bolt_segments.clear();
+                    let time_seed = now.duration_since(self.aurora_start).as_nanos() as u64;
+                    // Random start point on frame edge
+                    let h1 = time_seed.wrapping_mul(2654435761);
+                    let start_x = (h1 & 0xFFFF) as f32 / 65535.0 * fw;
+                    let mut x = start_x;
+                    let mut y = 0.0_f32;
+                    let seg_count = 8 + ((h1 >> 16) & 7) as u32;
+                    for i in 0..seg_count {
+                        let h2 = time_seed.wrapping_mul(6364136223846793005).wrapping_add(i as u64 * 2654435761);
+                        let dx = ((h2 & 0xFFFF) as f32 / 65535.0 - 0.5) * 60.0;
+                        let dy = ((h2 >> 16) & 0xFFFF) as f32 / 65535.0 * (fh / seg_count as f32) + 10.0;
+                        let nx = (x + dx).clamp(0.0, fw);
+                        let ny = (y + dy).clamp(0.0, fh);
+                        self.lightning_bolt_segments.push((x, y, nx, ny));
+                        x = nx;
+                        y = ny;
+                    }
+                }
+                // Render bolt segments
+                let (lr, lg, lb) = self.lightning_bolt_color;
+                let bolt_op = self.lightning_bolt_opacity * self.lightning_bolt_intensity;
+                let fade = (1.0 - self.lightning_bolt_age / (bolt_interval * 0.8)).max(0.0);
+                let mut bolt_verts: Vec<RectVertex> = Vec::new();
+                for &(x1, y1, x2, y2) in &self.lightning_bolt_segments {
+                    let dx = x2 - x1;
+                    let dy = y2 - y1;
+                    let len = (dx * dx + dy * dy).sqrt().max(1.0);
+                    let thick = 2.0;
+                    let mx = x1.min(x2);
+                    let my = y1.min(y2);
+                    let bw = (x2 - x1).abs().max(thick);
+                    let bh = (y2 - y1).abs().max(thick);
+                    let c = Color::new(lr, lg, lb, bolt_op * fade);
+                    self.add_rect(&mut bolt_verts, mx, my, bw, bh, &c);
+                    // Glow layer
+                    let gc = Color::new(lr, lg, lb, bolt_op * fade * 0.3);
+                    self.add_rect(&mut bolt_verts, mx - 2.0, my - 2.0, bw + 4.0, bh + 4.0, &gc);
+                    let _ = len; // suppress unused warning
+                }
+                if !bolt_verts.is_empty() {
+                    let bolt_buf = self.device.create_buffer_init(
+                        &wgpu::util::BufferInitDescriptor {
+                            label: Some("Lightning Bolt Buffer"),
+                            contents: bytemuck::cast_slice(&bolt_verts),
+                            usage: wgpu::BufferUsages::VERTEX,
+                        },
+                    );
+                    render_pass.set_pipeline(&self.rect_pipeline);
+                    render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                    render_pass.set_vertex_buffer(0, bolt_buf.slice(..));
+                    render_pass.draw(0..bolt_verts.len() as u32, 0..1);
+                }
+                self.needs_continuous_redraw = true;
+            }
+
+            // === Cursor orbit particles effect ===
+            if self.cursor_orbit_particles_enabled && cursor_visible {
+                if let Some(ref anim) = animated_cursor {
+                    let now = std::time::Instant::now().duration_since(self.aurora_start).as_secs_f32();
+                    let cx = anim.x + anim.width / 2.0;
+                    let cy = anim.y + anim.height / 2.0;
+                    let (pr, pg, pb) = self.cursor_orbit_particles_color;
+                    let pop = self.cursor_orbit_particles_opacity;
+                    let count = self.cursor_orbit_particles_count;
+                    let radius = self.cursor_orbit_particles_radius;
+                    let speed = self.cursor_orbit_particles_speed;
+                    let mut orbit_verts: Vec<RectVertex> = Vec::new();
+                    for i in 0..count {
+                        let phase = i as f32 / count as f32 * std::f32::consts::PI * 2.0;
+                        let angle = now * speed * std::f32::consts::PI * 2.0 + phase;
+                        let r_var = radius * (1.0 + 0.2 * (now * 2.0 + phase).sin());
+                        let px = cx + angle.cos() * r_var;
+                        let py = cy + angle.sin() * r_var;
+                        let size = 3.0;
+                        let c = Color::new(pr, pg, pb, pop);
+                        self.add_rect(&mut orbit_verts, px - size / 2.0, py - size / 2.0, size, size, &c);
+                        // Small glow
+                        let gc = Color::new(pr, pg, pb, pop * 0.3);
+                        self.add_rect(&mut orbit_verts, px - size, py - size, size * 2.0, size * 2.0, &gc);
+                    }
+                    if !orbit_verts.is_empty() {
+                        let orbit_buf = self.device.create_buffer_init(
+                            &wgpu::util::BufferInitDescriptor {
+                                label: Some("Orbit Particles Buffer"),
+                                contents: bytemuck::cast_slice(&orbit_verts),
+                                usage: wgpu::BufferUsages::VERTEX,
+                            },
+                        );
+                        render_pass.set_pipeline(&self.rect_pipeline);
+                        render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                        render_pass.set_vertex_buffer(0, orbit_buf.slice(..));
+                        render_pass.draw(0..orbit_verts.len() as u32, 0..1);
+                    }
+                    self.needs_continuous_redraw = true;
+                }
+            }
+
+            // === Plasma border effect ===
+            if self.plasma_border_enabled {
+                let now = std::time::Instant::now().duration_since(self.aurora_start).as_secs_f32();
+                let (r1, g1, b1) = self.plasma_border_color1;
+                let (r2, g2, b2) = self.plasma_border_color2;
+                let bw = self.plasma_border_width;
+                let spd = self.plasma_border_speed;
+                let pop = self.plasma_border_opacity;
+                let fw = self.width() as f32;
+                let fh = self.height() as f32;
+                let perimeter = 2.0 * (fw + fh);
+                let seg_count = 80u32;
+                let seg_len = perimeter / seg_count as f32;
+                let mut plasma_verts: Vec<RectVertex> = Vec::new();
+                for i in 0..seg_count {
+                    let t = i as f32 / seg_count as f32;
+                    let dist = t * perimeter;
+                    let phase = now * spd * 3.0 + t * 12.0;
+                    let blend = (phase.sin() * 0.5 + 0.5);
+                    let cr = r1 * (1.0 - blend) + r2 * blend;
+                    let cg = g1 * (1.0 - blend) + g2 * blend;
+                    let cb = b1 * (1.0 - blend) + b2 * blend;
+                    let pulse = 0.7 + 0.3 * (phase * 0.7).sin();
+                    let c = Color::new(cr, cg, cb, pop * pulse);
+                    // Map distance to position on border
+                    if dist < fw {
+                        // Top edge
+                        self.add_rect(&mut plasma_verts, dist, 0.0, seg_len.min(fw - dist), bw, &c);
+                    } else if dist < fw + fh {
+                        // Right edge
+                        let d = dist - fw;
+                        self.add_rect(&mut plasma_verts, fw - bw, d, bw, seg_len.min(fh - d), &c);
+                    } else if dist < 2.0 * fw + fh {
+                        // Bottom edge
+                        let d = dist - fw - fh;
+                        self.add_rect(&mut plasma_verts, fw - d - seg_len.min(fw - d), fh - bw, seg_len.min(fw - d), bw, &c);
+                    } else {
+                        // Left edge
+                        let d = dist - 2.0 * fw - fh;
+                        self.add_rect(&mut plasma_verts, 0.0, fh - d - seg_len.min(fh - d), bw, seg_len.min(fh - d), &c);
+                    }
+                }
+                if !plasma_verts.is_empty() {
+                    let plasma_buf = self.device.create_buffer_init(
+                        &wgpu::util::BufferInitDescriptor {
+                            label: Some("Plasma Border Buffer"),
+                            contents: bytemuck::cast_slice(&plasma_verts),
+                            usage: wgpu::BufferUsages::VERTEX,
+                        },
+                    );
+                    render_pass.set_pipeline(&self.rect_pipeline);
+                    render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                    render_pass.set_vertex_buffer(0, plasma_buf.slice(..));
+                    render_pass.draw(0..plasma_verts.len() as u32, 0..1);
+                }
+                self.needs_continuous_redraw = true;
+            }
+
+            // === Cursor heartbeat pulse effect ===
+            if self.cursor_heartbeat_enabled && cursor_visible {
+                if let Some(ref anim) = animated_cursor {
+                    let now = std::time::Instant::now().duration_since(self.aurora_start).as_secs_f32();
+                    let cx = anim.x + anim.width / 2.0;
+                    let cy = anim.y + anim.height / 2.0;
+                    let (hr, hg, hb) = self.cursor_heartbeat_color;
+                    let hop = self.cursor_heartbeat_opacity;
+                    let max_r = self.cursor_heartbeat_max_radius;
+                    let beat_period = 60.0 / self.cursor_heartbeat_bpm;
+                    let t_in_beat = (now % beat_period) / beat_period;
+                    let mut heartbeat_verts: Vec<RectVertex> = Vec::new();
+                    // Double pulse: first at t=0.0-0.15, second at t=0.2-0.35
+                    let pulses = [(0.0_f32, 0.15_f32), (0.2, 0.35)];
+                    for &(start, end) in &pulses {
+                        if t_in_beat >= start && t_in_beat <= end {
+                            let pt = (t_in_beat - start) / (end - start);
+                            let radius = pt * max_r;
+                            let fade = 1.0 - pt;
+                            let ring_thick = 2.0;
+                            let seg_count = 20;
+                            for seg in 0..seg_count {
+                                let a1 = seg as f32 / seg_count as f32 * std::f32::consts::PI * 2.0;
+                                let a2 = (seg + 1) as f32 / seg_count as f32 * std::f32::consts::PI * 2.0;
+                                let x1 = cx + a1.cos() * radius;
+                                let y1 = cy + a1.sin() * radius;
+                                let x2 = cx + a2.cos() * radius;
+                                let y2 = cy + a2.sin() * radius;
+                                let mx = x1.min(x2);
+                                let my = y1.min(y2);
+                                let sw = (x2 - x1).abs().max(ring_thick);
+                                let sh = (y2 - y1).abs().max(ring_thick);
+                                let c = Color::new(hr, hg, hb, hop * fade * fade);
+                                self.add_rect(&mut heartbeat_verts, mx, my, sw, sh, &c);
+                            }
+                        }
+                    }
+                    if !heartbeat_verts.is_empty() {
+                        let hb_buf = self.device.create_buffer_init(
+                            &wgpu::util::BufferInitDescriptor {
+                                label: Some("Heartbeat Pulse Buffer"),
+                                contents: bytemuck::cast_slice(&heartbeat_verts),
+                                usage: wgpu::BufferUsages::VERTEX,
+                            },
+                        );
+                        render_pass.set_pipeline(&self.rect_pipeline);
+                        render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                        render_pass.set_vertex_buffer(0, hb_buf.slice(..));
+                        render_pass.draw(0..heartbeat_verts.len() as u32, 0..1);
+                    }
                     self.needs_continuous_redraw = true;
                 }
             }

@@ -1036,6 +1036,58 @@ pub enum RenderCommand {
         /// Opacity (0.0-1.0)
         opacity: f32,
     },
+    /// Configure lightning bolt effect
+    SetLightningBolt {
+        enabled: bool,
+        /// Bolt color (sRGB floats)
+        r: f32, g: f32, b: f32,
+        /// Frequency of bolts per second (0.5-5.0)
+        frequency: f32,
+        /// Bolt intensity/brightness (0.0-1.0)
+        intensity: f32,
+        /// Opacity (0.0-1.0)
+        opacity: f32,
+    },
+    /// Configure cursor orbit particles effect
+    SetCursorOrbitParticles {
+        enabled: bool,
+        /// Particle color (sRGB floats)
+        r: f32, g: f32, b: f32,
+        /// Number of orbiting particles
+        particle_count: u32,
+        /// Orbit radius in pixels
+        orbit_radius: f32,
+        /// Orbit speed (revolutions per second)
+        speed: f32,
+        /// Opacity (0.0-1.0)
+        opacity: f32,
+    },
+    /// Configure plasma border effect
+    SetPlasmaBorder {
+        enabled: bool,
+        /// Primary color (sRGB floats)
+        r1: f32, g1: f32, b1: f32,
+        /// Secondary color (sRGB floats)
+        r2: f32, g2: f32, b2: f32,
+        /// Border width in pixels
+        width: f32,
+        /// Animation speed multiplier
+        speed: f32,
+        /// Opacity (0.0-1.0)
+        opacity: f32,
+    },
+    /// Configure cursor heartbeat pulse effect
+    SetCursorHeartbeat {
+        enabled: bool,
+        /// Pulse color (sRGB floats)
+        r: f32, g: f32, b: f32,
+        /// Pulse rate (beats per minute)
+        bpm: f32,
+        /// Max pulse radius in pixels
+        max_radius: f32,
+        /// Opacity (0.0-1.0)
+        opacity: f32,
+    },
     /// Configure background pattern
     SetBackgroundPattern {
         /// 0=none, 1=dots, 2=grid, 3=crosshatch

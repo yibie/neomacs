@@ -621,6 +621,33 @@ struct RenderApp {
     cursor_sonar_ping_duration_ms: u32,
     cursor_sonar_ping_opacity: f32,
 
+    // Lightning bolt
+    lightning_bolt_enabled: bool,
+    lightning_bolt_color: (f32, f32, f32),
+    lightning_bolt_frequency: f32,
+    lightning_bolt_intensity: f32,
+    lightning_bolt_opacity: f32,
+    // Cursor orbit particles
+    cursor_orbit_particles_enabled: bool,
+    cursor_orbit_particles_color: (f32, f32, f32),
+    cursor_orbit_particles_count: u32,
+    cursor_orbit_particles_radius: f32,
+    cursor_orbit_particles_speed: f32,
+    cursor_orbit_particles_opacity: f32,
+    // Plasma border
+    plasma_border_enabled: bool,
+    plasma_border_color1: (f32, f32, f32),
+    plasma_border_color2: (f32, f32, f32),
+    plasma_border_width: f32,
+    plasma_border_speed: f32,
+    plasma_border_opacity: f32,
+    // Cursor heartbeat
+    cursor_heartbeat_enabled: bool,
+    cursor_heartbeat_color: (f32, f32, f32),
+    cursor_heartbeat_bpm: f32,
+    cursor_heartbeat_max_radius: f32,
+    cursor_heartbeat_opacity: f32,
+
     // Per-window metadata from previous frame (for transition detection)
     prev_window_infos: HashMap<i64, crate::core::frame_glyphs::WindowInfo>,
 
@@ -1201,6 +1228,28 @@ impl RenderApp {
             cursor_sonar_ping_max_radius: 60.0,
             cursor_sonar_ping_duration_ms: 600,
             cursor_sonar_ping_opacity: 0.25,
+            lightning_bolt_enabled: false,
+            lightning_bolt_color: (0.7, 0.8, 1.0),
+            lightning_bolt_frequency: 1.0,
+            lightning_bolt_intensity: 0.8,
+            lightning_bolt_opacity: 0.3,
+            cursor_orbit_particles_enabled: false,
+            cursor_orbit_particles_color: (1.0, 0.8, 0.3),
+            cursor_orbit_particles_count: 6,
+            cursor_orbit_particles_radius: 25.0,
+            cursor_orbit_particles_speed: 1.5,
+            cursor_orbit_particles_opacity: 0.35,
+            plasma_border_enabled: false,
+            plasma_border_color1: (1.0, 0.2, 0.5),
+            plasma_border_color2: (0.2, 0.5, 1.0),
+            plasma_border_width: 4.0,
+            plasma_border_speed: 1.0,
+            plasma_border_opacity: 0.3,
+            cursor_heartbeat_enabled: false,
+            cursor_heartbeat_color: (1.0, 0.3, 0.3),
+            cursor_heartbeat_bpm: 72.0,
+            cursor_heartbeat_max_radius: 50.0,
+            cursor_heartbeat_opacity: 0.2,
             prev_window_infos: HashMap::new(),
             crossfade_enabled: true,
             crossfade_duration: std::time::Duration::from_millis(200),
@@ -2985,6 +3034,52 @@ impl RenderApp {
                     self.cursor_sonar_ping_opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_sonar_ping(enabled, (r, g, b), ring_count, max_radius, duration_ms, opacity);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetLightningBolt { enabled, r, g, b, frequency, intensity, opacity } => {
+                    self.lightning_bolt_enabled = enabled;
+                    self.lightning_bolt_color = (r, g, b);
+                    self.lightning_bolt_frequency = frequency;
+                    self.lightning_bolt_intensity = intensity;
+                    self.lightning_bolt_opacity = opacity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_lightning_bolt(enabled, (r, g, b), frequency, intensity, opacity);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetCursorOrbitParticles { enabled, r, g, b, particle_count, orbit_radius, speed, opacity } => {
+                    self.cursor_orbit_particles_enabled = enabled;
+                    self.cursor_orbit_particles_color = (r, g, b);
+                    self.cursor_orbit_particles_count = particle_count;
+                    self.cursor_orbit_particles_radius = orbit_radius;
+                    self.cursor_orbit_particles_speed = speed;
+                    self.cursor_orbit_particles_opacity = opacity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_cursor_orbit_particles(enabled, (r, g, b), particle_count, orbit_radius, speed, opacity);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetPlasmaBorder { enabled, r1, g1, b1, r2, g2, b2, width, speed, opacity } => {
+                    self.plasma_border_enabled = enabled;
+                    self.plasma_border_color1 = (r1, g1, b1);
+                    self.plasma_border_color2 = (r2, g2, b2);
+                    self.plasma_border_width = width;
+                    self.plasma_border_speed = speed;
+                    self.plasma_border_opacity = opacity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_plasma_border(enabled, (r1, g1, b1), (r2, g2, b2), width, speed, opacity);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetCursorHeartbeat { enabled, r, g, b, bpm, max_radius, opacity } => {
+                    self.cursor_heartbeat_enabled = enabled;
+                    self.cursor_heartbeat_color = (r, g, b);
+                    self.cursor_heartbeat_bpm = bpm;
+                    self.cursor_heartbeat_max_radius = max_radius;
+                    self.cursor_heartbeat_opacity = opacity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_cursor_heartbeat(enabled, (r, g, b), bpm, max_radius, opacity);
                     }
                     self.frame_dirty = true;
                 }

@@ -4766,6 +4766,330 @@ Non-nil renders animated flowing color bands at the top of the frame."
                 neomacs-cursor-sonar-ping-ring-count nil)
             val))))
 
+;; Lightning bolt effect
+(declare-function neomacs-set-lightning-bolt "neomacsterm.c")
+
+(defcustom neomacs-lightning-bolt nil
+  "Enable lightning bolt effect along window borders."
+  :type 'boolean
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-lightning-bolt)
+           (neomacs-set-lightning-bolt val))))
+
+(defcustom neomacs-lightning-bolt-color "#B3CCFF"
+  "Color of lightning bolt discharges."
+  :type 'color
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-lightning-bolt)
+                    (boundp 'neomacs-lightning-bolt)
+                    neomacs-lightning-bolt)
+           (neomacs-set-lightning-bolt t val))))
+
+(defcustom neomacs-lightning-bolt-frequency 100
+  "Bolts per second * 100 (100 = 1.0 bolt/sec)."
+  :type '(integer :tag "Frequency")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-lightning-bolt)
+                    (boundp 'neomacs-lightning-bolt)
+                    neomacs-lightning-bolt)
+           (neomacs-set-lightning-bolt t
+            (if (boundp 'neomacs-lightning-bolt-color)
+                neomacs-lightning-bolt-color nil)
+            val))))
+
+(defcustom neomacs-lightning-bolt-intensity 80
+  "Bolt brightness (0-100)."
+  :type '(integer :tag "Intensity (0-100)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-lightning-bolt)
+                    (boundp 'neomacs-lightning-bolt)
+                    neomacs-lightning-bolt)
+           (neomacs-set-lightning-bolt t
+            (if (boundp 'neomacs-lightning-bolt-color)
+                neomacs-lightning-bolt-color nil)
+            (if (boundp 'neomacs-lightning-bolt-frequency)
+                neomacs-lightning-bolt-frequency nil)
+            val))))
+
+(defcustom neomacs-lightning-bolt-opacity 30
+  "Overall opacity of lightning bolts (0-100)."
+  :type '(integer :tag "Opacity (0-100)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-lightning-bolt)
+                    (boundp 'neomacs-lightning-bolt)
+                    neomacs-lightning-bolt)
+           (neomacs-set-lightning-bolt t
+            (if (boundp 'neomacs-lightning-bolt-color)
+                neomacs-lightning-bolt-color nil)
+            (if (boundp 'neomacs-lightning-bolt-frequency)
+                neomacs-lightning-bolt-frequency nil)
+            (if (boundp 'neomacs-lightning-bolt-intensity)
+                neomacs-lightning-bolt-intensity nil)
+            val))))
+
+;; Cursor orbit particles effect
+(declare-function neomacs-set-cursor-orbit-particles "neomacsterm.c")
+
+(defcustom neomacs-cursor-orbit-particles nil
+  "Enable cursor orbit particles effect."
+  :type 'boolean
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-cursor-orbit-particles)
+           (neomacs-set-cursor-orbit-particles val))))
+
+(defcustom neomacs-cursor-orbit-particles-color "#FFCC4D"
+  "Color of orbiting particles."
+  :type 'color
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-orbit-particles)
+                    (boundp 'neomacs-cursor-orbit-particles)
+                    neomacs-cursor-orbit-particles)
+           (neomacs-set-cursor-orbit-particles t val))))
+
+(defcustom neomacs-cursor-orbit-particles-count 6
+  "Number of orbiting particles."
+  :type '(integer :tag "Particle count")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-orbit-particles)
+                    (boundp 'neomacs-cursor-orbit-particles)
+                    neomacs-cursor-orbit-particles)
+           (neomacs-set-cursor-orbit-particles t
+            (if (boundp 'neomacs-cursor-orbit-particles-color)
+                neomacs-cursor-orbit-particles-color nil)
+            val))))
+
+(defcustom neomacs-cursor-orbit-particles-radius 25
+  "Orbit radius in pixels."
+  :type '(integer :tag "Radius (pixels)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-orbit-particles)
+                    (boundp 'neomacs-cursor-orbit-particles)
+                    neomacs-cursor-orbit-particles)
+           (neomacs-set-cursor-orbit-particles t
+            (if (boundp 'neomacs-cursor-orbit-particles-color)
+                neomacs-cursor-orbit-particles-color nil)
+            (if (boundp 'neomacs-cursor-orbit-particles-count)
+                neomacs-cursor-orbit-particles-count nil)
+            val))))
+
+(defcustom neomacs-cursor-orbit-particles-speed 150
+  "Orbit speed * 100 (150 = 1.5 rev/sec)."
+  :type '(integer :tag "Speed")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-orbit-particles)
+                    (boundp 'neomacs-cursor-orbit-particles)
+                    neomacs-cursor-orbit-particles)
+           (neomacs-set-cursor-orbit-particles t
+            (if (boundp 'neomacs-cursor-orbit-particles-color)
+                neomacs-cursor-orbit-particles-color nil)
+            (if (boundp 'neomacs-cursor-orbit-particles-count)
+                neomacs-cursor-orbit-particles-count nil)
+            (if (boundp 'neomacs-cursor-orbit-particles-radius)
+                neomacs-cursor-orbit-particles-radius nil)
+            val))))
+
+(defcustom neomacs-cursor-orbit-particles-opacity 35
+  "Particle opacity (0-100)."
+  :type '(integer :tag "Opacity (0-100)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-orbit-particles)
+                    (boundp 'neomacs-cursor-orbit-particles)
+                    neomacs-cursor-orbit-particles)
+           (neomacs-set-cursor-orbit-particles t
+            (if (boundp 'neomacs-cursor-orbit-particles-color)
+                neomacs-cursor-orbit-particles-color nil)
+            (if (boundp 'neomacs-cursor-orbit-particles-count)
+                neomacs-cursor-orbit-particles-count nil)
+            (if (boundp 'neomacs-cursor-orbit-particles-radius)
+                neomacs-cursor-orbit-particles-radius nil)
+            (if (boundp 'neomacs-cursor-orbit-particles-speed)
+                neomacs-cursor-orbit-particles-speed nil)
+            val))))
+
+;; Plasma border effect
+(declare-function neomacs-set-plasma-border "neomacsterm.c")
+
+(defcustom neomacs-plasma-border nil
+  "Enable animated plasma border effect."
+  :type 'boolean
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-plasma-border)
+           (neomacs-set-plasma-border val))))
+
+(defcustom neomacs-plasma-border-color1 "#FF3380"
+  "Primary plasma border color."
+  :type 'color
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-plasma-border)
+                    (boundp 'neomacs-plasma-border)
+                    neomacs-plasma-border)
+           (neomacs-set-plasma-border t val))))
+
+(defcustom neomacs-plasma-border-color2 "#3380FF"
+  "Secondary plasma border color."
+  :type 'color
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-plasma-border)
+                    (boundp 'neomacs-plasma-border)
+                    neomacs-plasma-border)
+           (neomacs-set-plasma-border t
+            (if (boundp 'neomacs-plasma-border-color1)
+                neomacs-plasma-border-color1 nil)
+            val))))
+
+(defcustom neomacs-plasma-border-width 4
+  "Plasma border width in pixels."
+  :type '(integer :tag "Width (pixels)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-plasma-border)
+                    (boundp 'neomacs-plasma-border)
+                    neomacs-plasma-border)
+           (neomacs-set-plasma-border t
+            (if (boundp 'neomacs-plasma-border-color1)
+                neomacs-plasma-border-color1 nil)
+            (if (boundp 'neomacs-plasma-border-color2)
+                neomacs-plasma-border-color2 nil)
+            val))))
+
+(defcustom neomacs-plasma-border-speed 100
+  "Plasma animation speed * 100."
+  :type '(integer :tag "Speed")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-plasma-border)
+                    (boundp 'neomacs-plasma-border)
+                    neomacs-plasma-border)
+           (neomacs-set-plasma-border t
+            (if (boundp 'neomacs-plasma-border-color1)
+                neomacs-plasma-border-color1 nil)
+            (if (boundp 'neomacs-plasma-border-color2)
+                neomacs-plasma-border-color2 nil)
+            (if (boundp 'neomacs-plasma-border-width)
+                neomacs-plasma-border-width nil)
+            val))))
+
+(defcustom neomacs-plasma-border-opacity 30
+  "Plasma border opacity (0-100)."
+  :type '(integer :tag "Opacity (0-100)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-plasma-border)
+                    (boundp 'neomacs-plasma-border)
+                    neomacs-plasma-border)
+           (neomacs-set-plasma-border t
+            (if (boundp 'neomacs-plasma-border-color1)
+                neomacs-plasma-border-color1 nil)
+            (if (boundp 'neomacs-plasma-border-color2)
+                neomacs-plasma-border-color2 nil)
+            (if (boundp 'neomacs-plasma-border-width)
+                neomacs-plasma-border-width nil)
+            (if (boundp 'neomacs-plasma-border-speed)
+                neomacs-plasma-border-speed nil)
+            val))))
+
+;; Cursor heartbeat pulse effect
+(declare-function neomacs-set-cursor-heartbeat "neomacsterm.c")
+
+(defcustom neomacs-cursor-heartbeat nil
+  "Enable cursor heartbeat pulse effect (double-pulse rings)."
+  :type 'boolean
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-cursor-heartbeat)
+           (neomacs-set-cursor-heartbeat val))))
+
+(defcustom neomacs-cursor-heartbeat-color "#FF4D4D"
+  "Color of heartbeat pulse rings."
+  :type 'color
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-heartbeat)
+                    (boundp 'neomacs-cursor-heartbeat)
+                    neomacs-cursor-heartbeat)
+           (neomacs-set-cursor-heartbeat t val))))
+
+(defcustom neomacs-cursor-heartbeat-bpm 72
+  "Heartbeat rate in beats per minute."
+  :type '(integer :tag "BPM")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-heartbeat)
+                    (boundp 'neomacs-cursor-heartbeat)
+                    neomacs-cursor-heartbeat)
+           (neomacs-set-cursor-heartbeat t
+            (if (boundp 'neomacs-cursor-heartbeat-color)
+                neomacs-cursor-heartbeat-color nil)
+            val))))
+
+(defcustom neomacs-cursor-heartbeat-max-radius 50
+  "Maximum expansion radius in pixels for heartbeat pulse."
+  :type '(integer :tag "Max radius (pixels)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-heartbeat)
+                    (boundp 'neomacs-cursor-heartbeat)
+                    neomacs-cursor-heartbeat)
+           (neomacs-set-cursor-heartbeat t
+            (if (boundp 'neomacs-cursor-heartbeat-color)
+                neomacs-cursor-heartbeat-color nil)
+            (if (boundp 'neomacs-cursor-heartbeat-bpm)
+                neomacs-cursor-heartbeat-bpm nil)
+            val))))
+
+(defcustom neomacs-cursor-heartbeat-opacity 20
+  "Heartbeat pulse opacity (0-100)."
+  :type '(integer :tag "Opacity (0-100)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-heartbeat)
+                    (boundp 'neomacs-cursor-heartbeat)
+                    neomacs-cursor-heartbeat)
+           (neomacs-set-cursor-heartbeat t
+            (if (boundp 'neomacs-cursor-heartbeat-color)
+                neomacs-cursor-heartbeat-color nil)
+            (if (boundp 'neomacs-cursor-heartbeat-bpm)
+                neomacs-cursor-heartbeat-bpm nil)
+            (if (boundp 'neomacs-cursor-heartbeat-max-radius)
+                neomacs-cursor-heartbeat-max-radius nil)
+            val))))
+
 ;; Provide the feature
 (provide 'neomacs-win)
 (provide 'term/neomacs-win)

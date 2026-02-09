@@ -10354,6 +10354,171 @@ OPACITY is 0-100 for ring opacity (default 25). */)
   return on ? Qt : Qnil;
 }
 
+DEFUN ("neomacs-set-lightning-bolt",
+       Fneomacs_set_lightning_bolt,
+       Sneomacs_set_lightning_bolt, 0, 5, 0,
+       doc: /* Configure lightning bolt effect along window borders.
+ENABLED non-nil activates random electrical discharge effects.
+COLOR is a hex color string like "#RRGGBB" (default "#B3CCFF").
+FREQUENCY is bolts per second * 100 (default 100 = 1.0/sec).
+INTENSITY is 0-100 for bolt brightness (default 80).
+OPACITY is 0-100 for overall opacity (default 30). */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object frequency,
+   Lisp_Object intensity, Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+  int on = !NILP (enabled);
+  int r = 0xB3, g = 0xCC, b = 0xFF, freq = 100, intens = 80, op = 30;
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned int hex;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (frequency)) freq = XFIXNUM (frequency);
+  if (FIXNUMP (intensity)) intens = XFIXNUM (intensity);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_lightning_bolt (dpyinfo->display_handle, on, r, g, b, freq, intens, op);
+  return on ? Qt : Qnil;
+}
+
+DEFUN ("neomacs-set-cursor-orbit-particles",
+       Fneomacs_set_cursor_orbit_particles,
+       Sneomacs_set_cursor_orbit_particles, 0, 6, 0,
+       doc: /* Configure cursor orbit particles effect.
+ENABLED non-nil activates particles orbiting the cursor.
+COLOR is a hex color string like "#RRGGBB" (default "#FFCC4D").
+PARTICLE-COUNT is number of orbiting particles (default 6).
+ORBIT-RADIUS is orbit radius in pixels (default 25).
+SPEED is orbit speed * 100 (default 150 = 1.5 rev/sec).
+OPACITY is 0-100 for particle opacity (default 35). */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object particle_count,
+   Lisp_Object orbit_radius, Lisp_Object speed, Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+  int on = !NILP (enabled);
+  int r = 0xFF, g = 0xCC, b = 0x4D, pc = 6, orr = 25, spd = 150, op = 35;
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned int hex;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (particle_count)) pc = XFIXNUM (particle_count);
+  if (FIXNUMP (orbit_radius)) orr = XFIXNUM (orbit_radius);
+  if (FIXNUMP (speed)) spd = XFIXNUM (speed);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_cursor_orbit_particles (dpyinfo->display_handle, on, r, g, b, pc, orr, spd, op);
+  return on ? Qt : Qnil;
+}
+
+DEFUN ("neomacs-set-plasma-border",
+       Fneomacs_set_plasma_border,
+       Sneomacs_set_plasma_border, 0, 6, 0,
+       doc: /* Configure animated plasma border effect.
+ENABLED non-nil activates the plasma lava-lamp border.
+COLOR1 is the primary RGB hex string (default "#FF3380").
+COLOR2 is the secondary RGB hex string (default "#3380FF").
+WIDTH is border width in pixels (default 4).
+SPEED is animation speed * 100 (default 100).
+OPACITY is 0-100 for overall opacity (default 30). */)
+  (Lisp_Object enabled, Lisp_Object color1, Lisp_Object color2,
+   Lisp_Object width, Lisp_Object speed, Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+  int on = !NILP (enabled);
+  int r1 = 0xFF, g1 = 0x33, b1 = 0x80;
+  int r2 = 0x33, g2 = 0x80, b2 = 0xFF;
+  int w = 4, spd = 100, op = 30;
+  if (STRINGP (color1))
+    {
+      const char *s = SSDATA (color1);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned int hex;
+          sscanf (s + 1, "%06x", &hex);
+          r1 = (hex >> 16) & 0xFF;
+          g1 = (hex >> 8) & 0xFF;
+          b1 = hex & 0xFF;
+        }
+    }
+  if (STRINGP (color2))
+    {
+      const char *s = SSDATA (color2);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned int hex;
+          sscanf (s + 1, "%06x", &hex);
+          r2 = (hex >> 16) & 0xFF;
+          g2 = (hex >> 8) & 0xFF;
+          b2 = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (width)) w = XFIXNUM (width);
+  if (FIXNUMP (speed)) spd = XFIXNUM (speed);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_plasma_border (dpyinfo->display_handle, on, r1, g1, b1, r2, g2, b2, w, spd, op);
+  return on ? Qt : Qnil;
+}
+
+DEFUN ("neomacs-set-cursor-heartbeat",
+       Fneomacs_set_cursor_heartbeat,
+       Sneomacs_set_cursor_heartbeat, 0, 5, 0,
+       doc: /* Configure cursor heartbeat pulse effect.
+ENABLED non-nil activates double-pulse rings from cursor.
+COLOR is a hex color string like "#RRGGBB" (default "#FF4D4D").
+BPM is beats per minute (default 72).
+MAX-RADIUS is max expansion radius in pixels (default 50).
+OPACITY is 0-100 for pulse opacity (default 20). */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object bpm,
+   Lisp_Object max_radius, Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+  int on = !NILP (enabled);
+  int r = 0xFF, g = 0x4D, b = 0x4D, bp = 72, mr = 50, op = 20;
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned int hex;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (bpm)) bp = XFIXNUM (bpm);
+  if (FIXNUMP (max_radius)) mr = XFIXNUM (max_radius);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_cursor_heartbeat (dpyinfo->display_handle, on, r, g, b, bp, mr, op);
+  return on ? Qt : Qnil;
+}
+
 DEFUN ("neomacs-set-padding-gradient",
        Fneomacs_set_padding_gradient,
        Sneomacs_set_padding_gradient, 0, 6, 0,
@@ -11869,6 +12034,10 @@ syms_of_neomacsterm (void)
   defsubr (&Sneomacs_set_cursor_lighthouse);
   defsubr (&Sneomacs_set_neon_border);
   defsubr (&Sneomacs_set_cursor_sonar_ping);
+  defsubr (&Sneomacs_set_lightning_bolt);
+  defsubr (&Sneomacs_set_cursor_orbit_particles);
+  defsubr (&Sneomacs_set_plasma_border);
+  defsubr (&Sneomacs_set_cursor_heartbeat);
   defsubr (&Sneomacs_set_mode_line_gradient);
   defsubr (&Sneomacs_set_region_glow);
   defsubr (&Sneomacs_set_window_glow);
