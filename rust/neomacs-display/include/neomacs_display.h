@@ -2775,6 +2775,55 @@ void neomacs_display_set_cursor_gravity_well(struct NeomacsDisplay *handle,
                                              int opacity);
 
 /**
+ * Configure concentric rings overlay effect
+ */
+void neomacs_display_set_concentric_rings(struct NeomacsDisplay *handle,
+                                          int enabled,
+                                          int r,
+                                          int g,
+                                          int b,
+                                          int ringSpacing,
+                                          int expansionSpeed,
+                                          int opacity);
+
+/**
+ * Configure cursor flame effect
+ */
+void neomacs_display_set_cursor_flame(struct NeomacsDisplay *handle,
+                                      int enabled,
+                                      int r,
+                                      int g,
+                                      int b,
+                                      int particleCount,
+                                      int height,
+                                      int opacity);
+
+/**
+ * Configure zigzag pattern overlay effect
+ */
+void neomacs_display_set_zigzag_pattern(struct NeomacsDisplay *handle,
+                                        int enabled,
+                                        int r,
+                                        int g,
+                                        int b,
+                                        int amplitude,
+                                        int frequency,
+                                        int speed,
+                                        int opacity);
+
+/**
+ * Configure cursor crystal effect
+ */
+void neomacs_display_set_cursor_crystal(struct NeomacsDisplay *handle,
+                                        int enabled,
+                                        int r,
+                                        int g,
+                                        int b,
+                                        int facetCount,
+                                        int radius,
+                                        int opacity);
+
+/**
  * Configure moiré pattern overlay effect
  */
 void neomacs_display_set_moire_pattern(struct NeomacsDisplay *handle,

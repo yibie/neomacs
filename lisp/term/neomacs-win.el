@@ -5982,6 +5982,318 @@ Non-nil renders animated flowing color bands at the top of the frame."
                 neomacs-cursor-gravity-well-line-count nil)
             val))))
 
+;; Concentric rings overlay effect
+(declare-function neomacs-set-concentric-rings "neomacsterm.c")
+
+(defcustom neomacs-concentric-rings nil
+  "Enable concentric rings overlay effect."
+  :type 'boolean
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-concentric-rings)
+           (if val
+               (neomacs-set-concentric-rings t)
+             (neomacs-set-concentric-rings nil)))))
+
+(defcustom neomacs-concentric-rings-color "#6699FF"
+  "Concentric rings color."
+  :type 'color
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-concentric-rings)
+                    (boundp 'neomacs-concentric-rings)
+                    neomacs-concentric-rings)
+           (neomacs-set-concentric-rings t val))))
+
+(defcustom neomacs-concentric-rings-spacing 30
+  "Ring spacing in pixels."
+  :type '(integer :tag "Ring spacing (px)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-concentric-rings)
+                    (boundp 'neomacs-concentric-rings)
+                    neomacs-concentric-rings)
+           (neomacs-set-concentric-rings t
+            (if (boundp 'neomacs-concentric-rings-color)
+                neomacs-concentric-rings-color nil)
+            val))))
+
+(defcustom neomacs-concentric-rings-expansion-speed 100
+  "Expansion speed (multiplied by 100)."
+  :type '(integer :tag "Speed * 100")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-concentric-rings)
+                    (boundp 'neomacs-concentric-rings)
+                    neomacs-concentric-rings)
+           (neomacs-set-concentric-rings t
+            (if (boundp 'neomacs-concentric-rings-color)
+                neomacs-concentric-rings-color nil)
+            (if (boundp 'neomacs-concentric-rings-spacing)
+                neomacs-concentric-rings-spacing nil)
+            val))))
+
+(defcustom neomacs-concentric-rings-opacity 8
+  "Concentric rings opacity (0-100)."
+  :type '(integer :tag "Opacity (0-100)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-concentric-rings)
+                    (boundp 'neomacs-concentric-rings)
+                    neomacs-concentric-rings)
+           (neomacs-set-concentric-rings t
+            (if (boundp 'neomacs-concentric-rings-color)
+                neomacs-concentric-rings-color nil)
+            (if (boundp 'neomacs-concentric-rings-spacing)
+                neomacs-concentric-rings-spacing nil)
+            (if (boundp 'neomacs-concentric-rings-expansion-speed)
+                neomacs-concentric-rings-expansion-speed nil)
+            val))))
+
+;; Cursor flame effect
+(declare-function neomacs-set-cursor-flame "neomacsterm.c")
+
+(defcustom neomacs-cursor-flame nil
+  "Enable cursor flame effect."
+  :type 'boolean
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-cursor-flame)
+           (if val
+               (neomacs-set-cursor-flame t)
+             (neomacs-set-cursor-flame nil)))))
+
+(defcustom neomacs-cursor-flame-color "#FF6633"
+  "Cursor flame color."
+  :type 'color
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-flame)
+                    (boundp 'neomacs-cursor-flame)
+                    neomacs-cursor-flame)
+           (neomacs-set-cursor-flame t val))))
+
+(defcustom neomacs-cursor-flame-particle-count 12
+  "Number of flame particles."
+  :type '(integer :tag "Particle count")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-flame)
+                    (boundp 'neomacs-cursor-flame)
+                    neomacs-cursor-flame)
+           (neomacs-set-cursor-flame t
+            (if (boundp 'neomacs-cursor-flame-color)
+                neomacs-cursor-flame-color nil)
+            val))))
+
+(defcustom neomacs-cursor-flame-height 40
+  "Flame height in pixels."
+  :type '(integer :tag "Height (px)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-flame)
+                    (boundp 'neomacs-cursor-flame)
+                    neomacs-cursor-flame)
+           (neomacs-set-cursor-flame t
+            (if (boundp 'neomacs-cursor-flame-color)
+                neomacs-cursor-flame-color nil)
+            (if (boundp 'neomacs-cursor-flame-particle-count)
+                neomacs-cursor-flame-particle-count nil)
+            val))))
+
+(defcustom neomacs-cursor-flame-opacity 15
+  "Cursor flame opacity (0-100)."
+  :type '(integer :tag "Opacity (0-100)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-flame)
+                    (boundp 'neomacs-cursor-flame)
+                    neomacs-cursor-flame)
+           (neomacs-set-cursor-flame t
+            (if (boundp 'neomacs-cursor-flame-color)
+                neomacs-cursor-flame-color nil)
+            (if (boundp 'neomacs-cursor-flame-particle-count)
+                neomacs-cursor-flame-particle-count nil)
+            (if (boundp 'neomacs-cursor-flame-height)
+                neomacs-cursor-flame-height nil)
+            val))))
+
+;; Zigzag pattern overlay effect
+(declare-function neomacs-set-zigzag-pattern "neomacsterm.c")
+
+(defcustom neomacs-zigzag-pattern nil
+  "Enable zigzag pattern overlay effect."
+  :type 'boolean
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-zigzag-pattern)
+           (if val
+               (neomacs-set-zigzag-pattern t)
+             (neomacs-set-zigzag-pattern nil)))))
+
+(defcustom neomacs-zigzag-pattern-color "#99CC66"
+  "Zigzag pattern color."
+  :type 'color
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-zigzag-pattern)
+                    (boundp 'neomacs-zigzag-pattern)
+                    neomacs-zigzag-pattern)
+           (neomacs-set-zigzag-pattern t val))))
+
+(defcustom neomacs-zigzag-pattern-amplitude 15
+  "Wave amplitude in pixels."
+  :type '(integer :tag "Amplitude (px)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-zigzag-pattern)
+                    (boundp 'neomacs-zigzag-pattern)
+                    neomacs-zigzag-pattern)
+           (neomacs-set-zigzag-pattern t
+            (if (boundp 'neomacs-zigzag-pattern-color)
+                neomacs-zigzag-pattern-color nil)
+            val))))
+
+(defcustom neomacs-zigzag-pattern-frequency 50
+  "Wave frequency (multiplied by 100)."
+  :type '(integer :tag "Frequency * 100")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-zigzag-pattern)
+                    (boundp 'neomacs-zigzag-pattern)
+                    neomacs-zigzag-pattern)
+           (neomacs-set-zigzag-pattern t
+            (if (boundp 'neomacs-zigzag-pattern-color)
+                neomacs-zigzag-pattern-color nil)
+            (if (boundp 'neomacs-zigzag-pattern-amplitude)
+                neomacs-zigzag-pattern-amplitude nil)
+            val))))
+
+(defcustom neomacs-zigzag-pattern-speed 80
+  "Animation speed (multiplied by 100)."
+  :type '(integer :tag "Speed * 100")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-zigzag-pattern)
+                    (boundp 'neomacs-zigzag-pattern)
+                    neomacs-zigzag-pattern)
+           (neomacs-set-zigzag-pattern t
+            (if (boundp 'neomacs-zigzag-pattern-color)
+                neomacs-zigzag-pattern-color nil)
+            (if (boundp 'neomacs-zigzag-pattern-amplitude)
+                neomacs-zigzag-pattern-amplitude nil)
+            (if (boundp 'neomacs-zigzag-pattern-frequency)
+                neomacs-zigzag-pattern-frequency nil)
+            val))))
+
+(defcustom neomacs-zigzag-pattern-opacity 6
+  "Zigzag pattern opacity (0-100)."
+  :type '(integer :tag "Opacity (0-100)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-zigzag-pattern)
+                    (boundp 'neomacs-zigzag-pattern)
+                    neomacs-zigzag-pattern)
+           (neomacs-set-zigzag-pattern t
+            (if (boundp 'neomacs-zigzag-pattern-color)
+                neomacs-zigzag-pattern-color nil)
+            (if (boundp 'neomacs-zigzag-pattern-amplitude)
+                neomacs-zigzag-pattern-amplitude nil)
+            (if (boundp 'neomacs-zigzag-pattern-frequency)
+                neomacs-zigzag-pattern-frequency nil)
+            (if (boundp 'neomacs-zigzag-pattern-speed)
+                neomacs-zigzag-pattern-speed nil)
+            val))))
+
+;; Cursor crystal effect
+(declare-function neomacs-set-cursor-crystal "neomacsterm.c")
+
+(defcustom neomacs-cursor-crystal nil
+  "Enable cursor crystal effect."
+  :type 'boolean
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-cursor-crystal)
+           (if val
+               (neomacs-set-cursor-crystal t)
+             (neomacs-set-cursor-crystal nil)))))
+
+(defcustom neomacs-cursor-crystal-color "#AADDFF"
+  "Cursor crystal color."
+  :type 'color
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-crystal)
+                    (boundp 'neomacs-cursor-crystal)
+                    neomacs-cursor-crystal)
+           (neomacs-set-cursor-crystal t val))))
+
+(defcustom neomacs-cursor-crystal-facet-count 6
+  "Number of crystal facets."
+  :type '(integer :tag "Facet count")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-crystal)
+                    (boundp 'neomacs-cursor-crystal)
+                    neomacs-cursor-crystal)
+           (neomacs-set-cursor-crystal t
+            (if (boundp 'neomacs-cursor-crystal-color)
+                neomacs-cursor-crystal-color nil)
+            val))))
+
+(defcustom neomacs-cursor-crystal-radius 25
+  "Crystal radius in pixels."
+  :type '(integer :tag "Radius (px)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-crystal)
+                    (boundp 'neomacs-cursor-crystal)
+                    neomacs-cursor-crystal)
+           (neomacs-set-cursor-crystal t
+            (if (boundp 'neomacs-cursor-crystal-color)
+                neomacs-cursor-crystal-color nil)
+            (if (boundp 'neomacs-cursor-crystal-facet-count)
+                neomacs-cursor-crystal-facet-count nil)
+            val))))
+
+(defcustom neomacs-cursor-crystal-opacity 12
+  "Cursor crystal opacity (0-100)."
+  :type '(integer :tag "Opacity (0-100)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-crystal)
+                    (boundp 'neomacs-cursor-crystal)
+                    neomacs-cursor-crystal)
+           (neomacs-set-cursor-crystal t
+            (if (boundp 'neomacs-cursor-crystal-color)
+                neomacs-cursor-crystal-color nil)
+            (if (boundp 'neomacs-cursor-crystal-facet-count)
+                neomacs-cursor-crystal-facet-count nil)
+            (if (boundp 'neomacs-cursor-crystal-radius)
+                neomacs-cursor-crystal-radius nil)
+            val))))
+
 ;; Moiré pattern overlay effect
 (declare-function neomacs-set-moire-pattern "neomacsterm.c")
 

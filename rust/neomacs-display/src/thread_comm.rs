@@ -1434,6 +1434,39 @@ pub enum RenderCommand {
         fall_speed: f32,
         opacity: f32,
     },
+    /// Configure concentric rings overlay effect
+    SetConcentricRings {
+        enabled: bool,
+        r: f32, g: f32, b: f32,
+        ring_spacing: f32,
+        expansion_speed: f32,
+        opacity: f32,
+    },
+    /// Configure cursor flame effect
+    SetCursorFlame {
+        enabled: bool,
+        r: f32, g: f32, b: f32,
+        particle_count: u32,
+        height: f32,
+        opacity: f32,
+    },
+    /// Configure zigzag pattern overlay effect
+    SetZigzagPattern {
+        enabled: bool,
+        r: f32, g: f32, b: f32,
+        amplitude: f32,
+        frequency: f32,
+        speed: f32,
+        opacity: f32,
+    },
+    /// Configure cursor crystal effect
+    SetCursorCrystal {
+        enabled: bool,
+        r: f32, g: f32, b: f32,
+        facet_count: u32,
+        radius: f32,
+        opacity: f32,
+    },
     /// Configure background pattern
     SetBackgroundPattern {
         /// 0=none, 1=dots, 2=grid, 3=crosshatch

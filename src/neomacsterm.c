@@ -10967,6 +10967,156 @@ OPACITY is 0-100 (default 20). */)
   return on ? Qt : Qnil;
 }
 
+DEFUN ("neomacs-set-concentric-rings",
+       Fneomacs_set_concentric_rings,
+       Sneomacs_set_concentric_rings, 0, 5, 0,
+       doc: /* Configure concentric rings overlay effect.
+ENABLED non-nil activates expanding circular wave rings.
+COLOR is a hex color string like "#RRGGBB" (default "#6699FF").
+RING-SPACING is gap between rings in pixels (default 30).
+EXPANSION-SPEED is speed * 100 (default 100).
+OPACITY is 0-100 (default 8). */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object ring_spacing,
+   Lisp_Object expansion_speed, Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+  int on = !NILP (enabled);
+  int r = 0x66, g = 0x99, b = 0xFF, rs = 30, es = 100, op = 8;
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned int hex;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (ring_spacing)) rs = XFIXNUM (ring_spacing);
+  if (FIXNUMP (expansion_speed)) es = XFIXNUM (expansion_speed);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_concentric_rings (dpyinfo->display_handle, on, r, g, b, rs, es, op);
+  return on ? Qt : Qnil;
+}
+
+DEFUN ("neomacs-set-cursor-flame",
+       Fneomacs_set_cursor_flame,
+       Sneomacs_set_cursor_flame, 0, 5, 0,
+       doc: /* Configure cursor flame effect.
+ENABLED non-nil activates rising flame particles from cursor.
+COLOR is a hex color string like "#RRGGBB" (default "#FF6633").
+PARTICLE-COUNT is number of flame particles (default 12).
+HEIGHT is flame height in pixels (default 40).
+OPACITY is 0-100 (default 15). */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object particle_count,
+   Lisp_Object height, Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+  int on = !NILP (enabled);
+  int r = 0xFF, g = 0x66, b = 0x33, pc = 12, ht = 40, op = 15;
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned int hex;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (particle_count)) pc = XFIXNUM (particle_count);
+  if (FIXNUMP (height)) ht = XFIXNUM (height);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_cursor_flame (dpyinfo->display_handle, on, r, g, b, pc, ht, op);
+  return on ? Qt : Qnil;
+}
+
+DEFUN ("neomacs-set-zigzag-pattern",
+       Fneomacs_set_zigzag_pattern,
+       Sneomacs_set_zigzag_pattern, 0, 6, 0,
+       doc: /* Configure zigzag pattern overlay effect.
+ENABLED non-nil activates animated zigzag/sawtooth wave lines.
+COLOR is a hex color string like "#RRGGBB" (default "#99CC66").
+AMPLITUDE is wave height in pixels (default 15).
+FREQUENCY is wave frequency * 100 (default 50).
+SPEED is animation speed * 100 (default 80).
+OPACITY is 0-100 (default 6). */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object amplitude,
+   Lisp_Object frequency, Lisp_Object speed, Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+  int on = !NILP (enabled);
+  int r = 0x99, g = 0xCC, b = 0x66, am = 15, fr = 50, sp = 80, op = 6;
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned int hex;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (amplitude)) am = XFIXNUM (amplitude);
+  if (FIXNUMP (frequency)) fr = XFIXNUM (frequency);
+  if (FIXNUMP (speed)) sp = XFIXNUM (speed);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_zigzag_pattern (dpyinfo->display_handle, on, r, g, b, am, fr, sp, op);
+  return on ? Qt : Qnil;
+}
+
+DEFUN ("neomacs-set-cursor-crystal",
+       Fneomacs_set_cursor_crystal,
+       Sneomacs_set_cursor_crystal, 0, 5, 0,
+       doc: /* Configure cursor crystal effect.
+ENABLED non-nil activates rotating crystal facets around cursor.
+COLOR is a hex color string like "#RRGGBB" (default "#AADDFF").
+FACET-COUNT is number of crystal facets (default 6).
+RADIUS is crystal radius in pixels (default 25).
+OPACITY is 0-100 (default 12). */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object facet_count,
+   Lisp_Object radius, Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+  int on = !NILP (enabled);
+  int r = 0xAA, g = 0xDD, b = 0xFF, fc = 6, rd = 25, op = 12;
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned int hex;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (facet_count)) fc = XFIXNUM (facet_count);
+  if (FIXNUMP (radius)) rd = XFIXNUM (radius);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_cursor_crystal (dpyinfo->display_handle, on, r, g, b, fc, rd, op);
+  return on ? Qt : Qnil;
+}
+
 DEFUN ("neomacs-set-moire-pattern",
        Fneomacs_set_moire_pattern,
        Sneomacs_set_moire_pattern, 0, 6, 0,
@@ -13248,6 +13398,10 @@ syms_of_neomacsterm (void)
   defsubr (&Sneomacs_set_cursor_shockwave);
   defsubr (&Sneomacs_set_diamond_lattice);
   defsubr (&Sneomacs_set_cursor_gravity_well);
+  defsubr (&Sneomacs_set_concentric_rings);
+  defsubr (&Sneomacs_set_cursor_flame);
+  defsubr (&Sneomacs_set_zigzag_pattern);
+  defsubr (&Sneomacs_set_cursor_crystal);
   defsubr (&Sneomacs_set_moire_pattern);
   defsubr (&Sneomacs_set_cursor_lightning);
   defsubr (&Sneomacs_set_dot_matrix);

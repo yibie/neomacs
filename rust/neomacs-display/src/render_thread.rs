@@ -852,6 +852,31 @@ struct RenderApp {
     cursor_snowflake_count: u32,
     cursor_snowflake_fall_speed: f32,
     cursor_snowflake_opacity: f32,
+    // Concentric rings
+    concentric_rings_enabled: bool,
+    concentric_rings_color: (f32, f32, f32),
+    concentric_rings_spacing: f32,
+    concentric_rings_expansion_speed: f32,
+    concentric_rings_opacity: f32,
+    // Cursor flame
+    cursor_flame_enabled: bool,
+    cursor_flame_color: (f32, f32, f32),
+    cursor_flame_particle_count: u32,
+    cursor_flame_height: f32,
+    cursor_flame_opacity: f32,
+    // Zigzag pattern
+    zigzag_pattern_enabled: bool,
+    zigzag_pattern_color: (f32, f32, f32),
+    zigzag_pattern_amplitude: f32,
+    zigzag_pattern_frequency: f32,
+    zigzag_pattern_speed: f32,
+    zigzag_pattern_opacity: f32,
+    // Cursor crystal
+    cursor_crystal_enabled: bool,
+    cursor_crystal_color: (f32, f32, f32),
+    cursor_crystal_facet_count: u32,
+    cursor_crystal_radius: f32,
+    cursor_crystal_opacity: f32,
 
     // Per-window metadata from previous frame (for transition detection)
     prev_window_infos: HashMap<i64, crate::core::frame_glyphs::WindowInfo>,
@@ -1621,6 +1646,27 @@ impl RenderApp {
             cursor_snowflake_count: 8,
             cursor_snowflake_fall_speed: 30.0,
             cursor_snowflake_opacity: 0.3,
+            concentric_rings_enabled: false,
+            concentric_rings_color: (0.4, 0.6, 1.0),
+            concentric_rings_spacing: 30.0,
+            concentric_rings_expansion_speed: 1.0,
+            concentric_rings_opacity: 0.06,
+            cursor_flame_enabled: false,
+            cursor_flame_color: (1.0, 0.5, 0.1),
+            cursor_flame_particle_count: 10,
+            cursor_flame_height: 40.0,
+            cursor_flame_opacity: 0.3,
+            zigzag_pattern_enabled: false,
+            zigzag_pattern_color: (0.6, 0.4, 1.0),
+            zigzag_pattern_amplitude: 15.0,
+            zigzag_pattern_frequency: 0.1,
+            zigzag_pattern_speed: 1.0,
+            zigzag_pattern_opacity: 0.06,
+            cursor_crystal_enabled: false,
+            cursor_crystal_color: (0.7, 0.9, 1.0),
+            cursor_crystal_facet_count: 6,
+            cursor_crystal_radius: 25.0,
+            cursor_crystal_opacity: 0.3,
             prev_window_infos: HashMap::new(),
             crossfade_enabled: true,
             crossfade_duration: std::time::Duration::from_millis(200),
@@ -3674,6 +3720,51 @@ impl RenderApp {
                     self.cursor_tornado_opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_tornado(enabled, (r, g, b), radius, particle_count, opacity);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetConcentricRings { enabled, r, g, b, ring_spacing, expansion_speed, opacity } => {
+                    self.concentric_rings_enabled = enabled;
+                    self.concentric_rings_color = (r, g, b);
+                    self.concentric_rings_spacing = ring_spacing;
+                    self.concentric_rings_expansion_speed = expansion_speed;
+                    self.concentric_rings_opacity = opacity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_concentric_rings(enabled, (r, g, b), ring_spacing, expansion_speed, opacity);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetCursorFlame { enabled, r, g, b, particle_count, height, opacity } => {
+                    self.cursor_flame_enabled = enabled;
+                    self.cursor_flame_color = (r, g, b);
+                    self.cursor_flame_particle_count = particle_count;
+                    self.cursor_flame_height = height;
+                    self.cursor_flame_opacity = opacity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_cursor_flame(enabled, (r, g, b), particle_count, height, opacity);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetZigzagPattern { enabled, r, g, b, amplitude, frequency, speed, opacity } => {
+                    self.zigzag_pattern_enabled = enabled;
+                    self.zigzag_pattern_color = (r, g, b);
+                    self.zigzag_pattern_amplitude = amplitude;
+                    self.zigzag_pattern_frequency = frequency;
+                    self.zigzag_pattern_speed = speed;
+                    self.zigzag_pattern_opacity = opacity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_zigzag_pattern(enabled, (r, g, b), amplitude, frequency, speed, opacity);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetCursorCrystal { enabled, r, g, b, facet_count, radius, opacity } => {
+                    self.cursor_crystal_enabled = enabled;
+                    self.cursor_crystal_color = (r, g, b);
+                    self.cursor_crystal_facet_count = facet_count;
+                    self.cursor_crystal_radius = radius;
+                    self.cursor_crystal_opacity = opacity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_cursor_crystal(enabled, (r, g, b), facet_count, radius, opacity);
                     }
                     self.frame_dirty = true;
                 }

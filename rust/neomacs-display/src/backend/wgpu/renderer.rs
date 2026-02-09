@@ -704,6 +704,31 @@ pub struct WgpuRenderer {
     cursor_snowflake_start: Option<std::time::Instant>,
     cursor_snowflake_last_x: f32,
     cursor_snowflake_last_y: f32,
+    /// Concentric rings
+    concentric_rings_enabled: bool,
+    concentric_rings_color: (f32, f32, f32),
+    concentric_rings_spacing: f32,
+    concentric_rings_expansion_speed: f32,
+    concentric_rings_opacity: f32,
+    /// Cursor flame
+    cursor_flame_enabled: bool,
+    cursor_flame_color: (f32, f32, f32),
+    cursor_flame_particle_count: u32,
+    cursor_flame_height: f32,
+    cursor_flame_opacity: f32,
+    /// Zigzag pattern
+    zigzag_pattern_enabled: bool,
+    zigzag_pattern_color: (f32, f32, f32),
+    zigzag_pattern_amplitude: f32,
+    zigzag_pattern_frequency: f32,
+    zigzag_pattern_speed: f32,
+    zigzag_pattern_opacity: f32,
+    /// Cursor crystal
+    cursor_crystal_enabled: bool,
+    cursor_crystal_color: (f32, f32, f32),
+    cursor_crystal_facet_count: u32,
+    cursor_crystal_radius: f32,
+    cursor_crystal_opacity: f32,
     /// Window edge glow on scroll boundaries
     edge_glow_enabled: bool,
     edge_glow_color: (f32, f32, f32),
@@ -1889,6 +1914,27 @@ impl WgpuRenderer {
             cursor_snowflake_start: None,
             cursor_snowflake_last_x: 0.0,
             cursor_snowflake_last_y: 0.0,
+            concentric_rings_enabled: false,
+            concentric_rings_color: (0.4, 0.6, 1.0),
+            concentric_rings_spacing: 30.0,
+            concentric_rings_expansion_speed: 1.0,
+            concentric_rings_opacity: 0.06,
+            cursor_flame_enabled: false,
+            cursor_flame_color: (1.0, 0.5, 0.1),
+            cursor_flame_particle_count: 10,
+            cursor_flame_height: 40.0,
+            cursor_flame_opacity: 0.3,
+            zigzag_pattern_enabled: false,
+            zigzag_pattern_color: (0.6, 0.4, 1.0),
+            zigzag_pattern_amplitude: 15.0,
+            zigzag_pattern_frequency: 0.1,
+            zigzag_pattern_speed: 1.0,
+            zigzag_pattern_opacity: 0.06,
+            cursor_crystal_enabled: false,
+            cursor_crystal_color: (0.7, 0.9, 1.0),
+            cursor_crystal_facet_count: 6,
+            cursor_crystal_radius: 25.0,
+            cursor_crystal_opacity: 0.3,
             edge_glow_enabled: false,
             edge_glow_color: (0.4, 0.6, 1.0),
             edge_glow_height: 40.0,
@@ -2902,6 +2948,43 @@ impl WgpuRenderer {
         self.cursor_snowflake_count = count;
         self.cursor_snowflake_fall_speed = fall_speed;
         self.cursor_snowflake_opacity = opacity;
+    }
+
+    /// Update concentric rings config
+    pub fn set_concentric_rings(&mut self, enabled: bool, color: (f32, f32, f32), ring_spacing: f32, expansion_speed: f32, opacity: f32) {
+        self.concentric_rings_enabled = enabled;
+        self.concentric_rings_color = color;
+        self.concentric_rings_spacing = ring_spacing;
+        self.concentric_rings_expansion_speed = expansion_speed;
+        self.concentric_rings_opacity = opacity;
+    }
+
+    /// Update cursor flame config
+    pub fn set_cursor_flame(&mut self, enabled: bool, color: (f32, f32, f32), particle_count: u32, height: f32, opacity: f32) {
+        self.cursor_flame_enabled = enabled;
+        self.cursor_flame_color = color;
+        self.cursor_flame_particle_count = particle_count;
+        self.cursor_flame_height = height;
+        self.cursor_flame_opacity = opacity;
+    }
+
+    /// Update zigzag pattern config
+    pub fn set_zigzag_pattern(&mut self, enabled: bool, color: (f32, f32, f32), amplitude: f32, frequency: f32, speed: f32, opacity: f32) {
+        self.zigzag_pattern_enabled = enabled;
+        self.zigzag_pattern_color = color;
+        self.zigzag_pattern_amplitude = amplitude;
+        self.zigzag_pattern_frequency = frequency;
+        self.zigzag_pattern_speed = speed;
+        self.zigzag_pattern_opacity = opacity;
+    }
+
+    /// Update cursor crystal config
+    pub fn set_cursor_crystal(&mut self, enabled: bool, color: (f32, f32, f32), facet_count: u32, radius: f32, opacity: f32) {
+        self.cursor_crystal_enabled = enabled;
+        self.cursor_crystal_color = color;
+        self.cursor_crystal_facet_count = facet_count;
+        self.cursor_crystal_radius = radius;
+        self.cursor_crystal_opacity = opacity;
     }
 
     /// Update hex grid config
@@ -7766,6 +7849,185 @@ impl WgpuRenderer {
                             self.cursor_snowflake_start = None;
                         }
                     }
+                }
+            }
+
+            // === Concentric rings overlay effect ===
+            if self.concentric_rings_enabled {
+                let now = std::time::Instant::now().duration_since(self.aurora_start).as_secs_f32();
+                let (cr, cg, cb) = self.concentric_rings_color;
+                let spacing = self.concentric_rings_spacing.max(10.0);
+                let speed = self.concentric_rings_expansion_speed;
+                let opacity = self.concentric_rings_opacity;
+                let width = self.width() as f32;
+                let height = self.height() as f32;
+                let cx = width / 2.0;
+                let cy = height / 2.0;
+                let max_radius = (cx * cx + cy * cy).sqrt();
+                let mut cr_verts: Vec<RectVertex> = Vec::new();
+                let ring_count = (max_radius / spacing) as u32 + 2;
+                let phase = now * speed * spacing;
+                for i in 0..ring_count {
+                    let r = (i as f32 * spacing + phase) % (max_radius + spacing);
+                    if r < 1.0 { continue; }
+                    let thickness = 1.5;
+                    let alpha = opacity * (1.0 - r / max_radius);
+                    if alpha < 0.001 { continue; }
+                    let c = Color::new(cr, cg, cb, alpha);
+                    // Approximate circle with axis-aligned rect segments
+                    let segments = (r * 0.5).max(16.0) as u32;
+                    for s in 0..segments {
+                        let angle = (s as f32 / segments as f32) * std::f32::consts::TAU;
+                        let px = cx + angle.cos() * r;
+                        let py = cy + angle.sin() * r;
+                        self.add_rect(&mut cr_verts, px - thickness / 2.0, py - thickness / 2.0, thickness, thickness, &c);
+                    }
+                }
+                if !cr_verts.is_empty() {
+                    let cr_buf = self.device().create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some("concentric_rings_vb"),
+                        contents: bytemuck::cast_slice(&cr_verts),
+                        usage: wgpu::BufferUsages::VERTEX,
+                    });
+                    render_pass.set_pipeline(&self.rect_pipeline);
+                    render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                    render_pass.set_vertex_buffer(0, cr_buf.slice(..));
+                    render_pass.draw(0..cr_verts.len() as u32, 0..1);
+                }
+                self.needs_continuous_redraw = true;
+            }
+
+            // === Cursor flame effect ===
+            if self.cursor_flame_enabled && cursor_visible {
+                if let Some(ref anim) = animated_cursor {
+                    let cx = anim.x + anim.width / 2.0;
+                    let cy = anim.y;
+                    let now = std::time::Instant::now().duration_since(self.aurora_start).as_secs_f32();
+                    let (cr, cg, cb) = self.cursor_flame_color;
+                    let opacity = self.cursor_flame_opacity;
+                    let flame_h = self.cursor_flame_height;
+                    let mut fl_verts: Vec<RectVertex> = Vec::new();
+                    for i in 0..self.cursor_flame_particle_count {
+                        let mut h = i.wrapping_mul(2654435761);
+                        h ^= h >> 16;
+                        let t_offset = (h % 100) as f32 / 100.0;
+                        let flicker = ((now * 8.0 + t_offset * std::f32::consts::TAU).sin() * 0.5 + 0.5);
+                        let rise = (now * 3.0 + t_offset * 10.0) % 1.0;
+                        let px = cx + ((h % 20) as f32 - 10.0) * flicker;
+                        let py = cy - rise * flame_h;
+                        let size = 4.0 * (1.0 - rise) * flicker;
+                        // Warm color gradient: red at base, yellow at tip
+                        let rr = cr;
+                        let gg = cg + rise * 0.3;
+                        let bb = cb * (1.0 - rise);
+                        let alpha = opacity * (1.0 - rise);
+                        let c = Color::new(rr, gg.min(1.0), bb.max(0.0), alpha);
+                        self.add_rect(&mut fl_verts, px - size / 2.0, py - size / 2.0, size, size, &c);
+                    }
+                    if !fl_verts.is_empty() {
+                        let fl_buf = self.device().create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                            label: Some("cursor_flame_vb"),
+                            contents: bytemuck::cast_slice(&fl_verts),
+                            usage: wgpu::BufferUsages::VERTEX,
+                        });
+                        render_pass.set_pipeline(&self.rect_pipeline);
+                        render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                        render_pass.set_vertex_buffer(0, fl_buf.slice(..));
+                        render_pass.draw(0..fl_verts.len() as u32, 0..1);
+                    }
+                    self.needs_continuous_redraw = true;
+                }
+            }
+
+            // === Zigzag pattern overlay effect ===
+            if self.zigzag_pattern_enabled {
+                let now = std::time::Instant::now().duration_since(self.aurora_start).as_secs_f32();
+                let (cr, cg, cb) = self.zigzag_pattern_color;
+                let amplitude = self.zigzag_pattern_amplitude;
+                let freq = self.zigzag_pattern_frequency;
+                let speed = self.zigzag_pattern_speed;
+                let opacity = self.zigzag_pattern_opacity;
+                let width = self.width() as f32;
+                let height = self.height() as f32;
+                let mut zz_verts: Vec<RectVertex> = Vec::new();
+                let line_spacing = 30.0f32;
+                let line_count = (height / line_spacing) as u32 + 1;
+                for line in 0..line_count {
+                    let base_y = line as f32 * line_spacing;
+                    let segments = (width / 4.0) as u32;
+                    for s in 0..segments {
+                        let x = s as f32 * 4.0;
+                        let phase = now * speed + line as f32 * 0.5;
+                        let zigzag = ((x * freq + phase).rem_euclid(2.0) - 1.0).abs() * 2.0 - 1.0;
+                        let y = base_y + zigzag * amplitude;
+                        let c = Color::new(cr, cg, cb, opacity);
+                        self.add_rect(&mut zz_verts, x, y, 4.0, 1.0, &c);
+                    }
+                }
+                if !zz_verts.is_empty() {
+                    let zz_buf = self.device().create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some("zigzag_pattern_vb"),
+                        contents: bytemuck::cast_slice(&zz_verts),
+                        usage: wgpu::BufferUsages::VERTEX,
+                    });
+                    render_pass.set_pipeline(&self.rect_pipeline);
+                    render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                    render_pass.set_vertex_buffer(0, zz_buf.slice(..));
+                    render_pass.draw(0..zz_verts.len() as u32, 0..1);
+                }
+                self.needs_continuous_redraw = true;
+            }
+
+            // === Cursor crystal effect ===
+            if self.cursor_crystal_enabled && cursor_visible {
+                if let Some(ref anim) = animated_cursor {
+                    let cx = anim.x + anim.width / 2.0;
+                    let cy = anim.y + anim.height / 2.0;
+                    let now = std::time::Instant::now().duration_since(self.aurora_start).as_secs_f32();
+                    let (cr, cg, cb) = self.cursor_crystal_color;
+                    let opacity = self.cursor_crystal_opacity;
+                    let radius = self.cursor_crystal_radius;
+                    let facets = self.cursor_crystal_facet_count.max(3);
+                    let mut ct_verts: Vec<RectVertex> = Vec::new();
+                    // Draw faceted crystal shape
+                    for i in 0..facets {
+                        let angle = (i as f32 / facets as f32) * std::f32::consts::TAU + now * 0.5;
+                        let next_angle = ((i + 1) as f32 / facets as f32) * std::f32::consts::TAU + now * 0.5;
+                        // Draw edge line from vertex to next vertex
+                        let x1 = cx + angle.cos() * radius;
+                        let y1 = cy + angle.sin() * radius;
+                        let x2 = cx + next_angle.cos() * radius;
+                        let y2 = cy + next_angle.sin() * radius;
+                        let segments = 8u32;
+                        for s in 0..segments {
+                            let t = s as f32 / segments as f32;
+                            let px = x1 + (x2 - x1) * t;
+                            let py = y1 + (y2 - y1) * t;
+                            let c = Color::new(cr, cg, cb, opacity);
+                            self.add_rect(&mut ct_verts, px - 1.0, py - 1.0, 2.0, 2.0, &c);
+                        }
+                        // Draw line from center to vertex (inner facet)
+                        for s in 0..6u32 {
+                            let t = s as f32 / 6.0;
+                            let px = cx + (x1 - cx) * t;
+                            let py = cy + (y1 - cy) * t;
+                            let alpha = opacity * 0.4 * (1.0 - t);
+                            let c = Color::new(cr, cg, cb, alpha);
+                            self.add_rect(&mut ct_verts, px - 0.5, py - 0.5, 1.0, 1.0, &c);
+                        }
+                    }
+                    if !ct_verts.is_empty() {
+                        let ct_buf = self.device().create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                            label: Some("cursor_crystal_vb"),
+                            contents: bytemuck::cast_slice(&ct_verts),
+                            usage: wgpu::BufferUsages::VERTEX,
+                        });
+                        render_pass.set_pipeline(&self.rect_pipeline);
+                        render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                        render_pass.set_vertex_buffer(0, ct_buf.slice(..));
+                        render_pass.draw(0..ct_verts.len() as u32, 0..1);
+                    }
+                    self.needs_continuous_redraw = true;
                 }
             }
 
