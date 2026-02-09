@@ -10967,6 +10967,156 @@ OPACITY is 0-100 (default 20). */)
   return on ? Qt : Qnil;
 }
 
+DEFUN ("neomacs-set-rotating-gear",
+       Fneomacs_set_rotating_gear,
+       Sneomacs_set_rotating_gear, 0, 5, 0,
+       doc: /* Configure rotating gear overlay effect.
+ENABLED non-nil activates interlocking gear cogs pattern.
+COLOR is a hex color string like "#RRGGBB" (default "#99B3CC").
+GEAR-SIZE is size of each gear in pixels (default 40).
+ROTATION-SPEED is speed * 100 (default 50).
+OPACITY is 0-100 (default 8). */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object gear_size,
+   Lisp_Object rotation_speed, Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+  int on = !NILP (enabled);
+  int r = 0x99, g = 0xB3, b = 0xCC, gs = 40, rs = 50, op = 8;
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned int hex;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (gear_size)) gs = XFIXNUM (gear_size);
+  if (FIXNUMP (rotation_speed)) rs = XFIXNUM (rotation_speed);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_rotating_gear (dpyinfo->display_handle, on, r, g, b, gs, rs, op);
+  return on ? Qt : Qnil;
+}
+
+DEFUN ("neomacs-set-cursor-prism",
+       Fneomacs_set_cursor_prism,
+       Sneomacs_set_cursor_prism, 0, 5, 0,
+       doc: /* Configure cursor prism effect.
+ENABLED non-nil activates rainbow light refraction from cursor.
+COLOR is a hex color string like "#RRGGBB" (default "#FFFFFF").
+RAY-COUNT is number of prismatic rays (default 7).
+SPREAD is ray spread distance in pixels (default 30).
+OPACITY is 0-100 (default 15). */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object ray_count,
+   Lisp_Object spread, Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+  int on = !NILP (enabled);
+  int r = 0xFF, g = 0xFF, b = 0xFF, rc = 7, sp = 30, op = 15;
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned int hex;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (ray_count)) rc = XFIXNUM (ray_count);
+  if (FIXNUMP (spread)) sp = XFIXNUM (spread);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_cursor_prism (dpyinfo->display_handle, on, r, g, b, rc, sp, op);
+  return on ? Qt : Qnil;
+}
+
+DEFUN ("neomacs-set-crosshatch-pattern",
+       Fneomacs_set_crosshatch_pattern,
+       Sneomacs_set_crosshatch_pattern, 0, 6, 0,
+       doc: /* Configure crosshatch pattern overlay effect.
+ENABLED non-nil activates intersecting diagonal line pattern.
+COLOR is a hex color string like "#RRGGBB" (default "#809966").
+LINE-SPACING is gap between lines in pixels (default 20).
+ANGLE is line angle in degrees (default 45).
+SPEED is animation speed * 100 (default 30).
+OPACITY is 0-100 (default 6). */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object line_spacing,
+   Lisp_Object angle, Lisp_Object speed, Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+  int on = !NILP (enabled);
+  int r = 0x80, g = 0x99, b = 0x66, ls = 20, an = 45, sp = 30, op = 6;
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned int hex;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (line_spacing)) ls = XFIXNUM (line_spacing);
+  if (FIXNUMP (angle)) an = XFIXNUM (angle);
+  if (FIXNUMP (speed)) sp = XFIXNUM (speed);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_crosshatch_pattern (dpyinfo->display_handle, on, r, g, b, ls, an, sp, op);
+  return on ? Qt : Qnil;
+}
+
+DEFUN ("neomacs-set-cursor-moth",
+       Fneomacs_set_cursor_moth,
+       Sneomacs_set_cursor_moth, 0, 5, 0,
+       doc: /* Configure cursor moth effect.
+ENABLED non-nil activates fluttering wing shapes around cursor.
+COLOR is a hex color string like "#RRGGBB" (default "#E6CC80").
+MOTH-COUNT is number of moths (default 5).
+WING-SIZE is wing size in pixels (default 8).
+OPACITY is 0-100 (default 20). */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object moth_count,
+   Lisp_Object wing_size, Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+  int on = !NILP (enabled);
+  int r = 0xE6, g = 0xCC, b = 0x80, mc = 5, ws = 8, op = 20;
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned int hex;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (moth_count)) mc = XFIXNUM (moth_count);
+  if (FIXNUMP (wing_size)) ws = XFIXNUM (wing_size);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_cursor_moth (dpyinfo->display_handle, on, r, g, b, mc, ws, op);
+  return on ? Qt : Qnil;
+}
+
 DEFUN ("neomacs-set-concentric-rings",
        Fneomacs_set_concentric_rings,
        Sneomacs_set_concentric_rings, 0, 5, 0,
@@ -13398,6 +13548,10 @@ syms_of_neomacsterm (void)
   defsubr (&Sneomacs_set_cursor_shockwave);
   defsubr (&Sneomacs_set_diamond_lattice);
   defsubr (&Sneomacs_set_cursor_gravity_well);
+  defsubr (&Sneomacs_set_rotating_gear);
+  defsubr (&Sneomacs_set_cursor_prism);
+  defsubr (&Sneomacs_set_crosshatch_pattern);
+  defsubr (&Sneomacs_set_cursor_moth);
   defsubr (&Sneomacs_set_concentric_rings);
   defsubr (&Sneomacs_set_cursor_flame);
   defsubr (&Sneomacs_set_zigzag_pattern);

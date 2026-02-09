@@ -1467,6 +1467,39 @@ pub enum RenderCommand {
         radius: f32,
         opacity: f32,
     },
+    /// Configure rotating gear overlay effect
+    SetRotatingGear {
+        enabled: bool,
+        r: f32, g: f32, b: f32,
+        gear_size: f32,
+        rotation_speed: f32,
+        opacity: f32,
+    },
+    /// Configure cursor prism effect
+    SetCursorPrism {
+        enabled: bool,
+        r: f32, g: f32, b: f32,
+        ray_count: u32,
+        spread: f32,
+        opacity: f32,
+    },
+    /// Configure crosshatch pattern overlay effect
+    SetCrosshatchPattern {
+        enabled: bool,
+        r: f32, g: f32, b: f32,
+        line_spacing: f32,
+        angle: f32,
+        speed: f32,
+        opacity: f32,
+    },
+    /// Configure cursor moth effect
+    SetCursorMoth {
+        enabled: bool,
+        r: f32, g: f32, b: f32,
+        moth_count: u32,
+        wing_size: f32,
+        opacity: f32,
+    },
     /// Configure background pattern
     SetBackgroundPattern {
         /// 0=none, 1=dots, 2=grid, 3=crosshatch

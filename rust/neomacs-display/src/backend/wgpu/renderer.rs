@@ -729,6 +729,31 @@ pub struct WgpuRenderer {
     cursor_crystal_facet_count: u32,
     cursor_crystal_radius: f32,
     cursor_crystal_opacity: f32,
+    /// Rotating gear overlay
+    rotating_gear_enabled: bool,
+    rotating_gear_color: (f32, f32, f32),
+    rotating_gear_size: f32,
+    rotating_gear_speed: f32,
+    rotating_gear_opacity: f32,
+    /// Cursor prism effect
+    cursor_prism_enabled: bool,
+    cursor_prism_color: (f32, f32, f32),
+    cursor_prism_ray_count: u32,
+    cursor_prism_spread: f32,
+    cursor_prism_opacity: f32,
+    /// Crosshatch pattern overlay
+    crosshatch_pattern_enabled: bool,
+    crosshatch_pattern_color: (f32, f32, f32),
+    crosshatch_pattern_line_spacing: f32,
+    crosshatch_pattern_angle: f32,
+    crosshatch_pattern_speed: f32,
+    crosshatch_pattern_opacity: f32,
+    /// Cursor moth effect
+    cursor_moth_enabled: bool,
+    cursor_moth_color: (f32, f32, f32),
+    cursor_moth_count: u32,
+    cursor_moth_wing_size: f32,
+    cursor_moth_opacity: f32,
     /// Window edge glow on scroll boundaries
     edge_glow_enabled: bool,
     edge_glow_color: (f32, f32, f32),
@@ -1935,6 +1960,27 @@ impl WgpuRenderer {
             cursor_crystal_facet_count: 6,
             cursor_crystal_radius: 25.0,
             cursor_crystal_opacity: 0.3,
+            rotating_gear_enabled: false,
+            rotating_gear_color: (0.6, 0.7, 0.8),
+            rotating_gear_size: 40.0,
+            rotating_gear_speed: 0.5,
+            rotating_gear_opacity: 0.08,
+            cursor_prism_enabled: false,
+            cursor_prism_color: (1.0, 1.0, 1.0),
+            cursor_prism_ray_count: 7,
+            cursor_prism_spread: 30.0,
+            cursor_prism_opacity: 0.15,
+            crosshatch_pattern_enabled: false,
+            crosshatch_pattern_color: (0.5, 0.6, 0.4),
+            crosshatch_pattern_line_spacing: 20.0,
+            crosshatch_pattern_angle: 45.0,
+            crosshatch_pattern_speed: 0.3,
+            crosshatch_pattern_opacity: 0.06,
+            cursor_moth_enabled: false,
+            cursor_moth_color: (0.9, 0.8, 0.5),
+            cursor_moth_count: 5,
+            cursor_moth_wing_size: 8.0,
+            cursor_moth_opacity: 0.2,
             edge_glow_enabled: false,
             edge_glow_color: (0.4, 0.6, 1.0),
             edge_glow_height: 40.0,
@@ -2985,6 +3031,43 @@ impl WgpuRenderer {
         self.cursor_crystal_facet_count = facet_count;
         self.cursor_crystal_radius = radius;
         self.cursor_crystal_opacity = opacity;
+    }
+
+    /// Update rotating gear config
+    pub fn set_rotating_gear(&mut self, enabled: bool, color: (f32, f32, f32), gear_size: f32, rotation_speed: f32, opacity: f32) {
+        self.rotating_gear_enabled = enabled;
+        self.rotating_gear_color = color;
+        self.rotating_gear_size = gear_size;
+        self.rotating_gear_speed = rotation_speed;
+        self.rotating_gear_opacity = opacity;
+    }
+
+    /// Update cursor prism config
+    pub fn set_cursor_prism(&mut self, enabled: bool, color: (f32, f32, f32), ray_count: u32, spread: f32, opacity: f32) {
+        self.cursor_prism_enabled = enabled;
+        self.cursor_prism_color = color;
+        self.cursor_prism_ray_count = ray_count;
+        self.cursor_prism_spread = spread;
+        self.cursor_prism_opacity = opacity;
+    }
+
+    /// Update crosshatch pattern config
+    pub fn set_crosshatch_pattern(&mut self, enabled: bool, color: (f32, f32, f32), line_spacing: f32, angle: f32, speed: f32, opacity: f32) {
+        self.crosshatch_pattern_enabled = enabled;
+        self.crosshatch_pattern_color = color;
+        self.crosshatch_pattern_line_spacing = line_spacing;
+        self.crosshatch_pattern_angle = angle;
+        self.crosshatch_pattern_speed = speed;
+        self.crosshatch_pattern_opacity = opacity;
+    }
+
+    /// Update cursor moth config
+    pub fn set_cursor_moth(&mut self, enabled: bool, color: (f32, f32, f32), moth_count: u32, wing_size: f32, opacity: f32) {
+        self.cursor_moth_enabled = enabled;
+        self.cursor_moth_color = color;
+        self.cursor_moth_count = moth_count;
+        self.cursor_moth_wing_size = wing_size;
+        self.cursor_moth_opacity = opacity;
     }
 
     /// Update hex grid config
@@ -8028,6 +8111,217 @@ impl WgpuRenderer {
                         render_pass.draw(0..ct_verts.len() as u32, 0..1);
                     }
                     self.needs_continuous_redraw = true;
+                }
+            }
+
+            // === Rotating gear overlay effect ===
+            if self.rotating_gear_enabled {
+                let width = self.width() as f32;
+                let height = self.height() as f32;
+                let now = std::time::Instant::now().duration_since(self.aurora_start).as_secs_f32();
+                let (gr, gg, gb) = self.rotating_gear_color;
+                let gear_size = self.rotating_gear_size;
+                let speed = self.rotating_gear_speed;
+                let opacity = self.rotating_gear_opacity;
+                let cols = (width / (gear_size * 2.5)) as i32 + 1;
+                let rows = (height / (gear_size * 2.5)) as i32 + 1;
+                let mut overlay_verts = Vec::new();
+                for row in 0..rows {
+                    for col in 0..cols {
+                        let cx = col as f32 * gear_size * 2.5 + gear_size;
+                        let cy = row as f32 * gear_size * 2.5 + gear_size;
+                        let dir = if (row + col) % 2 == 0 { 1.0 } else { -1.0 };
+                        let angle_base = now * speed * dir;
+                        let teeth = 8;
+                        for t in 0..teeth {
+                            let a1 = angle_base + t as f32 * std::f32::consts::TAU / teeth as f32;
+                            let a2 = a1 + std::f32::consts::TAU / (teeth as f32 * 2.0);
+                            let inner_r = gear_size * 0.6;
+                            let outer_r = gear_size;
+                            let x1 = cx + a1.cos() * outer_r;
+                            let y1 = cy + a1.sin() * outer_r;
+                            let x2 = cx + a2.cos() * outer_r;
+                            let y2 = cy + a2.sin() * outer_r;
+                            let tooth_w = ((x2 - x1).abs()).max(2.0);
+                            let tooth_h = ((y2 - y1).abs()).max(2.0);
+                            let c = Color::new(gr, gg, gb, opacity);
+                            self.add_rect(&mut overlay_verts, x1.min(x2), y1.min(y2), tooth_w, tooth_h, &c);
+                            // Inner ring segment
+                            let ix1 = cx + a1.cos() * inner_r;
+                            let iy1 = cy + a1.sin() * inner_r;
+                            let ic = Color::new(gr, gg, gb, opacity * 0.7);
+                            self.add_rect(&mut overlay_verts, ix1 - 1.0, iy1 - 1.0, 2.0, 2.0, &ic);
+                        }
+                    }
+                }
+                if !overlay_verts.is_empty() {
+                    let buf = self.device().create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some("rotating_gear_verts"),
+                        contents: bytemuck::cast_slice(&overlay_verts),
+                        usage: wgpu::BufferUsages::VERTEX,
+                    });
+                    render_pass.set_pipeline(&self.rect_pipeline);
+                    render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                    render_pass.set_vertex_buffer(0, buf.slice(..));
+                    render_pass.draw(0..overlay_verts.len() as u32, 0..1);
+                    self.needs_continuous_redraw = true;
+                }
+            }
+
+            // === Cursor prism effect ===
+            if self.cursor_prism_enabled && cursor_visible {
+                if let Some(ref anim) = animated_cursor {
+                    let now = std::time::Instant::now().duration_since(self.aurora_start).as_secs_f32();
+                    let cx = anim.x + anim.width / 2.0;
+                    let cy = anim.y + anim.height / 2.0;
+                    let ray_count = self.cursor_prism_ray_count;
+                    let spread = self.cursor_prism_spread;
+                    let opacity = self.cursor_prism_opacity;
+                    let mut overlay_verts = Vec::new();
+                    let rainbow: [(f32, f32, f32); 7] = [
+                        (1.0, 0.0, 0.0), (1.0, 0.5, 0.0), (1.0, 1.0, 0.0),
+                        (0.0, 1.0, 0.0), (0.0, 0.5, 1.0), (0.3, 0.0, 1.0), (0.5, 0.0, 0.5),
+                    ];
+                    for i in 0..ray_count {
+                        let base_angle = now * 0.3 + i as f32 * std::f32::consts::TAU / ray_count as f32;
+                        let (rr, rg, rb) = rainbow[i as usize % 7];
+                        for seg in 0..20 {
+                            let dist = seg as f32 * spread * 0.5 + 5.0;
+                            let x = cx + base_angle.cos() * dist;
+                            let y = cy + base_angle.sin() * dist;
+                            let alpha = opacity * (1.0 - seg as f32 / 20.0);
+                            let size = 2.0 + seg as f32 * 0.3;
+                            let c = Color::new(rr, rg, rb, alpha);
+                            self.add_rect(&mut overlay_verts, x - size / 2.0, y - size / 2.0, size, size, &c);
+                        }
+                    }
+                    if !overlay_verts.is_empty() {
+                        let buf = self.device().create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                            label: Some("cursor_prism_verts"),
+                            contents: bytemuck::cast_slice(&overlay_verts),
+                            usage: wgpu::BufferUsages::VERTEX,
+                        });
+                        render_pass.set_pipeline(&self.rect_pipeline);
+                        render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                        render_pass.set_vertex_buffer(0, buf.slice(..));
+                        render_pass.draw(0..overlay_verts.len() as u32, 0..1);
+                        self.needs_continuous_redraw = true;
+                    }
+                }
+            }
+
+            // === Crosshatch pattern overlay effect ===
+            if self.crosshatch_pattern_enabled {
+                let width = self.width() as f32;
+                let height = self.height() as f32;
+                let now = std::time::Instant::now().duration_since(self.aurora_start).as_secs_f32();
+                let (cr, cg, cb) = self.crosshatch_pattern_color;
+                let spacing = self.crosshatch_pattern_line_spacing;
+                let angle_deg = self.crosshatch_pattern_angle;
+                let speed = self.crosshatch_pattern_speed;
+                let opacity = self.crosshatch_pattern_opacity;
+                let angle_rad = angle_deg * std::f32::consts::PI / 180.0;
+                let offset = now * speed * 20.0;
+                let mut overlay_verts = Vec::new();
+                let diag = (width * width + height * height).sqrt();
+                let line_count = (diag / spacing) as i32 + 2;
+                // First set of diagonal lines
+                for i in (-line_count)..line_count {
+                    let base = i as f32 * spacing + offset.rem_euclid(spacing);
+                    let dx = angle_rad.cos();
+                    let dy = angle_rad.sin();
+                    let perp_x = -dy;
+                    let perp_y = dx;
+                    let center_x = width / 2.0 + perp_x * (base - diag / 2.0);
+                    let center_y = height / 2.0 + perp_y * (base - diag / 2.0);
+                    let steps = 30;
+                    for s in 0..steps {
+                        let t = (s as f32 / steps as f32 - 0.5) * diag;
+                        let x = center_x + dx * t;
+                        let y = center_y + dy * t;
+                        if x >= -2.0 && x <= width + 2.0 && y >= -2.0 && y <= height + 2.0 {
+                            let c = Color::new(cr, cg, cb, opacity);
+                            self.add_rect(&mut overlay_verts, x, y, 1.0, 1.0, &c);
+                        }
+                    }
+                }
+                // Second set perpendicular
+                let angle_rad2 = angle_rad + std::f32::consts::FRAC_PI_2;
+                let dx2 = angle_rad2.cos();
+                let dy2 = angle_rad2.sin();
+                let perp_x2 = -dy2;
+                let perp_y2 = dx2;
+                for i in (-line_count)..line_count {
+                    let base = i as f32 * spacing - offset.rem_euclid(spacing);
+                    let center_x = width / 2.0 + perp_x2 * (base - diag / 2.0);
+                    let center_y = height / 2.0 + perp_y2 * (base - diag / 2.0);
+                    let steps = 30;
+                    for s in 0..steps {
+                        let t = (s as f32 / steps as f32 - 0.5) * diag;
+                        let x = center_x + dx2 * t;
+                        let y = center_y + dy2 * t;
+                        if x >= -2.0 && x <= width + 2.0 && y >= -2.0 && y <= height + 2.0 {
+                            let c = Color::new(cr, cg, cb, opacity);
+                            self.add_rect(&mut overlay_verts, x, y, 1.0, 1.0, &c);
+                        }
+                    }
+                }
+                if !overlay_verts.is_empty() {
+                    let buf = self.device().create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some("crosshatch_pattern_verts"),
+                        contents: bytemuck::cast_slice(&overlay_verts),
+                        usage: wgpu::BufferUsages::VERTEX,
+                    });
+                    render_pass.set_pipeline(&self.rect_pipeline);
+                    render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                    render_pass.set_vertex_buffer(0, buf.slice(..));
+                    render_pass.draw(0..overlay_verts.len() as u32, 0..1);
+                    self.needs_continuous_redraw = true;
+                }
+            }
+
+            // === Cursor moth effect ===
+            if self.cursor_moth_enabled && cursor_visible {
+                if let Some(ref anim) = animated_cursor {
+                    let now = std::time::Instant::now().duration_since(self.aurora_start).as_secs_f32();
+                    let cx = anim.x + anim.width / 2.0;
+                    let cy = anim.y + anim.height / 2.0;
+                    let moth_count = self.cursor_moth_count;
+                    let wing_size = self.cursor_moth_wing_size;
+                    let (mr, mg, mb) = self.cursor_moth_color;
+                    let opacity = self.cursor_moth_opacity;
+                    let mut overlay_verts = Vec::new();
+                    for i in 0..moth_count {
+                        let phase = i as f32 * std::f32::consts::TAU / moth_count as f32;
+                        let orbit_r = 15.0 + 10.0 * (now * 0.7 + phase).sin();
+                        let orbit_angle = now * 1.5 + phase;
+                        let mx = cx + orbit_angle.cos() * orbit_r;
+                        let my = cy + orbit_angle.sin() * orbit_r;
+                        // Wing flap
+                        let flap = (now * 8.0 + phase * 3.0).sin().abs();
+                        let wing_w = wing_size * flap;
+                        let wing_h = wing_size * 0.6;
+                        // Left wing
+                        let c = Color::new(mr, mg, mb, opacity * flap);
+                        self.add_rect(&mut overlay_verts, mx - wing_w, my - wing_h / 2.0, wing_w, wing_h, &c);
+                        // Right wing
+                        self.add_rect(&mut overlay_verts, mx, my - wing_h / 2.0, wing_w, wing_h, &c);
+                        // Body
+                        let bc = Color::new(mr * 0.7, mg * 0.7, mb * 0.7, opacity);
+                        self.add_rect(&mut overlay_verts, mx - 1.0, my - wing_h * 0.4, 2.0, wing_h * 0.8, &bc);
+                    }
+                    if !overlay_verts.is_empty() {
+                        let buf = self.device().create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                            label: Some("cursor_moth_verts"),
+                            contents: bytemuck::cast_slice(&overlay_verts),
+                            usage: wgpu::BufferUsages::VERTEX,
+                        });
+                        render_pass.set_pipeline(&self.rect_pipeline);
+                        render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                        render_pass.set_vertex_buffer(0, buf.slice(..));
+                        render_pass.draw(0..overlay_verts.len() as u32, 0..1);
+                        self.needs_continuous_redraw = true;
+                    }
                 }
             }
 

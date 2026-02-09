@@ -2026,6 +2026,47 @@ void neomacs_display_set_cursor_gravity_well(struct NeomacsDisplay *handle,
     int opacity);
 
 /**
+ * Configure rotating gear overlay effect.
+ */
+void neomacs_display_set_rotating_gear(struct NeomacsDisplay *handle,
+    int enabled,
+    int r, int g, int b,
+    int gear_size,
+    int rotation_speed,
+    int opacity);
+
+/**
+ * Configure cursor prism effect.
+ */
+void neomacs_display_set_cursor_prism(struct NeomacsDisplay *handle,
+    int enabled,
+    int r, int g, int b,
+    int ray_count,
+    int spread,
+    int opacity);
+
+/**
+ * Configure crosshatch pattern overlay effect.
+ */
+void neomacs_display_set_crosshatch_pattern(struct NeomacsDisplay *handle,
+    int enabled,
+    int r, int g, int b,
+    int line_spacing,
+    int angle,
+    int speed,
+    int opacity);
+
+/**
+ * Configure cursor moth effect.
+ */
+void neomacs_display_set_cursor_moth(struct NeomacsDisplay *handle,
+    int enabled,
+    int r, int g, int b,
+    int moth_count,
+    int wing_size,
+    int opacity);
+
+/**
  * Configure concentric rings overlay effect.
  */
 void neomacs_display_set_concentric_rings(struct NeomacsDisplay *handle,

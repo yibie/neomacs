@@ -5982,6 +5982,318 @@ Non-nil renders animated flowing color bands at the top of the frame."
                 neomacs-cursor-gravity-well-line-count nil)
             val))))
 
+;; Rotating gear overlay effect
+(declare-function neomacs-set-rotating-gear "neomacsterm.c")
+
+(defcustom neomacs-rotating-gear nil
+  "Enable rotating gear overlay effect."
+  :type 'boolean
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-rotating-gear)
+           (if val
+               (neomacs-set-rotating-gear t)
+             (neomacs-set-rotating-gear nil)))))
+
+(defcustom neomacs-rotating-gear-color "#99B3CC"
+  "Rotating gear color."
+  :type 'color
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-rotating-gear)
+                    (boundp 'neomacs-rotating-gear)
+                    neomacs-rotating-gear)
+           (neomacs-set-rotating-gear t val))))
+
+(defcustom neomacs-rotating-gear-size 40
+  "Gear size in pixels."
+  :type '(integer :tag "Gear size (px)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-rotating-gear)
+                    (boundp 'neomacs-rotating-gear)
+                    neomacs-rotating-gear)
+           (neomacs-set-rotating-gear t
+            (if (boundp 'neomacs-rotating-gear-color)
+                neomacs-rotating-gear-color nil)
+            val))))
+
+(defcustom neomacs-rotating-gear-speed 50
+  "Rotation speed (multiplied by 100)."
+  :type '(integer :tag "Speed * 100")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-rotating-gear)
+                    (boundp 'neomacs-rotating-gear)
+                    neomacs-rotating-gear)
+           (neomacs-set-rotating-gear t
+            (if (boundp 'neomacs-rotating-gear-color)
+                neomacs-rotating-gear-color nil)
+            (if (boundp 'neomacs-rotating-gear-size)
+                neomacs-rotating-gear-size nil)
+            val))))
+
+(defcustom neomacs-rotating-gear-opacity 8
+  "Rotating gear opacity (0-100)."
+  :type '(integer :tag "Opacity (0-100)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-rotating-gear)
+                    (boundp 'neomacs-rotating-gear)
+                    neomacs-rotating-gear)
+           (neomacs-set-rotating-gear t
+            (if (boundp 'neomacs-rotating-gear-color)
+                neomacs-rotating-gear-color nil)
+            (if (boundp 'neomacs-rotating-gear-size)
+                neomacs-rotating-gear-size nil)
+            (if (boundp 'neomacs-rotating-gear-speed)
+                neomacs-rotating-gear-speed nil)
+            val))))
+
+;; Cursor prism effect
+(declare-function neomacs-set-cursor-prism "neomacsterm.c")
+
+(defcustom neomacs-cursor-prism nil
+  "Enable cursor prism effect."
+  :type 'boolean
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-cursor-prism)
+           (if val
+               (neomacs-set-cursor-prism t)
+             (neomacs-set-cursor-prism nil)))))
+
+(defcustom neomacs-cursor-prism-color "#FFFFFF"
+  "Cursor prism color."
+  :type 'color
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-prism)
+                    (boundp 'neomacs-cursor-prism)
+                    neomacs-cursor-prism)
+           (neomacs-set-cursor-prism t val))))
+
+(defcustom neomacs-cursor-prism-ray-count 7
+  "Number of prismatic rays."
+  :type '(integer :tag "Ray count")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-prism)
+                    (boundp 'neomacs-cursor-prism)
+                    neomacs-cursor-prism)
+           (neomacs-set-cursor-prism t
+            (if (boundp 'neomacs-cursor-prism-color)
+                neomacs-cursor-prism-color nil)
+            val))))
+
+(defcustom neomacs-cursor-prism-spread 30
+  "Ray spread distance in pixels."
+  :type '(integer :tag "Spread (px)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-prism)
+                    (boundp 'neomacs-cursor-prism)
+                    neomacs-cursor-prism)
+           (neomacs-set-cursor-prism t
+            (if (boundp 'neomacs-cursor-prism-color)
+                neomacs-cursor-prism-color nil)
+            (if (boundp 'neomacs-cursor-prism-ray-count)
+                neomacs-cursor-prism-ray-count nil)
+            val))))
+
+(defcustom neomacs-cursor-prism-opacity 15
+  "Cursor prism opacity (0-100)."
+  :type '(integer :tag "Opacity (0-100)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-prism)
+                    (boundp 'neomacs-cursor-prism)
+                    neomacs-cursor-prism)
+           (neomacs-set-cursor-prism t
+            (if (boundp 'neomacs-cursor-prism-color)
+                neomacs-cursor-prism-color nil)
+            (if (boundp 'neomacs-cursor-prism-ray-count)
+                neomacs-cursor-prism-ray-count nil)
+            (if (boundp 'neomacs-cursor-prism-spread)
+                neomacs-cursor-prism-spread nil)
+            val))))
+
+;; Crosshatch pattern overlay effect
+(declare-function neomacs-set-crosshatch-pattern "neomacsterm.c")
+
+(defcustom neomacs-crosshatch-pattern nil
+  "Enable crosshatch pattern overlay effect."
+  :type 'boolean
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-crosshatch-pattern)
+           (if val
+               (neomacs-set-crosshatch-pattern t)
+             (neomacs-set-crosshatch-pattern nil)))))
+
+(defcustom neomacs-crosshatch-pattern-color "#809966"
+  "Crosshatch pattern color."
+  :type 'color
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-crosshatch-pattern)
+                    (boundp 'neomacs-crosshatch-pattern)
+                    neomacs-crosshatch-pattern)
+           (neomacs-set-crosshatch-pattern t val))))
+
+(defcustom neomacs-crosshatch-pattern-line-spacing 20
+  "Line spacing in pixels."
+  :type '(integer :tag "Line spacing (px)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-crosshatch-pattern)
+                    (boundp 'neomacs-crosshatch-pattern)
+                    neomacs-crosshatch-pattern)
+           (neomacs-set-crosshatch-pattern t
+            (if (boundp 'neomacs-crosshatch-pattern-color)
+                neomacs-crosshatch-pattern-color nil)
+            val))))
+
+(defcustom neomacs-crosshatch-pattern-angle 45
+  "Line angle in degrees."
+  :type '(integer :tag "Angle (degrees)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-crosshatch-pattern)
+                    (boundp 'neomacs-crosshatch-pattern)
+                    neomacs-crosshatch-pattern)
+           (neomacs-set-crosshatch-pattern t
+            (if (boundp 'neomacs-crosshatch-pattern-color)
+                neomacs-crosshatch-pattern-color nil)
+            (if (boundp 'neomacs-crosshatch-pattern-line-spacing)
+                neomacs-crosshatch-pattern-line-spacing nil)
+            val))))
+
+(defcustom neomacs-crosshatch-pattern-speed 30
+  "Animation speed (multiplied by 100)."
+  :type '(integer :tag "Speed * 100")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-crosshatch-pattern)
+                    (boundp 'neomacs-crosshatch-pattern)
+                    neomacs-crosshatch-pattern)
+           (neomacs-set-crosshatch-pattern t
+            (if (boundp 'neomacs-crosshatch-pattern-color)
+                neomacs-crosshatch-pattern-color nil)
+            (if (boundp 'neomacs-crosshatch-pattern-line-spacing)
+                neomacs-crosshatch-pattern-line-spacing nil)
+            (if (boundp 'neomacs-crosshatch-pattern-angle)
+                neomacs-crosshatch-pattern-angle nil)
+            val))))
+
+(defcustom neomacs-crosshatch-pattern-opacity 6
+  "Crosshatch pattern opacity (0-100)."
+  :type '(integer :tag "Opacity (0-100)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-crosshatch-pattern)
+                    (boundp 'neomacs-crosshatch-pattern)
+                    neomacs-crosshatch-pattern)
+           (neomacs-set-crosshatch-pattern t
+            (if (boundp 'neomacs-crosshatch-pattern-color)
+                neomacs-crosshatch-pattern-color nil)
+            (if (boundp 'neomacs-crosshatch-pattern-line-spacing)
+                neomacs-crosshatch-pattern-line-spacing nil)
+            (if (boundp 'neomacs-crosshatch-pattern-angle)
+                neomacs-crosshatch-pattern-angle nil)
+            (if (boundp 'neomacs-crosshatch-pattern-speed)
+                neomacs-crosshatch-pattern-speed nil)
+            val))))
+
+;; Cursor moth effect
+(declare-function neomacs-set-cursor-moth "neomacsterm.c")
+
+(defcustom neomacs-cursor-moth nil
+  "Enable cursor moth effect."
+  :type 'boolean
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-cursor-moth)
+           (if val
+               (neomacs-set-cursor-moth t)
+             (neomacs-set-cursor-moth nil)))))
+
+(defcustom neomacs-cursor-moth-color "#E6CC80"
+  "Cursor moth color."
+  :type 'color
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-moth)
+                    (boundp 'neomacs-cursor-moth)
+                    neomacs-cursor-moth)
+           (neomacs-set-cursor-moth t val))))
+
+(defcustom neomacs-cursor-moth-count 5
+  "Number of moths."
+  :type '(integer :tag "Moth count")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-moth)
+                    (boundp 'neomacs-cursor-moth)
+                    neomacs-cursor-moth)
+           (neomacs-set-cursor-moth t
+            (if (boundp 'neomacs-cursor-moth-color)
+                neomacs-cursor-moth-color nil)
+            val))))
+
+(defcustom neomacs-cursor-moth-wing-size 8
+  "Wing size in pixels."
+  :type '(integer :tag "Wing size (px)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-moth)
+                    (boundp 'neomacs-cursor-moth)
+                    neomacs-cursor-moth)
+           (neomacs-set-cursor-moth t
+            (if (boundp 'neomacs-cursor-moth-color)
+                neomacs-cursor-moth-color nil)
+            (if (boundp 'neomacs-cursor-moth-count)
+                neomacs-cursor-moth-count nil)
+            val))))
+
+(defcustom neomacs-cursor-moth-opacity 20
+  "Cursor moth opacity (0-100)."
+  :type '(integer :tag "Opacity (0-100)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-moth)
+                    (boundp 'neomacs-cursor-moth)
+                    neomacs-cursor-moth)
+           (neomacs-set-cursor-moth t
+            (if (boundp 'neomacs-cursor-moth-color)
+                neomacs-cursor-moth-color nil)
+            (if (boundp 'neomacs-cursor-moth-count)
+                neomacs-cursor-moth-count nil)
+            (if (boundp 'neomacs-cursor-moth-wing-size)
+                neomacs-cursor-moth-wing-size nil)
+            val))))
+
 ;; Concentric rings overlay effect
 (declare-function neomacs-set-concentric-rings "neomacsterm.c")
 

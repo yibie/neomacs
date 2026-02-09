@@ -6648,6 +6648,108 @@ pub unsafe extern "C" fn neomacs_display_set_cursor_gravity_well(
     }
 }
 
+/// Configure rotating gear overlay effect
+#[cfg(feature = "winit-backend")]
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_rotating_gear(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    r: c_int, g: c_int, b: c_int,
+    gear_size: c_int,
+    rotation_speed: c_int,
+    opacity: c_int,
+) {
+    let cmd = RenderCommand::SetRotatingGear {
+        enabled: enabled != 0,
+        r: r as f32 / 255.0,
+        g: g as f32 / 255.0,
+        b: b as f32 / 255.0,
+        gear_size: gear_size as f32,
+        rotation_speed: rotation_speed as f32 / 100.0,
+        opacity: opacity as f32 / 100.0,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
+/// Configure cursor prism effect
+#[cfg(feature = "winit-backend")]
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_cursor_prism(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    r: c_int, g: c_int, b: c_int,
+    ray_count: c_int,
+    spread: c_int,
+    opacity: c_int,
+) {
+    let cmd = RenderCommand::SetCursorPrism {
+        enabled: enabled != 0,
+        r: r as f32 / 255.0,
+        g: g as f32 / 255.0,
+        b: b as f32 / 255.0,
+        ray_count: ray_count as u32,
+        spread: spread as f32,
+        opacity: opacity as f32 / 100.0,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
+/// Configure crosshatch pattern overlay effect
+#[cfg(feature = "winit-backend")]
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_crosshatch_pattern(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    r: c_int, g: c_int, b: c_int,
+    line_spacing: c_int,
+    angle: c_int,
+    speed: c_int,
+    opacity: c_int,
+) {
+    let cmd = RenderCommand::SetCrosshatchPattern {
+        enabled: enabled != 0,
+        r: r as f32 / 255.0,
+        g: g as f32 / 255.0,
+        b: b as f32 / 255.0,
+        line_spacing: line_spacing as f32,
+        angle: angle as f32,
+        speed: speed as f32 / 100.0,
+        opacity: opacity as f32 / 100.0,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
+/// Configure cursor moth effect
+#[cfg(feature = "winit-backend")]
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_cursor_moth(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    r: c_int, g: c_int, b: c_int,
+    moth_count: c_int,
+    wing_size: c_int,
+    opacity: c_int,
+) {
+    let cmd = RenderCommand::SetCursorMoth {
+        enabled: enabled != 0,
+        r: r as f32 / 255.0,
+        g: g as f32 / 255.0,
+        b: b as f32 / 255.0,
+        moth_count: moth_count as u32,
+        wing_size: wing_size as f32,
+        opacity: opacity as f32 / 100.0,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
 /// Configure concentric rings overlay effect
 #[cfg(feature = "winit-backend")]
 #[no_mangle]

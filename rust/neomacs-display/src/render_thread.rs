@@ -878,6 +878,28 @@ struct RenderApp {
     cursor_crystal_radius: f32,
     cursor_crystal_opacity: f32,
 
+    rotating_gear_enabled: bool,
+    rotating_gear_color: (f32, f32, f32),
+    rotating_gear_size: f32,
+    rotating_gear_speed: f32,
+    rotating_gear_opacity: f32,
+    cursor_prism_enabled: bool,
+    cursor_prism_color: (f32, f32, f32),
+    cursor_prism_ray_count: u32,
+    cursor_prism_spread: f32,
+    cursor_prism_opacity: f32,
+    crosshatch_pattern_enabled: bool,
+    crosshatch_pattern_color: (f32, f32, f32),
+    crosshatch_pattern_line_spacing: f32,
+    crosshatch_pattern_angle: f32,
+    crosshatch_pattern_speed: f32,
+    crosshatch_pattern_opacity: f32,
+    cursor_moth_enabled: bool,
+    cursor_moth_color: (f32, f32, f32),
+    cursor_moth_count: u32,
+    cursor_moth_wing_size: f32,
+    cursor_moth_opacity: f32,
+
     // Per-window metadata from previous frame (for transition detection)
     prev_window_infos: HashMap<i64, crate::core::frame_glyphs::WindowInfo>,
 
@@ -1667,6 +1689,27 @@ impl RenderApp {
             cursor_crystal_facet_count: 6,
             cursor_crystal_radius: 25.0,
             cursor_crystal_opacity: 0.3,
+            rotating_gear_enabled: false,
+            rotating_gear_color: (0.6, 0.7, 0.8),
+            rotating_gear_size: 40.0,
+            rotating_gear_speed: 0.5,
+            rotating_gear_opacity: 0.08,
+            cursor_prism_enabled: false,
+            cursor_prism_color: (1.0, 1.0, 1.0),
+            cursor_prism_ray_count: 7,
+            cursor_prism_spread: 30.0,
+            cursor_prism_opacity: 0.15,
+            crosshatch_pattern_enabled: false,
+            crosshatch_pattern_color: (0.5, 0.6, 0.4),
+            crosshatch_pattern_line_spacing: 20.0,
+            crosshatch_pattern_angle: 45.0,
+            crosshatch_pattern_speed: 0.3,
+            crosshatch_pattern_opacity: 0.06,
+            cursor_moth_enabled: false,
+            cursor_moth_color: (0.9, 0.8, 0.5),
+            cursor_moth_count: 5,
+            cursor_moth_wing_size: 8.0,
+            cursor_moth_opacity: 0.2,
             prev_window_infos: HashMap::new(),
             crossfade_enabled: true,
             crossfade_duration: std::time::Duration::from_millis(200),
@@ -3720,6 +3763,51 @@ impl RenderApp {
                     self.cursor_tornado_opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_tornado(enabled, (r, g, b), radius, particle_count, opacity);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetRotatingGear { enabled, r, g, b, gear_size, rotation_speed, opacity } => {
+                    self.rotating_gear_enabled = enabled;
+                    self.rotating_gear_color = (r, g, b);
+                    self.rotating_gear_size = gear_size;
+                    self.rotating_gear_speed = rotation_speed;
+                    self.rotating_gear_opacity = opacity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_rotating_gear(enabled, (r, g, b), gear_size, rotation_speed, opacity);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetCursorPrism { enabled, r, g, b, ray_count, spread, opacity } => {
+                    self.cursor_prism_enabled = enabled;
+                    self.cursor_prism_color = (r, g, b);
+                    self.cursor_prism_ray_count = ray_count;
+                    self.cursor_prism_spread = spread;
+                    self.cursor_prism_opacity = opacity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_cursor_prism(enabled, (r, g, b), ray_count, spread, opacity);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetCrosshatchPattern { enabled, r, g, b, line_spacing, angle, speed, opacity } => {
+                    self.crosshatch_pattern_enabled = enabled;
+                    self.crosshatch_pattern_color = (r, g, b);
+                    self.crosshatch_pattern_line_spacing = line_spacing;
+                    self.crosshatch_pattern_angle = angle;
+                    self.crosshatch_pattern_speed = speed;
+                    self.crosshatch_pattern_opacity = opacity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_crosshatch_pattern(enabled, (r, g, b), line_spacing, angle, speed, opacity);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetCursorMoth { enabled, r, g, b, moth_count, wing_size, opacity } => {
+                    self.cursor_moth_enabled = enabled;
+                    self.cursor_moth_color = (r, g, b);
+                    self.cursor_moth_count = moth_count;
+                    self.cursor_moth_wing_size = wing_size;
+                    self.cursor_moth_opacity = opacity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_cursor_moth(enabled, (r, g, b), moth_count, wing_size, opacity);
                     }
                     self.frame_dirty = true;
                 }
