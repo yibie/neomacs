@@ -10967,6 +10967,154 @@ OPACITY is 0-100 (default 20). */)
   return on ? Qt : Qnil;
 }
 
+DEFUN ("neomacs-set-tessellation",
+       Fneomacs_set_tessellation,
+       Sneomacs_set_tessellation, 0, 5, 0,
+       doc: /* Configure tessellation overlay effect.
+ENABLED non-nil activates geometric tessellation pattern overlay.
+COLOR is a hex color string like "#RRGGBB" (default "#8080B3").
+TILE-SIZE is tile size in pixels (default 40).
+ROTATION is rotation angle * 100 (default 0).
+OPACITY is 0-100 (default 4). */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object tile_size,
+   Lisp_Object rotation, Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+  int on = !NILP (enabled);
+  int r = 0x80, g = 0x80, b = 0xB3, ts = 40, rot = 0, op = 4;
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned int hex;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (tile_size)) ts = XFIXNUM (tile_size);
+  if (FIXNUMP (rotation)) rot = XFIXNUM (rotation);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_tessellation (dpyinfo->display_handle, on, r, g, b, ts, rot, op);
+  return on ? Qt : Qnil;
+}
+
+DEFUN ("neomacs-set-cursor-water-drop",
+       Fneomacs_set_cursor_water_drop,
+       Sneomacs_set_cursor_water_drop, 0, 5, 0,
+       doc: /* Configure cursor water drop effect.
+ENABLED non-nil activates concentric ripples expanding from cursor.
+COLOR is a hex color string like "#RRGGBB" (default "#4D99E6").
+RIPPLE-COUNT is number of ripple rings (default 4).
+EXPAND-SPEED is expansion speed * 100 (default 100).
+OPACITY is 0-100 (default 15). */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object ripple_count,
+   Lisp_Object expand_speed, Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+  int on = !NILP (enabled);
+  int r = 0x4D, g = 0x99, b = 0xE6, rc = 4, es = 100, op = 15;
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned int hex;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (ripple_count)) rc = XFIXNUM (ripple_count);
+  if (FIXNUMP (expand_speed)) es = XFIXNUM (expand_speed);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_cursor_water_drop (dpyinfo->display_handle, on, r, g, b, rc, es, op);
+  return on ? Qt : Qnil;
+}
+
+DEFUN ("neomacs-set-guilloche",
+       Fneomacs_set_guilloche,
+       Sneomacs_set_guilloche, 0, 5, 0,
+       doc: /* Configure guilloche overlay effect.
+ENABLED non-nil activates intricate spirograph-like curve pattern overlay.
+COLOR is a hex color string like "#RRGGBB" (default "#9966B3").
+CURVE-COUNT is number of overlapping curves (default 8).
+WAVE-FREQ is wave frequency * 100 (default 100).
+OPACITY is 0-100 (default 5). */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object curve_count,
+   Lisp_Object wave_freq, Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+  int on = !NILP (enabled);
+  int r = 0x99, g = 0x66, b = 0xB3, cc = 8, wf = 100, op = 5;
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned int hex;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (curve_count)) cc = XFIXNUM (curve_count);
+  if (FIXNUMP (wave_freq)) wf = XFIXNUM (wave_freq);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_guilloche (dpyinfo->display_handle, on, r, g, b, cc, wf, op);
+  return on ? Qt : Qnil;
+}
+
+DEFUN ("neomacs-set-cursor-pixel-dust",
+       Fneomacs_set_cursor_pixel_dust,
+       Sneomacs_set_cursor_pixel_dust, 0, 5, 0,
+       doc: /* Configure cursor pixel dust effect.
+ENABLED non-nil activates pixel particles scattering from cursor.
+COLOR is a hex color string like "#RRGGBB" (default "#CCCC99").
+DUST-COUNT is number of dust particles (default 15).
+SCATTER-SPEED is scatter speed * 100 (default 100).
+OPACITY is 0-100 (default 20). */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object dust_count,
+   Lisp_Object scatter_speed, Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+  int on = !NILP (enabled);
+  int r = 0xCC, g = 0xCC, b = 0x99, dc = 15, ss = 100, op = 20;
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned int hex;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (dust_count)) dc = XFIXNUM (dust_count);
+  if (FIXNUMP (scatter_speed)) ss = XFIXNUM (scatter_speed);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_cursor_pixel_dust (dpyinfo->display_handle, on, r, g, b, dc, ss, op);
+  return on ? Qt : Qnil;
+}
+
 DEFUN ("neomacs-set-celtic-knot",
        Fneomacs_set_celtic_knot,
        Sneomacs_set_celtic_knot, 0, 5, 0,
@@ -14290,6 +14438,10 @@ syms_of_neomacsterm (void)
   defsubr (&Sneomacs_set_cursor_shockwave);
   defsubr (&Sneomacs_set_diamond_lattice);
   defsubr (&Sneomacs_set_cursor_gravity_well);
+  defsubr (&Sneomacs_set_tessellation);
+  defsubr (&Sneomacs_set_cursor_water_drop);
+  defsubr (&Sneomacs_set_guilloche);
+  defsubr (&Sneomacs_set_cursor_pixel_dust);
   defsubr (&Sneomacs_set_celtic_knot);
   defsubr (&Sneomacs_set_cursor_candle_flame);
   defsubr (&Sneomacs_set_argyle_pattern);

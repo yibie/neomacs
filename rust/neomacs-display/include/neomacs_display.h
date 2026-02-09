@@ -2775,6 +2775,54 @@ void neomacs_display_set_cursor_gravity_well(struct NeomacsDisplay *handle,
                                              int opacity);
 
 /**
+ * Configure tessellation overlay effect
+ */
+void neomacs_display_set_tessellation(struct NeomacsDisplay *handle,
+                                      int enabled,
+                                      int r,
+                                      int g,
+                                      int b,
+                                      int tileSize,
+                                      int rotation,
+                                      int opacity);
+
+/**
+ * Configure cursor water drop effect
+ */
+void neomacs_display_set_cursor_water_drop(struct NeomacsDisplay *handle,
+                                           int enabled,
+                                           int r,
+                                           int g,
+                                           int b,
+                                           int rippleCount,
+                                           int expandSpeed,
+                                           int opacity);
+
+/**
+ * Configure guilloche overlay effect
+ */
+void neomacs_display_set_guilloche(struct NeomacsDisplay *handle,
+                                   int enabled,
+                                   int r,
+                                   int g,
+                                   int b,
+                                   int curveCount,
+                                   int waveFreq,
+                                   int opacity);
+
+/**
+ * Configure cursor pixel dust effect
+ */
+void neomacs_display_set_cursor_pixel_dust(struct NeomacsDisplay *handle,
+                                           int enabled,
+                                           int r,
+                                           int g,
+                                           int b,
+                                           int dustCount,
+                                           int scatterSpeed,
+                                           int opacity);
+
+/**
  * Configure celtic knot overlay effect
  */
 void neomacs_display_set_celtic_knot(struct NeomacsDisplay *handle,

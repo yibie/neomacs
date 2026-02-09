@@ -5982,6 +5982,298 @@ Non-nil renders animated flowing color bands at the top of the frame."
                 neomacs-cursor-gravity-well-line-count nil)
             val))))
 
+;; Tessellation overlay effect
+(declare-function neomacs-set-tessellation "neomacsterm.c")
+
+(defcustom neomacs-tessellation nil
+  "Enable tessellation overlay effect."
+  :type 'boolean
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-tessellation)
+           (if val
+               (neomacs-set-tessellation t)
+             (neomacs-set-tessellation nil)))))
+
+(defcustom neomacs-tessellation-color "#8080B3"
+  "Tessellation color."
+  :type 'color
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-tessellation)
+                    (boundp 'neomacs-tessellation)
+                    neomacs-tessellation)
+           (neomacs-set-tessellation t val))))
+
+(defcustom neomacs-tessellation-tile-size 40
+  "Tessellation tile size in pixels."
+  :type '(integer :tag "Tile size (px)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-tessellation)
+                    (boundp 'neomacs-tessellation)
+                    neomacs-tessellation)
+           (neomacs-set-tessellation t
+            (if (boundp 'neomacs-tessellation-color)
+                neomacs-tessellation-color nil)
+            val))))
+
+(defcustom neomacs-tessellation-rotation 0
+  "Tessellation rotation angle * 100."
+  :type '(integer :tag "Rotation (*100)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-tessellation)
+                    (boundp 'neomacs-tessellation)
+                    neomacs-tessellation)
+           (neomacs-set-tessellation t
+            (if (boundp 'neomacs-tessellation-color)
+                neomacs-tessellation-color nil)
+            (if (boundp 'neomacs-tessellation-tile-size)
+                neomacs-tessellation-tile-size nil)
+            val))))
+
+(defcustom neomacs-tessellation-opacity 4
+  "Tessellation opacity (0-100)."
+  :type '(integer :tag "Opacity (0-100)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-tessellation)
+                    (boundp 'neomacs-tessellation)
+                    neomacs-tessellation)
+           (neomacs-set-tessellation t
+            (if (boundp 'neomacs-tessellation-color)
+                neomacs-tessellation-color nil)
+            (if (boundp 'neomacs-tessellation-tile-size)
+                neomacs-tessellation-tile-size nil)
+            (if (boundp 'neomacs-tessellation-rotation)
+                neomacs-tessellation-rotation nil)
+            val))))
+
+;; Cursor water drop effect
+(declare-function neomacs-set-cursor-water-drop "neomacsterm.c")
+
+(defcustom neomacs-cursor-water-drop nil
+  "Enable cursor water drop effect."
+  :type 'boolean
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-cursor-water-drop)
+           (if val
+               (neomacs-set-cursor-water-drop t)
+             (neomacs-set-cursor-water-drop nil)))))
+
+(defcustom neomacs-cursor-water-drop-color "#4D99E6"
+  "Cursor water drop color."
+  :type 'color
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-water-drop)
+                    (boundp 'neomacs-cursor-water-drop)
+                    neomacs-cursor-water-drop)
+           (neomacs-set-cursor-water-drop t val))))
+
+(defcustom neomacs-cursor-water-drop-ripple-count 4
+  "Number of ripple rings."
+  :type '(integer :tag "Ripple count")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-water-drop)
+                    (boundp 'neomacs-cursor-water-drop)
+                    neomacs-cursor-water-drop)
+           (neomacs-set-cursor-water-drop t
+            (if (boundp 'neomacs-cursor-water-drop-color)
+                neomacs-cursor-water-drop-color nil)
+            val))))
+
+(defcustom neomacs-cursor-water-drop-expand-speed 100
+  "Ripple expansion speed * 100."
+  :type '(integer :tag "Expand speed (*100)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-water-drop)
+                    (boundp 'neomacs-cursor-water-drop)
+                    neomacs-cursor-water-drop)
+           (neomacs-set-cursor-water-drop t
+            (if (boundp 'neomacs-cursor-water-drop-color)
+                neomacs-cursor-water-drop-color nil)
+            (if (boundp 'neomacs-cursor-water-drop-ripple-count)
+                neomacs-cursor-water-drop-ripple-count nil)
+            val))))
+
+(defcustom neomacs-cursor-water-drop-opacity 15
+  "Water drop opacity (0-100)."
+  :type '(integer :tag "Opacity (0-100)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-water-drop)
+                    (boundp 'neomacs-cursor-water-drop)
+                    neomacs-cursor-water-drop)
+           (neomacs-set-cursor-water-drop t
+            (if (boundp 'neomacs-cursor-water-drop-color)
+                neomacs-cursor-water-drop-color nil)
+            (if (boundp 'neomacs-cursor-water-drop-ripple-count)
+                neomacs-cursor-water-drop-ripple-count nil)
+            (if (boundp 'neomacs-cursor-water-drop-expand-speed)
+                neomacs-cursor-water-drop-expand-speed nil)
+            val))))
+
+;; Guilloche overlay effect
+(declare-function neomacs-set-guilloche "neomacsterm.c")
+
+(defcustom neomacs-guilloche nil
+  "Enable guilloche overlay effect."
+  :type 'boolean
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-guilloche)
+           (if val
+               (neomacs-set-guilloche t)
+             (neomacs-set-guilloche nil)))))
+
+(defcustom neomacs-guilloche-color "#9966B3"
+  "Guilloche color."
+  :type 'color
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-guilloche)
+                    (boundp 'neomacs-guilloche)
+                    neomacs-guilloche)
+           (neomacs-set-guilloche t val))))
+
+(defcustom neomacs-guilloche-curve-count 8
+  "Number of overlapping curves."
+  :type '(integer :tag "Curve count")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-guilloche)
+                    (boundp 'neomacs-guilloche)
+                    neomacs-guilloche)
+           (neomacs-set-guilloche t
+            (if (boundp 'neomacs-guilloche-color)
+                neomacs-guilloche-color nil)
+            val))))
+
+(defcustom neomacs-guilloche-wave-freq 100
+  "Wave frequency * 100."
+  :type '(integer :tag "Wave freq (*100)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-guilloche)
+                    (boundp 'neomacs-guilloche)
+                    neomacs-guilloche)
+           (neomacs-set-guilloche t
+            (if (boundp 'neomacs-guilloche-color)
+                neomacs-guilloche-color nil)
+            (if (boundp 'neomacs-guilloche-curve-count)
+                neomacs-guilloche-curve-count nil)
+            val))))
+
+(defcustom neomacs-guilloche-opacity 5
+  "Guilloche opacity (0-100)."
+  :type '(integer :tag "Opacity (0-100)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-guilloche)
+                    (boundp 'neomacs-guilloche)
+                    neomacs-guilloche)
+           (neomacs-set-guilloche t
+            (if (boundp 'neomacs-guilloche-color)
+                neomacs-guilloche-color nil)
+            (if (boundp 'neomacs-guilloche-curve-count)
+                neomacs-guilloche-curve-count nil)
+            (if (boundp 'neomacs-guilloche-wave-freq)
+                neomacs-guilloche-wave-freq nil)
+            val))))
+
+;; Cursor pixel dust effect
+(declare-function neomacs-set-cursor-pixel-dust "neomacsterm.c")
+
+(defcustom neomacs-cursor-pixel-dust nil
+  "Enable cursor pixel dust effect."
+  :type 'boolean
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-cursor-pixel-dust)
+           (if val
+               (neomacs-set-cursor-pixel-dust t)
+             (neomacs-set-cursor-pixel-dust nil)))))
+
+(defcustom neomacs-cursor-pixel-dust-color "#CCCC99"
+  "Cursor pixel dust color."
+  :type 'color
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-pixel-dust)
+                    (boundp 'neomacs-cursor-pixel-dust)
+                    neomacs-cursor-pixel-dust)
+           (neomacs-set-cursor-pixel-dust t val))))
+
+(defcustom neomacs-cursor-pixel-dust-count 15
+  "Number of dust particles."
+  :type '(integer :tag "Dust count")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-pixel-dust)
+                    (boundp 'neomacs-cursor-pixel-dust)
+                    neomacs-cursor-pixel-dust)
+           (neomacs-set-cursor-pixel-dust t
+            (if (boundp 'neomacs-cursor-pixel-dust-color)
+                neomacs-cursor-pixel-dust-color nil)
+            val))))
+
+(defcustom neomacs-cursor-pixel-dust-scatter-speed 100
+  "Dust scatter speed * 100."
+  :type '(integer :tag "Scatter speed (*100)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-pixel-dust)
+                    (boundp 'neomacs-cursor-pixel-dust)
+                    neomacs-cursor-pixel-dust)
+           (neomacs-set-cursor-pixel-dust t
+            (if (boundp 'neomacs-cursor-pixel-dust-color)
+                neomacs-cursor-pixel-dust-color nil)
+            (if (boundp 'neomacs-cursor-pixel-dust-count)
+                neomacs-cursor-pixel-dust-count nil)
+            val))))
+
+(defcustom neomacs-cursor-pixel-dust-opacity 20
+  "Pixel dust opacity (0-100)."
+  :type '(integer :tag "Opacity (0-100)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-pixel-dust)
+                    (boundp 'neomacs-cursor-pixel-dust)
+                    neomacs-cursor-pixel-dust)
+           (neomacs-set-cursor-pixel-dust t
+            (if (boundp 'neomacs-cursor-pixel-dust-color)
+                neomacs-cursor-pixel-dust-color nil)
+            (if (boundp 'neomacs-cursor-pixel-dust-count)
+                neomacs-cursor-pixel-dust-count nil)
+            (if (boundp 'neomacs-cursor-pixel-dust-scatter-speed)
+                neomacs-cursor-pixel-dust-scatter-speed nil)
+            val))))
+
 ;; Celtic knot overlay effect
 (declare-function neomacs-set-celtic-knot "neomacsterm.c")
 
