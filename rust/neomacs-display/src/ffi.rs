@@ -6648,6 +6648,108 @@ pub unsafe extern "C" fn neomacs_display_set_cursor_gravity_well(
     }
 }
 
+/// Configure moiré pattern overlay effect
+#[cfg(feature = "winit-backend")]
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_moire_pattern(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    r: c_int, g: c_int, b: c_int,
+    line_spacing: c_int,
+    angle_offset: c_int,
+    speed: c_int,
+    opacity: c_int,
+) {
+    let cmd = RenderCommand::SetMoirePattern {
+        enabled: enabled != 0,
+        r: r as f32 / 255.0,
+        g: g as f32 / 255.0,
+        b: b as f32 / 255.0,
+        line_spacing: line_spacing as f32,
+        angle_offset: angle_offset as f32,
+        speed: speed as f32 / 100.0,
+        opacity: opacity as f32 / 100.0,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
+/// Configure cursor lightning effect
+#[cfg(feature = "winit-backend")]
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_cursor_lightning(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    r: c_int, g: c_int, b: c_int,
+    bolt_count: c_int,
+    max_length: c_int,
+    opacity: c_int,
+) {
+    let cmd = RenderCommand::SetCursorLightning {
+        enabled: enabled != 0,
+        r: r as f32 / 255.0,
+        g: g as f32 / 255.0,
+        b: b as f32 / 255.0,
+        bolt_count: bolt_count as u32,
+        max_length: max_length as f32,
+        opacity: opacity as f32 / 100.0,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
+/// Configure dot matrix overlay effect
+#[cfg(feature = "winit-backend")]
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_dot_matrix(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    r: c_int, g: c_int, b: c_int,
+    dot_spacing: c_int,
+    pulse_speed: c_int,
+    opacity: c_int,
+) {
+    let cmd = RenderCommand::SetDotMatrix {
+        enabled: enabled != 0,
+        r: r as f32 / 255.0,
+        g: g as f32 / 255.0,
+        b: b as f32 / 255.0,
+        dot_spacing: dot_spacing as f32,
+        pulse_speed: pulse_speed as f32 / 100.0,
+        opacity: opacity as f32 / 100.0,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
+/// Configure cursor snowflake effect
+#[cfg(feature = "winit-backend")]
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_cursor_snowflake(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    r: c_int, g: c_int, b: c_int,
+    count: c_int,
+    fall_speed: c_int,
+    opacity: c_int,
+) {
+    let cmd = RenderCommand::SetCursorSnowflake {
+        enabled: enabled != 0,
+        r: r as f32 / 255.0,
+        g: g as f32 / 255.0,
+        b: b as f32 / 255.0,
+        count: count as u32,
+        fall_speed: fall_speed as f32,
+        opacity: opacity as f32 / 100.0,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
 /// Configure sunburst pattern overlay effect
 #[cfg(feature = "winit-backend")]
 #[no_mangle]

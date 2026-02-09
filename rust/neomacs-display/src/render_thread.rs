@@ -827,6 +827,32 @@ struct RenderApp {
     cursor_tornado_particle_count: u32,
     cursor_tornado_opacity: f32,
 
+    // Moiré pattern
+    moire_pattern_enabled: bool,
+    moire_pattern_color: (f32, f32, f32),
+    moire_pattern_line_spacing: f32,
+    moire_pattern_angle_offset: f32,
+    moire_pattern_speed: f32,
+    moire_pattern_opacity: f32,
+    // Cursor lightning
+    cursor_lightning_enabled: bool,
+    cursor_lightning_color: (f32, f32, f32),
+    cursor_lightning_bolt_count: u32,
+    cursor_lightning_max_length: f32,
+    cursor_lightning_opacity: f32,
+    // Dot matrix
+    dot_matrix_enabled: bool,
+    dot_matrix_color: (f32, f32, f32),
+    dot_matrix_spacing: f32,
+    dot_matrix_pulse_speed: f32,
+    dot_matrix_opacity: f32,
+    // Cursor snowflake
+    cursor_snowflake_enabled: bool,
+    cursor_snowflake_color: (f32, f32, f32),
+    cursor_snowflake_count: u32,
+    cursor_snowflake_fall_speed: f32,
+    cursor_snowflake_opacity: f32,
+
     // Per-window metadata from previous frame (for transition detection)
     prev_window_infos: HashMap<i64, crate::core::frame_glyphs::WindowInfo>,
 
@@ -1574,6 +1600,27 @@ impl RenderApp {
             cursor_tornado_radius: 40.0,
             cursor_tornado_particle_count: 12,
             cursor_tornado_opacity: 0.25,
+            moire_pattern_enabled: false,
+            moire_pattern_color: (0.5, 0.5, 0.8),
+            moire_pattern_line_spacing: 8.0,
+            moire_pattern_angle_offset: 5.0,
+            moire_pattern_speed: 0.3,
+            moire_pattern_opacity: 0.06,
+            cursor_lightning_enabled: false,
+            cursor_lightning_color: (0.6, 0.8, 1.0),
+            cursor_lightning_bolt_count: 4,
+            cursor_lightning_max_length: 50.0,
+            cursor_lightning_opacity: 0.4,
+            dot_matrix_enabled: false,
+            dot_matrix_color: (0.3, 1.0, 0.3),
+            dot_matrix_spacing: 12.0,
+            dot_matrix_pulse_speed: 1.0,
+            dot_matrix_opacity: 0.06,
+            cursor_snowflake_enabled: false,
+            cursor_snowflake_color: (0.8, 0.9, 1.0),
+            cursor_snowflake_count: 8,
+            cursor_snowflake_fall_speed: 30.0,
+            cursor_snowflake_opacity: 0.3,
             prev_window_infos: HashMap::new(),
             crossfade_enabled: true,
             crossfade_duration: std::time::Duration::from_millis(200),
@@ -3627,6 +3674,51 @@ impl RenderApp {
                     self.cursor_tornado_opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_tornado(enabled, (r, g, b), radius, particle_count, opacity);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetMoirePattern { enabled, r, g, b, line_spacing, angle_offset, speed, opacity } => {
+                    self.moire_pattern_enabled = enabled;
+                    self.moire_pattern_color = (r, g, b);
+                    self.moire_pattern_line_spacing = line_spacing;
+                    self.moire_pattern_angle_offset = angle_offset;
+                    self.moire_pattern_speed = speed;
+                    self.moire_pattern_opacity = opacity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_moire_pattern(enabled, (r, g, b), line_spacing, angle_offset, speed, opacity);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetCursorLightning { enabled, r, g, b, bolt_count, max_length, opacity } => {
+                    self.cursor_lightning_enabled = enabled;
+                    self.cursor_lightning_color = (r, g, b);
+                    self.cursor_lightning_bolt_count = bolt_count;
+                    self.cursor_lightning_max_length = max_length;
+                    self.cursor_lightning_opacity = opacity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_cursor_lightning(enabled, (r, g, b), bolt_count, max_length, opacity);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetDotMatrix { enabled, r, g, b, dot_spacing, pulse_speed, opacity } => {
+                    self.dot_matrix_enabled = enabled;
+                    self.dot_matrix_color = (r, g, b);
+                    self.dot_matrix_spacing = dot_spacing;
+                    self.dot_matrix_pulse_speed = pulse_speed;
+                    self.dot_matrix_opacity = opacity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_dot_matrix(enabled, (r, g, b), dot_spacing, pulse_speed, opacity);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetCursorSnowflake { enabled, r, g, b, count, fall_speed, opacity } => {
+                    self.cursor_snowflake_enabled = enabled;
+                    self.cursor_snowflake_color = (r, g, b);
+                    self.cursor_snowflake_count = count;
+                    self.cursor_snowflake_fall_speed = fall_speed;
+                    self.cursor_snowflake_opacity = opacity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_cursor_snowflake(enabled, (r, g, b), count, fall_speed, opacity);
                     }
                     self.frame_dirty = true;
                 }

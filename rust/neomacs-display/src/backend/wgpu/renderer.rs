@@ -673,6 +673,37 @@ pub struct WgpuRenderer {
     cursor_tornado_radius: f32,
     cursor_tornado_particle_count: u32,
     cursor_tornado_opacity: f32,
+    /// Moiré pattern
+    moire_pattern_enabled: bool,
+    moire_pattern_color: (f32, f32, f32),
+    moire_pattern_line_spacing: f32,
+    moire_pattern_angle_offset: f32,
+    moire_pattern_speed: f32,
+    moire_pattern_opacity: f32,
+    /// Cursor lightning
+    cursor_lightning_enabled: bool,
+    cursor_lightning_color: (f32, f32, f32),
+    cursor_lightning_bolt_count: u32,
+    cursor_lightning_max_length: f32,
+    cursor_lightning_opacity: f32,
+    cursor_lightning_start: Option<std::time::Instant>,
+    cursor_lightning_last_x: f32,
+    cursor_lightning_last_y: f32,
+    /// Dot matrix
+    dot_matrix_enabled: bool,
+    dot_matrix_color: (f32, f32, f32),
+    dot_matrix_spacing: f32,
+    dot_matrix_pulse_speed: f32,
+    dot_matrix_opacity: f32,
+    /// Cursor snowflake
+    cursor_snowflake_enabled: bool,
+    cursor_snowflake_color: (f32, f32, f32),
+    cursor_snowflake_count: u32,
+    cursor_snowflake_fall_speed: f32,
+    cursor_snowflake_opacity: f32,
+    cursor_snowflake_start: Option<std::time::Instant>,
+    cursor_snowflake_last_x: f32,
+    cursor_snowflake_last_y: f32,
     /// Window edge glow on scroll boundaries
     edge_glow_enabled: bool,
     edge_glow_color: (f32, f32, f32),
@@ -1831,6 +1862,33 @@ impl WgpuRenderer {
             cursor_tornado_radius: 40.0,
             cursor_tornado_particle_count: 12,
             cursor_tornado_opacity: 0.25,
+            moire_pattern_enabled: false,
+            moire_pattern_color: (0.5, 0.5, 0.8),
+            moire_pattern_line_spacing: 8.0,
+            moire_pattern_angle_offset: 5.0,
+            moire_pattern_speed: 0.3,
+            moire_pattern_opacity: 0.06,
+            cursor_lightning_enabled: false,
+            cursor_lightning_color: (0.6, 0.8, 1.0),
+            cursor_lightning_bolt_count: 4,
+            cursor_lightning_max_length: 50.0,
+            cursor_lightning_opacity: 0.4,
+            cursor_lightning_start: None,
+            cursor_lightning_last_x: 0.0,
+            cursor_lightning_last_y: 0.0,
+            dot_matrix_enabled: false,
+            dot_matrix_color: (0.3, 1.0, 0.3),
+            dot_matrix_spacing: 12.0,
+            dot_matrix_pulse_speed: 1.0,
+            dot_matrix_opacity: 0.06,
+            cursor_snowflake_enabled: false,
+            cursor_snowflake_color: (0.8, 0.9, 1.0),
+            cursor_snowflake_count: 8,
+            cursor_snowflake_fall_speed: 30.0,
+            cursor_snowflake_opacity: 0.3,
+            cursor_snowflake_start: None,
+            cursor_snowflake_last_x: 0.0,
+            cursor_snowflake_last_y: 0.0,
             edge_glow_enabled: false,
             edge_glow_color: (0.4, 0.6, 1.0),
             edge_glow_height: 40.0,
@@ -2807,6 +2865,43 @@ impl WgpuRenderer {
         self.cursor_tornado_radius = radius;
         self.cursor_tornado_particle_count = particle_count;
         self.cursor_tornado_opacity = opacity;
+    }
+
+    /// Update moiré pattern config
+    pub fn set_moire_pattern(&mut self, enabled: bool, color: (f32, f32, f32), line_spacing: f32, angle_offset: f32, speed: f32, opacity: f32) {
+        self.moire_pattern_enabled = enabled;
+        self.moire_pattern_color = color;
+        self.moire_pattern_line_spacing = line_spacing;
+        self.moire_pattern_angle_offset = angle_offset;
+        self.moire_pattern_speed = speed;
+        self.moire_pattern_opacity = opacity;
+    }
+
+    /// Update cursor lightning config
+    pub fn set_cursor_lightning(&mut self, enabled: bool, color: (f32, f32, f32), bolt_count: u32, max_length: f32, opacity: f32) {
+        self.cursor_lightning_enabled = enabled;
+        self.cursor_lightning_color = color;
+        self.cursor_lightning_bolt_count = bolt_count;
+        self.cursor_lightning_max_length = max_length;
+        self.cursor_lightning_opacity = opacity;
+    }
+
+    /// Update dot matrix config
+    pub fn set_dot_matrix(&mut self, enabled: bool, color: (f32, f32, f32), dot_spacing: f32, pulse_speed: f32, opacity: f32) {
+        self.dot_matrix_enabled = enabled;
+        self.dot_matrix_color = color;
+        self.dot_matrix_spacing = dot_spacing;
+        self.dot_matrix_pulse_speed = pulse_speed;
+        self.dot_matrix_opacity = opacity;
+    }
+
+    /// Update cursor snowflake config
+    pub fn set_cursor_snowflake(&mut self, enabled: bool, color: (f32, f32, f32), count: u32, fall_speed: f32, opacity: f32) {
+        self.cursor_snowflake_enabled = enabled;
+        self.cursor_snowflake_color = color;
+        self.cursor_snowflake_count = count;
+        self.cursor_snowflake_fall_speed = fall_speed;
+        self.cursor_snowflake_opacity = opacity;
     }
 
     /// Update hex grid config
@@ -7462,6 +7557,215 @@ impl WgpuRenderer {
                         render_pass.draw(0..tn_verts.len() as u32, 0..1);
                     }
                     self.needs_continuous_redraw = true;
+                }
+            }
+
+            // === Moiré pattern overlay effect ===
+            if self.moire_pattern_enabled {
+                let now = std::time::Instant::now().duration_since(self.aurora_start).as_secs_f32();
+                let (cr, cg, cb) = self.moire_pattern_color;
+                let spacing = self.moire_pattern_line_spacing.max(4.0);
+                let angle_off = self.moire_pattern_angle_offset * std::f32::consts::PI / 180.0;
+                let speed = self.moire_pattern_speed;
+                let opacity = self.moire_pattern_opacity;
+                let width = self.width() as f32;
+                let height = self.height() as f32;
+                let mut mo_verts: Vec<RectVertex> = Vec::new();
+                let diagonal = (width * width + height * height).sqrt();
+                // Two sets of parallel lines at different angles
+                for layer in 0..2 {
+                    let base_angle = if layer == 0 { now * speed } else { now * speed + angle_off };
+                    let cos_a = base_angle.cos();
+                    let sin_a = base_angle.sin();
+                    let line_count = (diagonal / spacing) as i32 + 2;
+                    for i in (-line_count)..line_count {
+                        let offset = i as f32 * spacing;
+                        // Line perpendicular to angle direction
+                        let lx = width / 2.0 + cos_a * offset;
+                        let ly = height / 2.0 + sin_a * offset;
+                        // Draw as thin rect along the line direction
+                        let line_w = 1.0;
+                        let line_h = diagonal;
+                        // Use sin_a/-cos_a for the perpendicular direction
+                        let cx = lx - sin_a * line_h / 2.0;
+                        let cy = ly + cos_a * line_h / 2.0;
+                        // Approximate with axis-aligned rect
+                        let alpha = opacity * 0.5;
+                        let c = Color::new(cr, cg, cb, alpha);
+                        self.add_rect(&mut mo_verts, lx - line_w / 2.0, ly - line_h / 2.0, line_w, line_h, &c);
+                    }
+                }
+                if !mo_verts.is_empty() {
+                    let mo_buf = self.device().create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some("moire_pattern_vb"),
+                        contents: bytemuck::cast_slice(&mo_verts),
+                        usage: wgpu::BufferUsages::VERTEX,
+                    });
+                    render_pass.set_pipeline(&self.rect_pipeline);
+                    render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                    render_pass.set_vertex_buffer(0, mo_buf.slice(..));
+                    render_pass.draw(0..mo_verts.len() as u32, 0..1);
+                }
+                self.needs_continuous_redraw = true;
+            }
+
+            // === Cursor lightning effect ===
+            if self.cursor_lightning_enabled && cursor_visible {
+                if let Some(ref anim) = animated_cursor {
+                    let cx = anim.x + anim.width / 2.0;
+                    let cy = anim.y + anim.height / 2.0;
+                    let dx = cx - self.cursor_lightning_last_x;
+                    let dy = cy - self.cursor_lightning_last_y;
+                    if dx.abs() > 1.0 || dy.abs() > 1.0 {
+                        self.cursor_lightning_start = Some(std::time::Instant::now());
+                        self.cursor_lightning_last_x = cx;
+                        self.cursor_lightning_last_y = cy;
+                    }
+                    if let Some(start) = self.cursor_lightning_start {
+                        let elapsed = start.elapsed().as_secs_f32();
+                        let duration = 0.4;
+                        if elapsed < duration {
+                            let t = elapsed / duration;
+                            let (cr, cg, cb) = self.cursor_lightning_color;
+                            let opacity = self.cursor_lightning_opacity;
+                            let max_len = self.cursor_lightning_max_length;
+                            let mut lt_verts: Vec<RectVertex> = Vec::new();
+                            for bolt in 0..self.cursor_lightning_bolt_count {
+                                let mut h = bolt.wrapping_mul(2654435761);
+                                h ^= h >> 16;
+                                let angle = (h % 360) as f32 * std::f32::consts::PI / 180.0;
+                                let segments = 6u32;
+                                let mut px = cx;
+                                let mut py = cy;
+                                for seg in 0..segments {
+                                    let seg_len = max_len / segments as f32;
+                                    let jitter_angle = angle + ((h.wrapping_mul((seg + 1) as u32) >> 8) % 60) as f32 * 0.02 - 0.6;
+                                    let nx = px + jitter_angle.cos() * seg_len;
+                                    let ny = py + jitter_angle.sin() * seg_len;
+                                    let alpha = opacity * (1.0 - t) * (1.0 - seg as f32 / segments as f32 * 0.5);
+                                    let thickness = 2.0 * (1.0 - t * 0.5);
+                                    let c = Color::new(cr, cg, cb, alpha);
+                                    // Draw segment as small rect
+                                    let mx = (px + nx) / 2.0;
+                                    let my = (py + ny) / 2.0;
+                                    self.add_rect(&mut lt_verts, mx - thickness / 2.0, my - thickness / 2.0, thickness, seg_len.max(thickness), &c);
+                                    px = nx;
+                                    py = ny;
+                                    h = h.wrapping_mul(1103515245).wrapping_add(12345);
+                                }
+                            }
+                            if !lt_verts.is_empty() {
+                                let lt_buf = self.device().create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                                    label: Some("cursor_lightning_vb"),
+                                    contents: bytemuck::cast_slice(&lt_verts),
+                                    usage: wgpu::BufferUsages::VERTEX,
+                                });
+                                render_pass.set_pipeline(&self.rect_pipeline);
+                                render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                                render_pass.set_vertex_buffer(0, lt_buf.slice(..));
+                                render_pass.draw(0..lt_verts.len() as u32, 0..1);
+                            }
+                            self.needs_continuous_redraw = true;
+                        } else {
+                            self.cursor_lightning_start = None;
+                        }
+                    }
+                }
+            }
+
+            // === Dot matrix overlay effect ===
+            if self.dot_matrix_enabled {
+                let now = std::time::Instant::now().duration_since(self.aurora_start).as_secs_f32();
+                let (cr, cg, cb) = self.dot_matrix_color;
+                let spacing = self.dot_matrix_spacing.max(4.0);
+                let pulse = self.dot_matrix_pulse_speed;
+                let opacity = self.dot_matrix_opacity;
+                let width = self.width() as f32;
+                let height = self.height() as f32;
+                let mut dm_verts: Vec<RectVertex> = Vec::new();
+                let cols = (width / spacing) as u32 + 1;
+                let rows = (height / spacing) as u32 + 1;
+                for row in 0..rows {
+                    for col in 0..cols {
+                        let dx = col as f32 * spacing;
+                        let dy = row as f32 * spacing;
+                        let phase = (row as f32 * 0.3 + col as f32 * 0.2 + now * pulse).sin() * 0.5 + 0.5;
+                        let dot_size = 2.0 * phase + 0.5;
+                        let alpha = opacity * phase;
+                        let c = Color::new(cr, cg, cb, alpha);
+                        self.add_rect(&mut dm_verts, dx - dot_size / 2.0, dy - dot_size / 2.0, dot_size, dot_size, &c);
+                    }
+                }
+                if !dm_verts.is_empty() {
+                    let dm_buf = self.device().create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some("dot_matrix_vb"),
+                        contents: bytemuck::cast_slice(&dm_verts),
+                        usage: wgpu::BufferUsages::VERTEX,
+                    });
+                    render_pass.set_pipeline(&self.rect_pipeline);
+                    render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                    render_pass.set_vertex_buffer(0, dm_buf.slice(..));
+                    render_pass.draw(0..dm_verts.len() as u32, 0..1);
+                }
+                self.needs_continuous_redraw = true;
+            }
+
+            // === Cursor snowflake effect ===
+            if self.cursor_snowflake_enabled && cursor_visible {
+                if let Some(ref anim) = animated_cursor {
+                    let cx = anim.x + anim.width / 2.0;
+                    let cy = anim.y + anim.height / 2.0;
+                    let dx = cx - self.cursor_snowflake_last_x;
+                    let dy = cy - self.cursor_snowflake_last_y;
+                    if dx.abs() > 1.0 || dy.abs() > 1.0 {
+                        self.cursor_snowflake_start = Some(std::time::Instant::now());
+                        self.cursor_snowflake_last_x = cx;
+                        self.cursor_snowflake_last_y = cy;
+                    }
+                    if let Some(start) = self.cursor_snowflake_start {
+                        let elapsed = start.elapsed().as_secs_f32();
+                        let duration = 2.0;
+                        if elapsed < duration {
+                            let t = elapsed / duration;
+                            let (cr, cg, cb) = self.cursor_snowflake_color;
+                            let opacity = self.cursor_snowflake_opacity;
+                            let fall_speed = self.cursor_snowflake_fall_speed;
+                            let mut sf_verts: Vec<RectVertex> = Vec::new();
+                            for i in 0..self.cursor_snowflake_count {
+                                let mut h = i.wrapping_mul(2654435761);
+                                h ^= h >> 16;
+                                let offset_x = ((h % 60) as f32 - 30.0);
+                                let drift = ((h >> 8) % 20) as f32 * 0.1 - 1.0;
+                                let fall_y = elapsed * fall_speed * (0.5 + (h % 100) as f32 / 100.0);
+                                let px = cx + offset_x + drift * elapsed * 5.0;
+                                let py = cy + fall_y;
+                                let size = 3.0 + (h % 3) as f32;
+                                let alpha = opacity * (1.0 - t);
+                                let c = Color::new(cr, cg, cb, alpha);
+                                // Simple snowflake: center + 6 arms as small rects
+                                self.add_rect(&mut sf_verts, px - size / 2.0, py - 0.5, size, 1.0, &c);
+                                self.add_rect(&mut sf_verts, px - 0.5, py - size / 2.0, 1.0, size, &c);
+                                // Diagonal arms approximated
+                                let arm = size * 0.35;
+                                self.add_rect(&mut sf_verts, px - arm, py - arm, arm * 0.7, arm * 0.7, &c);
+                                self.add_rect(&mut sf_verts, px + arm * 0.3, py + arm * 0.3, arm * 0.7, arm * 0.7, &c);
+                            }
+                            if !sf_verts.is_empty() {
+                                let sf_buf = self.device().create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                                    label: Some("cursor_snowflake_vb"),
+                                    contents: bytemuck::cast_slice(&sf_verts),
+                                    usage: wgpu::BufferUsages::VERTEX,
+                                });
+                                render_pass.set_pipeline(&self.rect_pipeline);
+                                render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                                render_pass.set_vertex_buffer(0, sf_buf.slice(..));
+                                render_pass.draw(0..sf_verts.len() as u32, 0..1);
+                            }
+                            self.needs_continuous_redraw = true;
+                        } else {
+                            self.cursor_snowflake_start = None;
+                        }
+                    }
                 }
             }
 

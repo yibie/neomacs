@@ -5982,6 +5982,318 @@ Non-nil renders animated flowing color bands at the top of the frame."
                 neomacs-cursor-gravity-well-line-count nil)
             val))))
 
+;; Moiré pattern overlay effect
+(declare-function neomacs-set-moire-pattern "neomacsterm.c")
+
+(defcustom neomacs-moire-pattern nil
+  "Enable moiré pattern overlay effect."
+  :type 'boolean
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-moire-pattern)
+           (if val
+               (neomacs-set-moire-pattern t)
+             (neomacs-set-moire-pattern nil)))))
+
+(defcustom neomacs-moire-pattern-color "#8080CC"
+  "Moiré pattern color."
+  :type 'color
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-moire-pattern)
+                    (boundp 'neomacs-moire-pattern)
+                    neomacs-moire-pattern)
+           (neomacs-set-moire-pattern t val))))
+
+(defcustom neomacs-moire-pattern-line-spacing 8
+  "Line spacing in pixels."
+  :type '(integer :tag "Line spacing (px)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-moire-pattern)
+                    (boundp 'neomacs-moire-pattern)
+                    neomacs-moire-pattern)
+           (neomacs-set-moire-pattern t
+            (if (boundp 'neomacs-moire-pattern-color)
+                neomacs-moire-pattern-color nil)
+            val))))
+
+(defcustom neomacs-moire-pattern-angle-offset 5
+  "Angle offset between grids in degrees."
+  :type '(integer :tag "Angle (degrees)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-moire-pattern)
+                    (boundp 'neomacs-moire-pattern)
+                    neomacs-moire-pattern)
+           (neomacs-set-moire-pattern t
+            (if (boundp 'neomacs-moire-pattern-color)
+                neomacs-moire-pattern-color nil)
+            (if (boundp 'neomacs-moire-pattern-line-spacing)
+                neomacs-moire-pattern-line-spacing nil)
+            val))))
+
+(defcustom neomacs-moire-pattern-speed 30
+  "Rotation speed (multiplied by 100)."
+  :type '(integer :tag "Speed * 100")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-moire-pattern)
+                    (boundp 'neomacs-moire-pattern)
+                    neomacs-moire-pattern)
+           (neomacs-set-moire-pattern t
+            (if (boundp 'neomacs-moire-pattern-color)
+                neomacs-moire-pattern-color nil)
+            (if (boundp 'neomacs-moire-pattern-line-spacing)
+                neomacs-moire-pattern-line-spacing nil)
+            (if (boundp 'neomacs-moire-pattern-angle-offset)
+                neomacs-moire-pattern-angle-offset nil)
+            val))))
+
+(defcustom neomacs-moire-pattern-opacity 6
+  "Moiré pattern opacity (0-100)."
+  :type '(integer :tag "Opacity (0-100)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-moire-pattern)
+                    (boundp 'neomacs-moire-pattern)
+                    neomacs-moire-pattern)
+           (neomacs-set-moire-pattern t
+            (if (boundp 'neomacs-moire-pattern-color)
+                neomacs-moire-pattern-color nil)
+            (if (boundp 'neomacs-moire-pattern-line-spacing)
+                neomacs-moire-pattern-line-spacing nil)
+            (if (boundp 'neomacs-moire-pattern-angle-offset)
+                neomacs-moire-pattern-angle-offset nil)
+            (if (boundp 'neomacs-moire-pattern-speed)
+                neomacs-moire-pattern-speed nil)
+            val))))
+
+;; Cursor lightning effect
+(declare-function neomacs-set-cursor-lightning "neomacsterm.c")
+
+(defcustom neomacs-cursor-lightning nil
+  "Enable cursor lightning effect."
+  :type 'boolean
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-cursor-lightning)
+           (if val
+               (neomacs-set-cursor-lightning t)
+             (neomacs-set-cursor-lightning nil)))))
+
+(defcustom neomacs-cursor-lightning-color "#99CCFF"
+  "Lightning color."
+  :type 'color
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-lightning)
+                    (boundp 'neomacs-cursor-lightning)
+                    neomacs-cursor-lightning)
+           (neomacs-set-cursor-lightning t val))))
+
+(defcustom neomacs-cursor-lightning-bolt-count 4
+  "Number of lightning bolts."
+  :type '(integer :tag "Bolt count")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-lightning)
+                    (boundp 'neomacs-cursor-lightning)
+                    neomacs-cursor-lightning)
+           (neomacs-set-cursor-lightning t
+            (if (boundp 'neomacs-cursor-lightning-color)
+                neomacs-cursor-lightning-color nil)
+            val))))
+
+(defcustom neomacs-cursor-lightning-max-length 50
+  "Maximum bolt length in pixels."
+  :type '(integer :tag "Max length (px)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-lightning)
+                    (boundp 'neomacs-cursor-lightning)
+                    neomacs-cursor-lightning)
+           (neomacs-set-cursor-lightning t
+            (if (boundp 'neomacs-cursor-lightning-color)
+                neomacs-cursor-lightning-color nil)
+            (if (boundp 'neomacs-cursor-lightning-bolt-count)
+                neomacs-cursor-lightning-bolt-count nil)
+            val))))
+
+(defcustom neomacs-cursor-lightning-opacity 40
+  "Lightning opacity (0-100)."
+  :type '(integer :tag "Opacity (0-100)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-lightning)
+                    (boundp 'neomacs-cursor-lightning)
+                    neomacs-cursor-lightning)
+           (neomacs-set-cursor-lightning t
+            (if (boundp 'neomacs-cursor-lightning-color)
+                neomacs-cursor-lightning-color nil)
+            (if (boundp 'neomacs-cursor-lightning-bolt-count)
+                neomacs-cursor-lightning-bolt-count nil)
+            (if (boundp 'neomacs-cursor-lightning-max-length)
+                neomacs-cursor-lightning-max-length nil)
+            val))))
+
+;; Dot matrix overlay effect
+(declare-function neomacs-set-dot-matrix "neomacsterm.c")
+
+(defcustom neomacs-dot-matrix nil
+  "Enable dot matrix overlay effect."
+  :type 'boolean
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-dot-matrix)
+           (if val
+               (neomacs-set-dot-matrix t)
+             (neomacs-set-dot-matrix nil)))))
+
+(defcustom neomacs-dot-matrix-color "#4DFF4D"
+  "Dot matrix color."
+  :type 'color
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-dot-matrix)
+                    (boundp 'neomacs-dot-matrix)
+                    neomacs-dot-matrix)
+           (neomacs-set-dot-matrix t val))))
+
+(defcustom neomacs-dot-matrix-spacing 12
+  "Dot spacing in pixels."
+  :type '(integer :tag "Spacing (px)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-dot-matrix)
+                    (boundp 'neomacs-dot-matrix)
+                    neomacs-dot-matrix)
+           (neomacs-set-dot-matrix t
+            (if (boundp 'neomacs-dot-matrix-color)
+                neomacs-dot-matrix-color nil)
+            val))))
+
+(defcustom neomacs-dot-matrix-pulse-speed 100
+  "Pulse animation speed (multiplied by 100)."
+  :type '(integer :tag "Speed * 100")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-dot-matrix)
+                    (boundp 'neomacs-dot-matrix)
+                    neomacs-dot-matrix)
+           (neomacs-set-dot-matrix t
+            (if (boundp 'neomacs-dot-matrix-color)
+                neomacs-dot-matrix-color nil)
+            (if (boundp 'neomacs-dot-matrix-spacing)
+                neomacs-dot-matrix-spacing nil)
+            val))))
+
+(defcustom neomacs-dot-matrix-opacity 6
+  "Dot matrix opacity (0-100)."
+  :type '(integer :tag "Opacity (0-100)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-dot-matrix)
+                    (boundp 'neomacs-dot-matrix)
+                    neomacs-dot-matrix)
+           (neomacs-set-dot-matrix t
+            (if (boundp 'neomacs-dot-matrix-color)
+                neomacs-dot-matrix-color nil)
+            (if (boundp 'neomacs-dot-matrix-spacing)
+                neomacs-dot-matrix-spacing nil)
+            (if (boundp 'neomacs-dot-matrix-pulse-speed)
+                neomacs-dot-matrix-pulse-speed nil)
+            val))))
+
+;; Cursor snowflake effect
+(declare-function neomacs-set-cursor-snowflake "neomacsterm.c")
+
+(defcustom neomacs-cursor-snowflake nil
+  "Enable cursor snowflake effect."
+  :type 'boolean
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-cursor-snowflake)
+           (if val
+               (neomacs-set-cursor-snowflake t)
+             (neomacs-set-cursor-snowflake nil)))))
+
+(defcustom neomacs-cursor-snowflake-color "#CCE5FF"
+  "Snowflake color."
+  :type 'color
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-snowflake)
+                    (boundp 'neomacs-cursor-snowflake)
+                    neomacs-cursor-snowflake)
+           (neomacs-set-cursor-snowflake t val))))
+
+(defcustom neomacs-cursor-snowflake-count 8
+  "Number of snowflakes."
+  :type '(integer :tag "Count")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-snowflake)
+                    (boundp 'neomacs-cursor-snowflake)
+                    neomacs-cursor-snowflake)
+           (neomacs-set-cursor-snowflake t
+            (if (boundp 'neomacs-cursor-snowflake-color)
+                neomacs-cursor-snowflake-color nil)
+            val))))
+
+(defcustom neomacs-cursor-snowflake-fall-speed 30
+  "Snowflake fall speed in pixels per second."
+  :type '(integer :tag "Fall speed (px/s)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-snowflake)
+                    (boundp 'neomacs-cursor-snowflake)
+                    neomacs-cursor-snowflake)
+           (neomacs-set-cursor-snowflake t
+            (if (boundp 'neomacs-cursor-snowflake-color)
+                neomacs-cursor-snowflake-color nil)
+            (if (boundp 'neomacs-cursor-snowflake-count)
+                neomacs-cursor-snowflake-count nil)
+            val))))
+
+(defcustom neomacs-cursor-snowflake-opacity 30
+  "Snowflake opacity (0-100)."
+  :type '(integer :tag "Opacity (0-100)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-snowflake)
+                    (boundp 'neomacs-cursor-snowflake)
+                    neomacs-cursor-snowflake)
+           (neomacs-set-cursor-snowflake t
+            (if (boundp 'neomacs-cursor-snowflake-color)
+                neomacs-cursor-snowflake-color nil)
+            (if (boundp 'neomacs-cursor-snowflake-count)
+                neomacs-cursor-snowflake-count nil)
+            (if (boundp 'neomacs-cursor-snowflake-fall-speed)
+                neomacs-cursor-snowflake-fall-speed nil)
+            val))))
+
 ;; Sunburst pattern overlay effect
 (declare-function neomacs-set-sunburst-pattern "neomacsterm.c")
 

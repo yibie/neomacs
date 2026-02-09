@@ -2775,6 +2775,55 @@ void neomacs_display_set_cursor_gravity_well(struct NeomacsDisplay *handle,
                                              int opacity);
 
 /**
+ * Configure moiré pattern overlay effect
+ */
+void neomacs_display_set_moire_pattern(struct NeomacsDisplay *handle,
+                                       int enabled,
+                                       int r,
+                                       int g,
+                                       int b,
+                                       int lineSpacing,
+                                       int angleOffset,
+                                       int speed,
+                                       int opacity);
+
+/**
+ * Configure cursor lightning effect
+ */
+void neomacs_display_set_cursor_lightning(struct NeomacsDisplay *handle,
+                                          int enabled,
+                                          int r,
+                                          int g,
+                                          int b,
+                                          int boltCount,
+                                          int maxLength,
+                                          int opacity);
+
+/**
+ * Configure dot matrix overlay effect
+ */
+void neomacs_display_set_dot_matrix(struct NeomacsDisplay *handle,
+                                    int enabled,
+                                    int r,
+                                    int g,
+                                    int b,
+                                    int dotSpacing,
+                                    int pulseSpeed,
+                                    int opacity);
+
+/**
+ * Configure cursor snowflake effect
+ */
+void neomacs_display_set_cursor_snowflake(struct NeomacsDisplay *handle,
+                                          int enabled,
+                                          int r,
+                                          int g,
+                                          int b,
+                                          int count,
+                                          int fallSpeed,
+                                          int opacity);
+
+/**
  * Configure sunburst pattern overlay effect
  */
 void neomacs_display_set_sunburst_pattern(struct NeomacsDisplay *handle,

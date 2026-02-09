@@ -1401,6 +1401,39 @@ pub enum RenderCommand {
         particle_count: u32,
         opacity: f32,
     },
+    /// Configure moiré pattern overlay effect
+    SetMoirePattern {
+        enabled: bool,
+        r: f32, g: f32, b: f32,
+        line_spacing: f32,
+        angle_offset: f32,
+        speed: f32,
+        opacity: f32,
+    },
+    /// Configure cursor lightning effect
+    SetCursorLightning {
+        enabled: bool,
+        r: f32, g: f32, b: f32,
+        bolt_count: u32,
+        max_length: f32,
+        opacity: f32,
+    },
+    /// Configure dot matrix overlay effect
+    SetDotMatrix {
+        enabled: bool,
+        r: f32, g: f32, b: f32,
+        dot_spacing: f32,
+        pulse_speed: f32,
+        opacity: f32,
+    },
+    /// Configure cursor snowflake effect
+    SetCursorSnowflake {
+        enabled: bool,
+        r: f32, g: f32, b: f32,
+        count: u32,
+        fall_speed: f32,
+        opacity: f32,
+    },
     /// Configure background pattern
     SetBackgroundPattern {
         /// 0=none, 1=dots, 2=grid, 3=crosshatch

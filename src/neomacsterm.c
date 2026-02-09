@@ -10967,6 +10967,156 @@ OPACITY is 0-100 (default 20). */)
   return on ? Qt : Qnil;
 }
 
+DEFUN ("neomacs-set-moire-pattern",
+       Fneomacs_set_moire_pattern,
+       Sneomacs_set_moire_pattern, 0, 6, 0,
+       doc: /* Configure moiré pattern overlay effect.
+ENABLED non-nil activates overlapping grid interference pattern.
+COLOR is a hex color string like "#RRGGBB" (default "#8080CC").
+LINE-SPACING is spacing between lines in pixels (default 8).
+ANGLE-OFFSET is angle between grids in degrees (default 5).
+SPEED is rotation speed * 100 (default 30).
+OPACITY is 0-100 (default 6). */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object line_spacing,
+   Lisp_Object angle_offset, Lisp_Object speed, Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+  int on = !NILP (enabled);
+  int r = 0x80, g = 0x80, b = 0xCC, ls = 8, ao = 5, sp = 30, op = 6;
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned int hex;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (line_spacing)) ls = XFIXNUM (line_spacing);
+  if (FIXNUMP (angle_offset)) ao = XFIXNUM (angle_offset);
+  if (FIXNUMP (speed)) sp = XFIXNUM (speed);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_moire_pattern (dpyinfo->display_handle, on, r, g, b, ls, ao, sp, op);
+  return on ? Qt : Qnil;
+}
+
+DEFUN ("neomacs-set-cursor-lightning",
+       Fneomacs_set_cursor_lightning,
+       Sneomacs_set_cursor_lightning, 0, 5, 0,
+       doc: /* Configure cursor lightning effect.
+ENABLED non-nil activates electric bolt arcs from cursor.
+COLOR is a hex color string like "#RRGGBB" (default "#99CCFF").
+BOLT-COUNT is number of lightning bolts (default 4).
+MAX-LENGTH is maximum bolt length in pixels (default 50).
+OPACITY is 0-100 (default 40). */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object bolt_count,
+   Lisp_Object max_length, Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+  int on = !NILP (enabled);
+  int r = 0x99, g = 0xCC, b = 0xFF, bc = 4, ml = 50, op = 40;
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned int hex;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (bolt_count)) bc = XFIXNUM (bolt_count);
+  if (FIXNUMP (max_length)) ml = XFIXNUM (max_length);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_cursor_lightning (dpyinfo->display_handle, on, r, g, b, bc, ml, op);
+  return on ? Qt : Qnil;
+}
+
+DEFUN ("neomacs-set-dot-matrix",
+       Fneomacs_set_dot_matrix,
+       Sneomacs_set_dot_matrix, 0, 5, 0,
+       doc: /* Configure dot matrix overlay effect.
+ENABLED non-nil activates retro LED-style pulsing dot grid.
+COLOR is a hex color string like "#RRGGBB" (default "#4DFF4D").
+DOT-SPACING is spacing between dots in pixels (default 12).
+PULSE-SPEED is pulse animation speed * 100 (default 100).
+OPACITY is 0-100 (default 6). */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object dot_spacing,
+   Lisp_Object pulse_speed, Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+  int on = !NILP (enabled);
+  int r = 0x4D, g = 0xFF, b = 0x4D, ds = 12, ps = 100, op = 6;
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned int hex;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (dot_spacing)) ds = XFIXNUM (dot_spacing);
+  if (FIXNUMP (pulse_speed)) ps = XFIXNUM (pulse_speed);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_dot_matrix (dpyinfo->display_handle, on, r, g, b, ds, ps, op);
+  return on ? Qt : Qnil;
+}
+
+DEFUN ("neomacs-set-cursor-snowflake",
+       Fneomacs_set_cursor_snowflake,
+       Sneomacs_set_cursor_snowflake, 0, 5, 0,
+       doc: /* Configure cursor snowflake effect.
+ENABLED non-nil activates crystalline snowflakes drifting from cursor.
+COLOR is a hex color string like "#RRGGBB" (default "#CCE5FF").
+COUNT is number of snowflakes (default 8).
+FALL-SPEED is fall speed in pixels per second (default 30).
+OPACITY is 0-100 (default 30). */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object count,
+   Lisp_Object fall_speed, Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+  int on = !NILP (enabled);
+  int r = 0xCC, g = 0xE5, b = 0xFF, ct = 8, fs = 30, op = 30;
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned int hex;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (count)) ct = XFIXNUM (count);
+  if (FIXNUMP (fall_speed)) fs = XFIXNUM (fall_speed);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_cursor_snowflake (dpyinfo->display_handle, on, r, g, b, ct, fs, op);
+  return on ? Qt : Qnil;
+}
+
 DEFUN ("neomacs-set-sunburst-pattern",
        Fneomacs_set_sunburst_pattern,
        Sneomacs_set_sunburst_pattern, 0, 5, 0,
@@ -13098,6 +13248,10 @@ syms_of_neomacsterm (void)
   defsubr (&Sneomacs_set_cursor_shockwave);
   defsubr (&Sneomacs_set_diamond_lattice);
   defsubr (&Sneomacs_set_cursor_gravity_well);
+  defsubr (&Sneomacs_set_moire_pattern);
+  defsubr (&Sneomacs_set_cursor_lightning);
+  defsubr (&Sneomacs_set_dot_matrix);
+  defsubr (&Sneomacs_set_cursor_snowflake);
   defsubr (&Sneomacs_set_sunburst_pattern);
   defsubr (&Sneomacs_set_cursor_firework);
   defsubr (&Sneomacs_set_honeycomb_dissolve);
