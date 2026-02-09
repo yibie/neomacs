@@ -408,9 +408,9 @@ impl LayoutEngine {
         let mut display_prop = DisplayPropFFI::default();
         let mut display_str_buf = [0u8; 1024];
 
-        // Overlay string buffers
-        let mut overlay_before_buf = [0u8; 512];
-        let mut overlay_after_buf = [0u8; 512];
+        // Overlay string buffers (4096 to handle fido-vertical-mode completions)
+        let mut overlay_before_buf = [0u8; 4096];
+        let mut overlay_after_buf = [0u8; 4096];
         let mut overlay_before_len: i32 = 0;
         let mut overlay_after_len: i32 = 0;
         let mut overlay_after_face = FaceDataFFI::default();
@@ -824,7 +824,13 @@ impl LayoutEngine {
                     while bi < bstr.len() && row < max_rows {
                         let (bch, blen) = decode_utf8(&bstr[bi..]);
                         bi += blen;
-                        if bch == '\n' || bch == '\r' { continue; }
+                        if bch == '\n' {
+                            col = 0;
+                            row += 1;
+                            if row >= max_rows { break; }
+                            continue;
+                        }
+                        if bch == '\r' { continue; }
 
                         let bchar_cols = if is_wide_char(bch) { 2 } else { 1 };
                         if col + bchar_cols > cols {
@@ -1850,7 +1856,13 @@ impl LayoutEngine {
                 while ai < astr.len() && row < max_rows {
                     let (ach, alen) = decode_utf8(&astr[ai..]);
                     ai += alen;
-                    if ach == '\n' || ach == '\r' { continue; }
+                    if ach == '\n' {
+                        col = 0;
+                        row += 1;
+                        if row >= max_rows { break; }
+                        continue;
+                    }
+                    if ach == '\r' { continue; }
 
                     let achar_cols = if is_wide_char(ach) { 2 } else { 1 };
                     if col + achar_cols > cols {
@@ -1872,6 +1884,94 @@ impl LayoutEngine {
             }
 
             window_end_charpos = charpos;
+        }
+
+        // Check for overlay strings at end-of-buffer (e.g., fido-vertical-mode
+        // completions placed as after-strings at point-max).
+        if row < max_rows {
+            overlay_after_len = 0;
+            overlay_after_face = FaceDataFFI::default();
+            let mut eob_before_len: i32 = 0;
+            let mut eob_before_face = FaceDataFFI::default();
+            neomacs_layout_overlay_strings_at(
+                buffer, window, charpos,
+                overlay_before_buf.as_mut_ptr(),
+                overlay_before_buf.len() as i32,
+                &mut eob_before_len,
+                overlay_after_buf.as_mut_ptr(),
+                overlay_after_buf.len() as i32,
+                &mut overlay_after_len,
+                &mut eob_before_face,
+                &mut overlay_after_face,
+            );
+
+            // Render before-string at end-of-buffer
+            if eob_before_len > 0 {
+                if eob_before_face.face_id != 0 {
+                    self.apply_face(&eob_before_face, frame_glyphs);
+                }
+                let bstr = &overlay_before_buf[..eob_before_len as usize];
+                let mut bi = 0usize;
+                while bi < bstr.len() && row < max_rows {
+                    let (bch, blen) = decode_utf8(&bstr[bi..]);
+                    bi += blen;
+                    if bch == '\n' {
+                        col = 0;
+                        row += 1;
+                        if row >= max_rows { break; }
+                        continue;
+                    }
+                    if bch == '\r' { continue; }
+                    let bchar_cols = if is_wide_char(bch) { 2 } else { 1 };
+                    if col + bchar_cols > cols {
+                        if params.truncate_lines { break; }
+                        col = 0;
+                        row += 1;
+                        if row >= max_rows { break; }
+                    }
+                    let gx = content_x + col as f32 * char_w;
+                    let gy = row_y[row as usize];
+                    frame_glyphs.add_char(bch, gx, gy, bchar_cols as f32 * char_w, char_h, ascent, false);
+                    col += bchar_cols;
+                }
+                if eob_before_face.face_id != 0 && current_face_id >= 0 {
+                    self.apply_face(&self.face_data, frame_glyphs);
+                }
+            }
+
+            // Render after-string at end-of-buffer
+            if overlay_after_len > 0 {
+                if overlay_after_face.face_id != 0 {
+                    self.apply_face(&overlay_after_face, frame_glyphs);
+                }
+                let astr = &overlay_after_buf[..overlay_after_len as usize];
+                let mut ai = 0usize;
+                while ai < astr.len() && row < max_rows {
+                    let (ach, alen) = decode_utf8(&astr[ai..]);
+                    ai += alen;
+                    if ach == '\n' {
+                        col = 0;
+                        row += 1;
+                        if row >= max_rows { break; }
+                        continue;
+                    }
+                    if ach == '\r' { continue; }
+                    let achar_cols = if is_wide_char(ach) { 2 } else { 1 };
+                    if col + achar_cols > cols {
+                        if params.truncate_lines { break; }
+                        col = 0;
+                        row += 1;
+                        if row >= max_rows { break; }
+                    }
+                    let gx = content_x + col as f32 * char_w;
+                    let gy = row_y[row as usize];
+                    frame_glyphs.add_char(ach, gx, gy, achar_cols as f32 * char_w, char_h, ascent, false);
+                    col += achar_cols;
+                }
+                if overlay_after_face.face_id != 0 && current_face_id >= 0 {
+                    self.apply_face(&self.face_data, frame_glyphs);
+                }
+            }
         }
 
         // Close any remaining box face region at end of text

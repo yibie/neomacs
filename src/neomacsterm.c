@@ -3486,6 +3486,8 @@ neomacs_layout_overlay_strings_at (void *buffer_ptr, void *window_ptr,
   Lisp_Object *overlay_vec = xmalloc (len * sizeof *overlay_vec);
   ptrdiff_t noverlays = overlays_at (pos, true, &overlay_vec, &len, NULL);
 
+
+
   int before_offset = 0;
   int after_offset = 0;
   bool before_face_set = false;
@@ -3540,8 +3542,11 @@ neomacs_layout_overlay_strings_at (void *buffer_ptr, void *window_ptr,
             }
         }
 
-      /* After-string: render at overlay end. */
-      if (oend == pos)
+      /* After-string: render at overlay end.
+         Overlay intervals are half-open [start, end), so the after-string
+         belongs after the last character inside the overlay at pos == end - 1.
+         Also handle zero-width overlays where ostart == oend == pos.  */
+      if (oend == pos + 1 || (ostart == pos && oend == pos))
         {
           Lisp_Object astr = Foverlay_get (overlay, Qafter_string);
           if (STRINGP (astr))
@@ -6978,7 +6983,8 @@ neomacs_new_font (struct frame *f, Lisp_Object font_object, int fontset)
    Used after mouse highlight changes to immediately update the display
    without waiting for a full redisplay cycle.  Does NOT clear cursors.
    Only works with the C display engine (legacy path), since the Rust
-   layout engine doesn't use current_matrix.  */
+   layout engine doesn't use current_matrix.  Mouse-face highlighting
+   for the Rust engine requires a hit-test infrastructure (TODO).  */
 static void
 neomacs_resend_frame (struct frame *f)
 {
@@ -6992,8 +6998,9 @@ neomacs_resend_frame (struct frame *f)
   /* The Rust layout engine produces frames independently — resending
      via neomacs_extract_full_frame would produce an empty frame
      (current_matrix is not populated by the Rust path), causing a
-     white flash.  Skip the resend; mouse-face highlighting will be
-     picked up on the next regular redisplay cycle.  */
+     white flash.  Mouse-face highlighting needs a Rust-side hit-test
+     infrastructure to determine buffer positions from pixel coordinates.
+     Skip the resend until that is implemented.  */
   if (use_rust_display_engine)
     return;
 

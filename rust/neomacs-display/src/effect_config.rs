@@ -7,6 +7,7 @@
 use std::time::Duration;
 
 /// Macro for defining effect config structs with Default implementations.
+///
 macro_rules! effect_config {
     (
         $(#[$meta:meta])*
