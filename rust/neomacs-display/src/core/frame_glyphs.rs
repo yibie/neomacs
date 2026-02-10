@@ -254,6 +254,25 @@ pub struct FrameGlyphBuffer {
     /// Frame background color
     pub background: Color,
 
+    // --- Child frame identity (Phase 1) ---
+    /// Frame pointer cast to u64 (0 = root/unset)
+    pub frame_id: u64,
+    /// Parent frame pointer (0 = root frame, no parent)
+    pub parent_id: u64,
+    /// Position relative to parent frame (pixels)
+    pub parent_x: f32,
+    pub parent_y: f32,
+    /// Stacking order among sibling child frames
+    pub z_order: i32,
+    /// Child frame border width (pixels)
+    pub border_width: f32,
+    /// Child frame border color
+    pub border_color: Color,
+    /// Background opacity (1.0 = opaque, 0.0 = transparent)
+    pub background_alpha: f32,
+    /// Whether this frame should not accept keyboard focus
+    pub no_accept_focus: bool,
+
     /// All glyphs to render this frame
     pub glyphs: Vec<FrameGlyph>,
 
@@ -311,6 +330,15 @@ impl FrameGlyphBuffer {
             char_height: 16.0,
             font_pixel_size: 14.0,
             background: Color::BLACK,
+            frame_id: 0,
+            parent_id: 0,
+            parent_x: 0.0,
+            parent_y: 0.0,
+            z_order: 0,
+            border_width: 0.0,
+            border_color: Color::BLACK,
+            background_alpha: 1.0,
+            no_accept_focus: false,
             glyphs: Vec::with_capacity(10000),
             window_regions: Vec::with_capacity(16),
             prev_window_regions: Vec::with_capacity(16),
@@ -384,6 +412,31 @@ impl FrameGlyphBuffer {
         self.cursor_inverse = None;
         self.stipple_patterns.clear();
         self.face_box_attrs.clear();
+    }
+
+    /// Set frame identity for child frame support.
+    /// Called after begin_frame, before glyphs are added.
+    pub fn set_frame_identity(
+        &mut self,
+        frame_id: u64,
+        parent_id: u64,
+        parent_x: f32,
+        parent_y: f32,
+        z_order: i32,
+        border_width: f32,
+        border_color: Color,
+        no_accept_focus: bool,
+        background_alpha: f32,
+    ) {
+        self.frame_id = frame_id;
+        self.parent_id = parent_id;
+        self.parent_x = parent_x;
+        self.parent_y = parent_y;
+        self.z_order = z_order;
+        self.border_width = border_width;
+        self.border_color = border_color;
+        self.no_accept_focus = no_accept_focus;
+        self.background_alpha = background_alpha;
     }
 
     /// Set current face attributes for subsequent char glyphs (with font family)

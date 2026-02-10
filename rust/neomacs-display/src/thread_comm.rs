@@ -21,11 +21,15 @@ pub enum InputEvent {
         y: f32,
         pressed: bool,
         modifiers: u32,
+        /// Target frame for child frame hit testing (0 = parent frame)
+        target_frame_id: u64,
     },
     MouseMove {
         x: f32,
         y: f32,
         modifiers: u32,
+        /// Target frame for child frame hit testing (0 = parent frame)
+        target_frame_id: u64,
     },
     MouseScroll {
         delta_x: f32,
@@ -35,6 +39,8 @@ pub enum InputEvent {
         modifiers: u32,
         /// True if deltas are in pixels (touchpad), false if in lines (mouse wheel)
         pixel_precise: bool,
+        /// Target frame for child frame hit testing (0 = parent frame)
+        target_frame_id: u64,
     },
     WindowResize {
         width: u32,
@@ -283,6 +289,8 @@ pub enum RenderCommand {
         /// Transition duration in milliseconds
         duration_ms: u32,
     },
+    /// Remove a child frame (sent when frame is deleted or unparented)
+    RemoveChildFrame { frame_id: u64 },
 }
 
 /// Wakeup pipe for signaling Emacs from render thread

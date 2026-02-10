@@ -2,6 +2,7 @@
 //!
 //! Owns winit event loop, wgpu, GLib/WebKit. Runs at native VSync.
 
+pub(crate) mod child_frames;
 mod cursor;
 mod input;
 mod popup_menu;
@@ -271,6 +272,9 @@ struct RenderApp {
     #[cfg(feature = "neo-term")]
     shared_terminals: crate::terminal::SharedTerminals,
 
+    // Child frames (posframe, which-key-posframe, etc.)
+    child_frames: child_frames::ChildFrameManager,
+
     // Active popup menu (shown by x-popup-menu)
     popup_menu: Option<PopupMenuState>,
 
@@ -360,6 +364,7 @@ impl RenderApp {
             terminal_manager: crate::terminal::TerminalManager::new(),
             #[cfg(feature = "neo-term")]
             shared_terminals,
+            child_frames: child_frames::ChildFrameManager::new(),
             popup_menu: None,
             tooltip: None,
             visual_bell_start: None,
@@ -1113,6 +1118,11 @@ impl RenderApp {
                     }
                     self.frame_dirty = true;
                 }
+                RenderCommand::RemoveChildFrame { frame_id } => {
+                    log::info!("Removing child frame 0x{:x}", frame_id);
+                    self.child_frames.remove_frame(frame_id);
+                    self.frame_dirty = true;
+                }
             }
         }
 
@@ -1122,11 +1132,18 @@ impl RenderApp {
     /// Get latest frame from Emacs (non-blocking)
     fn poll_frame(&mut self) {
         // Get the newest frame, discarding older ones
+        // Route child frames to the child frame manager, root frames to current_frame
         while let Ok(frame) = self.comms.frame_rx.try_recv() {
-            self.current_frame = Some(frame);
+            if frame.parent_id != 0 {
+                // Child frame: store in manager
+                self.child_frames.update_frame(frame);
+            } else {
+                // Root frame: update current_frame
+                self.current_frame = Some(frame);
+                // Reset blink to visible when new frame arrives (cursor just moved/redrawn)
+                self.cursor.reset_blink();
+            }
             self.frame_dirty = true;
-            // Reset blink to visible when new frame arrives (cursor just moved/redrawn)
-            self.cursor.reset_blink();
         }
 
         // Extract active cursor target for animation
@@ -1916,6 +1933,43 @@ impl RenderApp {
             }
         }
 
+        // Build face cache from child frame glyphs too
+        for entry in self.child_frames.frames.values() {
+            let child = &entry.frame;
+            for (face_id, face) in &child.faces {
+                self.faces.insert(*face_id, face.clone());
+            }
+            for (face_id, font_family) in &child.face_fonts {
+                if let Some(face) = self.faces.get_mut(face_id) {
+                    face.font_family = font_family.clone();
+                }
+            }
+            for glyph in &child.glyphs {
+                if let crate::core::frame_glyphs::FrameGlyph::Char {
+                    face_id, font_weight, italic, font_size, ..
+                } = glyph {
+                    let face = self.faces.entry(*face_id).or_insert_with(|| {
+                        crate::core::face::Face::new(*face_id)
+                    });
+                    face.font_size = *font_size;
+                    face.font_weight = *font_weight;
+                    if *font_weight >= 700 {
+                        face.attributes |= crate::core::face::FaceAttributes::BOLD;
+                    } else {
+                        face.attributes.remove(crate::core::face::FaceAttributes::BOLD);
+                    }
+                    if *italic {
+                        face.attributes |= crate::core::face::FaceAttributes::ITALIC;
+                    } else {
+                        face.attributes.remove(crate::core::face::FaceAttributes::ITALIC);
+                    }
+                    if let Some(family) = child.face_fonts.get(face_id) {
+                        face.font_family = family.clone();
+                    }
+                }
+            }
+        }
+
         // Apply extra spacing adjustments to glyph positions
         if self.extra_line_spacing != 0.0 || self.extra_letter_spacing != 0.0 {
             if let Some(ref mut frame) = self.current_frame {
@@ -2059,6 +2113,29 @@ impl RenderApp {
                 self.mouse_pos,
                 bg_gradient,
             );
+        }
+
+        // Render child frames as floating overlays on top of the parent frame
+        if !self.child_frames.is_empty() {
+            for &child_id in self.child_frames.sorted_for_rendering() {
+                if let Some(child_entry) = self.child_frames.frames.get(&child_id) {
+                    if let (Some(ref renderer), Some(ref mut glyph_atlas)) =
+                        (&self.renderer, &mut self.glyph_atlas)
+                    {
+                        renderer.render_child_frame(
+                            &surface_view,
+                            &child_entry.frame,
+                            child_entry.abs_x,
+                            child_entry.abs_y,
+                            glyph_atlas,
+                            &self.faces,
+                            self.width,
+                            self.height,
+                            self.cursor.blink_on,
+                        );
+                    }
+                }
+            }
         }
 
         // Render breadcrumb/path bar overlay
@@ -2619,12 +2696,20 @@ impl ApplicationHandler for RenderApp {
                         MouseButton::Forward => 5,
                         MouseButton::Other(n) => n as u32,
                     };
+                    // Hit test child frames
+                    let (ev_x, ev_y, target_fid) =
+                        if let Some((fid, lx, ly)) = self.child_frames.hit_test(self.mouse_pos.0, self.mouse_pos.1) {
+                            (lx, ly, fid)
+                        } else {
+                            (self.mouse_pos.0, self.mouse_pos.1, 0)
+                        };
                     self.comms.send_input(InputEvent::MouseButton {
                         button: btn,
-                        x: self.mouse_pos.0,
-                        y: self.mouse_pos.1,
+                        x: ev_x,
+                        y: ev_y,
                         pressed: state == ElementState::Pressed,
                         modifiers: self.modifiers,
+                        target_frame_id: target_fid,
                     });
                     // Click halo effect on press
                     if state == ElementState::Pressed && self.effects.click_halo.enabled {
@@ -2717,10 +2802,18 @@ impl ApplicationHandler for RenderApp {
                         }
                     }
                 } else {
+                    // Hit test child frames for mouse move
+                    let (ev_x, ev_y, target_fid) =
+                        if let Some((fid, local_x, local_y)) = self.child_frames.hit_test(lx, ly) {
+                            (local_x, local_y, fid)
+                        } else {
+                            (lx, ly, 0)
+                        };
                     self.comms.send_input(InputEvent::MouseMove {
-                        x: lx,
-                        y: ly,
+                        x: ev_x,
+                        y: ev_y,
                         modifiers: self.modifiers,
+                        target_frame_id: target_fid,
                     });
                 }
             }
@@ -2737,13 +2830,21 @@ impl ApplicationHandler for RenderApp {
                          true)
                     }
                 };
+                // Hit test child frames for scroll
+                let (ev_x, ev_y, target_fid) =
+                    if let Some((fid, local_x, local_y)) = self.child_frames.hit_test(self.mouse_pos.0, self.mouse_pos.1) {
+                        (local_x, local_y, fid)
+                    } else {
+                        (self.mouse_pos.0, self.mouse_pos.1, 0)
+                    };
                 self.comms.send_input(InputEvent::MouseScroll {
                     delta_x: dx,
                     delta_y: dy,
-                    x: self.mouse_pos.0,
-                    y: self.mouse_pos.1,
+                    x: ev_x,
+                    y: ev_y,
                     modifiers: self.modifiers,
                     pixel_precise,
+                    target_frame_id: target_fid,
                 });
             }
 

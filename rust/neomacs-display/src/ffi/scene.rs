@@ -67,6 +67,39 @@ pub unsafe extern "C" fn neomacs_display_begin_frame(handle: *mut NeomacsDisplay
     }
 }
 
+/// Set frame identity for child frame support.
+/// Called after begin_frame_window, before glyphs are added.
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_frame_identity(
+    handle: *mut NeomacsDisplay,
+    frame_id: u64,
+    parent_id: u64,
+    parent_x: f32,
+    parent_y: f32,
+    z_order: c_int,
+    border_width: f32,
+    border_color: u32,
+    no_accept_focus: c_int,
+    background_alpha: f32,
+) {
+    if handle.is_null() {
+        return;
+    }
+
+    let display = &mut *handle;
+    display.frame_glyphs.set_frame_identity(
+        frame_id,
+        parent_id,
+        parent_x,
+        parent_y,
+        z_order as i32,
+        border_width,
+        Color::from_pixel(border_color),
+        no_accept_focus != 0,
+        background_alpha,
+    );
+}
+
 /// Add a window to the current frame
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_add_window(

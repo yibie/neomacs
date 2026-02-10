@@ -7,10 +7,265 @@ use super::super::vertex::{GlyphVertex, RectVertex, RoundedRectVertex, Uniforms}
 use crate::core::types::{Color, Rect};
 use crate::core::frame_glyphs::{FrameGlyph, FrameGlyphBuffer};
 use super::super::glyph_atlas::{GlyphKey, WgpuGlyphAtlas};
+use crate::core::face::Face;
 use crate::render_thread::PopupMenuState;
 use crate::render_thread::TooltipState;
+use std::collections::HashMap;
 
 impl WgpuRenderer {
+    /// Render a child frame as a floating overlay on top of the parent frame.
+    ///
+    /// Draws border, background fill, then all glyphs with coordinate offset.
+    /// Uses LoadOp::Load to composite on top of whatever was rendered before.
+    pub fn render_child_frame(
+        &self,
+        view: &wgpu::TextureView,
+        child: &FrameGlyphBuffer,
+        offset_x: f32,
+        offset_y: f32,
+        glyph_atlas: &mut WgpuGlyphAtlas,
+        faces: &HashMap<u32, Face>,
+        surface_width: u32,
+        surface_height: u32,
+        cursor_visible: bool,
+    ) {
+        let logical_w = surface_width as f32 / self.scale_factor;
+        let logical_h = surface_height as f32 / self.scale_factor;
+        let uniforms = Uniforms {
+            screen_size: [logical_w, logical_h],
+            _padding: [0.0, 0.0],
+        };
+        self.queue
+            .write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
+
+        let bw = child.border_width;
+        let frame_w = child.width;
+        let frame_h = child.height;
+        let bg_alpha = child.background_alpha;
+
+        // --- Pass 1: Background + border as rectangles ---
+        {
+            let mut rect_verts: Vec<RectVertex> = Vec::new();
+
+            // Border rectangle (slightly larger than the child frame)
+            if bw > 0.0 {
+                let bc = child.border_color.srgb_to_linear();
+                // Top border
+                self.add_rect(&mut rect_verts,
+                    offset_x - bw, offset_y - bw,
+                    frame_w + 2.0 * bw, bw, &bc);
+                // Bottom border
+                self.add_rect(&mut rect_verts,
+                    offset_x - bw, offset_y + frame_h,
+                    frame_w + 2.0 * bw, bw, &bc);
+                // Left border
+                self.add_rect(&mut rect_verts,
+                    offset_x - bw, offset_y,
+                    bw, frame_h, &bc);
+                // Right border
+                self.add_rect(&mut rect_verts,
+                    offset_x + frame_w, offset_y,
+                    bw, frame_h, &bc);
+            }
+
+            // Background fill
+            let bg = Color::new(
+                child.background.r,
+                child.background.g,
+                child.background.b,
+                bg_alpha,
+            ).srgb_to_linear();
+            self.add_rect(&mut rect_verts, offset_x, offset_y, frame_w, frame_h, &bg);
+
+            if !rect_verts.is_empty() {
+                let buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("Child Frame Rect Buffer"),
+                    contents: bytemuck::cast_slice(&rect_verts),
+                    usage: wgpu::BufferUsages::VERTEX,
+                });
+
+                let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("Child Frame Rect Encoder"),
+                });
+                {
+                    let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                        label: Some("Child Frame Rect Pass"),
+                        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                            view,
+                            resolve_target: None,
+                            ops: wgpu::Operations {
+                                load: wgpu::LoadOp::Load,
+                                store: wgpu::StoreOp::Store,
+                            },
+                        })],
+                        depth_stencil_attachment: None,
+                        timestamp_writes: None,
+                        occlusion_query_set: None,
+                    });
+                    pass.set_pipeline(&self.rect_pipeline);
+                    pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                    pass.set_vertex_buffer(0, buffer.slice(..));
+                    pass.draw(0..rect_verts.len() as u32, 0..1);
+                }
+                self.queue.submit(std::iter::once(encoder.finish()));
+            }
+        }
+
+        // --- Pass 2: Render glyphs (text, stretch, cursor, border) with offset ---
+        {
+            // Collect stretch/background/border rects
+            let mut rect_verts: Vec<RectVertex> = Vec::new();
+            // Collect text glyphs
+            let mut text_glyphs: Vec<(GlyphKey, f32, f32, [f32; 4])> = Vec::new();
+            // Collect cursor rects
+            let mut cursor_rects: Vec<RectVertex> = Vec::new();
+
+            for glyph in &child.glyphs {
+                match glyph {
+                    FrameGlyph::Char { char: ch, x, y, width, height, ascent,
+                                       fg, bg, face_id, font_size,
+                                       underline, underline_color, .. } => {
+                        let gx = *x + offset_x;
+                        let gy = *y + offset_y;
+
+                        // Background
+                        if let Some(bg_color) = bg {
+                            let c = bg_color.srgb_to_linear();
+                            self.add_rect(&mut rect_verts, gx, gy, *width, *height, &c);
+                        }
+
+                        // Text glyph
+                        let fg_linear = fg.srgb_to_linear();
+                        let color = [fg_linear.r, fg_linear.g, fg_linear.b, fg_linear.a];
+
+                        let key = GlyphKey {
+                            charcode: *ch as u32,
+                            face_id: *face_id,
+                            font_size_bits: font_size.to_bits(),
+                        };
+                        text_glyphs.push((key, gx, gy + ascent, color));
+
+                        // Underline
+                        if *underline > 0 {
+                            let uc = underline_color.map(|c| c.srgb_to_linear())
+                                .unwrap_or(fg_linear);
+                            let ul_y = gy + ascent + 2.0;
+                            self.add_rect(&mut rect_verts, gx, ul_y, *width, 1.0, &uc);
+                        }
+                    }
+                    FrameGlyph::Stretch { x, y, width, height, bg, .. } => {
+                        let c = bg.srgb_to_linear();
+                        self.add_rect(&mut rect_verts,
+                            *x + offset_x, *y + offset_y, *width, *height, &c);
+                    }
+                    FrameGlyph::Background { bounds, color } => {
+                        let c = color.srgb_to_linear();
+                        self.add_rect(&mut rect_verts,
+                            bounds.x + offset_x, bounds.y + offset_y,
+                            bounds.width, bounds.height, &c);
+                    }
+                    FrameGlyph::Border { x, y, width, height, color } => {
+                        let c = color.srgb_to_linear();
+                        self.add_rect(&mut rect_verts,
+                            *x + offset_x, *y + offset_y, *width, *height, &c);
+                    }
+                    FrameGlyph::Cursor { x, y, width, height, style, color, .. } => {
+                        if !cursor_visible {
+                            continue;
+                        }
+                        let c = color.srgb_to_linear();
+                        let gx = *x + offset_x;
+                        let gy = *y + offset_y;
+                        match style {
+                            0 => {
+                                // Filled box
+                                self.add_rect(&mut cursor_rects, gx, gy, *width, *height, &c);
+                            }
+                            1 => {
+                                // Bar
+                                self.add_rect(&mut cursor_rects, gx, gy, 2.0, *height, &c);
+                            }
+                            2 => {
+                                // Underline/hbar
+                                self.add_rect(&mut cursor_rects, gx, gy + height - 2.0, *width, 2.0, &c);
+                            }
+                            3 => {
+                                // Hollow box
+                                self.add_rect(&mut cursor_rects, gx, gy, *width, 1.0, &c);
+                                self.add_rect(&mut cursor_rects, gx, gy + height - 1.0, *width, 1.0, &c);
+                                self.add_rect(&mut cursor_rects, gx, gy, 1.0, *height, &c);
+                                self.add_rect(&mut cursor_rects, gx + width - 1.0, gy, 1.0, *height, &c);
+                            }
+                            _ => {}
+                        }
+                    }
+                    FrameGlyph::ScrollBar { x, y, width, height, thumb_start, thumb_size,
+                                            track_color, thumb_color, horizontal, .. } => {
+                        let tc = track_color.srgb_to_linear();
+                        let thc = thumb_color.srgb_to_linear();
+                        self.add_rect(&mut rect_verts,
+                            *x + offset_x, *y + offset_y, *width, *height, &tc);
+                        if *horizontal {
+                            self.add_rect(&mut rect_verts,
+                                *x + offset_x + *thumb_start, *y + offset_y,
+                                *thumb_size, *height, &thc);
+                        } else {
+                            self.add_rect(&mut rect_verts,
+                                *x + offset_x, *y + offset_y + *thumb_start,
+                                *width, *thumb_size, &thc);
+                        }
+                    }
+                    // Skip image/video/webkit/terminal in child frames for now
+                    _ => {}
+                }
+            }
+
+            // Render rects
+            rect_verts.extend(cursor_rects);
+            if !rect_verts.is_empty() {
+                let buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("Child Frame Glyph Rect Buffer"),
+                    contents: bytemuck::cast_slice(&rect_verts),
+                    usage: wgpu::BufferUsages::VERTEX,
+                });
+
+                let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("Child Frame Glyph Rect Encoder"),
+                });
+                {
+                    let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                        label: Some("Child Frame Glyph Rect Pass"),
+                        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                            view,
+                            resolve_target: None,
+                            ops: wgpu::Operations {
+                                load: wgpu::LoadOp::Load,
+                                store: wgpu::StoreOp::Store,
+                            },
+                        })],
+                        depth_stencil_attachment: None,
+                        timestamp_writes: None,
+                        occlusion_query_set: None,
+                    });
+                    pass.set_pipeline(&self.rect_pipeline);
+                    pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                    pass.set_vertex_buffer(0, buffer.slice(..));
+                    pass.draw(0..rect_verts.len() as u32, 0..1);
+                }
+                self.queue.submit(std::iter::once(encoder.finish()));
+            }
+
+            // Pre-rasterize glyphs into the atlas cache
+            for (key, _, _, _) in &text_glyphs {
+                let face = faces.get(&key.face_id);
+                glyph_atlas.get_or_create(&self.device, &self.queue, key, face);
+            }
+
+            // Render text glyphs
+            self.render_overlay_glyphs(view, &mut text_glyphs, glyph_atlas);
+        }
+    }
+
     /// Render floating videos from the scene.
     ///
     /// This renders video frames at fixed screen positions (not inline with text).

@@ -162,6 +162,8 @@ typedef struct NeomacsInputEvent {
   uint32_t pixelPrecise;
   uint32_t width;
   uint32_t height;
+  /** Target frame pointer for child frame mouse event routing (0 = parent frame) */
+  uint64_t targetFrameId;
 } NeomacsInputEvent;
 
 #define VA_STATUS_SUCCESS 0
@@ -1179,6 +1181,28 @@ char *neomacs_primary_selection_get_text(void);
  * Trigger a visual bell flash effect on the render thread.
  */
 void neomacs_display_visual_bell(struct NeomacsDisplay *handle);
+
+/**
+ * Set frame identity for child frame support.
+ * Called after begin_frame_window, before glyphs are added.
+ */
+void neomacs_display_set_frame_identity(struct NeomacsDisplay *handle,
+                                        uint64_t frame_id,
+                                        uint64_t parent_id,
+                                        float parent_x,
+                                        float parent_y,
+                                        int z_order,
+                                        float border_width,
+                                        uint32_t border_color,
+                                        int no_accept_focus,
+                                        float background_alpha);
+
+/**
+ * Remove a child frame from the render thread.
+ * Called when a child frame is deleted or unparented.
+ */
+void neomacs_display_remove_child_frame(struct NeomacsDisplay *handle,
+                                        uint64_t frame_id);
 
 /**
  * Request window attention (urgency hint / taskbar flash).

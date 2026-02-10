@@ -230,6 +230,20 @@ pub unsafe extern "C" fn neomacs_display_visual_bell(
     }
 }
 
+/// Remove a child frame from the render thread.
+/// Called when a child frame is deleted or unparented.
+#[cfg(feature = "winit-backend")]
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_remove_child_frame(
+    _handle: *mut NeomacsDisplay,
+    frame_id: u64,
+) {
+    let cmd = RenderCommand::RemoveChildFrame { frame_id };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
 /// Request window attention (urgency hint / taskbar flash).
 /// If urgent is non-zero, uses Critical attention type; otherwise Informational.
 #[no_mangle]

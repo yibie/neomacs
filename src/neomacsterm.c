@@ -789,6 +789,47 @@ neomacs_update_begin (struct frame *f)
                                             FRAME_FONT (f) ? (float) FRAME_FONT (f)->pixel_size : 14.0f);
       else
         neomacs_display_begin_frame (dpyinfo->display_handle);
+
+      /* Set frame identity for child frame support.
+         Must be called after begin_frame_window which calls clear_all(). */
+      {
+        uint64_t frame_id = (uint64_t)(uintptr_t) f;
+        struct frame *parent = FRAME_PARENT_FRAME (f);
+        uint64_t parent_id = parent ? (uint64_t)(uintptr_t) parent : 0;
+        float parent_x = (float) f->left_pos;
+        float parent_y = (float) f->top_pos;
+        int z_order = 0;  /* TODO: support raise-frame/lower-frame */
+        float border_width = parent
+          ? (float) FRAME_CHILD_FRAME_BORDER_WIDTH (f)
+          : 0.0f;
+
+        /* Get child-frame-border face background color */
+        uint32_t border_color = 0;
+        if (parent)
+          {
+            int face_id = (!NILP (Vface_remapping_alist)
+                           ? lookup_basic_face (NULL, f,
+                                                CHILD_FRAME_BORDER_FACE_ID)
+                           : CHILD_FRAME_BORDER_FACE_ID);
+            struct face *bface = FACE_FROM_ID_OR_NULL (f, face_id);
+            if (bface)
+              {
+                unsigned long c = bface->background;
+                border_color = ((RED_FROM_ULONG (c) << 16)
+                                | (GREEN_FROM_ULONG (c) << 8)
+                                | BLUE_FROM_ULONG (c));
+              }
+          }
+
+        int no_accept_focus = !NILP (get_frame_param (f, Qno_accept_focus))
+          ? 1 : 0;
+        float bg_alpha = (float) f->alpha_background;
+
+        neomacs_display_set_frame_identity (
+          dpyinfo->display_handle, frame_id, parent_id,
+          parent_x, parent_y, z_order, border_width,
+          border_color, no_accept_focus, bg_alpha);
+      }
     }
 }
 
@@ -7691,6 +7732,11 @@ neomacs_free_frame_resources (struct frame *f)
   hlinfo = MOUSE_HL_INFO (f);
 
   block_input ();
+
+  /* If this is a child frame, tell the render thread to remove it. */
+  if (FRAME_PARENT_FRAME (f) && dpyinfo->display_handle)
+    neomacs_display_remove_child_frame (dpyinfo->display_handle,
+                                        (uint64_t)(uintptr_t) f);
 
   free_frame_faces (f);
 
@@ -15009,6 +15055,22 @@ neomacs_display_wakeup_handler (int fd, void *data)
 
       if (!f)
         continue;
+
+      /* If this event targets a child frame, find it. */
+      if (ev->targetFrameId != 0)
+        {
+          Lisp_Object tail2, frame2;
+          FOR_EACH_FRAME (tail2, frame2)
+            {
+              struct frame *cf = XFRAME (frame2);
+              if (FRAME_LIVE_P (cf)
+                  && (uint64_t)(uintptr_t) cf == ev->targetFrameId)
+                {
+                  f = cf;
+                  break;
+                }
+            }
+        }
 
       EVENT_INIT (inev.ie);
       inev.ie.timestamp = ev->timestamp;

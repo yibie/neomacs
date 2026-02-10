@@ -507,9 +507,15 @@ neomacs_set_parent_frame (struct frame *f, Lisp_Object arg, Lisp_Object oldval)
 
   if (p != FRAME_PARENT_FRAME (f))
     {
+      /* If unparenting (was a child, now becoming root), remove from render. */
+      if (FRAME_PARENT_FRAME (f) && !p)
+        {
+          struct neomacs_display_info *dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
+          if (dpyinfo && dpyinfo->display_handle)
+            neomacs_display_remove_child_frame (dpyinfo->display_handle,
+                                                (uint64_t)(uintptr_t) f);
+        }
       fset_parent_frame (f, arg);
-      /* Actual window reparenting would require compositor support.
-	 For now, just store the parent relationship for Emacs internals.  */
     }
 }
 

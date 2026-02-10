@@ -62,6 +62,8 @@ pub struct NeomacsInputEvent {
     pub pixel_precise: u32,
     pub width: u32,
     pub height: u32,
+    /// Target frame pointer for child frame mouse event routing (0 = parent frame)
+    pub target_frame_id: u64,
 }
 
 impl Default for NeomacsInputEvent {
@@ -81,6 +83,7 @@ impl Default for NeomacsInputEvent {
             pixel_precise: 0,
             width: 0,
             height: 0,
+            target_frame_id: 0,
         }
     }
 }
