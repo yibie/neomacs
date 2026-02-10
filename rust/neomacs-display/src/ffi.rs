@@ -4353,35 +4353,60 @@ pub unsafe extern "C" fn neomacs_rust_layout_frame(
     divider_first_fg: u32,
     divider_last_fg: u32,
 ) {
-    let display = &mut *handle;
-
-    // Initialize layout engine on first call
-    if LAYOUT_ENGINE.is_none() {
-        LAYOUT_ENGINE = Some(crate::layout::LayoutEngine::new());
-        log::info!("Rust layout engine initialized");
+    if handle.is_null() || frame_ptr.is_null() {
+        log::error!("neomacs_rust_layout_frame: null handle or frame_ptr");
+        return;
     }
 
-    let engine = LAYOUT_ENGINE.as_mut().unwrap();
-    let frame_params = crate::layout::FrameParams {
-        width,
-        height,
-        char_width: if char_width > 0.0 { char_width } else { 8.0 },
-        char_height: if char_height > 0.0 { char_height } else { 16.0 },
-        font_pixel_size: if font_pixel_size > 0.0 { font_pixel_size } else { 14.0 },
-        background,
-        vertical_border_fg,
-        right_divider_width,
-        bottom_divider_width,
-        divider_fg,
-        divider_first_fg,
-        divider_last_fg,
-    };
+    // Wrap in catch_unwind to prevent Rust panics from crossing FFI boundary
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let display = &mut *handle;
 
-    engine.layout_frame(
-        frame_ptr,
-        &frame_params,
-        &mut display.frame_glyphs,
-    );
+        // Initialize layout engine on first call
+        if LAYOUT_ENGINE.is_none() {
+            LAYOUT_ENGINE = Some(crate::layout::LayoutEngine::new());
+            log::info!("Rust layout engine initialized");
+        }
+
+        let engine = match LAYOUT_ENGINE.as_mut() {
+            Some(e) => e,
+            None => {
+                log::error!("Rust layout engine initialization failed");
+                return;
+            }
+        };
+        let frame_params = crate::layout::FrameParams {
+            width,
+            height,
+            char_width: if char_width > 0.0 { char_width } else { 8.0 },
+            char_height: if char_height > 0.0 { char_height } else { 16.0 },
+            font_pixel_size: if font_pixel_size > 0.0 { font_pixel_size } else { 14.0 },
+            background,
+            vertical_border_fg,
+            right_divider_width,
+            bottom_divider_width,
+            divider_fg,
+            divider_first_fg,
+            divider_last_fg,
+        };
+
+        engine.layout_frame(
+            frame_ptr,
+            &frame_params,
+            &mut display.frame_glyphs,
+        );
+    }));
+
+    if let Err(e) = result {
+        let msg = if let Some(s) = e.downcast_ref::<&str>() {
+            s.to_string()
+        } else if let Some(s) = e.downcast_ref::<String>() {
+            s.clone()
+        } else {
+            "unknown panic".to_string()
+        };
+        log::error!("PANIC in neomacs_rust_layout_frame: {}", msg);
+    }
 }
 
 /// Query buffer character position at given frame-relative pixel coordinates.

@@ -51,8 +51,9 @@ pub fn hit_test_charpos_at_pixel(px: f32, py: f32) -> i64 {
             // Find row by Y
             for row in &win.rows {
                 if py >= row.y_start && py < row.y_end {
-                    // Compute approximate column from X
-                    let col = ((px - win.content_x) / win.char_w).max(0.0) as i64;
+                    // Compute approximate column from X (guard zero char_w)
+                    let cw = if win.char_w > 0.0 { win.char_w } else { 8.0 };
+                    let col = ((px - win.content_x) / cw).max(0.0) as i64;
                     let charpos = (row.charpos_start + col).min(row.charpos_end);
                     return charpos;
                 }
@@ -75,7 +76,8 @@ pub fn hit_test_window_charpos(window_id: i64, wx: f32, wy: f32) -> i64 {
             }
             for row in &win.rows {
                 if wy >= row.y_start && wy < row.y_end {
-                    let col = ((wx - win.content_x) / win.char_w).max(0.0) as i64;
+                    let cw = if win.char_w > 0.0 { win.char_w } else { 8.0 };
+                    let col = ((wx - win.content_x) / cw).max(0.0) as i64;
                     return (row.charpos_start + col).min(row.charpos_end);
                 }
             }
@@ -465,9 +467,14 @@ impl LayoutEngine {
             - params.tab_line_height
             - params.mode_line_height;
 
-        let char_w = params.char_width;
-        let char_h = params.char_height + params.extra_line_spacing;
-        let ascent = params.font_ascent;
+        // Guard against zero/negative dimensions from FFI
+        let char_w = if params.char_width > 0.0 { params.char_width } else { 8.0 };
+        let char_h = if params.char_height > 0.0 {
+            params.char_height + params.extra_line_spacing
+        } else {
+            16.0
+        };
+        let ascent = if params.font_ascent > 0.0 { params.font_ascent } else { 12.0 };
 
         // Fringe dimensions (use actual widths from window params)
         let left_fringe_width = params.left_fringe_width;
