@@ -1133,6 +1133,7 @@ impl RenderApp {
     fn poll_frame(&mut self) {
         // Get the newest frame, discarding older ones
         // Route child frames to the child frame manager, root frames to current_frame
+        self.child_frames.tick();
         while let Ok(frame) = self.comms.frame_rx.try_recv() {
             if frame.parent_id != 0 {
                 // Child frame: store in manager
@@ -1145,6 +1146,8 @@ impl RenderApp {
             }
             self.frame_dirty = true;
         }
+        // Remove child frames not updated for 60 cycles (~1 second at 60fps)
+        self.child_frames.prune_stale(60);
 
         // Extract active cursor target for animation
         if let Some(ref frame) = self.current_frame {

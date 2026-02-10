@@ -798,7 +798,7 @@ neomacs_update_begin (struct frame *f)
         uint64_t parent_id = parent ? (uint64_t)(uintptr_t) parent : 0;
         float parent_x = (float) f->left_pos;
         float parent_y = (float) f->top_pos;
-        int z_order = 0;  /* TODO: support raise-frame/lower-frame */
+        int z_order = f->z_order;
         float border_width = parent
           ? (float) FRAME_CHILD_FRAME_BORDER_WIDTH (f)
           : 0.0f;
@@ -5172,6 +5172,24 @@ neomacs_make_frame_visible_invisible (struct frame *f, bool visible)
   if (!output)
     return;
 
+  /* Child frames: remove from render thread when hidden,
+     next redisplay cycle re-adds when made visible. */
+  if (FRAME_PARENT_FRAME (f) && dpyinfo && dpyinfo->display_handle)
+    {
+      if (!visible)
+        neomacs_display_remove_child_frame (dpyinfo->display_handle,
+                                            (uint64_t)(uintptr_t) f);
+      if (visible)
+        {
+          SET_FRAME_VISIBLE (f, 1);
+          SET_FRAME_ICONIFIED (f, false);
+          SET_FRAME_GARBAGED (f);
+        }
+      else
+        SET_FRAME_VISIBLE (f, 0);
+      return;
+    }
+
   /* Handle winit windows (no GTK widget) */
   if (output->window_id > 0 && dpyinfo && dpyinfo->display_handle)
     {
@@ -7594,6 +7612,17 @@ static void
 neomacs_frame_raise_lower (struct frame *f, bool raise_flag)
 {
   struct neomacs_display_info *dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
+
+  /* For child frames, update z_order among siblings.
+     tty_raise_lower_frame implements the standard algorithm. */
+  if (FRAME_PARENT_FRAME (f))
+    {
+      tty_raise_lower_frame (f, raise_flag);
+      /* Trigger redisplay so the new z_order reaches the render thread
+         via neomacs_display_set_frame_identity in update_begin. */
+      SET_FRAME_GARBAGED (f);
+      return;
+    }
 
   if (raise_flag)
     {
