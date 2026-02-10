@@ -8,14 +8,21 @@ pkgs.mkShell {
     # Build tools
     pkg-config
 
-    # GTK4 and dependencies
-    gtk4
+    # Core dependencies
     glib
-    graphene
-    pango
     cairo
-    gdk-pixbuf
-    
+    freetype
+    fontconfig
+
+    # EGL/OpenGL for wgpu
+    libGL
+    xorg.libX11
+    xorg.libXcursor
+    xorg.libXrandr
+    xorg.libXi
+    libxkbcommon
+    wayland
+
     # GStreamer
     gst_all_1.gstreamer
     gst_all_1.gst-plugins-base
@@ -26,28 +33,26 @@ pkgs.mkShell {
 
   # Set up environment for pkg-config
   PKG_CONFIG_PATH = pkgs.lib.makeSearchPath "lib/pkgconfig" [
-    pkgs.gtk4.dev
     pkgs.glib.dev
-    pkgs.graphene
-    pkgs.pango.dev
     pkgs.cairo.dev
-    pkgs.gdk-pixbuf.dev
+    pkgs.freetype.dev
+    pkgs.fontconfig.dev
+    pkgs.libxkbcommon.dev
     pkgs.gst_all_1.gstreamer.dev
     pkgs.gst_all_1.gst-plugins-base.dev
   ];
 
   shellHook = ''
     echo "Neomacs display engine development environment"
-    echo "GTK4 version: $(pkg-config --modversion gtk4)"
     echo "Using rustup Rust toolchain"
-    # Set the library path for GTK4 etc.
     export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath [
-      pkgs.gtk4
       pkgs.glib
       pkgs.cairo
-      pkgs.pango
-      pkgs.gdk-pixbuf
-      pkgs.graphene
+      pkgs.freetype
+      pkgs.fontconfig
+      pkgs.libGL
+      pkgs.libxkbcommon
+      pkgs.wayland
       pkgs.gst_all_1.gstreamer
       pkgs.gst_all_1.gst-plugins-base
     ]}:$LD_LIBRARY_PATH"

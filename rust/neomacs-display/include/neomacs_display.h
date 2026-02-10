@@ -150,37 +150,6 @@ typedef struct CPopupMenuItem {
 typedef void (*ResizeCallbackFn)(void *user_data, int width, int height);
 
 /**
- * Type for mouse button callback
- */
-typedef void (*MouseButtonCallbackFn)(void *user_data,
-                                      double x,
-                                      double y,
-                                      unsigned int button,
-                                      int pressed,
-                                      unsigned int modifiers,
-                                      unsigned int time);
-
-/**
- * Type for mouse motion callback
- */
-typedef void (*MouseMotionCallbackFn)(void *user_data,
-                                      double x,
-                                      double y,
-                                      unsigned int modifiers,
-                                      unsigned int time);
-
-/**
- * Type for mouse scroll callback
- */
-typedef void (*MouseScrollCallbackFn)(void *user_data,
-                                      double x,
-                                      double y,
-                                      double delta_x,
-                                      double delta_y,
-                                      unsigned int modifiers,
-                                      unsigned int time);
-
-/**
  * Monitor info struct for C FFI
  */
 typedef struct NeomacsMonitorInfo {
@@ -629,9 +598,7 @@ typedef struct DisplayPropFFI {
    */
   uint32_t webkitId;
   /**
-   * Number of face runs in display string (type=1).
-   * Runs stored after string text in str_buf, 10 bytes each:
-   * u16 byte_offset + u32 fg + u32 bg.
+   * Number of face runs in display string (type=1)
    */
   int displayNruns;
 } DisplayPropFFI;
@@ -1021,21 +988,6 @@ void neomacs_display_clear_all_borders(struct NeomacsDisplay *handle);
  * Returns 0 on success, 1 if layout changed, -1 on error
  */
 int neomacs_display_end_frame(struct NeomacsDisplay *handle);
-
-/**
- * Render the scene to an external Cairo context (stub)
- */
-int neomacs_display_render_to_cairo(struct NeomacsDisplay *handle, void *cairoContext);
-
-/**
- * Initialize the renderer with a Pango context (stub)
- */
-void neomacs_display_init_pango(struct NeomacsDisplay *handle, void *pangoContext);
-
-/**
- * Enable or disable GSK rendering (stub)
- */
-void neomacs_display_set_gsk_enabled(struct NeomacsDisplay *handle, int enabled);
 
 /**
  * Start smooth scroll animation
@@ -1691,46 +1643,11 @@ const char *neomacs_display_backend_name(struct NeomacsDisplay *handle);
 int neomacs_display_is_initialized(struct NeomacsDisplay *handle);
 
 /**
- * Create a GPU-accelerated NeomacsWidget (stub)
- */
-void *neomacs_display_create_widget(void);
-
-/**
- * Set the scene on a NeomacsWidget (stub)
- */
-int neomacs_display_widget_set_scene(struct NeomacsDisplay *handle, void *widget);
-
-/**
- * Initialize the GSK renderer's Pango context from a NeomacsWidget (stub)
- */
-void neomacs_display_widget_init_pango(struct NeomacsDisplay *handle, void *widget);
-
-/**
- * Render scene to a NeomacsWidget (stub)
- */
-int neomacs_display_render_to_widget(struct NeomacsDisplay *handle, void *widget);
-
-/**
  * Set the resize callback for winit windows.
  *
  * The callback will be invoked when the window is resized.
  */
 void neomacs_display_set_resize_callback(ResizeCallbackFn callback, void *userData);
-
-/**
- * Set the mouse button callback (stub)
- */
-void neomacs_display_set_mouse_button_callback(MouseButtonCallbackFn callback, void *userData);
-
-/**
- * Set the mouse motion callback (stub)
- */
-void neomacs_display_set_mouse_motion_callback(MouseMotionCallbackFn callback, void *userData);
-
-/**
- * Set the mouse scroll callback (stub)
- */
-void neomacs_display_set_mouse_scroll_callback(MouseScrollCallbackFn callback, void *userData);
 
 /**
  * Create a new terminal.
@@ -3222,7 +3139,7 @@ extern int neomacs_layout_check_line_prefix(EmacsBuffer buffer,
 
 /**
  * Get fringe bitmap data for a given bitmap ID.
- * Writes row data (one uint16_t per row) into bitsOut.
+ * Writes row data (one u16 per row) into bits_out.
  * Returns number of rows written, 0 if bitmap not found.
  */
 extern int neomacs_layout_get_fringe_bitmap(int bitmapId,

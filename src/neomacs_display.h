@@ -145,37 +145,6 @@ typedef enum BackendType {
 typedef void (*ResizeCallbackFn)(void *user_data, int width, int height);
 
 /**
- * Type for mouse button callback
- */
-typedef void (*MouseButtonCallbackFn)(void *user_data,
-                                      double x,
-                                      double y,
-                                      unsigned int button,
-                                      int pressed,
-                                      unsigned int modifiers,
-                                      unsigned int time);
-
-/**
- * Type for mouse motion callback
- */
-typedef void (*MouseMotionCallbackFn)(void *user_data,
-                                      double x,
-                                      double y,
-                                      unsigned int modifiers,
-                                      unsigned int time);
-
-/**
- * Type for mouse scroll callback
- */
-typedef void (*MouseScrollCallbackFn)(void *user_data,
-                                      double x,
-                                      double y,
-                                      double delta_x,
-                                      double delta_y,
-                                      unsigned int modifiers,
-                                      unsigned int time);
-
-/**
  * Input event structure passed to C.
  */
 typedef struct NeomacsInputEvent {
@@ -571,21 +540,6 @@ void neomacs_display_clear_all_borders(struct NeomacsDisplay *handle);
 int neomacs_display_end_frame(struct NeomacsDisplay *handle);
 
 /**
- * Render the scene to an external Cairo context (stub)
- */
-int neomacs_display_render_to_cairo(struct NeomacsDisplay *handle, void *cairoContext);
-
-/**
- * Initialize the renderer with a Pango context (stub)
- */
-void neomacs_display_init_pango(struct NeomacsDisplay *handle, void *pangoContext);
-
-/**
- * Enable or disable GSK rendering (stub)
- */
-void neomacs_display_set_gsk_enabled(struct NeomacsDisplay *handle, int enabled);
-
-/**
  * Start smooth scroll animation
  */
 void neomacs_display_smooth_scroll(struct NeomacsDisplay *handle,
@@ -750,46 +704,11 @@ const char *neomacs_display_backend_name(struct NeomacsDisplay *handle);
 int neomacs_display_is_initialized(struct NeomacsDisplay *handle);
 
 /**
- * Create a GPU-accelerated NeomacsWidget (stub)
- */
-void *neomacs_display_create_widget(void);
-
-/**
- * Set the scene on a NeomacsWidget (stub)
- */
-int neomacs_display_widget_set_scene(struct NeomacsDisplay *handle, void *widget);
-
-/**
- * Initialize the GSK renderer's Pango context from a NeomacsWidget (stub)
- */
-void neomacs_display_widget_init_pango(struct NeomacsDisplay *handle, void *widget);
-
-/**
- * Render scene to a NeomacsWidget (stub)
- */
-int neomacs_display_render_to_widget(struct NeomacsDisplay *handle, void *widget);
-
-/**
  * Set the resize callback for winit windows.
  *
  * The callback will be invoked when the window is resized.
  */
 void neomacs_display_set_resize_callback(ResizeCallbackFn callback, void *userData);
-
-/**
- * Set the mouse button callback (stub)
- */
-void neomacs_display_set_mouse_button_callback(MouseButtonCallbackFn callback, void *userData);
-
-/**
- * Set the mouse motion callback (stub)
- */
-void neomacs_display_set_mouse_motion_callback(MouseMotionCallbackFn callback, void *userData);
-
-/**
- * Set the mouse scroll callback (stub)
- */
-void neomacs_display_set_mouse_scroll_callback(MouseScrollCallbackFn callback, void *userData);
 
 /**
  * Set callback for WebKit new window/tab requests

@@ -1929,34 +1929,6 @@ pub unsafe extern "C" fn neomacs_display_end_frame(handle: *mut NeomacsDisplay) 
     if layout_cleared { 1 } else { 0 }
 }
 
-/// Render the scene to an external Cairo context (stub)
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_render_to_cairo(
-    _handle: *mut NeomacsDisplay,
-    _cairo_context: *mut c_void,
-) -> c_int {
-    // Not implemented without GTK4
-    -1
-}
-
-/// Initialize the renderer with a Pango context (stub)
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_init_pango(
-    _handle: *mut NeomacsDisplay,
-    _pango_context: *mut c_void,
-) {
-    // Not implemented without GTK4
-}
-
-/// Enable or disable GSK rendering (stub)
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_set_gsk_enabled(
-    _handle: *mut NeomacsDisplay,
-    _enabled: c_int,
-) {
-    // Not implemented without GTK4
-}
-
 // ============================================================================
 // Animation
 // ============================================================================
@@ -3107,43 +3079,6 @@ pub unsafe extern "C" fn neomacs_display_is_initialized(handle: *mut NeomacsDisp
     }
 }
 
-// ============================================================================
-// Widget Functions (stubs - no GTK4 backend)
-// ============================================================================
-
-/// Create a GPU-accelerated NeomacsWidget (stub)
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_create_widget() -> *mut c_void {
-    ptr::null_mut()
-}
-
-/// Set the scene on a NeomacsWidget (stub)
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_widget_set_scene(
-    _handle: *mut NeomacsDisplay,
-    _widget: *mut c_void,
-) -> c_int {
-    -1
-}
-
-/// Initialize the GSK renderer's Pango context from a NeomacsWidget (stub)
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_widget_init_pango(
-    _handle: *mut NeomacsDisplay,
-    _widget: *mut c_void,
-) {
-    // Not implemented without GTK4
-}
-
-/// Render scene to a NeomacsWidget (stub)
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_render_to_widget(
-    _handle: *mut NeomacsDisplay,
-    _widget: *mut c_void,
-) -> c_int {
-    -1
-}
-
 /// Type for the resize callback function pointer from C
 pub type ResizeCallbackFn = extern "C" fn(user_data: *mut c_void, width: c_int, height: c_int);
 
@@ -3166,68 +3101,6 @@ pub unsafe extern "C" fn neomacs_display_set_resize_callback(
         let _ = callback;
         let _ = user_data;
     }
-}
-
-// ============================================================================
-// Mouse Event Callbacks (stubs - no GTK4 backend)
-// ============================================================================
-
-/// Type for mouse button callback
-pub type MouseButtonCallbackFn = extern "C" fn(
-    user_data: *mut c_void,
-    x: c_double,
-    y: c_double,
-    button: c_uint,
-    pressed: c_int,
-    modifiers: c_uint,
-    time: c_uint,
-);
-
-/// Type for mouse motion callback
-pub type MouseMotionCallbackFn = extern "C" fn(
-    user_data: *mut c_void,
-    x: c_double,
-    y: c_double,
-    modifiers: c_uint,
-    time: c_uint,
-);
-
-/// Type for mouse scroll callback
-pub type MouseScrollCallbackFn = extern "C" fn(
-    user_data: *mut c_void,
-    x: c_double,
-    y: c_double,
-    delta_x: c_double,
-    delta_y: c_double,
-    modifiers: c_uint,
-    time: c_uint,
-);
-
-/// Set the mouse button callback (stub)
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_set_mouse_button_callback(
-    _callback: MouseButtonCallbackFn,
-    _user_data: *mut c_void,
-) {
-    // Not implemented without GTK4
-}
-
-/// Set the mouse motion callback (stub)
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_set_mouse_motion_callback(
-    _callback: MouseMotionCallbackFn,
-    _user_data: *mut c_void,
-) {
-    // Not implemented without GTK4
-}
-
-/// Set the mouse scroll callback (stub)
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_set_mouse_scroll_callback(
-    _callback: MouseScrollCallbackFn,
-    _user_data: *mut c_void,
-) {
-    // Not implemented without GTK4
 }
 
 // ============================================================================

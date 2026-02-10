@@ -4761,7 +4761,7 @@ else # "${HAVE_X11}" != "yes"
       fi
     fi
   elif test $window_system = neomacs; then
-    dnl Neomacs uses Rust/Pango for font rendering but needs fontconfig for font discovery
+    dnl Neomacs uses Rust for text layout, FreeType/Cairo for font rendering
     EMACS_CHECK_MODULES([FONTCONFIG], [fontconfig >= 2.2.0])
     EMACS_CHECK_MODULES([FREETYPE], [freetype2])
     if test "$HAVE_FONTCONFIG" != yes -o "$HAVE_FREETYPE" != yes; then
