@@ -15,6 +15,7 @@ use super::emacs_ffi::*;
 use super::unicode::*;
 use super::hit_test::*;
 use super::status_line::*;
+use super::bidi_layout::reorder_row_bidi;
 
 /// Maximum number of characters in a ligature run before forced flush.
 const MAX_LIGATURE_RUN_LEN: usize = 64;
@@ -738,6 +739,9 @@ impl LayoutEngine {
         let ligatures = self.ligatures_enabled;
         self.run_buf.clear();
 
+        // Bidi reordering: track where each row's glyphs start in frame_glyphs.glyphs
+        let mut row_glyph_start: usize = frame_glyphs.glyphs.len();
+
         while byte_idx < bytes_read as usize && row < max_rows
             && row_y[row as usize] < text_y_limit
         {
@@ -940,9 +944,11 @@ impl LayoutEngine {
 
                 if ch == '\n' {
                     // Newline within hscroll region: new line
+                    reorder_row_bidi(frame_glyphs, row_glyph_start, frame_glyphs.glyphs.len(), content_x);
                     col = 0;
                     x_offset = 0.0;
                     row += 1;
+                    row_glyph_start = frame_glyphs.glyphs.len();
                     current_line += 1;
                     need_line_number = lnum_enabled;
                     need_margin_check = has_margins;
@@ -1092,9 +1098,11 @@ impl LayoutEngine {
                         let (bch, blen) = decode_utf8(&bstr[bi..]);
                         bi += blen;
                         if bch == '\n' {
+                            reorder_row_bidi(frame_glyphs, row_glyph_start, frame_glyphs.glyphs.len(), content_x);
                             col = 0;
                             x_offset = 0.0;
                             row += 1;
+                            row_glyph_start = frame_glyphs.glyphs.len();
                             if row >= max_rows { break; }
                             continue;
                         }
@@ -1104,9 +1112,11 @@ impl LayoutEngine {
                         let badv = bchar_cols as f32 * char_w;
                         if x_offset + badv > avail_width {
                             if params.truncate_lines { break; }
+                            reorder_row_bidi(frame_glyphs, row_glyph_start, frame_glyphs.glyphs.len(), content_x);
                             col = 0;
                             x_offset = 0.0;
                             row += 1;
+                            row_glyph_start = frame_glyphs.glyphs.len();
                             if row >= max_rows { break; }
                         }
                         let gx = content_x + x_offset;
@@ -1242,9 +1252,11 @@ impl LayoutEngine {
                             if params.truncate_lines {
                                 break;
                             }
+                            reorder_row_bidi(frame_glyphs, row_glyph_start, frame_glyphs.glyphs.len(), content_x);
                             col = 0;
                             x_offset = 0.0;
                             row += 1;
+                            row_glyph_start = frame_glyphs.glyphs.len();
                             if row >= max_rows { break; }
                         }
 
@@ -1700,6 +1712,9 @@ impl LayoutEngine {
                     flush_run(&self.run_buf, frame_glyphs, ligatures);
                     self.run_buf.clear();
 
+                    // Bidi reorder: reorder glyph X positions for this completed row
+                    reorder_row_bidi(frame_glyphs, row_glyph_start, frame_glyphs.glyphs.len(), content_x);
+
                     // Highlight trailing whitespace (overlay stretch on top)
                     if let Some(tw_bg) = trailing_ws_bg {
                         if trailing_ws_start_col >= 0 && trailing_ws_row == row {
@@ -1748,6 +1763,7 @@ impl LayoutEngine {
                     col = 0;
                     x_offset = 0.0;
                     row += 1;
+                    row_glyph_start = frame_glyphs.glyphs.len();
 
                     // Apply extra height from variable-height faces on this row
                     if row_max_height > char_h {
@@ -1860,6 +1876,8 @@ impl LayoutEngine {
                         wrap_has_break = true;
                     }
                     if x_offset >= avail_width {
+                        // Bidi reorder before advancing to next row
+                        reorder_row_bidi(frame_glyphs, row_glyph_start, frame_glyphs.glyphs.len(), content_x);
                         if params.truncate_lines {
                             if (row as usize) < row_truncated.len() {
                                 row_truncated[row as usize] = true;
@@ -1872,6 +1890,7 @@ impl LayoutEngine {
                                     col = 0;
                                     x_offset = 0.0;
                                     row += 1;
+                                    row_glyph_start = frame_glyphs.glyphs.len();
                                     current_line += 1;
                                     need_line_number = lnum_enabled;
                                     need_margin_check = has_margins;
@@ -1886,6 +1905,7 @@ impl LayoutEngine {
                             col = 0;
                             x_offset = 0.0;
                             row += 1;
+                            row_glyph_start = frame_glyphs.glyphs.len();
                             if (row as usize) < row_continuation.len() {
                                 row_continuation[row as usize] = true;
                             }
@@ -1911,6 +1931,8 @@ impl LayoutEngine {
                                 );
                             }
                         }
+                        // Bidi reorder before advancing to next row
+                        reorder_row_bidi(frame_glyphs, row_glyph_start, frame_glyphs.glyphs.len(), content_x);
                         // Skip to next \n
                         while byte_idx < bytes_read as usize {
                             let (sch, slen) = decode_utf8(&text[byte_idx..]);
@@ -1920,6 +1942,7 @@ impl LayoutEngine {
                                 col = 0;
                                 x_offset = 0.0;
                                 row += 1;
+                                row_glyph_start = frame_glyphs.glyphs.len();
                                 current_line += 1;
                                 need_line_number = lnum_enabled;
                                 need_margin_check = has_margins;
@@ -1963,6 +1986,8 @@ impl LayoutEngine {
                         col += 2;
                         x_offset += 2.0 * char_w;
                     } else {
+                        // Bidi reorder before advancing to next row (control char overflow)
+                        reorder_row_bidi(frame_glyphs, row_glyph_start, frame_glyphs.glyphs.len(), content_x);
                         if params.truncate_lines {
                             while byte_idx < bytes_read as usize {
                                 let (c, l) = decode_utf8(&text[byte_idx..]);
@@ -1972,6 +1997,7 @@ impl LayoutEngine {
                                     col = 0;
                                     x_offset = 0.0;
                                     row += 1;
+                                    row_glyph_start = frame_glyphs.glyphs.len();
                                     current_line += 1;
                                     need_line_number = lnum_enabled;
                                     need_margin_check = has_margins;
@@ -1983,6 +2009,7 @@ impl LayoutEngine {
                             col = 0;
                             x_offset = 0.0;
                             row += 1;
+                            row_glyph_start = frame_glyphs.glyphs.len();
                             wrap_has_break = false;
                         }
                     }
@@ -2038,6 +2065,7 @@ impl LayoutEngine {
                         let glyph_w = char_cols as f32 * char_w;
 
                         if x_offset + glyph_w > avail_width {
+                            reorder_row_bidi(frame_glyphs, row_glyph_start, frame_glyphs.glyphs.len(), content_x);
                             if params.truncate_lines {
                                 // Skip to end of line
                                 while byte_idx < bytes_read as usize {
@@ -2048,6 +2076,7 @@ impl LayoutEngine {
                                         col = 0;
                                         x_offset = 0.0;
                                         row += 1;
+                                        row_glyph_start = frame_glyphs.glyphs.len();
                                         current_line += 1;
                                         need_line_number = lnum_enabled;
                                         need_margin_check = has_margins;
@@ -2063,6 +2092,7 @@ impl LayoutEngine {
                                 col = 0;
                                 x_offset = 0.0;
                                 row += 1;
+                                row_glyph_start = frame_glyphs.glyphs.len();
                                 wrap_has_break = false;
                                 if row >= max_rows { break; }
                             }
@@ -2232,6 +2262,8 @@ impl LayoutEngine {
 
                         // Line full
                         if params.truncate_lines {
+                            // Bidi reorder this completed row before truncation
+                            reorder_row_bidi(frame_glyphs, row_glyph_start, frame_glyphs.glyphs.len(), content_x);
                             // Show $ truncation indicator at right edge
                             let trunc_x = content_x + avail_width - char_w;
                             let gy = row_y[row as usize];
@@ -2248,6 +2280,7 @@ impl LayoutEngine {
                                     col = 0;
                                     x_offset = 0.0;
                                     row += 1;
+                                    row_glyph_start = frame_glyphs.glyphs.len();
                                     // Apply variable-height row adjustment
                                     if row_max_height > char_h {
                                         row_extra_y += row_max_height - char_h;
@@ -2280,6 +2313,8 @@ impl LayoutEngine {
                                     face_bg, self.face_data.face_id, false,
                                 );
                             }
+                            // Bidi reorder after word-wrap truncation (re-reorder the truncated glyphs)
+                            reorder_row_bidi(frame_glyphs, row_glyph_start, frame_glyphs.glyphs.len(), content_x);
                             if (row as usize) < row_continued.len() {
                                 row_continued[row as usize] = true;
                             }
@@ -2301,6 +2336,7 @@ impl LayoutEngine {
                             col = 0;
                             x_offset = 0.0;
                             row += 1;
+                            row_glyph_start = frame_glyphs.glyphs.len();
                             // Apply variable-height row adjustment
                             if row_max_height > char_h {
                                 row_extra_y += row_max_height - char_h;
@@ -2320,6 +2356,8 @@ impl LayoutEngine {
                             }
                             continue;
                         } else {
+                            // Bidi reorder this completed row before char-wrap
+                            reorder_row_bidi(frame_glyphs, row_glyph_start, frame_glyphs.glyphs.len(), content_x);
                             // Character wrap: fill remaining space
                             let remaining = avail_width - x_offset;
                             if remaining > 0.0 {
@@ -2343,6 +2381,7 @@ impl LayoutEngine {
                             col = 0;
                             x_offset = 0.0;
                             row += 1;
+                            row_glyph_start = frame_glyphs.glyphs.len();
                             // Apply variable-height row adjustment
                             if row_max_height > char_h {
                                 row_extra_y += row_max_height - char_h;
@@ -2537,9 +2576,11 @@ impl LayoutEngine {
                     let (ach, alen) = decode_utf8(&astr[ai..]);
                     ai += alen;
                     if ach == '\n' {
+                        reorder_row_bidi(frame_glyphs, row_glyph_start, frame_glyphs.glyphs.len(), content_x);
                         col = 0;
                         x_offset = 0.0;
                         row += 1;
+                        row_glyph_start = frame_glyphs.glyphs.len();
                         if row >= max_rows { break; }
                         continue;
                     }
@@ -2549,9 +2590,11 @@ impl LayoutEngine {
                     let a_advance = achar_cols as f32 * char_w;
                     if x_offset + a_advance > avail_width {
                         if params.truncate_lines { break; }
+                        reorder_row_bidi(frame_glyphs, row_glyph_start, frame_glyphs.glyphs.len(), content_x);
                         col = 0;
                         x_offset = 0.0;
                         row += 1;
+                        row_glyph_start = frame_glyphs.glyphs.len();
                         if row >= max_rows { break; }
                     }
                     let gx = content_x + x_offset;
@@ -2681,9 +2724,11 @@ impl LayoutEngine {
                     let (bch, blen) = decode_utf8(&bstr[bi..]);
                     bi += blen;
                     if bch == '\n' {
+                        reorder_row_bidi(frame_glyphs, row_glyph_start, frame_glyphs.glyphs.len(), content_x);
                         col = 0;
                         x_offset = 0.0;
                         row += 1;
+                        row_glyph_start = frame_glyphs.glyphs.len();
                         if row >= max_rows { break; }
                         continue;
                     }
@@ -2692,9 +2737,11 @@ impl LayoutEngine {
                     let b_advance = bchar_cols as f32 * char_w;
                     if x_offset + b_advance > avail_width {
                         if params.truncate_lines { break; }
+                        reorder_row_bidi(frame_glyphs, row_glyph_start, frame_glyphs.glyphs.len(), content_x);
                         col = 0;
                         x_offset = 0.0;
                         row += 1;
+                        row_glyph_start = frame_glyphs.glyphs.len();
                         if row >= max_rows { break; }
                     }
                     let gx = content_x + x_offset;
@@ -2733,9 +2780,11 @@ impl LayoutEngine {
                     let (ach, alen) = decode_utf8(&astr[ai..]);
                     ai += alen;
                     if ach == '\n' {
+                        reorder_row_bidi(frame_glyphs, row_glyph_start, frame_glyphs.glyphs.len(), content_x);
                         col = 0;
                         x_offset = 0.0;
                         row += 1;
+                        row_glyph_start = frame_glyphs.glyphs.len();
                         if row >= max_rows { break; }
                         continue;
                     }
@@ -2744,9 +2793,11 @@ impl LayoutEngine {
                     let a_advance = achar_cols as f32 * char_w;
                     if x_offset + a_advance > avail_width {
                         if params.truncate_lines { break; }
+                        reorder_row_bidi(frame_glyphs, row_glyph_start, frame_glyphs.glyphs.len(), content_x);
                         col = 0;
                         x_offset = 0.0;
                         row += 1;
+                        row_glyph_start = frame_glyphs.glyphs.len();
                         if row >= max_rows { break; }
                     }
                     let gx = content_x + x_offset;
@@ -2760,6 +2811,11 @@ impl LayoutEngine {
                 }
             }
         }
+
+        // Flush any remaining ligature run and bidi reorder the last row
+        flush_run(&self.run_buf, frame_glyphs, ligatures);
+        self.run_buf.clear();
+        reorder_row_bidi(frame_glyphs, row_glyph_start, frame_glyphs.glyphs.len(), content_x);
 
         // Fill rest of last line with :extend background if applicable
         // (handles end-of-buffer without trailing newline)
