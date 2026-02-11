@@ -610,7 +610,11 @@ impl RegexpCache {
             // Move to end (most recently used).
             let entry = self.entries.remove(idx);
             self.entries.push(entry);
-            return Ok(&self.entries.last().unwrap().compiled);
+            return self
+                .entries
+                .last()
+                .map(|e| &e.compiled)
+                .ok_or_else(|| SearchError::InvalidRegex("internal cache error".into()));
         }
 
         // Compile new pattern.
@@ -627,7 +631,10 @@ impl RegexpCache {
             compiled,
         });
 
-        Ok(&self.entries.last().unwrap().compiled)
+        self.entries
+            .last()
+            .map(|e| &e.compiled)
+            .ok_or_else(|| SearchError::InvalidRegex("internal cache error".into()))
     }
 
     /// Number of entries currently in the cache.

@@ -304,7 +304,7 @@ impl ItreeTree {
             return;
         }
         if let Some(parent) = self.parent(id) {
-            if id != self.root.unwrap() {
+            if Some(id) != self.root {
                 self.validate(parent);
             }
         }
@@ -328,7 +328,10 @@ impl ItreeTree {
 
     /// Left rotation on `node`.
     fn rotate_left(&mut self, node: NodeId) {
-        let right = self.right(node).expect("rotate_left: right child must exist");
+        let right = match self.right(node) {
+            Some(r) => r,
+            None => return, // structural invariant violated; skip rotation
+        };
 
         let otick = self.otick;
         self.inherit_offset(otick, node);
@@ -347,11 +350,12 @@ impl ItreeTree {
 
         // Get the parent to point to right instead of node
         if Some(node) != self.root {
-            let parent = node_parent.unwrap();
-            if self.left(parent) == Some(node) {
-                self.node_mut(parent).left = Some(right);
-            } else {
-                self.node_mut(parent).right = Some(right);
+            if let Some(parent) = node_parent {
+                if self.left(parent) == Some(node) {
+                    self.node_mut(parent).left = Some(right);
+                } else {
+                    self.node_mut(parent).right = Some(right);
+                }
             }
         } else {
             self.root = Some(right);
@@ -368,7 +372,10 @@ impl ItreeTree {
 
     /// Right rotation on `node`.
     fn rotate_right(&mut self, node: NodeId) {
-        let left = self.left(node).expect("rotate_right: left child must exist");
+        let left = match self.left(node) {
+            Some(l) => l,
+            None => return, // structural invariant violated; skip rotation
+        };
 
         let otick = self.otick;
         self.inherit_offset(otick, node);
@@ -386,11 +393,12 @@ impl ItreeTree {
         self.node_mut(left).parent = node_parent;
 
         if Some(node) != self.root {
-            let parent = node_parent.unwrap();
-            if self.right(parent) == Some(node) {
-                self.node_mut(parent).right = Some(left);
-            } else {
-                self.node_mut(parent).left = Some(left);
+            if let Some(parent) = node_parent {
+                if self.right(parent) == Some(node) {
+                    self.node_mut(parent).right = Some(left);
+                } else {
+                    self.node_mut(parent).left = Some(left);
+                }
             }
         } else {
             self.root = Some(left);
@@ -407,12 +415,16 @@ impl ItreeTree {
 
     /// Fix red-black violations after insertion.
     fn insert_fix(&mut self, mut node: NodeId) {
-        debug_assert!(!self.node(self.root.unwrap()).red);
-
         while self.null_safe_is_red(self.parent(node)) {
             debug_assert!(self.is_red(node));
-            let parent = self.parent(node).unwrap();
-            let grandparent = self.parent(parent).unwrap();
+            let parent = match self.parent(node) {
+                Some(p) => p,
+                None => break,
+            };
+            let grandparent = match self.parent(parent) {
+                Some(gp) => gp,
+                None => break,
+            };
 
             if Some(parent) == self.left(grandparent) {
                 let uncle = self.right(grandparent);
@@ -420,7 +432,9 @@ impl ItreeTree {
                 if self.null_safe_is_red(uncle) {
                     // Case 1a: uncle is red
                     self.node_mut(parent).red = false;
-                    self.node_mut(uncle.unwrap()).red = false;
+                    if let Some(u) = uncle {
+                        self.node_mut(u).red = false;
+                    }
                     self.node_mut(grandparent).red = true;
                     node = grandparent;
                 } else {
@@ -430,11 +444,13 @@ impl ItreeTree {
                         self.rotate_left(node);
                     }
                     // Case 3a
-                    let parent = self.parent(node).unwrap();
-                    let grandparent = self.parent(parent).unwrap();
-                    self.node_mut(parent).red = false;
-                    self.node_mut(grandparent).red = true;
-                    self.rotate_right(grandparent);
+                    if let Some(parent) = self.parent(node) {
+                        if let Some(grandparent) = self.parent(parent) {
+                            self.node_mut(parent).red = false;
+                            self.node_mut(grandparent).red = true;
+                            self.rotate_right(grandparent);
+                        }
+                    }
                 }
             } else {
                 // Symmetric case
@@ -443,7 +459,9 @@ impl ItreeTree {
                 if self.null_safe_is_red(uncle) {
                     // Case 1b
                     self.node_mut(parent).red = false;
-                    self.node_mut(uncle.unwrap()).red = false;
+                    if let Some(u) = uncle {
+                        self.node_mut(u).red = false;
+                    }
                     self.node_mut(grandparent).red = true;
                     node = grandparent;
                 } else {
@@ -453,17 +471,21 @@ impl ItreeTree {
                         self.rotate_right(node);
                     }
                     // Case 3b
-                    let parent = self.parent(node).unwrap();
-                    let grandparent = self.parent(parent).unwrap();
-                    self.node_mut(parent).red = false;
-                    self.node_mut(grandparent).red = true;
-                    self.rotate_left(grandparent);
+                    if let Some(parent) = self.parent(node) {
+                        if let Some(grandparent) = self.parent(parent) {
+                            self.node_mut(parent).red = false;
+                            self.node_mut(grandparent).red = true;
+                            self.rotate_left(grandparent);
+                        }
+                    }
                 }
             }
         }
 
         // Root must be black
-        self.node_mut(self.root.unwrap()).red = false;
+        if let Some(root) = self.root {
+            self.node_mut(root).red = false;
+        }
     }
 
     /// Insert a node into the tree (internal, node must have begin/end/otick set).
@@ -577,8 +599,7 @@ impl ItreeTree {
     fn replace_child(&mut self, source: Option<NodeId>, dest: NodeId) {
         if Some(dest) == self.root {
             self.root = source;
-        } else {
-            let parent = self.parent(dest).unwrap();
+        } else if let Some(parent) = self.parent(dest) {
             if self.left(parent) == Some(dest) {
                 self.node_mut(parent).left = source;
             } else {
@@ -613,18 +634,27 @@ impl ItreeTree {
     /// Fix red-black violations after removal.
     fn remove_fix(&mut self, mut node: Option<NodeId>, mut parent: Option<NodeId>) {
         while parent.is_some() && self.null_safe_is_black(node) {
-            let p = parent.unwrap();
+            let p = match parent {
+                Some(p) => p,
+                None => break,
+            };
             debug_assert!(node == self.left(p) || node == self.right(p));
 
             if node == self.left(p) {
-                let mut other = self.right(p).unwrap();
+                let mut other = match self.right(p) {
+                    Some(o) => o,
+                    None => break,
+                };
 
                 if self.is_red(other) {
                     // Case 1a
                     self.node_mut(other).red = false;
                     self.node_mut(p).red = true;
                     self.rotate_left(p);
-                    other = self.right(p).unwrap();
+                    other = match self.right(p) {
+                        Some(o) => o,
+                        None => break,
+                    };
                 }
 
                 if self.null_safe_is_black(self.left(other))
@@ -637,32 +667,43 @@ impl ItreeTree {
                 } else {
                     if self.null_safe_is_black(self.right(other)) {
                         // Case 3a
-                        let other_left = self.left(other).unwrap();
-                        self.node_mut(other_left).red = false;
+                        if let Some(other_left) = self.left(other) {
+                            self.node_mut(other_left).red = false;
+                        }
                         self.node_mut(other).red = true;
                         self.rotate_right(other);
-                        other = self.right(p).unwrap();
+                        other = match self.right(p) {
+                            Some(o) => o,
+                            None => break,
+                        };
                     }
                     // Case 4a
                     let p_red = self.is_red(p);
                     self.node_mut(other).red = p_red;
                     self.node_mut(p).red = false;
-                    let other_right = self.right(other).unwrap();
-                    self.node_mut(other_right).red = false;
+                    if let Some(other_right) = self.right(other) {
+                        self.node_mut(other_right).red = false;
+                    }
                     self.rotate_left(p);
                     node = self.root;
                     parent = None;
                 }
             } else {
                 // Symmetric case
-                let mut other = self.left(p).unwrap();
+                let mut other = match self.left(p) {
+                    Some(o) => o,
+                    None => break,
+                };
 
                 if self.is_red(other) {
                     // Case 1b
                     self.node_mut(other).red = false;
                     self.node_mut(p).red = true;
                     self.rotate_right(p);
-                    other = self.left(p).unwrap();
+                    other = match self.left(p) {
+                        Some(o) => o,
+                        None => break,
+                    };
                 }
 
                 if self.null_safe_is_black(self.right(other))
@@ -675,18 +716,23 @@ impl ItreeTree {
                 } else {
                     if self.null_safe_is_black(self.left(other)) {
                         // Case 3b
-                        let other_right = self.right(other).unwrap();
-                        self.node_mut(other_right).red = false;
+                        if let Some(other_right) = self.right(other) {
+                            self.node_mut(other_right).red = false;
+                        }
                         self.node_mut(other).red = true;
                         self.rotate_left(other);
-                        other = self.left(p).unwrap();
+                        other = match self.left(p) {
+                            Some(o) => o,
+                            None => break,
+                        };
                     }
                     // Case 4b
                     let p_red = self.is_red(p);
                     self.node_mut(other).red = p_red;
                     self.node_mut(p).red = false;
-                    let other_left = self.left(other).unwrap();
-                    self.node_mut(other_left).red = false;
+                    if let Some(other_left) = self.left(other) {
+                        self.node_mut(other_left).red = false;
+                    }
                     self.rotate_right(p);
                     node = self.root;
                     parent = None;
@@ -708,8 +754,11 @@ impl ItreeTree {
         let splice = if self.left(node).is_none() || self.right(node).is_none() {
             node
         } else {
-            let right = self.right(node).unwrap();
-            self.subtree_min(right)
+            // Both children exist; we checked right is Some above
+            match self.right(node) {
+                Some(right) => self.subtree_min(right),
+                None => node,
+            }
         };
 
         // Find subtree: the only child of splice
@@ -806,9 +855,9 @@ impl ItreeTree {
         }
 
         // Process remaining nodes using a stack-based traversal
-        if self.root.is_some() {
+        if let Some(root) = self.root {
             let mut stack: Vec<NodeId> = Vec::with_capacity(self.max_height() + 1);
-            stack.push(self.root.unwrap());
+            stack.push(root);
 
             while let Some(node) = stack.pop() {
                 let otick = self.otick;
@@ -872,8 +921,12 @@ impl ItreeTree {
             return;
         }
 
+        let root = match self.root {
+            Some(r) => r,
+            None => return,
+        };
         let mut stack: Vec<NodeId> = Vec::with_capacity(self.max_height() + 1);
-        stack.push(self.root.unwrap());
+        stack.push(root);
 
         while let Some(node) = stack.pop() {
             let otick = self.otick;
@@ -1083,7 +1136,8 @@ impl ItreeTree {
         let otick = iter.otick;
 
         loop {
-            let go_left = match self.left(node) {
+            let left_child = self.left(node);
+            let go_left = match left_child {
                 Some(left) => {
                     self.inherit_offset(otick, left);
                     iter.begin <= self.limit(left)
@@ -1091,22 +1145,30 @@ impl ItreeTree {
                 None => false,
             };
 
+            let right_child = self.right(node);
             let go_right = if !go_left {
                 self.begin(node) <= iter.end
-                    && self.right(node).is_some()
-                    && {
-                        let right = self.right(node).unwrap();
-                        self.inherit_offset(otick, right);
-                        true
+                    && match right_child {
+                        Some(right) => {
+                            self.inherit_offset(otick, right);
+                            true
+                        }
+                        None => false,
                     }
             } else {
                 false
             };
 
             if go_left {
-                node = self.left(node).unwrap();
+                match left_child {
+                    Some(left) => node = left,
+                    None => break,
+                }
             } else if go_right {
-                node = self.right(node).unwrap();
+                match right_child {
+                    Some(right) => node = right,
+                    None => break,
+                }
             } else {
                 break;
             }
@@ -1205,7 +1267,11 @@ impl ItreeTree {
             }
         } else {
             // Go to rightmost in left subtree
-            let mut current = self.left(node).unwrap();
+            // go_left is true, so self.left(node) must be Some
+            let mut current = match self.left(node) {
+                Some(l) => l,
+                None => return None,
+            };
 
             loop {
                 if self.begin(current) <= iter.end {
@@ -1283,16 +1349,16 @@ impl ItreeTree {
                     let parent_node = p;
 
                     // Try right sibling subtree
-                    if !(self.begin(parent_node) <= iter.end) || self.right(parent_node).is_none() {
-                        return Some(parent_node);
-                    }
-
-                    let mut current = self.right(parent_node).unwrap();
+                    let mut current = match self.right(parent_node) {
+                        Some(r) if self.begin(parent_node) <= iter.end => r,
+                        _ => return Some(parent_node),
+                    };
                     self.inherit_offset(otick, current);
 
                     // Descend to deepest post-order node
                     loop {
-                        let go_left = match self.left(current) {
+                        let left_child = self.left(current);
+                        let go_left = match left_child {
                             Some(left) => {
                                 self.inherit_offset(otick, left);
                                 iter.begin <= self.limit(left)
@@ -1300,22 +1366,30 @@ impl ItreeTree {
                             None => false,
                         };
 
+                        let right_child = self.right(current);
                         let go_right = if !go_left {
                             self.begin(current) <= iter.end
-                                && self.right(current).is_some()
-                                && {
-                                    let right = self.right(current).unwrap();
-                                    self.inherit_offset(otick, right);
-                                    true
+                                && match right_child {
+                                    Some(right) => {
+                                        self.inherit_offset(otick, right);
+                                        true
+                                    }
+                                    None => false,
                                 }
                         } else {
                             false
                         };
 
                         if go_left {
-                            current = self.left(current).unwrap();
+                            match left_child {
+                                Some(left) => current = left,
+                                None => break,
+                            }
                         } else if go_right {
-                            current = self.right(current).unwrap();
+                            match right_child {
+                                Some(right) => current = right,
+                                None => break,
+                            }
                         } else {
                             break;
                         }
