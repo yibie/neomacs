@@ -59,6 +59,8 @@ The initial scaffolding is now implemented in Rust:
 
 - `rust/neovm-host-abi`: host boundary and metadata model.
 - `rust/neovm-core`: VM shell with scheduler trait boundary (`TaskScheduler`) and default noop scheduler.
+- `rust/neovm-core/src/elisp.rs`: initial interpreter slice and parser for a starter compatibility corpus.
+- `rust/neovm-core/examples/compat_runner.rs`: emits oracle-style TSV for differential checks.
 - `rust/neovm-worker`: multi-thread worker runtime scaffold with:
   - bounded priority queues
   - cancellation state and task status tracking
@@ -68,7 +70,7 @@ The initial scaffolding is now implemented in Rust:
   - finished-task reaping hook for long-running process memory hygiene
   - runtime counters for enqueue/dequeue/rejection/cancel/complete
 
-This is still pre-evaluator scaffolding. Bytecode execution, JIT, GC, and full compatibility behavior remain future phases.
+This remains a partial evaluator implementation. Bytecode execution, JIT, GC, and full compatibility behavior remain future phases.
 
 ## 5. Dependency Rules
 

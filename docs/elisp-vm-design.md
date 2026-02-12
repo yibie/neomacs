@@ -26,19 +26,23 @@ Initial scaffold:
 
 - Form corpus: `test/neovm/vm-compat/cases/core.forms`
 - Oracle evaluator: `test/neovm/vm-compat/oracle_eval.el`
-- Runner: `test/neovm/vm-compat/run-oracle.sh`
+- Oracle runner: `test/neovm/vm-compat/run-oracle.sh`
+- NeoVM runner: `test/neovm/vm-compat/run-neovm.sh`
+- Comparator: `test/neovm/vm-compat/compare-results.sh`
 
 Current command:
 
 ```bash
 test/neovm/vm-compat/run-oracle.sh test/neovm/vm-compat/cases/core.forms
+test/neovm/vm-compat/run-neovm.sh test/neovm/vm-compat/cases/core.forms
+cd test/neovm/vm-compat && make check-neovm
 ```
 
 Next phase:
 
-- Add NeoVM evaluator runner for the same corpus
-- Diff `OK/ERR` class and printed values against oracle output
-- Gate CI on no behavioral drift for enabled compatibility suites
+- Expand corpus coverage (binding rules, non-local exits, mutation, numeric edges)
+- Wire compatibility target(s) into CI
+- Run differential checks against larger GNU Emacs test subsets
 
 ## Design Principles
 
@@ -87,6 +91,7 @@ Implemented now:
 
 - `rust/neovm-host-abi`: typed VM/host boundary (`HostAbi`, `Affinity`, `EffectClass`, snapshots, patches, task/select types)
 - `rust/neovm-core`: `Vm<H, S>` shell with explicit `TaskScheduler` trait to keep core decoupled from host/editor internals
+- `rust/neovm-core/src/elisp.rs`: first interpreter slice with parser + evaluator for dynamic `let`/`setq`, quote/list mutation (`setcar`), `catch`/`throw`, `condition-case`, lambda/funcall, and arithmetic
 - `rust/neovm-worker`: first worker runtime scaffold with:
   - bounded priority task queues (`Interactive`, `Default`, `Background`)
   - cancellation-aware task lifecycle (`Queued/Running/Completed/Cancelled`)
@@ -97,14 +102,15 @@ Implemented now:
   - finished-task reaping API to prevent task registry growth
   - runtime metrics for queue pressure and completion/cancellation counters
 - `rust/neovm-worker/examples/scheduler_bench.rs`: quick throughput benchmark for task scheduling and channel round-trips
+- `rust/neovm-core/examples/compat_runner.rs`: NeoVM compatibility runner producing oracle-style TSV
 
 Not implemented yet:
 
-- Elisp reader/bytecode/interpreter pipeline
+- Full Elisp reader/compiler/bytecode pipeline
 - Per-isolate Lisp heaps and snapshot/patch transfer semantics
 - Tiered JIT pipeline and deoptimization metadata
 - Incremental/concurrent GC engine
-- Full GNU Emacs behavior compatibility layer
+- Full GNU Emacs behavior compatibility layer (current interpreter slice covers only a starter subset)
 
 This confirms the module split and isolate-first scheduler direction in code, while performance-critical VM internals remain planned work.
 

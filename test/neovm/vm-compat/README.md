@@ -11,12 +11,15 @@ results against that baseline once evaluator execution is wired in.
 
 - `oracle_eval.el`: batch-mode evaluator used as the GNU Emacs oracle
 - `run-oracle.sh`: runs all forms from a corpus file and prints TSV output
+- `run-neovm.sh`: runs NeoVM core compatibility runner and prints TSV output
+- `compare-results.sh`: diffs oracle TSV vs NeoVM TSV
 - `cases/core.forms`: starter corpus for expression and error behavior
 
 ## Usage
 
 ```bash
 test/neovm/vm-compat/run-oracle.sh test/neovm/vm-compat/cases/core.forms
+test/neovm/vm-compat/run-neovm.sh test/neovm/vm-compat/cases/core.forms
 ```
 
 Output columns:
@@ -38,9 +41,11 @@ When NeoVM produces TSV output for the same corpus:
 ```bash
 cd test/neovm/vm-compat
 make compare NEOVM_OUT=cases/core.neovm.tsv
+make check-neovm
 ```
 
 `compare-results.sh` checks index/form/result equality and reports drift.
+Set `STRICT_FORM=1` to fail on form-printing differences too.
 
 ## Next step
 

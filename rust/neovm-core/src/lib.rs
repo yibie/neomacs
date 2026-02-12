@@ -1,3 +1,5 @@
+pub mod elisp;
+
 use neovm_host_abi::{
     HostAbi, HostError, IsolateId, LispValue, PatchRequest, PatchResult, PrimitiveDescriptor,
     PrimitiveId, SelectOp, SelectResult, Signal, SnapshotBlob, SnapshotRequest, TaskError,
