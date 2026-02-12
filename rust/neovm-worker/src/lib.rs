@@ -88,6 +88,7 @@ struct TaskEntry {
     opts: TaskOptions,
     context: TaskContext,
     status: Mutex<TaskStatus>,
+    done: Condvar,
 }
 
 impl TaskEntry {
@@ -99,6 +100,7 @@ impl TaskEntry {
                 cancelled: Arc::new(AtomicBool::new(false)),
             },
             status: Mutex::new(TaskStatus::Queued),
+            done: Condvar::new(),
         }
     }
 
@@ -122,6 +124,7 @@ impl TaskEntry {
             TaskStatus::Completed | TaskStatus::Cancelled => false,
             TaskStatus::Queued | TaskStatus::Running => {
                 *status = TaskStatus::Cancelled;
+                self.done.notify_all();
                 true
             }
         }
@@ -133,6 +136,7 @@ impl TaskEntry {
             TaskStatus::Cancelled | TaskStatus::Completed => false,
             TaskStatus::Queued | TaskStatus::Running => {
                 *status = TaskStatus::Completed;
+                self.done.notify_all();
                 true
             }
         }
@@ -333,6 +337,54 @@ impl Channel {
     }
 }
 
+#[derive(Default)]
+struct ChannelEvents {
+    version: Mutex<u64>,
+    changed: Condvar,
+}
+
+impl ChannelEvents {
+    fn snapshot(&self) -> u64 {
+        *self.version.lock().expect("channel event mutex poisoned")
+    }
+
+    fn notify(&self) {
+        let mut version = self.version.lock().expect("channel event mutex poisoned");
+        *version = version.wrapping_add(1);
+        drop(version);
+        self.changed.notify_all();
+    }
+
+    fn wait_for_change(&self, last_seen: u64, timeout: Duration) -> Option<u64> {
+        let start = Instant::now();
+        let mut state = self.version.lock().expect("channel event mutex poisoned");
+        if *state != last_seen {
+            return Some(*state);
+        }
+
+        let mut remaining = timeout;
+        loop {
+            let (next_state, wait_result) = self
+                .changed
+                .wait_timeout(state, remaining)
+                .expect("channel event condvar wait failed");
+            state = next_state;
+            if *state != last_seen {
+                return Some(*state);
+            }
+            if wait_result.timed_out() {
+                return None;
+            }
+
+            let elapsed = start.elapsed();
+            if elapsed >= timeout {
+                return None;
+            }
+            remaining = timeout.saturating_sub(elapsed);
+        }
+    }
+}
+
 pub struct WorkerRuntime {
     config: WorkerConfig,
     next_task: AtomicU64,
@@ -341,6 +393,7 @@ pub struct WorkerRuntime {
     queue: Arc<SharedQueue>,
     tasks: Arc<RwLock<HashMap<u64, Arc<TaskEntry>>>>,
     channels: Arc<RwLock<HashMap<u64, Arc<Channel>>>>,
+    channel_events: Arc<ChannelEvents>,
     metrics: Arc<RuntimeMetrics>,
 }
 
@@ -354,6 +407,7 @@ impl WorkerRuntime {
             queue: Arc::new(SharedQueue::default()),
             tasks: Arc::new(RwLock::new(HashMap::new())),
             channels: Arc::new(RwLock::new(HashMap::new())),
+            channel_events: Arc::new(ChannelEvents::default()),
             metrics: Arc::new(RuntimeMetrics::default()),
         }
     }
@@ -382,6 +436,7 @@ impl WorkerRuntime {
             return false;
         };
         channel.close();
+        self.channel_events.notify();
         true
     }
 
@@ -400,9 +455,9 @@ impl WorkerRuntime {
             data: None,
         })?;
 
-        channel
-            .send(value, timeout)
-            .map_err(channel_error_to_signal)
+        channel.send(value, timeout).map_err(channel_error_to_signal)?;
+        self.channel_events.notify();
+        Ok(())
     }
 
     pub fn channel_recv(
@@ -419,7 +474,11 @@ impl WorkerRuntime {
             data: None,
         })?;
 
-        channel.recv(timeout).map_err(channel_error_to_signal)
+        let value = channel.recv(timeout).map_err(channel_error_to_signal)?;
+        if value.is_some() {
+            self.channel_events.notify();
+        }
+        Ok(value)
     }
 
     pub fn spawn(&self, form: LispValue, opts: TaskOptions) -> Result<TaskHandle, EnqueueError> {
@@ -554,30 +613,65 @@ impl WorkerRuntime {
         handle: TaskHandle,
         timeout: Option<Duration>,
     ) -> Result<LispValue, TaskError> {
-        fn map_status(status: Option<TaskStatus>) -> Result<LispValue, TaskError> {
-            match status {
-                Some(TaskStatus::Completed) => Ok(LispValue::default()),
-                Some(TaskStatus::Cancelled) => Err(TaskError::Cancelled),
-                Some(TaskStatus::Queued) | Some(TaskStatus::Running) | None => {
-                    Err(TaskError::TimedOut)
-                }
-            }
-        }
-
-        let Some(timeout) = timeout else {
-            return map_status(self.task_status(handle));
+        let task = {
+            let tasks = self.tasks.read().expect("tasks map rwlock poisoned");
+            tasks.get(&handle.0).cloned()
         };
 
-        let deadline = Instant::now() + timeout;
-        loop {
-            match self.task_status(handle) {
-                Some(TaskStatus::Completed) => return Ok(LispValue::default()),
-                Some(TaskStatus::Cancelled) => return Err(TaskError::Cancelled),
-                _ => {
-                    if Instant::now() >= deadline {
-                        return Err(TaskError::TimedOut);
+        let Some(task) = task else {
+            return Err(TaskError::TimedOut);
+        };
+
+        let mut status = task.status.lock().expect("task status mutex poisoned");
+        match timeout {
+            None => loop {
+                match *status {
+                    TaskStatus::Completed => return Ok(LispValue::default()),
+                    TaskStatus::Cancelled => return Err(TaskError::Cancelled),
+                    TaskStatus::Queued | TaskStatus::Running => {
+                        status = task
+                            .done
+                            .wait(status)
+                            .expect("task completion condvar wait failed");
                     }
-                    thread::yield_now();
+                }
+            },
+            Some(timeout) => {
+                let start = Instant::now();
+                let mut remaining = timeout;
+                loop {
+                    match *status {
+                        TaskStatus::Completed => return Ok(LispValue::default()),
+                        TaskStatus::Cancelled => return Err(TaskError::Cancelled),
+                        TaskStatus::Queued | TaskStatus::Running => {}
+                    }
+
+                    let (next_status, wait_result) = task
+                        .done
+                        .wait_timeout(status, remaining)
+                        .expect("task completion condvar wait failed");
+                    status = next_status;
+                    if wait_result.timed_out() {
+                        match *status {
+                            TaskStatus::Completed => return Ok(LispValue::default()),
+                            TaskStatus::Cancelled => return Err(TaskError::Cancelled),
+                            TaskStatus::Queued | TaskStatus::Running => {
+                                return Err(TaskError::TimedOut)
+                            }
+                        }
+                    }
+
+                    let elapsed = start.elapsed();
+                    if elapsed >= timeout {
+                        match *status {
+                            TaskStatus::Completed => return Ok(LispValue::default()),
+                            TaskStatus::Cancelled => return Err(TaskError::Cancelled),
+                            TaskStatus::Queued | TaskStatus::Running => {
+                                return Err(TaskError::TimedOut)
+                            }
+                        }
+                    }
+                    remaining = timeout.saturating_sub(elapsed);
                 }
             }
         }
@@ -602,6 +696,9 @@ impl WorkerRuntime {
 
                     match channel.try_recv() {
                         Ok(value) => {
+                            if value.is_some() {
+                                self.channel_events.notify();
+                            }
                             return Some(SelectResult::Ready {
                                 op_index: index,
                                 value,
@@ -624,6 +721,7 @@ impl WorkerRuntime {
 
                     match channel.try_send(value.clone()) {
                         Ok(()) => {
+                            self.channel_events.notify();
                             return Some(SelectResult::Ready {
                                 op_index: index,
                                 value: None,
@@ -646,7 +744,7 @@ impl WorkerRuntime {
             return SelectResult::TimedOut;
         }
 
-        let start = (self.select_cursor.fetch_add(1, Ordering::Relaxed) as usize) % ops.len();
+        let mut start = (self.select_cursor.fetch_add(1, Ordering::Relaxed) as usize) % ops.len();
         if let Some(result) = self.select_once(ops, start) {
             return result;
         }
@@ -656,14 +754,23 @@ impl WorkerRuntime {
         };
 
         let deadline = Instant::now() + timeout;
+        let mut seen = self.channel_events.snapshot();
         loop {
-            if Instant::now() >= deadline {
+            let now = Instant::now();
+            if now >= deadline {
                 return SelectResult::TimedOut;
             }
+
             if let Some(result) = self.select_once(ops, start) {
                 return result;
             }
-            thread::yield_now();
+
+            let wait_for = deadline.saturating_duration_since(now);
+            let Some(next_seen) = self.channel_events.wait_for_change(seen, wait_for) else {
+                return SelectResult::TimedOut;
+            };
+            seen = next_seen;
+            start = (start + 1) % ops.len();
         }
     }
 }
@@ -819,6 +926,26 @@ mod tests {
     }
 
     #[test]
+    fn scheduler_await_wakes_on_completion() {
+        let rt = WorkerRuntime::new(WorkerConfig {
+            threads: 1,
+            queue_capacity: 16,
+        });
+        let workers = rt.start_dummy_workers();
+        let task = rt
+            .spawn(LispValue::default(), TaskOptions::default())
+            .expect("task should enqueue");
+
+        let result = TaskScheduler::task_await(&rt, task, Some(Duration::from_millis(50)));
+        rt.close();
+        for worker in workers {
+            worker.join().expect("worker thread should join");
+        }
+
+        assert!(result.is_ok(), "task await should observe completion");
+    }
+
+    #[test]
     fn channel_send_recv_round_trip() {
         let rt = WorkerRuntime::new(WorkerConfig::default());
         let channel = rt.make_channel(2);
@@ -863,6 +990,41 @@ mod tests {
             Some(Duration::from_millis(2)),
         );
         assert!(matches!(result, SelectResult::TimedOut));
+    }
+
+    #[test]
+    fn select_wakes_when_channel_becomes_ready() {
+        let rt = Arc::new(WorkerRuntime::new(WorkerConfig::default()));
+        let channel = rt.make_channel(1);
+
+        let rt_sender = Arc::clone(&rt);
+        let sender = thread::spawn(move || {
+            thread::sleep(Duration::from_millis(2));
+            rt_sender
+                .channel_send(
+                    channel,
+                    LispValue {
+                        bytes: vec![42, 24],
+                    },
+                    Some(Duration::from_millis(50)),
+                )
+                .expect("sender should publish value");
+        });
+
+        let result = TaskScheduler::select(
+            &*rt,
+            &[SelectOp::Recv(channel)],
+            Some(Duration::from_millis(100)),
+        );
+        sender.join().expect("sender thread should join");
+
+        match result {
+            SelectResult::Ready {
+                op_index: 0,
+                value: Some(value),
+            } => assert_eq!(value.bytes, vec![42, 24]),
+            _ => panic!("expected select to wake with recv"),
+        }
     }
 
     #[test]

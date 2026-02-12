@@ -70,6 +70,7 @@ Implemented now:
   - cancellation-aware task lifecycle (`Queued/Running/Completed/Cancelled`)
   - worker-pool execution loop
   - bounded channels and timeout-aware `select`
+  - condition-variable wakeups for `task_await` and channel readiness (no default busy-spin waits)
   - runtime metrics for queue pressure and completion/cancellation counters
 - `rust/neovm-worker/examples/scheduler_bench.rs`: quick throughput benchmark for task scheduling and channel round-trips
 

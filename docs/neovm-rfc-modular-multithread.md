@@ -63,6 +63,7 @@ The initial scaffolding is now implemented in Rust:
   - bounded priority queues
   - cancellation state and task status tracking
   - bounded channels and timeout-aware `select`
+  - condvar-based wait/wakeup for task completion and channel readiness
   - runtime counters for enqueue/dequeue/rejection/cancel/complete
 
 This is still pre-evaluator scaffolding. Bytecode execution, JIT, GC, and full compatibility behavior remain future phases.
