@@ -7,7 +7,7 @@
 //! - Cleaner architecture with GObject signals
 //!
 //! Architecture:
-//! ```
+//! ```text
 //! WPEDisplay (headless) → WebKitWebView → WPEView
 //!                                            ↓ "buffer-rendered" signal
 //!                                         WPEBuffer
