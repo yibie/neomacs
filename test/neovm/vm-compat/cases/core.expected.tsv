@@ -4,3 +4,7 @@
 4	(catch 'tag (throw 'tag 42))	OK 42
 5	(condition-case e (/ 1 0) (arith-error 'div-zero))	OK div-zero
 6	(let ((x 1)) (let ((f (lambda nil x))) (let ((x 2)) (funcall f))))	OK 2
+7	(progn (defun add2 (a b) (+ a b)) (add2 5 7))	OK 12
+8	(if (eq (car (cons 1 nil)) 1) (list 9 8) nil)	OK (9 8)
+9	(cdr '(1 2 3))	OK (2 3)
+10	(if nil 1 2)	OK 2

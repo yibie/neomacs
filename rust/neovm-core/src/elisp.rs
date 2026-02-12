@@ -84,18 +84,34 @@ enum Flow {
 
 type EvalResult = Result<Value, Flow>;
 
-#[derive(Default)]
 pub struct Evaluator {
     globals: HashMap<String, Value>,
+    functions: HashMap<String, Value>,
     dynamic: Vec<HashMap<String, Value>>,
+}
+
+impl Default for Evaluator {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Evaluator {
     pub fn new() -> Self {
         let mut globals = HashMap::new();
         globals.insert("t".to_string(), Value::Symbol("t".to_string()));
+        let mut functions = HashMap::new();
+        functions.insert("+".to_string(), Value::Symbol("+".to_string()));
+        functions.insert("/".to_string(), Value::Symbol("/".to_string()));
+        functions.insert("setcar".to_string(), Value::Symbol("setcar".to_string()));
+        functions.insert("car".to_string(), Value::Symbol("car".to_string()));
+        functions.insert("cdr".to_string(), Value::Symbol("cdr".to_string()));
+        functions.insert("cons".to_string(), Value::Symbol("cons".to_string()));
+        functions.insert("list".to_string(), Value::Symbol("list".to_string()));
+        functions.insert("eq".to_string(), Value::Symbol("eq".to_string()));
         Self {
             globals,
+            functions,
             dynamic: Vec::new(),
         }
     }
@@ -153,13 +169,27 @@ impl Evaluator {
                 "catch" => return self.eval_catch(tail),
                 "throw" => return self.eval_throw(tail),
                 "condition-case" => return self.eval_condition_case(tail),
+                "if" => return self.eval_if(tail),
+                "progn" => return self.eval_progn(tail),
                 "lambda" => return self.eval_lambda(tail),
+                "defun" => return self.eval_defun(tail),
                 "funcall" => return self.eval_funcall(tail),
                 "+" => return self.eval_plus(tail),
                 "/" => return self.eval_div(tail),
                 "setcar" => return self.eval_setcar(tail),
+                "car" => return self.eval_car(tail),
+                "cdr" => return self.eval_cdr(tail),
+                "cons" => return self.eval_cons(tail),
+                "list" => return self.eval_list_builtin(tail),
+                "eq" => return self.eval_eq(tail),
                 _ => {}
             }
+
+            let mut args = Vec::with_capacity(tail.len());
+            for expr in tail {
+                args.push(self.eval(expr)?);
+            }
+            return self.apply_named(name, args);
         }
 
         Err(signal(
@@ -297,6 +327,18 @@ impl Evaluator {
         }
     }
 
+    fn eval_if(&mut self, tail: &[Expr]) -> EvalResult {
+        if tail.len() < 2 {
+            return Err(signal("wrong-number-of-arguments", vec![]));
+        }
+        let cond = self.eval(&tail[0])?;
+        if is_truthy(&cond) {
+            self.eval(&tail[1])
+        } else {
+            self.eval_progn(&tail[2..])
+        }
+    }
+
     fn eval_lambda(&mut self, tail: &[Expr]) -> EvalResult {
         if tail.len() < 2 {
             return Err(signal("wrong-number-of-arguments", vec![]));
@@ -320,6 +362,20 @@ impl Evaluator {
             params,
             body: tail[1..].to_vec(),
         })))
+    }
+
+    fn eval_defun(&mut self, tail: &[Expr]) -> EvalResult {
+        if tail.len() < 3 {
+            return Err(signal("wrong-number-of-arguments", vec![]));
+        }
+
+        let Expr::Symbol(name) = &tail[0] else {
+            return Err(signal("wrong-type-argument", vec![]));
+        };
+
+        let lambda = self.eval_lambda(&tail[1..])?;
+        self.functions.insert(name.clone(), lambda);
+        Ok(Value::Symbol(name.clone()))
     }
 
     fn eval_funcall(&mut self, tail: &[Expr]) -> EvalResult {
@@ -380,6 +436,60 @@ impl Evaluator {
         }
     }
 
+    fn eval_car(&mut self, tail: &[Expr]) -> EvalResult {
+        if tail.len() != 1 {
+            return Err(signal("wrong-number-of-arguments", vec![]));
+        }
+        let list = self.eval(&tail[0])?;
+        match list {
+            Value::Nil => Ok(Value::Nil),
+            Value::Cons(cell) => Ok(cell.borrow().car.clone()),
+            _ => Err(signal("wrong-type-argument", vec![])),
+        }
+    }
+
+    fn eval_cdr(&mut self, tail: &[Expr]) -> EvalResult {
+        if tail.len() != 1 {
+            return Err(signal("wrong-number-of-arguments", vec![]));
+        }
+        let list = self.eval(&tail[0])?;
+        match list {
+            Value::Nil => Ok(Value::Nil),
+            Value::Cons(cell) => Ok(cell.borrow().cdr.clone()),
+            _ => Err(signal("wrong-type-argument", vec![])),
+        }
+    }
+
+    fn eval_cons(&mut self, tail: &[Expr]) -> EvalResult {
+        if tail.len() != 2 {
+            return Err(signal("wrong-number-of-arguments", vec![]));
+        }
+        let car = self.eval(&tail[0])?;
+        let cdr = self.eval(&tail[1])?;
+        Ok(Value::Cons(Rc::new(RefCell::new(ConsCell { car, cdr }))))
+    }
+
+    fn eval_list_builtin(&mut self, tail: &[Expr]) -> EvalResult {
+        let mut values = Vec::with_capacity(tail.len());
+        for expr in tail {
+            values.push(self.eval(expr)?);
+        }
+        Ok(list_from_vec(values))
+    }
+
+    fn eval_eq(&mut self, tail: &[Expr]) -> EvalResult {
+        if tail.len() != 2 {
+            return Err(signal("wrong-number-of-arguments", vec![]));
+        }
+        let left = self.eval(&tail[0])?;
+        let right = self.eval(&tail[1])?;
+        if eq_value(&left, &right) {
+            Ok(Value::Symbol("t".to_string()))
+        } else {
+            Ok(Value::Nil)
+        }
+    }
+
     fn apply(&mut self, function: Value, args: Vec<Value>) -> EvalResult {
         match function {
             Value::Lambda(lambda) => {
@@ -408,6 +518,13 @@ impl Evaluator {
             }
             _ => Err(signal("invalid-function", vec![function])),
         }
+    }
+
+    fn apply_named(&mut self, name: &str, args: Vec<Value>) -> EvalResult {
+        let function = self.functions.get(name).cloned().ok_or_else(|| {
+            signal("void-function", vec![Value::Symbol(name.to_string())])
+        })?;
+        self.apply(function, args)
     }
 
     fn eval_progn(&mut self, forms: &[Expr]) -> EvalResult {
@@ -595,6 +712,10 @@ fn eq_value(left: &Value, right: &Value) -> bool {
         (Value::Lambda(a), Value::Lambda(b)) => Rc::ptr_eq(a, b),
         _ => false,
     }
+}
+
+fn is_truthy(value: &Value) -> bool {
+    !matches!(value, Value::Nil)
 }
 
 pub fn format_eval_result(result: &Result<Value, EvalError>) -> String {
@@ -788,5 +909,23 @@ mod tests {
         let mut evaluator = Evaluator::new();
         let result = evaluator.eval_expr(&forms[0]);
         assert_eq!(format_eval_result(&result), "OK 13");
+    }
+
+    #[test]
+    fn supports_defun_and_direct_call() {
+        let forms = parse_forms("(progn (defun add2 (a b) (+ a b)) (add2 5 7))")
+            .expect("parse should succeed");
+        let mut evaluator = Evaluator::new();
+        let result = evaluator.eval_expr(&forms[0]);
+        assert_eq!(format_eval_result(&result), "OK 12");
+    }
+
+    #[test]
+    fn supports_if_and_list_primitives() {
+        let forms = parse_forms("(if (eq (car (cons 1 nil)) 1) (list 9 8) nil)")
+            .expect("parse should succeed");
+        let mut evaluator = Evaluator::new();
+        let result = evaluator.eval_expr(&forms[0]);
+        assert_eq!(format_eval_result(&result), "OK (9 8)");
     }
 }

@@ -12,3 +12,11 @@
   (let ((f (lambda () x)))
     (let ((x 2))
       (funcall f))))
+
+; Function namespace and core list/branch primitives
+(progn
+  (defun add2 (a b) (+ a b))
+  (add2 5 7))
+(if (eq (car (cons 1 nil)) 1) (list 9 8) nil)
+(cdr '(1 2 3))
+(if nil 1 2)
