@@ -1,6 +1,9 @@
 use neovm_host_abi::{
-    HostAbi, LispValue, SelectOp, SelectResult, Signal, TaskError, TaskOptions,
+    HostAbi, HostError, IsolateId, LispValue, PatchRequest, PatchResult, PrimitiveDescriptor,
+    PrimitiveId, SelectOp, SelectResult, Signal, SnapshotBlob, SnapshotRequest, TaskError,
+    TaskOptions,
 };
+use std::time::Duration;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct TaskHandle(pub u64);
@@ -13,20 +16,79 @@ pub enum TaskStatus {
     Cancelled,
 }
 
-/// Core VM shell that will later host the evaluator, GC, and JIT entry points.
-///
-/// This intentionally keeps only API-level behavior for now.
-pub struct Vm<H: HostAbi> {
-    host: H,
-    next_task_id: u64,
+pub trait TaskScheduler {
+    fn spawn_task(&self, form: LispValue, opts: TaskOptions) -> Result<TaskHandle, Signal>;
+
+    fn task_cancel(&self, handle: TaskHandle) -> bool;
+
+    fn task_status(&self, handle: TaskHandle) -> Option<TaskStatus>;
+
+    fn task_await(
+        &self,
+        handle: TaskHandle,
+        timeout: Option<Duration>,
+    ) -> Result<LispValue, TaskError>;
+
+    fn select(&self, ops: &[SelectOp], timeout: Option<Duration>) -> SelectResult;
 }
 
-impl<H: HostAbi> Vm<H> {
+#[derive(Clone, Copy, Debug, Default)]
+pub struct NoopScheduler;
+
+impl TaskScheduler for NoopScheduler {
+    fn spawn_task(&self, _form: LispValue, _opts: TaskOptions) -> Result<TaskHandle, Signal> {
+        Err(Signal {
+            symbol: "scheduler-unavailable".to_string(),
+            data: None,
+        })
+    }
+
+    fn task_cancel(&self, _handle: TaskHandle) -> bool {
+        false
+    }
+
+    fn task_status(&self, _handle: TaskHandle) -> Option<TaskStatus> {
+        None
+    }
+
+    fn task_await(
+        &self,
+        _handle: TaskHandle,
+        _timeout: Option<Duration>,
+    ) -> Result<LispValue, TaskError> {
+        Err(TaskError::TimedOut)
+    }
+
+    fn select(&self, _ops: &[SelectOp], _timeout: Option<Duration>) -> SelectResult {
+        SelectResult::TimedOut
+    }
+}
+
+/// Core VM shell that will later host the evaluator, GC, and JIT entry points.
+///
+/// The host/editor integration and task scheduler are explicitly separated so the
+/// VM core stays modular and testable.
+pub struct Vm<H: HostAbi, S: TaskScheduler = NoopScheduler> {
+    host: H,
+    scheduler: S,
+}
+
+impl<H: HostAbi> Vm<H, NoopScheduler> {
     pub fn new(host: H) -> Self {
         Self {
             host,
-            next_task_id: 1,
+            scheduler: NoopScheduler,
         }
+    }
+
+    pub fn into_host(self) -> H {
+        self.host
+    }
+}
+
+impl<H: HostAbi, S: TaskScheduler> Vm<H, S> {
+    pub fn with_scheduler(host: H, scheduler: S) -> Self {
+        Self { host, scheduler }
     }
 
     pub fn host(&self) -> &H {
@@ -37,35 +99,61 @@ impl<H: HostAbi> Vm<H> {
         &mut self.host
     }
 
-    pub fn spawn_task(
+    pub fn scheduler(&self) -> &S {
+        &self.scheduler
+    }
+
+    pub fn scheduler_mut(&mut self) -> &mut S {
+        &mut self.scheduler
+    }
+
+    pub fn into_parts(self) -> (H, S) {
+        (self.host, self.scheduler)
+    }
+
+    pub fn call_primitive(
         &mut self,
-        _form: LispValue,
-        _opts: TaskOptions,
-    ) -> Result<TaskHandle, Signal> {
-        // Placeholder task allocation. Scheduler wiring happens in neovm-worker.
-        let handle = TaskHandle(self.next_task_id);
-        self.next_task_id = self.next_task_id.saturating_add(1);
-        Ok(handle)
+        isolate: IsolateId,
+        primitive: PrimitiveId,
+        args: &[LispValue],
+    ) -> Result<LispValue, Signal> {
+        self.host.call_primitive(isolate, primitive, args)
+    }
+
+    pub fn primitive_descriptor(&self, primitive: PrimitiveId) -> PrimitiveDescriptor {
+        self.host.primitive_descriptor(primitive)
+    }
+
+    pub fn clone_snapshot(&self, request: SnapshotRequest) -> Result<SnapshotBlob, HostError> {
+        self.host.clone_snapshot(request)
+    }
+
+    pub fn submit_patch(&mut self, request: PatchRequest) -> Result<PatchResult, HostError> {
+        self.host.submit_patch(request)
+    }
+
+    pub fn spawn_task(&self, form: LispValue, opts: TaskOptions) -> Result<TaskHandle, Signal> {
+        self.scheduler.spawn_task(form, opts)
     }
 
     pub fn task_await(
-        &mut self,
-        _handle: TaskHandle,
-        _timeout: Option<std::time::Duration>,
+        &self,
+        handle: TaskHandle,
+        timeout: Option<Duration>,
     ) -> Result<LispValue, TaskError> {
-        Err(TaskError::TimedOut)
+        self.scheduler.task_await(handle, timeout)
     }
 
-    pub fn task_cancel(&mut self, _handle: TaskHandle) -> bool {
-        false
+    pub fn task_cancel(&self, handle: TaskHandle) -> bool {
+        self.scheduler.task_cancel(handle)
     }
 
-    pub fn select(
-        &mut self,
-        _ops: &[SelectOp],
-        _timeout: Option<std::time::Duration>,
-    ) -> SelectResult {
-        SelectResult::TimedOut
+    pub fn task_status(&self, handle: TaskHandle) -> Option<TaskStatus> {
+        self.scheduler.task_status(handle)
+    }
+
+    pub fn select(&self, ops: &[SelectOp], timeout: Option<Duration>) -> SelectResult {
+        self.scheduler.select(ops, timeout)
     }
 }
 
@@ -77,5 +165,127 @@ pub struct SchedulerConfig {
 impl Default for SchedulerConfig {
     fn default() -> Self {
         Self { worker_threads: 1 }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use neovm_host_abi::{
+        Affinity, ChannelId, EffectClass, PrimitiveDescriptor, TaskPriority,
+    };
+
+    #[derive(Default)]
+    struct DummyHost;
+
+    impl HostAbi for DummyHost {
+        fn primitive_descriptor(&self, _primitive: PrimitiveId) -> PrimitiveDescriptor {
+            PrimitiveDescriptor {
+                name: "dummy",
+                affinity: Affinity::WorkerSafe,
+                effect: EffectClass::PureRead,
+                can_trigger_gc: false,
+                can_reenter_elisp: false,
+                deterministic: true,
+            }
+        }
+
+        fn call_primitive(
+            &mut self,
+            _isolate: IsolateId,
+            _primitive: PrimitiveId,
+            _args: &[LispValue],
+        ) -> Result<LispValue, Signal> {
+            Ok(LispValue::default())
+        }
+
+        fn clone_snapshot(&self, _request: SnapshotRequest) -> Result<SnapshotBlob, HostError> {
+            Ok(SnapshotBlob::default())
+        }
+
+        fn submit_patch(&mut self, _request: PatchRequest) -> Result<PatchResult, HostError> {
+            Ok(PatchResult::Applied { new_revision: 1 })
+        }
+    }
+
+    #[derive(Default)]
+    struct MockScheduler;
+
+    impl TaskScheduler for MockScheduler {
+        fn spawn_task(&self, _form: LispValue, _opts: TaskOptions) -> Result<TaskHandle, Signal> {
+            Ok(TaskHandle(42))
+        }
+
+        fn task_cancel(&self, handle: TaskHandle) -> bool {
+            handle.0 == 42
+        }
+
+        fn task_status(&self, handle: TaskHandle) -> Option<TaskStatus> {
+            if handle.0 == 42 {
+                Some(TaskStatus::Completed)
+            } else {
+                None
+            }
+        }
+
+        fn task_await(
+            &self,
+            handle: TaskHandle,
+            _timeout: Option<Duration>,
+        ) -> Result<LispValue, TaskError> {
+            if handle.0 == 42 {
+                Ok(LispValue {
+                    bytes: vec![1, 2, 3],
+                })
+            } else {
+                Err(TaskError::TimedOut)
+            }
+        }
+
+        fn select(&self, _ops: &[SelectOp], _timeout: Option<Duration>) -> SelectResult {
+            SelectResult::Ready {
+                op_index: 0,
+                value: Some(LispValue { bytes: vec![9] }),
+            }
+        }
+    }
+
+    #[test]
+    fn vm_delegates_task_apis_to_scheduler() {
+        let vm = Vm::with_scheduler(DummyHost, MockScheduler);
+        let handle = vm
+            .spawn_task(
+                LispValue::default(),
+                TaskOptions {
+                    name: Some("test".to_string()),
+                    priority: TaskPriority::Interactive,
+                    affinity: Affinity::WorkerSafe,
+                    timeout: None,
+                },
+            )
+            .expect("spawn should succeed");
+
+        assert_eq!(handle, TaskHandle(42));
+        assert_eq!(vm.task_status(handle), Some(TaskStatus::Completed));
+        assert!(vm.task_cancel(handle));
+        assert_eq!(
+            vm.task_await(handle, Some(Duration::from_millis(10)))
+                .expect("await should return result")
+                .bytes,
+            vec![1, 2, 3]
+        );
+        assert!(matches!(
+            vm.select(&[SelectOp::Recv(ChannelId(1))], None),
+            SelectResult::Ready { op_index: 0, .. }
+        ));
+    }
+
+    #[test]
+    fn noop_scheduler_rejects_spawn() {
+        let vm = Vm::new(DummyHost);
+        let err = vm
+            .spawn_task(LispValue::default(), TaskOptions::default())
+            .expect_err("noop scheduler should reject task spawn");
+        assert_eq!(err.symbol, "scheduler-unavailable");
     }
 }
