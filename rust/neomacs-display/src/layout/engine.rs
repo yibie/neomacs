@@ -1074,6 +1074,12 @@ impl LayoutEngine {
                 overlay_after_face = FaceDataFFI::default();
                 overlay_before_nruns = 0;
                 overlay_after_nruns = 0;
+                let mut ovl_left_fringe_bitmap: i32 = 0;
+                let mut ovl_left_fringe_fg: u32 = 0;
+                let mut ovl_left_fringe_bg: u32 = 0;
+                let mut ovl_right_fringe_bitmap: i32 = 0;
+                let mut ovl_right_fringe_fg: u32 = 0;
+                let mut ovl_right_fringe_bg: u32 = 0;
                 neomacs_layout_overlay_strings_at(
                     buffer, window, charpos,
                     overlay_before_buf.as_mut_ptr(),
@@ -1086,7 +1092,22 @@ impl LayoutEngine {
                     &mut overlay_after_face,
                     &mut overlay_before_nruns,
                     &mut overlay_after_nruns,
+                    &mut ovl_left_fringe_bitmap,
+                    &mut ovl_left_fringe_fg,
+                    &mut ovl_left_fringe_bg,
+                    &mut ovl_right_fringe_bitmap,
+                    &mut ovl_right_fringe_fg,
+                    &mut ovl_right_fringe_bg,
                 );
+
+                // Store fringe bitmaps from overlay display properties
+                let r = row as usize;
+                if ovl_left_fringe_bitmap > 0 && r < row_left_fringe.len() {
+                    row_left_fringe[r] = (ovl_left_fringe_bitmap, ovl_left_fringe_fg, ovl_left_fringe_bg);
+                }
+                if ovl_right_fringe_bitmap > 0 && r < row_right_fringe.len() {
+                    row_right_fringe[r] = (ovl_right_fringe_bitmap, ovl_right_fringe_fg, ovl_right_fringe_bg);
+                }
 
                 // Flush ligature run before overlay strings (only if overlays exist)
                 if overlay_before_len > 0 || overlay_after_len > 0 {
@@ -2736,6 +2757,12 @@ impl LayoutEngine {
             overlay_after_nruns = 0;
             let mut eob_before_len: i32 = 0;
             let mut eob_before_face = FaceDataFFI::default();
+            let mut eob_left_fringe_bitmap: i32 = 0;
+            let mut eob_left_fringe_fg: u32 = 0;
+            let mut eob_left_fringe_bg: u32 = 0;
+            let mut eob_right_fringe_bitmap: i32 = 0;
+            let mut eob_right_fringe_fg: u32 = 0;
+            let mut eob_right_fringe_bg: u32 = 0;
             neomacs_layout_overlay_strings_at(
                 buffer, window, charpos,
                 overlay_before_buf.as_mut_ptr(),
@@ -2748,7 +2775,22 @@ impl LayoutEngine {
                 &mut overlay_after_face,
                 &mut overlay_before_nruns,
                 &mut overlay_after_nruns,
+                &mut eob_left_fringe_bitmap,
+                &mut eob_left_fringe_fg,
+                &mut eob_left_fringe_bg,
+                &mut eob_right_fringe_bitmap,
+                &mut eob_right_fringe_fg,
+                &mut eob_right_fringe_bg,
             );
+
+            // Store fringe bitmaps from overlay display properties at EOB
+            let r = row as usize;
+            if eob_left_fringe_bitmap > 0 && r < row_left_fringe.len() {
+                row_left_fringe[r] = (eob_left_fringe_bitmap, eob_left_fringe_fg, eob_left_fringe_bg);
+            }
+            if eob_right_fringe_bitmap > 0 && r < row_right_fringe.len() {
+                row_right_fringe[r] = (eob_right_fringe_bitmap, eob_right_fringe_fg, eob_right_fringe_bg);
+            }
 
             // Render before-string at end-of-buffer
             if eob_before_len > 0 {

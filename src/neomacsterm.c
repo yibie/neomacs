@@ -2716,7 +2716,7 @@ neomacs_layout_face_at_pos (void *window_ptr, int64_t charpos,
   ptrdiff_t next_check = 0;
   int face_id = face_at_buffer_position (w, (ptrdiff_t) charpos,
                                          &next_check,
-                                         (ptrdiff_t) charpos + 100,
+                                         BUF_ZV (XBUFFER (w->contents)),
                                          false, DEFAULT_FACE_ID,
                                          0);
 
@@ -3978,7 +3978,13 @@ neomacs_layout_overlay_strings_at (void *buffer_ptr, void *window_ptr,
                                    void *before_face_out,
                                    void *after_face_out,
                                    int *before_nruns_out,
-                                   int *after_nruns_out)
+                                   int *after_nruns_out,
+                                   int *left_fringe_bitmap_out,
+                                   uint32_t *left_fringe_fg_out,
+                                   uint32_t *left_fringe_bg_out,
+                                   int *right_fringe_bitmap_out,
+                                   uint32_t *right_fringe_fg_out,
+                                   uint32_t *right_fringe_bg_out)
 {
   struct buffer *buf = (struct buffer *) buffer_ptr;
   struct window *w = window_ptr ? (struct window *) window_ptr : NULL;
@@ -3987,6 +3993,12 @@ neomacs_layout_overlay_strings_at (void *buffer_ptr, void *window_ptr,
   *after_len_out = 0;
   *before_nruns_out = 0;
   *after_nruns_out = 0;
+  *left_fringe_bitmap_out = 0;
+  *left_fringe_fg_out = 0;
+  *left_fringe_bg_out = 0;
+  *right_fringe_bitmap_out = 0;
+  *right_fringe_fg_out = 0;
+  *right_fringe_bg_out = 0;
 
   if (!buf)
     return -1;
@@ -3998,21 +4010,22 @@ neomacs_layout_overlay_strings_at (void *buffer_ptr, void *window_ptr,
 
   ptrdiff_t pos = (ptrdiff_t) charpos;
 
-  /* Get all overlays at this position. */
-  ptrdiff_t len = 16;
-  Lisp_Object *overlay_vec = xmalloc (len * sizeof *overlay_vec);
-  ptrdiff_t noverlays = overlays_at (pos, true, &overlay_vec, &len, NULL);
-
-
+  /* Use Foverlays_in instead of overlays_at so that zero-width
+     overlays (begin == end) are included.  overlays_at calls
+     overlays_in with empty=false which skips them, but packages
+     like vertico create zero-width overlays with before-string
+     at point-max for completion candidates.  */
+  Lisp_Object overlay_list = Foverlays_in (make_fixnum (pos),
+                                           make_fixnum (pos + 1));
 
   int before_offset = 0;
   int after_offset = 0;
   bool before_face_set = false;
   bool after_face_set = false;
 
-  for (ptrdiff_t i = 0; i < noverlays; i++)
+  for (Lisp_Object tail = overlay_list; CONSP (tail); tail = XCDR (tail))
     {
-      Lisp_Object overlay = overlay_vec[i];
+      Lisp_Object overlay = XCAR (tail);
       if (!OVERLAYP (overlay))
         continue;
 
@@ -4030,6 +4043,75 @@ neomacs_layout_overlay_strings_at (void *buffer_ptr, void *window_ptr,
           Lisp_Object bstr = Foverlay_get (overlay, Qbefore_string);
           if (STRINGP (bstr))
             {
+              /* Check if the string has a replacing display property
+                 (e.g., left-fringe, right-fringe, margin, image).
+                 If so, skip the string text — it should not be rendered
+                 as literal characters. */
+              bool skip_before = false;
+              Lisp_Object bdisp = Fget_text_property (make_fixnum (0),
+                                                      Qdisplay, bstr);
+              if (!NILP (bdisp) && CONSP (bdisp))
+                {
+                  Lisp_Object dcar = XCAR (bdisp);
+                  if ((EQ (dcar, Qleft_fringe)
+                       || EQ (dcar, Qright_fringe))
+                      && CONSP (XCDR (bdisp)))
+                    {
+                      /* Extract fringe bitmap ID and face colors. */
+                      Lisp_Object bitmap_spec = XCAR (XCDR (bdisp));
+                      int bitmap_id = lookup_fringe_bitmap (bitmap_spec);
+                      if (bitmap_id > 0 && f)
+                        {
+                          int fface_id = FRINGE_FACE_ID;
+                          Lisp_Object rest = XCDR (XCDR (bdisp));
+                          if (CONSP (rest) && SYMBOLP (XCAR (rest)))
+                            {
+                              int nid = lookup_named_face (
+                                  w, f, XCAR (rest), false);
+                              if (nid >= 0)
+                                fface_id = nid;
+                            }
+                          struct face *fface
+                            = FACE_FROM_ID_OR_NULL (f, fface_id);
+                          uint32_t ffg = 0, fbg = 0;
+                          if (fface)
+                            {
+                              unsigned long c = fface->foreground;
+                              if (fface->foreground_defaulted_p)
+                                c = FRAME_FOREGROUND_PIXEL (f);
+                              ffg = ((RED_FROM_ULONG (c) << 16)
+                                     | (GREEN_FROM_ULONG (c) << 8)
+                                     | BLUE_FROM_ULONG (c));
+                              c = fface->background;
+                              if (fface->background_defaulted_p)
+                                c = FRAME_BACKGROUND_PIXEL (f);
+                              fbg = ((RED_FROM_ULONG (c) << 16)
+                                     | (GREEN_FROM_ULONG (c) << 8)
+                                     | BLUE_FROM_ULONG (c));
+                            }
+                          if (EQ (dcar, Qleft_fringe))
+                            {
+                              *left_fringe_bitmap_out = bitmap_id;
+                              *left_fringe_fg_out = ffg;
+                              *left_fringe_bg_out = fbg;
+                            }
+                          else
+                            {
+                              *right_fringe_bitmap_out = bitmap_id;
+                              *right_fringe_fg_out = ffg;
+                              *right_fringe_bg_out = fbg;
+                            }
+                        }
+                      skip_before = true;
+                    }
+                  else if (CONSP (dcar) && EQ (XCAR (dcar), Qmargin))
+                    skip_before = true;
+                  else if (EQ (dcar, Qimage) || EQ (dcar, Qspace))
+                    skip_before = true;
+                }
+
+              if (!skip_before)
+                {
               ptrdiff_t slen = SBYTES (bstr);
               ptrdiff_t copy = slen;
               if (before_offset + copy > before_buf_len - 1)
@@ -4119,6 +4201,7 @@ neomacs_layout_overlay_strings_at (void *buffer_ptr, void *window_ptr,
                     }
                   *before_nruns_out = nruns;
                 }
+                } /* !skip_before */
             }
         }
 
@@ -4131,6 +4214,71 @@ neomacs_layout_overlay_strings_at (void *buffer_ptr, void *window_ptr,
           Lisp_Object astr = Foverlay_get (overlay, Qafter_string);
           if (STRINGP (astr))
             {
+              /* Check for replacing display property on after-string. */
+              bool skip_after = false;
+              Lisp_Object adisp = Fget_text_property (make_fixnum (0),
+                                                      Qdisplay, astr);
+              if (!NILP (adisp) && CONSP (adisp))
+                {
+                  Lisp_Object dcar = XCAR (adisp);
+                  if ((EQ (dcar, Qleft_fringe)
+                       || EQ (dcar, Qright_fringe))
+                      && CONSP (XCDR (adisp)))
+                    {
+                      Lisp_Object bitmap_spec = XCAR (XCDR (adisp));
+                      int bitmap_id = lookup_fringe_bitmap (bitmap_spec);
+                      if (bitmap_id > 0 && f)
+                        {
+                          int fface_id = FRINGE_FACE_ID;
+                          Lisp_Object rest = XCDR (XCDR (adisp));
+                          if (CONSP (rest) && SYMBOLP (XCAR (rest)))
+                            {
+                              int nid = lookup_named_face (
+                                  w, f, XCAR (rest), false);
+                              if (nid >= 0)
+                                fface_id = nid;
+                            }
+                          struct face *fface
+                            = FACE_FROM_ID_OR_NULL (f, fface_id);
+                          uint32_t ffg = 0, fbg = 0;
+                          if (fface)
+                            {
+                              unsigned long c = fface->foreground;
+                              if (fface->foreground_defaulted_p)
+                                c = FRAME_FOREGROUND_PIXEL (f);
+                              ffg = ((RED_FROM_ULONG (c) << 16)
+                                     | (GREEN_FROM_ULONG (c) << 8)
+                                     | BLUE_FROM_ULONG (c));
+                              c = fface->background;
+                              if (fface->background_defaulted_p)
+                                c = FRAME_BACKGROUND_PIXEL (f);
+                              fbg = ((RED_FROM_ULONG (c) << 16)
+                                     | (GREEN_FROM_ULONG (c) << 8)
+                                     | BLUE_FROM_ULONG (c));
+                            }
+                          if (EQ (dcar, Qleft_fringe))
+                            {
+                              *left_fringe_bitmap_out = bitmap_id;
+                              *left_fringe_fg_out = ffg;
+                              *left_fringe_bg_out = fbg;
+                            }
+                          else
+                            {
+                              *right_fringe_bitmap_out = bitmap_id;
+                              *right_fringe_fg_out = ffg;
+                              *right_fringe_bg_out = fbg;
+                            }
+                        }
+                      skip_after = true;
+                    }
+                  else if (CONSP (dcar) && EQ (XCAR (dcar), Qmargin))
+                    skip_after = true;
+                  else if (EQ (dcar, Qimage) || EQ (dcar, Qspace))
+                    skip_after = true;
+                }
+
+              if (!skip_after)
+                {
               ptrdiff_t slen = SBYTES (astr);
               ptrdiff_t copy = slen;
               if (after_offset + copy > after_buf_len - 1)
@@ -4220,11 +4368,10 @@ neomacs_layout_overlay_strings_at (void *buffer_ptr, void *window_ptr,
                     }
                   *after_nruns_out = nruns;
                 }
+                } /* !skip_after */
             }
         }
     }
-
-  xfree (overlay_vec);
 
   if (before_offset > 0)
     before_buf[before_offset] = 0;
