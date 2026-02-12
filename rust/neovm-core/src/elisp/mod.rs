@@ -19,6 +19,9 @@ pub mod builtins;
 pub mod symbol;
 pub mod load;
 pub mod bytecode;
+pub mod keymap;
+pub mod regex;
+pub mod fileio;
 
 // Re-export the main public API
 pub use value::{Value, ConsCell, LambdaData, LambdaParams};

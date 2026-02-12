@@ -7,6 +7,8 @@
 use std::collections::HashMap;
 
 use super::gap_buffer::GapBuffer;
+use super::overlay::OverlayList;
+use super::text_props::TextPropertyTable;
 use crate::elisp::value::Value;
 
 // ---------------------------------------------------------------------------
@@ -75,6 +77,10 @@ pub struct Buffer {
     pub markers: Vec<MarkerEntry>,
     /// Buffer-local variables (name -> Lisp value).
     pub properties: HashMap<String, Value>,
+    /// Text properties attached to ranges of text.
+    pub text_props: TextPropertyTable,
+    /// Overlays attached to the buffer.
+    pub overlays: OverlayList,
 }
 
 impl Buffer {
@@ -96,6 +102,8 @@ impl Buffer {
             file_name: None,
             markers: Vec::new(),
             properties: HashMap::new(),
+            text_props: TextPropertyTable::new(),
+            overlays: OverlayList::new(),
         }
     }
 
@@ -168,6 +176,10 @@ impl Buffer {
             }
         }
 
+        // Adjust text properties and overlays.
+        self.text_props.adjust_for_insert(insert_pos, len);
+        self.overlays.adjust_for_insert(insert_pos, len);
+
         self.modified = true;
     }
 
@@ -213,6 +225,10 @@ impl Buffer {
         } else if self.zv > start {
             self.zv = start;
         }
+
+        // Adjust text properties and overlays.
+        self.text_props.adjust_for_delete(start, end);
+        self.overlays.adjust_for_delete(start, end);
 
         self.modified = true;
     }

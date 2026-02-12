@@ -878,14 +878,6 @@ pub(crate) fn builtin_downcase(args: Vec<Value>) -> EvalResult {
     }
 }
 
-pub(crate) fn builtin_string_match(args: Vec<Value>) -> EvalResult {
-    expect_min_args("string-match", &args, 2)?;
-    let _pattern = expect_string(&args[0])?;
-    let _s = expect_string(&args[1])?;
-    // TODO: implement regex matching
-    Ok(Value::Nil)
-}
-
 pub(crate) fn builtin_format(args: Vec<Value>) -> EvalResult {
     expect_min_args("format", &args, 1)?;
     let fmt_str = expect_string(&args[0])?;
@@ -2581,6 +2573,296 @@ pub(crate) fn builtin_buffer_local_value(
 /// (with-current-buffer BUFFER-OR-NAME &rest BODY) is a special form handled
 /// in eval.rs, but we provide the utility of switching and restoring here.
 
+// Search / regex builtins are defined at the end of this file.
+
+// ===========================================================================
+// Keymap builtins
+// ===========================================================================
+
+use super::keymap::{KeyBinding, KeyEvent, KeymapManager};
+
+/// Extract a keymap id from a Value, signaling wrong-type-argument if invalid.
+fn expect_keymap_id(
+    eval: &super::eval::Evaluator,
+    value: &Value,
+) -> Result<u64, Flow> {
+    match value {
+        Value::Int(n) => {
+            let id = *n as u64;
+            if eval.keymaps.is_keymap(id) {
+                Ok(id)
+            } else {
+                Err(signal(
+                    "wrong-type-argument",
+                    vec![Value::symbol("keymapp"), value.clone()],
+                ))
+            }
+        }
+        other => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("keymapp"), other.clone()],
+        )),
+    }
+}
+
+/// Convert a KeyBinding to a Value for returning to Lisp.
+fn key_binding_to_value(binding: &KeyBinding) -> Value {
+    match binding {
+        KeyBinding::Command(name) => Value::symbol(name.clone()),
+        KeyBinding::Prefix(id) => Value::Int(*id as i64),
+        KeyBinding::LispValue(v) => v.clone(),
+    }
+}
+
+/// Convert a Value to a KeyBinding.
+fn value_to_key_binding(
+    eval: &super::eval::Evaluator,
+    value: &Value,
+) -> KeyBinding {
+    match value {
+        Value::Symbol(name) => KeyBinding::Command(name.clone()),
+        Value::Nil => KeyBinding::Command("nil".to_string()),
+        Value::Int(n) => {
+            let id = *n as u64;
+            if eval.keymaps.is_keymap(id) {
+                KeyBinding::Prefix(id)
+            } else {
+                KeyBinding::LispValue(value.clone())
+            }
+        }
+        other => KeyBinding::LispValue(other.clone()),
+    }
+}
+
+/// Parse a key description from a Value (must be a string).
+fn expect_key_description(value: &Value) -> Result<Vec<KeyEvent>, Flow> {
+    let desc = match value {
+        Value::Str(s) => s.as_str(),
+        other => {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("stringp"), other.clone()],
+            ));
+        }
+    };
+    KeymapManager::parse_key_description(desc).map_err(|msg| {
+        signal("error", vec![Value::string(msg)])
+    })
+}
+
+/// Helper: define a key in a keymap, auto-creating prefix maps for multi-key sequences.
+fn define_key_in_map(
+    eval: &mut super::eval::Evaluator,
+    map_id: u64,
+    keys: Vec<KeyEvent>,
+    binding: KeyBinding,
+) {
+    if keys.len() == 1 {
+        eval.keymaps
+            .define_key(map_id, keys.into_iter().next().unwrap(), binding);
+    } else {
+        let mut current_map = map_id;
+        for (i, key) in keys.iter().enumerate() {
+            if i == keys.len() - 1 {
+                eval.keymaps.define_key(current_map, key.clone(), binding.clone());
+            } else {
+                match eval.keymaps.lookup_key(current_map, key).cloned() {
+                    Some(KeyBinding::Prefix(next_map)) => {
+                        current_map = next_map;
+                    }
+                    _ => {
+                        let prefix_map = eval.keymaps.make_sparse_keymap(None);
+                        eval.keymaps.define_key(
+                            current_map,
+                            key.clone(),
+                            KeyBinding::Prefix(prefix_map),
+                        );
+                        current_map = prefix_map;
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// (make-keymap) -> keymap-id
+fn builtin_make_keymap(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    let _ = &args;
+    let id = eval.keymaps.make_keymap();
+    Ok(Value::Int(id as i64))
+}
+
+/// (make-sparse-keymap &optional NAME) -> keymap-id
+fn builtin_make_sparse_keymap(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    let name = if !args.is_empty() {
+        match &args[0] {
+            Value::Str(s) => Some((**s).clone()),
+            Value::Nil => None,
+            other => {
+                return Err(signal(
+                    "wrong-type-argument",
+                    vec![Value::symbol("stringp"), other.clone()],
+                ));
+            }
+        }
+    } else {
+        None
+    };
+    let id = eval.keymaps.make_sparse_keymap(name);
+    Ok(Value::Int(id as i64))
+}
+
+/// (define-key KEYMAP KEY DEF) -> DEF
+fn builtin_define_key(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_args("define-key", &args, 3)?;
+    let keymap_id = expect_keymap_id(eval, &args[0])?;
+    let keys = expect_key_description(&args[1])?;
+    let binding = value_to_key_binding(eval, &args[2]);
+    define_key_in_map(eval, keymap_id, keys, binding);
+    Ok(args[2].clone())
+}
+
+/// (lookup-key KEYMAP KEY) -> binding or nil
+fn builtin_lookup_key(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_args("lookup-key", &args, 2)?;
+    let keymap_id = expect_keymap_id(eval, &args[0])?;
+    let keys = expect_key_description(&args[1])?;
+    let result = if keys.len() == 1 {
+        eval.keymaps.lookup_key(keymap_id, &keys[0])
+    } else {
+        eval.keymaps.lookup_key_sequence(keymap_id, &keys)
+    };
+    match result {
+        Some(binding) => Ok(key_binding_to_value(binding)),
+        None => Ok(Value::Nil),
+    }
+}
+
+/// (global-set-key KEY COMMAND)
+fn builtin_global_set_key(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_args("global-set-key", &args, 2)?;
+    let global_id = match eval.keymaps.global_map() {
+        Some(id) => id,
+        None => {
+            let id = eval.keymaps.make_keymap();
+            eval.keymaps.set_global_map(id);
+            id
+        }
+    };
+    let keys = expect_key_description(&args[0])?;
+    let binding = value_to_key_binding(eval, &args[1]);
+    define_key_in_map(eval, global_id, keys, binding);
+    Ok(args[1].clone())
+}
+
+/// (local-set-key KEY COMMAND)
+fn builtin_local_set_key(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_args("local-set-key", &args, 2)?;
+    let local_id = match eval.current_local_map {
+        Some(id) => id,
+        None => {
+            let id = eval.keymaps.make_sparse_keymap(None);
+            eval.current_local_map = Some(id);
+            id
+        }
+    };
+    let keys = expect_key_description(&args[0])?;
+    let binding = value_to_key_binding(eval, &args[1]);
+    define_key_in_map(eval, local_id, keys, binding);
+    Ok(args[1].clone())
+}
+
+/// (use-local-map KEYMAP)
+fn builtin_use_local_map(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_args("use-local-map", &args, 1)?;
+    if args[0].is_nil() {
+        eval.current_local_map = None;
+    } else {
+        let id = expect_keymap_id(eval, &args[0])?;
+        eval.current_local_map = Some(id);
+    }
+    Ok(Value::Nil)
+}
+
+/// (use-global-map KEYMAP)
+fn builtin_use_global_map(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_args("use-global-map", &args, 1)?;
+    let id = expect_keymap_id(eval, &args[0])?;
+    eval.keymaps.set_global_map(id);
+    Ok(Value::Nil)
+}
+
+/// (current-local-map) -> keymap-id or nil
+fn builtin_current_local_map(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_args("current-local-map", &args, 0)?;
+    match eval.current_local_map {
+        Some(id) => Ok(Value::Int(id as i64)),
+        None => Ok(Value::Nil),
+    }
+}
+
+/// (current-global-map) -> keymap-id or nil
+fn builtin_current_global_map(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_args("current-global-map", &args, 0)?;
+    match eval.keymaps.global_map() {
+        Some(id) => Ok(Value::Int(id as i64)),
+        None => Ok(Value::Nil),
+    }
+}
+
+/// (keymap-parent KEYMAP) -> keymap-id or nil
+fn builtin_keymap_parent(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_args("keymap-parent", &args, 1)?;
+    let id = expect_keymap_id(eval, &args[0])?;
+    match eval.keymaps.keymap_parent(id) {
+        Some(parent_id) => Ok(Value::Int(parent_id as i64)),
+        None => Ok(Value::Nil),
+    }
+}
+
+/// (set-keymap-parent KEYMAP PARENT) -> PARENT
+fn builtin_set_keymap_parent(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_args("set-keymap-parent", &args, 2)?;
+    let id = expect_keymap_id(eval, &args[0])?;
+    let parent = if args[1].is_nil() {
+        None
+    } else {
+        Some(expect_keymap_id(eval, &args[1])?)
+    };
+    eval.keymaps.set_keymap_parent(id, parent);
+    Ok(args[1].clone())
+}
+
+/// (keymapp OBJ) -> t or nil
+fn builtin_keymapp(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_args("keymapp", &args, 1)?;
+    match &args[0] {
+        Value::Int(n) => Ok(Value::bool(eval.keymaps.is_keymap(*n as u64))),
+        _ => Ok(Value::Nil),
+    }
+}
+
+/// (kbd STRING) -> STRING
+/// Validates and normalizes the key description string.
+fn builtin_kbd(args: Vec<Value>) -> EvalResult {
+    expect_args("kbd", &args, 1)?;
+    let desc = match &args[0] {
+        Value::Str(s) => s.as_str(),
+        other => {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("stringp"), other.clone()],
+            ));
+        }
+    };
+    let events = KeymapManager::parse_key_description(desc)
+        .map_err(|msg| signal("error", vec![Value::string(msg)]))?;
+    Ok(Value::string(KeymapManager::format_key_sequence(&events)))
+}
+
 // ===========================================================================
 // Dispatch table
 // ===========================================================================
@@ -2652,6 +2934,35 @@ pub(crate) fn dispatch_builtin(
         "char-after" => return Some(builtin_char_after(eval, args)),
         "char-before" => return Some(builtin_char_before(eval, args)),
         "buffer-local-value" => return Some(builtin_buffer_local_value(eval, args)),
+        // Search / regex operations
+        "search-forward" => return Some(builtin_search_forward(eval, args)),
+        "search-backward" => return Some(builtin_search_backward(eval, args)),
+        "re-search-forward" => return Some(builtin_re_search_forward(eval, args)),
+        "re-search-backward" => return Some(builtin_re_search_backward(eval, args)),
+        "looking-at" => return Some(builtin_looking_at(eval, args)),
+        "string-match" => return Some(builtin_string_match_eval(eval, args)),
+        "match-string" => return Some(builtin_match_string(eval, args)),
+        "match-beginning" => return Some(builtin_match_beginning(eval, args)),
+        "match-end" => return Some(builtin_match_end(eval, args)),
+        "replace-match" => return Some(builtin_replace_match(eval, args)),
+        // File I/O (evaluator-dependent)
+        "insert-file-contents" => return Some(super::fileio::builtin_insert_file_contents(eval, args)),
+        "write-region" => return Some(super::fileio::builtin_write_region(eval, args)),
+        "find-file-noselect" => return Some(super::fileio::builtin_find_file_noselect(eval, args)),
+        // Keymap operations
+        "make-keymap" => return Some(builtin_make_keymap(eval, args)),
+        "make-sparse-keymap" => return Some(builtin_make_sparse_keymap(eval, args)),
+        "define-key" => return Some(builtin_define_key(eval, args)),
+        "lookup-key" => return Some(builtin_lookup_key(eval, args)),
+        "global-set-key" => return Some(builtin_global_set_key(eval, args)),
+        "local-set-key" => return Some(builtin_local_set_key(eval, args)),
+        "use-local-map" => return Some(builtin_use_local_map(eval, args)),
+        "use-global-map" => return Some(builtin_use_global_map(eval, args)),
+        "current-local-map" => return Some(builtin_current_local_map(eval, args)),
+        "current-global-map" => return Some(builtin_current_global_map(eval, args)),
+        "keymap-parent" => return Some(builtin_keymap_parent(eval, args)),
+        "set-keymap-parent" => return Some(builtin_set_keymap_parent(eval, args)),
+        "keymapp" => return Some(builtin_keymapp(eval, args)),
         _ => {}
     }
 
@@ -2741,7 +3052,6 @@ pub(crate) fn dispatch_builtin(
         "number-to-string" => builtin_number_to_string(args),
         "upcase" => builtin_upcase(args),
         "downcase" => builtin_downcase(args),
-        "string-match" => builtin_string_match(args),
         "format" => builtin_format(args),
 
         // Vector
@@ -2825,6 +3135,28 @@ pub(crate) fn dispatch_builtin(
         "string-to-syntax" => builtin_string_to_syntax(args),
         "current-time" => builtin_current_time(args),
         "float-time" => builtin_float_time(args),
+
+        // File I/O (pure)
+        "expand-file-name" => super::fileio::builtin_expand_file_name(args),
+        "file-name-directory" => super::fileio::builtin_file_name_directory(args),
+        "file-name-nondirectory" => super::fileio::builtin_file_name_nondirectory(args),
+        "file-name-extension" => super::fileio::builtin_file_name_extension(args),
+        "file-name-sans-extension" => super::fileio::builtin_file_name_sans_extension(args),
+        "file-exists-p" => super::fileio::builtin_file_exists_p(args),
+        "file-readable-p" => super::fileio::builtin_file_readable_p(args),
+        "file-writable-p" => super::fileio::builtin_file_writable_p(args),
+        "file-directory-p" => super::fileio::builtin_file_directory_p(args),
+        "file-regular-p" => super::fileio::builtin_file_regular_p(args),
+        "file-symlink-p" => super::fileio::builtin_file_symlink_p(args),
+        "delete-file" => super::fileio::builtin_delete_file(args),
+        "rename-file" => super::fileio::builtin_rename_file(args),
+        "copy-file" => super::fileio::builtin_copy_file(args),
+        "make-directory" => super::fileio::builtin_make_directory(args),
+        "directory-files" => super::fileio::builtin_directory_files(args),
+        "file-attributes" => super::fileio::builtin_file_attributes(args),
+
+        // Keymap (pure — no evaluator needed)
+        "kbd" => builtin_kbd(args),
 
         _ => return None,
     })
@@ -2910,7 +3242,6 @@ pub(crate) fn dispatch_builtin_pure(name: &str, args: Vec<Value>) -> Option<Eval
         "number-to-string" => builtin_number_to_string(args),
         "upcase" => builtin_upcase(args),
         "downcase" => builtin_downcase(args),
-        "string-match" => builtin_string_match(args),
         "format" => builtin_format(args),
         // Vector
         "make-vector" => builtin_make_vector(args),
@@ -2985,6 +3316,283 @@ pub(crate) fn dispatch_builtin_pure(name: &str, args: Vec<Value>) -> Option<Eval
         "string-to-syntax" => builtin_string_to_syntax(args),
         "current-time" => builtin_current_time(args),
         "float-time" => builtin_float_time(args),
+        // File I/O (pure)
+        "expand-file-name" => super::fileio::builtin_expand_file_name(args),
+        "file-name-directory" => super::fileio::builtin_file_name_directory(args),
+        "file-name-nondirectory" => super::fileio::builtin_file_name_nondirectory(args),
+        "file-name-extension" => super::fileio::builtin_file_name_extension(args),
+        "file-name-sans-extension" => super::fileio::builtin_file_name_sans_extension(args),
+        "file-exists-p" => super::fileio::builtin_file_exists_p(args),
+        "file-readable-p" => super::fileio::builtin_file_readable_p(args),
+        "file-writable-p" => super::fileio::builtin_file_writable_p(args),
+        "file-directory-p" => super::fileio::builtin_file_directory_p(args),
+        "file-regular-p" => super::fileio::builtin_file_regular_p(args),
+        "file-symlink-p" => super::fileio::builtin_file_symlink_p(args),
+        "delete-file" => super::fileio::builtin_delete_file(args),
+        "rename-file" => super::fileio::builtin_rename_file(args),
+        "copy-file" => super::fileio::builtin_copy_file(args),
+        "make-directory" => super::fileio::builtin_make_directory(args),
+        "directory-files" => super::fileio::builtin_directory_files(args),
+        "file-attributes" => super::fileio::builtin_file_attributes(args),
+        // Keymap (pure)
+        "kbd" => builtin_kbd(args),
         _ => return None,
     })
+}
+
+// ===========================================================================
+// Search / Regex builtins (evaluator-dependent)
+// ===========================================================================
+
+pub(crate) fn builtin_search_forward(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_min_args("search-forward", &args, 1)?;
+    let pattern = expect_string(&args[0])?;
+    let bound = if args.len() > 1 && !args[1].is_nil() {
+        Some(expect_int(&args[1])? as usize)
+    } else {
+        None
+    };
+    let noerror = args.len() > 2 && args[2].is_truthy();
+
+    let buf = eval.buffers.current_buffer_mut()
+        .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
+
+    match super::regex::search_forward(buf, &pattern, bound, noerror, &mut eval.match_data) {
+        Ok(Some(pos)) => {
+            // Return point position (1-based char position in Emacs convention)
+            let char_pos = buf.text.byte_to_char(pos);
+            Ok(Value::Int((char_pos + 1) as i64))
+        }
+        Ok(None) => Ok(Value::Nil),
+        Err(msg) => Err(signal("search-failed", vec![Value::string(msg)])),
+    }
+}
+
+pub(crate) fn builtin_search_backward(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_min_args("search-backward", &args, 1)?;
+    let pattern = expect_string(&args[0])?;
+    let bound = if args.len() > 1 && !args[1].is_nil() {
+        Some(expect_int(&args[1])? as usize)
+    } else {
+        None
+    };
+    let noerror = args.len() > 2 && args[2].is_truthy();
+
+    let buf = eval.buffers.current_buffer_mut()
+        .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
+
+    match super::regex::search_backward(buf, &pattern, bound, noerror, &mut eval.match_data) {
+        Ok(Some(pos)) => {
+            let char_pos = buf.text.byte_to_char(pos);
+            Ok(Value::Int((char_pos + 1) as i64))
+        }
+        Ok(None) => Ok(Value::Nil),
+        Err(msg) => Err(signal("search-failed", vec![Value::string(msg)])),
+    }
+}
+
+pub(crate) fn builtin_re_search_forward(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_min_args("re-search-forward", &args, 1)?;
+    let pattern = expect_string(&args[0])?;
+    let bound = if args.len() > 1 && !args[1].is_nil() {
+        Some(expect_int(&args[1])? as usize)
+    } else {
+        None
+    };
+    let noerror = args.len() > 2 && args[2].is_truthy();
+
+    let buf = eval.buffers.current_buffer_mut()
+        .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
+
+    match super::regex::re_search_forward(buf, &pattern, bound, noerror, &mut eval.match_data) {
+        Ok(Some(pos)) => {
+            let char_pos = buf.text.byte_to_char(pos);
+            Ok(Value::Int((char_pos + 1) as i64))
+        }
+        Ok(None) => Ok(Value::Nil),
+        Err(msg) => Err(signal("search-failed", vec![Value::string(msg)])),
+    }
+}
+
+pub(crate) fn builtin_re_search_backward(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_min_args("re-search-backward", &args, 1)?;
+    let pattern = expect_string(&args[0])?;
+    let bound = if args.len() > 1 && !args[1].is_nil() {
+        Some(expect_int(&args[1])? as usize)
+    } else {
+        None
+    };
+    let noerror = args.len() > 2 && args[2].is_truthy();
+
+    let buf = eval.buffers.current_buffer_mut()
+        .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
+
+    match super::regex::re_search_backward(buf, &pattern, bound, noerror, &mut eval.match_data) {
+        Ok(Some(pos)) => {
+            let char_pos = buf.text.byte_to_char(pos);
+            Ok(Value::Int((char_pos + 1) as i64))
+        }
+        Ok(None) => Ok(Value::Nil),
+        Err(msg) => Err(signal("search-failed", vec![Value::string(msg)])),
+    }
+}
+
+pub(crate) fn builtin_looking_at(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_args("looking-at", &args, 1)?;
+    let pattern = expect_string(&args[0])?;
+
+    let buf = eval.buffers.current_buffer()
+        .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
+
+    match super::regex::looking_at(buf, &pattern, &mut eval.match_data) {
+        Ok(matched) => Ok(Value::bool(matched)),
+        Err(msg) => Err(signal("invalid-regexp", vec![Value::string(msg)])),
+    }
+}
+
+/// Evaluator-dependent `string-match`: updates match data on the evaluator.
+pub(crate) fn builtin_string_match_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_min_args("string-match", &args, 2)?;
+    let pattern = expect_string(&args[0])?;
+    let s = expect_string(&args[1])?;
+    let start = if args.len() > 2 {
+        expect_int(&args[2])? as usize
+    } else {
+        0
+    };
+
+    match super::regex::string_match_full(&pattern, &s, start, &mut eval.match_data) {
+        Ok(Some(pos)) => Ok(Value::Int(pos as i64)),
+        Ok(None) => Ok(Value::Nil),
+        Err(msg) => Err(signal("invalid-regexp", vec![Value::string(msg)])),
+    }
+}
+
+pub(crate) fn builtin_match_string(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_min_args("match-string", &args, 1)?;
+    let group = expect_int(&args[0])? as usize;
+
+    let md = match &eval.match_data {
+        Some(md) => md,
+        None => return Ok(Value::Nil),
+    };
+
+    let (start, end) = match md.groups.get(group) {
+        Some(Some(pair)) => *pair,
+        _ => return Ok(Value::Nil),
+    };
+
+    // If the match was against a string, use that string
+    if let Some(ref searched) = md.searched_string {
+        if end <= searched.len() {
+            return Ok(Value::string(&searched[start..end]));
+        }
+        return Ok(Value::Nil);
+    }
+
+    // Otherwise use current buffer
+    // If an optional second arg is a string, use that
+    if args.len() > 1 {
+        if let Some(s) = args[1].as_str() {
+            if end <= s.len() {
+                return Ok(Value::string(&s[start..end]));
+            }
+            return Ok(Value::Nil);
+        }
+    }
+
+    let buf = match eval.buffers.current_buffer() {
+        Some(b) => b,
+        None => return Ok(Value::Nil),
+    };
+    if end <= buf.text.len() {
+        Ok(Value::string(buf.text.text_range(start, end)))
+    } else {
+        Ok(Value::Nil)
+    }
+}
+
+pub(crate) fn builtin_match_beginning(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_args("match-beginning", &args, 1)?;
+    let group = expect_int(&args[0])? as usize;
+
+    let md = match &eval.match_data {
+        Some(md) => md,
+        None => return Err(signal("error", vec![Value::string("No match data")])),
+    };
+
+    match md.groups.get(group) {
+        Some(Some((start, _end))) => Ok(Value::Int(*start as i64)),
+        Some(None) => Ok(Value::Nil),  // group exists but didn't participate
+        None => Err(signal("error", vec![
+            Value::string(format!("match-beginning: invalid group {}", group))
+        ])),
+    }
+}
+
+pub(crate) fn builtin_match_end(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_args("match-end", &args, 1)?;
+    let group = expect_int(&args[0])? as usize;
+
+    let md = match &eval.match_data {
+        Some(md) => md,
+        None => return Err(signal("error", vec![Value::string("No match data")])),
+    };
+
+    match md.groups.get(group) {
+        Some(Some((_start, end))) => Ok(Value::Int(*end as i64)),
+        Some(None) => Ok(Value::Nil),
+        None => Err(signal("error", vec![
+            Value::string(format!("match-end: invalid group {}", group))
+        ])),
+    }
+}
+
+pub(crate) fn builtin_replace_match(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_min_args("replace-match", &args, 1)?;
+    let newtext = expect_string(&args[0])?;
+    let fixedcase = args.len() > 1 && args[1].is_truthy();
+    let literal = args.len() > 2 && args[2].is_truthy();
+
+    // Clone match_data to avoid borrow conflict
+    let md = eval.match_data.clone();
+
+    let buf = eval.buffers.current_buffer_mut()
+        .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
+
+    match super::regex::replace_match(buf, &newtext, fixedcase, literal, &md) {
+        Ok(true) => Ok(Value::Nil),  // Emacs returns nil on success
+        Ok(false) => Err(signal("error", vec![Value::string("replace-match: no match")])),
+        Err(msg) => Err(signal("error", vec![Value::string(msg)])),
+    }
 }

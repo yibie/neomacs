@@ -5,6 +5,8 @@ use std::collections::HashMap;
 use super::builtins;
 use super::error::*;
 use super::expr::Expr;
+use super::keymap::KeymapManager;
+use super::regex::MatchData;
 use super::symbol::Obarray;
 use super::value::*;
 use crate::buffer::BufferManager;
@@ -21,6 +23,12 @@ pub struct Evaluator {
     pub(crate) features: Vec<String>,
     /// Buffer manager — owns all live buffers and tracks current buffer.
     pub(crate) buffers: BufferManager,
+    /// Match data from the last successful search/match operation.
+    pub(crate) match_data: Option<MatchData>,
+    /// Keymap manager — owns all keymaps.
+    pub(crate) keymaps: KeymapManager,
+    /// Current buffer-local keymap id (set by `use-local-map`).
+    pub(crate) current_local_map: Option<u64>,
     /// Recursion depth counter.
     depth: usize,
     /// Maximum recursion depth.
@@ -65,6 +73,9 @@ impl Evaluator {
             lexenv: Vec::new(),
             features: Vec::new(),
             buffers: BufferManager::new(),
+            match_data: None,
+            keymaps: KeymapManager::new(),
+            current_local_map: None,
             depth: 0,
             max_depth: 200,
         }

@@ -7,3 +7,4 @@ description = "Core runtime structures for NeoVM"
 
 [dependencies]
 neovm-host-abi = { path = "../neovm-host-abi" }
+regex = "1"
