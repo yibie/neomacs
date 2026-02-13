@@ -23,12 +23,14 @@ They are not wired into `elisp/mod.rs` yet, so they are not active in the main b
 - Refactored to submodules:
   - `buffer.rs` -> `buffer/{args.rs,pure.rs,stateful.rs,tests.rs}`
   - `callproc.rs` -> `callproc/{args.rs,env.rs,process.rs,tests.rs}`
+  - `character.rs` -> `character/{helpers.rs,builtins.rs,tests.rs}`
+  - `data.rs` -> `data/{helpers.rs,pure.rs,eval_stateful.rs,tests.rs}`
   - `dispnew.rs` -> `dispnew/{args.rs,pure.rs,timing.rs,tests.rs}`
   - `keyboard.rs` -> `keyboard/{args.rs,pure.rs,eval_stateful.rs,tests.rs}`
   - `terminal.rs` -> `terminal/{args.rs,terminal_builtins.rs,tty_builtins.rs,display_builtins.rs,tests.rs}`
   - `xfaces.rs` -> `xfaces/{args.rs,builtins.rs,tests.rs}`
 - Still monolithic and pending split:
-  - `character.rs`, `data.rs`
+  - none
 
 ## Integration Note
 
