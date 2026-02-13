@@ -18,3 +18,6 @@
 (condition-case err (read-char-exclusive nil nil 0) (error (car err)))
 (condition-case err (y-or-n-p 123) (error (car err)))
 (condition-case err (yes-or-no-p 123) (error (car err)))
+(condition-case err (progn (setq unread-command-events (list 97)) (read-char)) (error (car err)))
+(condition-case err (progn (setq unread-command-events (list 97)) (read-key nil)) (error (car err)))
+(condition-case err (progn (setq unread-command-events (list 97)) (read-key-sequence "")) (error (car err)))
