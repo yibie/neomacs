@@ -133,6 +133,11 @@ Implemented now:
   - cache is non-authoritative: corruption, mismatch, or read failure must always fall back to source parse
   - cache format is internal to NeoVM and may change by schema/version without compatibility guarantees
   - cache writes should be atomic (temp file + rename) so interrupted writes degrade to cache miss, not semantic failure
+- Source precompile path for `.neoc`:
+  - `precompile_source_file` API in loader parses `.el` and writes `.neoc`
+  - deterministic cache output for identical source/input mode
+  - explicit `.elc`/`.elc.gz` input rejection with `file-error`
+  - `rust/neovm-core/examples/precompile_neoc.rs` batch precompile example CLI
 
 Package/runtime policy:
 
