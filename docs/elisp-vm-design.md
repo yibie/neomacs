@@ -56,6 +56,24 @@ Next phase:
 - Wire compatibility target(s) into CI
 - Run differential checks against larger GNU Emacs test subsets
 
+Focused introspection gate:
+
+```bash
+cd test/neovm/vm-compat && make check-introspection-neovm
+```
+
+### Introspection Compatibility Guarantees (Oracle-Checked)
+
+The compatibility corpus now explicitly guards core callable introspection behavior against GNU Emacs oracle output:
+
+- Predicate/classification boundaries: `fboundp`, `functionp`, `macrop`, `special-form-p`
+- Function-cell lookup/resolution: `symbol-function`, `indirect-function` (including alias chains and loop safety)
+- Callable arity reporting: `func-arity` for subrs, fallback macros, and symbol inputs resolved through function lookup
+- Error signaling parity on introspection call paths:
+  - unresolved/nil function lookup reports `void-function`
+  - truly non-callable objects report `invalid-function`
+  - non-local exit behavior through `condition-case`/`unwind-protect` remains oracle-aligned for these probes
+
 ## Design Principles
 
 1. Compatibility first, then speed.
