@@ -1,0 +1,12 @@
+; function special-form edges (#' reader sugar): symbol payloads, non-callable payloads, and arity errors.
+#'car
+(eq #'car (symbol-function 'car))
+#'definitely-missing
+(functionp #'car)
+(condition-case err #'1 (error (car err)))
+(condition-case err #''(lambda) (error (car err)))
+(condition-case err (function) (error (car err)))
+(condition-case err (function 1 2) (error (car err)))
+(funcall #'(lambda (x) x) 9)
+(functionp #'(lambda (x) x))
+(eq #'(lambda (x) x) #'(lambda (x) x))
