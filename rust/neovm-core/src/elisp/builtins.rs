@@ -2920,6 +2920,12 @@ enum PureBuiltinId {
     Sequencep,
     #[strum(serialize = "arrayp")]
     Arrayp,
+    #[strum(serialize = "eq")]
+    Eq,
+    #[strum(serialize = "eql")]
+    Eql,
+    #[strum(serialize = "equal")]
+    Equal,
 }
 
 fn dispatch_builtin_id_pure(id: PureBuiltinId, args: Vec<Value>) -> EvalResult {
@@ -2965,6 +2971,9 @@ fn dispatch_builtin_id_pure(id: PureBuiltinId, args: Vec<Value>) -> EvalResult {
         PureBuiltinId::TypeOf => builtin_type_of(args),
         PureBuiltinId::Sequencep => builtin_sequencep(args),
         PureBuiltinId::Arrayp => builtin_arrayp(args),
+        PureBuiltinId::Eq => builtin_eq(args),
+        PureBuiltinId::Eql => builtin_eql(args),
+        PureBuiltinId::Equal => builtin_equal(args),
     }
 }
 
@@ -3481,10 +3490,7 @@ pub(crate) fn dispatch_builtin(
         // Type predicates (typed subset is dispatched above)
         // Type predicates (typed subset is dispatched above)
 
-        // Equality
-        "eq" => builtin_eq(args),
-        "eql" => builtin_eql(args),
-        "equal" => builtin_equal(args),
+        // Equality (typed subset is dispatched above)
 
         // Cons / List
         "cons" => builtin_cons(args),
