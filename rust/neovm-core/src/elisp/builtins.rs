@@ -3185,6 +3185,16 @@ pub(crate) fn dispatch_builtin(
         // Error hierarchy (evaluator-dependent — reads obarray)
         "error-message-string" => return Some(super::errors::builtin_error_message_string(eval, args)),
 
+        // Reader/printer (evaluator-dependent)
+        "read-from-string" => return Some(super::reader::builtin_read_from_string(eval, args)),
+        "read" => return Some(super::reader::builtin_read(eval, args)),
+        "read-from-minibuffer" => return Some(super::reader::builtin_read_from_minibuffer(eval, args)),
+        "read-string" => return Some(super::reader::builtin_read_string(eval, args)),
+        "read-number" => return Some(super::reader::builtin_read_number(eval, args)),
+        "completing-read" => return Some(super::reader::builtin_completing_read(eval, args)),
+        "read-char" => return Some(super::reader::builtin_read_char(eval, args)),
+        "read-key-sequence" => return Some(super::reader::builtin_read_key_sequence(eval, args)),
+
         // Char-table (evaluator-dependent — applies function)
         "map-char-table" => return Some(super::chartable::builtin_map_char_table(eval, args)),
 
@@ -3479,6 +3489,12 @@ pub(crate) fn dispatch_builtin(
 
         // Error hierarchy (pure)
         "signal" => super::errors::builtin_signal(args),
+
+        // Reader/printer (pure)
+        "prin1-to-string" => super::reader::builtin_prin1_to_string_full(args),
+        "format-spec" => super::reader::builtin_format_spec(args),
+        "y-or-n-p" => super::reader::builtin_y_or_n_p(args),
+        "yes-or-no-p" => super::reader::builtin_yes_or_no_p(args),
 
         // Char-table / bool-vector (pure)
         "make-char-table" => super::chartable::builtin_make_char_table(args),

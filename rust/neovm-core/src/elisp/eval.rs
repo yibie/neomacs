@@ -424,6 +424,8 @@ impl Evaluator {
             "cl-flet" => super::cl_extra::sf_cl_flet(self, tail),
             "cl-labels" => super::cl_extra::sf_cl_labels(self, tail),
             "cl-progv" => super::cl_extra::sf_cl_progv(self, tail),
+            // Reader/printer special forms
+            "with-output-to-string" => super::reader::sf_with_output_to_string(self, tail),
             // Interactive / mode definition special forms
             "define-minor-mode" => super::interactive::sf_define_minor_mode(self, tail),
             "define-derived-mode" => super::interactive::sf_define_derived_mode(self, tail),
