@@ -566,15 +566,6 @@ impl Evaluator {
             return Err(signal("wrong-number-of-arguments", vec![]));
         }
         match &tail[0] {
-            Expr::Symbol(name) => {
-                // #'symbol — look up in function namespace (obarray function cell)
-                if let Some(func) = self.obarray.symbol_function(name).cloned() {
-                    Ok(func)
-                } else {
-                    // Assume it's a builtin (Subr)
-                    Ok(Value::Subr(name.clone()))
-                }
-            }
             Expr::List(items) => {
                 // #'(lambda ...) — create closure
                 if let Some(Expr::Symbol(s)) = items.first() {
@@ -582,9 +573,9 @@ impl Evaluator {
                         return self.eval_lambda(&items[1..]);
                     }
                 }
-                Err(signal("invalid-function", vec![]))
+                Ok(quote_to_value(&tail[0]))
             }
-            _ => Err(signal("invalid-function", vec![])),
+            _ => Ok(quote_to_value(&tail[0])),
         }
     }
 
@@ -1815,6 +1806,32 @@ mod tests {
              (funcall #'add1 5)",
         );
         assert_eq!(results[1], "OK 6");
+    }
+
+    #[test]
+    fn function_special_form_symbol_and_literal_payloads() {
+        assert_eq!(eval_one("#'car"), "OK car");
+        assert_eq!(eval_one("#'definitely-missing"), "OK definitely-missing");
+        assert_eq!(
+            eval_one("(condition-case err #'1 (error (car err)))"),
+            "OK 1"
+        );
+        assert_eq!(
+            eval_one("(equal #''(lambda) ''(lambda))"),
+            "OK t"
+        );
+    }
+
+    #[test]
+    fn function_special_form_wrong_arity_signals() {
+        assert_eq!(
+            eval_one("(condition-case err (function) (error (car err)))"),
+            "OK wrong-number-of-arguments"
+        );
+        assert_eq!(
+            eval_one("(condition-case err (function 1 2) (error (car err)))"),
+            "OK wrong-number-of-arguments"
+        );
     }
 
     #[test]

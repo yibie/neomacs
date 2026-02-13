@@ -4,7 +4,7 @@
 #'definitely-missing
 (functionp #'car)
 (condition-case err #'1 (error (car err)))
-(condition-case err #''(lambda) (error (car err)))
+(equal #''(lambda) ''(lambda))
 (condition-case err (function) (error (car err)))
 (condition-case err (function 1 2) (error (car err)))
 (funcall #'(lambda (x) x) 9)

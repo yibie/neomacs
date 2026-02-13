@@ -3,7 +3,7 @@
 3	#'definitely-missing	OK definitely-missing
 4	(functionp #'car)	OK t
 5	(condition-case err #'1 (error (car err)))	OK 1
-6	(condition-case err #''(lambda) (error (car err)))	OK '(lambda)
+6	(equal #''(lambda) ''(lambda))	OK t
 7	(condition-case err (function) (error (car err)))	OK wrong-number-of-arguments
 8	(condition-case err (function 1 2) (error (car err)))	OK wrong-number-of-arguments
 9	(funcall #'(lambda (x) x) 9)	OK 9
