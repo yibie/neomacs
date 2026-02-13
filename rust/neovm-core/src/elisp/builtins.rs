@@ -3200,6 +3200,23 @@ pub(crate) fn dispatch_builtin(
         "recursion-depth" => return Some(super::misc::builtin_recursion_depth(eval, args)),
         "abort-recursive-edit" => return Some(super::misc::builtin_abort_recursive_edit(eval, args)),
 
+        // Threading (evaluator-dependent)
+        "make-thread" => return Some(super::threads::builtin_make_thread(eval, args)),
+        "thread-join" => return Some(super::threads::builtin_thread_join(eval, args)),
+        "thread-yield" => return Some(super::threads::builtin_thread_yield(eval, args)),
+        "thread-name" => return Some(super::threads::builtin_thread_name(eval, args)),
+        "thread-alive-p" => return Some(super::threads::builtin_thread_alive_p(eval, args)),
+        "thread-signal" => return Some(super::threads::builtin_thread_signal(eval, args)),
+        "current-thread" => return Some(super::threads::builtin_current_thread(eval, args)),
+        "all-threads" => return Some(super::threads::builtin_all_threads(eval, args)),
+        "thread-last-error" => return Some(super::threads::builtin_thread_last_error(eval, args)),
+        "make-mutex" => return Some(super::threads::builtin_make_mutex(eval, args)),
+        "mutex-lock" => return Some(super::threads::builtin_mutex_lock(eval, args)),
+        "mutex-unlock" => return Some(super::threads::builtin_mutex_unlock(eval, args)),
+        "make-condition-variable" => return Some(super::threads::builtin_make_condition_variable(eval, args)),
+        "condition-wait" => return Some(super::threads::builtin_condition_wait(eval, args)),
+        "condition-notify" => return Some(super::threads::builtin_condition_notify(eval, args)),
+
         // Char-table (evaluator-dependent — applies function)
         "map-char-table" => return Some(super::chartable::builtin_map_char_table(eval, args)),
 
@@ -3494,6 +3511,11 @@ pub(crate) fn dispatch_builtin(
 
         // Error hierarchy (pure)
         "signal" => super::errors::builtin_signal(args),
+
+        // Threading (pure)
+        "threadp" => super::threads::builtin_threadp(args),
+        "mutexp" => super::threads::builtin_mutexp(args),
+        "condition-variable-p" => super::threads::builtin_condition_variable_p(args),
 
         // Misc (pure)
         "copy-alist" => super::misc::builtin_copy_alist(args),

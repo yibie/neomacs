@@ -50,6 +50,7 @@ pub mod setf;
 pub mod cl_extra;
 pub mod reader;
 pub mod misc;
+pub mod threads;
 
 // Re-export the main public API
 pub use value::{Value, ConsCell, LambdaData, LambdaParams};

@@ -19,6 +19,7 @@ use super::process::ProcessManager;
 use super::regex::MatchData;
 use super::register::RegisterManager;
 use super::symbol::Obarray;
+use super::threads::ThreadManager;
 use super::timer::TimerManager;
 use super::value::*;
 use crate::buffer::BufferManager;
@@ -70,6 +71,8 @@ pub struct Evaluator {
     pub(crate) frames: FrameManager,
     /// Mode registry — major/minor modes.
     pub(crate) modes: ModeRegistry,
+    /// Thread manager — cooperative threading primitives.
+    pub(crate) threads: ThreadManager,
     /// Recursion depth counter.
     depth: usize,
     /// Maximum recursion depth.
@@ -134,6 +137,7 @@ impl Evaluator {
             interactive: InteractiveRegistry::new(),
             frames: FrameManager::new(),
             modes: ModeRegistry::new(),
+            threads: ThreadManager::new(),
             depth: 0,
             max_depth: 200,
         }
@@ -426,6 +430,8 @@ impl Evaluator {
             "cl-progv" => super::cl_extra::sf_cl_progv(self, tail),
             // Reader/printer special forms
             "with-output-to-string" => super::reader::sf_with_output_to_string(self, tail),
+            // Threading
+            "with-mutex" => super::threads::sf_with_mutex(self, tail),
             // Misc special forms
             "prog2" => super::misc::sf_prog2(self, tail),
             "with-temp-buffer" => super::misc::sf_with_temp_buffer(self, tail),
