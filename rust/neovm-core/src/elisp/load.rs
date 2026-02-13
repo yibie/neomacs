@@ -61,6 +61,11 @@ pub fn find_file_in_load_path_with_flags(
 
 /// Extract `load-path` from the evaluator's obarray as a Vec<String>.
 pub fn get_load_path(obarray: &super::symbol::Obarray) -> Vec<String> {
+    let default_directory = obarray
+        .symbol_value("default-directory")
+        .and_then(|v| v.as_str())
+        .unwrap_or(".");
+
     let val = obarray
         .symbol_value("load-path")
         .cloned()
@@ -68,7 +73,10 @@ pub fn get_load_path(obarray: &super::symbol::Obarray) -> Vec<String> {
     super::value::list_to_vec(&val)
         .unwrap_or_default()
         .into_iter()
-        .filter_map(|v| v.as_str().map(|s| s.to_string()))
+        .filter_map(|v| match v {
+            Value::Nil => Some(default_directory.to_string()),
+            _ => v.as_str().map(|s| s.to_string()),
+        })
         .collect()
 }
 
@@ -140,15 +148,24 @@ mod tests {
     #[test]
     fn load_path_extraction() {
         let mut ob = super::super::symbol::Obarray::new();
+        ob.set_symbol_value("default-directory", Value::string("/tmp/project"));
         ob.set_symbol_value(
             "load-path",
             Value::list(vec![
                 Value::string("/usr/share/emacs/lisp"),
+                Value::Nil,
                 Value::string("/home/user/.emacs.d"),
             ]),
         );
         let paths = get_load_path(&ob);
-        assert_eq!(paths, vec!["/usr/share/emacs/lisp", "/home/user/.emacs.d"]);
+        assert_eq!(
+            paths,
+            vec![
+                "/usr/share/emacs/lisp",
+                "/tmp/project",
+                "/home/user/.emacs.d"
+            ]
+        );
     }
 
     #[test]
