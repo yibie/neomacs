@@ -3788,8 +3788,6 @@ pub(crate) fn dispatch_builtin(
         "format-spec" => super::format::builtin_format_spec(args),
         "format-time-string" => super::format::builtin_format_time_string(args),
         "format-seconds" => super::format::builtin_format_seconds(args),
-        "string-pad" => super::format::builtin_string_pad(args),
-        "string-chop-newline" => super::format::builtin_string_chop_newline(args),
         "string-lines" => super::format::builtin_string_lines(args),
         "string-clean-whitespace" => super::format::builtin_string_clean_whitespace(args),
         "string-fill" => super::format::builtin_string_fill(args),
