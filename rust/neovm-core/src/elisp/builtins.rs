@@ -4851,8 +4851,6 @@ pub(crate) fn dispatch_builtin(
         "locale-info" => super::misc::builtin_locale_info(args),
 
         // Reader/printer (pure)
-        "prin1-to-string" => super::reader::builtin_prin1_to_string_full(args),
-        "format-spec" => super::reader::builtin_format_spec(args),
         "y-or-n-p" => super::reader::builtin_y_or_n_p(args),
         "yes-or-no-p" => super::reader::builtin_yes_or_no_p(args),
 
@@ -4914,9 +4912,6 @@ pub(crate) fn dispatch_builtin(
         "seq-empty-p" => super::cl_lib::builtin_seq_empty_p(args),
         "seq-min" => super::cl_lib::builtin_seq_min(args),
         "seq-max" => super::cl_lib::builtin_seq_max(args),
-        "json-parse-string" => super::cl_lib::builtin_json_parse_string(args),
-        "json-serialize" => super::cl_lib::builtin_json_serialize(args),
-
         // Search (pure)
         "string-match" => super::search::builtin_string_match(args),
         "string-match-p" => super::search::builtin_string_match_p(args),
@@ -4936,13 +4931,8 @@ pub(crate) fn dispatch_builtin(
         "read-non-nil-coding-system" => super::lread::builtin_read_non_nil_coding_system(args),
 
         // Editfns (pure)
-        "user-login-name" => super::editfns::builtin_user_login_name(args),
-        "user-real-login-name" => super::editfns::builtin_user_real_login_name(args),
         "user-uid" => super::editfns::builtin_user_uid(args),
         "user-real-uid" => super::editfns::builtin_user_real_uid(args),
-        "user-full-name" => super::editfns::builtin_user_full_name(args),
-        "system-name" => super::editfns::builtin_system_name(args),
-        "emacs-pid" => super::editfns::builtin_emacs_pid(args),
         "group-gid" => super::editfns::builtin_group_gid(args),
         "group-real-gid" => super::editfns::builtin_group_real_gid(args),
 
