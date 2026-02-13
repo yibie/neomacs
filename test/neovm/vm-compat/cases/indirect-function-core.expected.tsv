@@ -2,6 +2,9 @@
 2	(indirect-function 'load)	OK #<subr load>
 3	(indirect-function 'if)	OK #<subr if>
 4	(indirect-function 'car)	OK #<subr car>
-5	(indirect-function 'definitely-not-a-function t)	OK nil
-6	(indirect-function 'definitely-not-a-function)	OK nil
-7	(indirect-function 42)	OK 42
+5	(indirect-function 'read-key)	OK #<subr read-key>
+6	(indirect-function 'read-event)	OK #<subr read-event>
+7	(indirect-function 'read-char-exclusive)	OK #<subr read-char-exclusive>
+8	(indirect-function 'definitely-not-a-function t)	OK nil
+9	(indirect-function 'definitely-not-a-function)	OK nil
+10	(indirect-function 42)	OK 42
