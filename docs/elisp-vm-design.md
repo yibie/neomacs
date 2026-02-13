@@ -115,12 +115,14 @@ Implemented now:
   - temporary source fallback policy:
     - parse/eval failure on `.elc` falls back to sibling `.el` when present
     - `.elc` with compiled-function literals also prefers sibling `.el` when present
-  - no-source `.elc` path can still load/provide in limited mode (compiled literals kept as data)
+  - no-source `.elc` path can still load/provide in limited mode:
+    - compiled literals are coerced to typed `Value::ByteCode` placeholders
+    - invoking those placeholders signals an explicit `error` until real `.elc` bytecode decode/exec lands
 
 Not implemented yet:
 
 - Full Elisp reader/compiler/bytecode pipeline
-- Native execution of GNU Emacs `.elc` compiled-function objects (current `.elc` path is compatibility fallback/data-literal mode)
+- Native execution of GNU Emacs `.elc` compiled-function objects (current `.elc` path is compatibility fallback/placeholder-bytecode mode)
 - Per-isolate Lisp heaps and snapshot/patch transfer semantics
 - Tiered JIT pipeline and deoptimization metadata
 - Incremental/concurrent GC engine
