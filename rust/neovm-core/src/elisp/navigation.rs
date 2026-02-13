@@ -1148,8 +1148,8 @@ mod tests {
     fn test_mark_marker() {
         let mut ev = eval_with_text("hello");
         eval_str(&mut ev, "(push-mark 4)");
-        let m = eval_int(&mut ev, "(mark-marker)");
-        assert_eq!(m, 4);
+        let pos = eval_int(&mut ev, "(marker-position (mark-marker))");
+        assert_eq!(pos, 4);
     }
 
     #[test]
