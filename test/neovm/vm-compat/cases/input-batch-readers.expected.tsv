@@ -23,4 +23,5 @@
 23	(condition-case err (progn (setq unread-command-events (list 97)) (read-event)) (error (car err)))	OK 97
 24	(condition-case err (progn (setq unread-command-events (list 97)) (read-char-exclusive)) (error (car err)))	OK 97
 25	(condition-case err (progn (setq unread-command-events (list 97)) (read-key-sequence-vector "")) (error (car err)))	OK [97]
-26	(condition-case err (read-key-sequence-vector 123) (error (car err)))	OK wrong-type-argument
+26	(condition-case err (progn (setq unread-command-events (list '(mouse-1))) (read-key-sequence-vector "")) (error (car err)))	OK [(mouse-1)]
+27	(condition-case err (read-key-sequence-vector 123) (error (car err)))	OK wrong-type-argument
