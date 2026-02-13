@@ -1,6 +1,7 @@
 //! Compatibility helpers for Emacs compiled-function reader literals (`#[...]`, `#(...)`).
 
 use super::bytecode::{ByteCodeFunction, Op};
+use super::error::{signal, Flow};
 use super::value::{list_to_vec, LambdaParams, Value};
 
 /// Convert parsed Emacs compiled-function literal vectors into typed
@@ -14,6 +15,70 @@ pub(crate) fn maybe_coerce_compiled_literal_function(value: Value) -> Value {
         return value;
     };
     Value::ByteCode(std::sync::Arc::new(bytecode))
+}
+
+/// Build a typed placeholder from a `(byte-code BYTESTR CONSTS MAXDEPTH ...)`
+/// form used by some `.elc` payloads.
+pub(crate) fn placeholder_from_byte_code_form(args: &[Value]) -> Result<Value, Flow> {
+    if args.len() < 3 {
+        return Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol("byte-code"), Value::Int(args.len() as i64)],
+        ));
+    }
+
+    if !matches!(args[0], Value::Str(_)) {
+        return Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("stringp"), args[0].clone()],
+        ));
+    }
+    if !matches!(args[1], Value::Vector(_)) {
+        return Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("vectorp"), args[1].clone()],
+        ));
+    }
+    let max_depth = match args[2] {
+        Value::Int(n) if (0..=u16::MAX as i64).contains(&n) => Value::Int(n),
+        Value::Int(_) => {
+            return Err(signal("args-out-of-range", vec![args[2].clone()]));
+        }
+        _ => {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("integerp"), args[2].clone()],
+            ));
+        }
+    };
+
+    let params = if let Some(value) = args.get(3) {
+        if value.is_nil() || list_to_vec(value).is_some() {
+            value.clone()
+        } else {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("listp"), value.clone()],
+            ));
+        }
+    } else {
+        Value::Nil
+    };
+
+    let mut items = vec![params, args[0].clone(), args[1].clone(), max_depth];
+    if let Some(extra) = args.get(4) {
+        items.push(extra.clone());
+    }
+
+    let coerced = maybe_coerce_compiled_literal_function(Value::vector(items));
+    if matches!(coerced, Value::ByteCode(_)) {
+        Ok(coerced)
+    } else {
+        Err(signal(
+            "error",
+            vec![Value::string("Invalid byte-code object")],
+        ))
+    }
 }
 
 fn compiled_literal_vector_to_placeholder_bytecode(
@@ -146,6 +211,33 @@ mod tests {
                 );
             }
             other => panic!("unexpected placeholder ops: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn byte_code_form_coerces_to_placeholder() {
+        let value = placeholder_from_byte_code_form(&[
+            Value::string("\u{8}T\u{87}"),
+            Value::vector(vec![Value::symbol("x")]),
+            Value::Int(1),
+        ])
+        .expect("byte-code form should coerce");
+        assert!(matches!(value, Value::ByteCode(_)));
+    }
+
+    #[test]
+    fn byte_code_form_rejects_non_vector_constants() {
+        let err = placeholder_from_byte_code_form(&[
+            Value::string("\u{8}T\u{87}"),
+            Value::Int(1),
+            Value::Int(1),
+        ])
+        .expect_err("non-vector constants should fail");
+        match err {
+            Flow::Signal(sig) => {
+                assert_eq!(sig.symbol, "wrong-type-argument")
+            }
+            other => panic!("unexpected error: {other:?}"),
         }
     }
 }
