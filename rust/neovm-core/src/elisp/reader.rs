@@ -808,6 +808,10 @@ fn expect_optional_prompt_string(args: &[Value]) -> Result<(), Flow> {
     ))
 }
 
+fn non_character_input_event_error() -> Flow {
+    signal("error", vec![Value::string("Non-character input-event")])
+}
+
 // ---------------------------------------------------------------------------
 // 9. y-or-n-p (stub)
 // ---------------------------------------------------------------------------
@@ -858,7 +862,7 @@ pub(crate) fn builtin_read_char(
         if let Some(n) = event_to_int(&event) {
             return Ok(Value::Int(n));
         }
-        return Ok(event);
+        return Err(non_character_input_event_error());
     }
     Ok(Value::Nil)
 }
@@ -1484,6 +1488,20 @@ mod tests {
             .set_symbol_value("unread-command-events", Value::list(vec![Value::Int(97)]));
         let result = builtin_read_char(&mut ev, vec![]).unwrap();
         assert_eq!(result.as_int(), Some(97));
+    }
+
+    #[test]
+    fn read_char_signals_error_on_non_character_event() {
+        let mut ev = Evaluator::new();
+        ev.obarray
+            .set_symbol_value("unread-command-events", Value::list(vec![Value::symbol("foo")]));
+        let result = builtin_read_char(&mut ev, vec![]);
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig))
+                if sig.symbol == "error"
+                    && sig.data == vec![Value::string("Non-character input-event")]
+        ));
     }
 
     #[test]
