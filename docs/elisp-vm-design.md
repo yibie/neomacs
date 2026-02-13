@@ -145,6 +145,7 @@ Implemented now:
   - `file-name-concat` matches GNU Emacs nil/empty filtering and separator insertion behavior
   - `file-name-extension` supports GNU optional `PERIOD` behavior (`.ext` or empty-string fallback when requested)
   - filename and file predicate builtins enforce GNU-style strict string type checks (`wrong-type-argument` on non-strings)
+  - `expand-file-name` now enforces GNU argument arity (max 2 args) while keeping non-string default-dir root fallback
   - path predicates `file-name-absolute-p` and `directory-name-p` are implemented with GNU behavior for Unix-style path forms
   - `substitute-in-file-name` supports `$VAR` / `${VAR}` replacement, `$$` escaping, and embedded absolute-path trimming (`//`, `/~`)
   - compatibility corpus includes oracle-checked `cases/directory-file-name`, `cases/file-name-concat`, `cases/file-name-types`, `cases/path-predicates`, and `cases/substitute-in-file-name`
