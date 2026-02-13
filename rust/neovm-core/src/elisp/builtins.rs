@@ -3182,6 +3182,9 @@ pub(crate) fn dispatch_builtin(
         "word-at-point" => return Some(super::interactive::builtin_word_at_point(eval, args)),
         "symbol-at-point" => return Some(super::interactive::builtin_symbol_at_point(eval, args)),
 
+        // Char-table (evaluator-dependent — applies function)
+        "map-char-table" => return Some(super::chartable::builtin_map_char_table(eval, args)),
+
         // CL-lib higher-order (evaluator-dependent — applies functions)
         "cl-map" => return Some(super::cl_lib::builtin_cl_map(eval, args)),
         "cl-every" => return Some(super::cl_lib::builtin_cl_every(eval, args)),
@@ -3470,6 +3473,25 @@ pub(crate) fn dispatch_builtin(
 
         // Custom system (pure)
         "custom-set-faces" => super::custom::builtin_custom_set_faces(args),
+
+        // Char-table / bool-vector (pure)
+        "make-char-table" => super::chartable::builtin_make_char_table(args),
+        "char-table-p" => super::chartable::builtin_char_table_p(args),
+        "set-char-table-range" => super::chartable::builtin_set_char_table_range(args),
+        "char-table-range" => super::chartable::builtin_char_table_range(args),
+        "char-table-parent" => super::chartable::builtin_char_table_parent(args),
+        "set-char-table-parent" => super::chartable::builtin_set_char_table_parent(args),
+        "char-table-extra-slot" => super::chartable::builtin_char_table_extra_slot(args),
+        "set-char-table-extra-slot" => super::chartable::builtin_set_char_table_extra_slot(args),
+        "char-table-subtype" => super::chartable::builtin_char_table_subtype(args),
+        "make-bool-vector" => super::chartable::builtin_make_bool_vector(args),
+        "bool-vector-p" => super::chartable::builtin_bool_vector_p(args),
+        "bool-vector-count-population" => super::chartable::builtin_bool_vector_count_population(args),
+        "bool-vector-intersection" => super::chartable::builtin_bool_vector_intersection(args),
+        "bool-vector-union" => super::chartable::builtin_bool_vector_union(args),
+        "bool-vector-exclusive-or" => super::chartable::builtin_bool_vector_exclusive_or(args),
+        "bool-vector-complement" => super::chartable::builtin_bool_vector_complement(args),
+        "bool-vector-subsetp" => super::chartable::builtin_bool_vector_subsetp(args),
 
         // Note: windowp and framep are in the eval-dependent section above
 
