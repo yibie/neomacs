@@ -15,6 +15,7 @@ results against that baseline once evaluator execution is wired in.
 - `compare-results.sh`: diffs oracle TSV vs NeoVM TSV
 - `bench-load-cache.sh`: runs cold/warm `.neoc` load benchmark via `load_cache_bench`
 - `cases/core.forms`: starter corpus for expression and error behavior
+- `cases/input-batch-readers.forms`: batch-mode input reader compatibility corpus
 
 ## Usage
 
@@ -77,6 +78,13 @@ cd test/neovm/vm-compat
 make check-ert-allowlist
 ```
 
+If `emacs` is not on `PATH`, set `NEOVM_ORACLE_EMACS` explicitly:
+
+```bash
+cd test/neovm/vm-compat
+NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make check-ert-allowlist
+```
+
 The default fixture uses:
 
 - allowlist file: `cases/ert-allowlist-smoke.txt`
@@ -122,3 +130,8 @@ make bench-load-cache BENCH_SOURCE=cases/load-policy-fixtures/vm-policy-cache-pr
 - Introspection behavior now oracle-guarded for predicate boundaries, function-cell lookup, alias traversal, and arity/error signaling edges.
 - Added fast introspection gate target: `make check-introspection-neovm`.
 - Required periodic full gate for this batch was run: `make check-all-neovm`.
+
+Post-freeze updates:
+
+- Added `cases/input-batch-readers` corpus and wired it into default `check-all-neovm` coverage.
+- Added CI gate job for `make check-ert-allowlist` in `.github/workflows/vm-compat.yml`.
