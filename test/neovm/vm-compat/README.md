@@ -63,6 +63,13 @@ make check-all
 make check-all-neovm
 ```
 
+Run the focused callable-introspection suite (faster loop for `fboundp`/`symbol-function`/`indirect-function`/`functionp`/`macrop`/`func-arity`):
+
+```bash
+cd test/neovm/vm-compat
+make check-introspection-neovm
+```
+
 `run-neovm.sh` sets `NEOVM_DISABLE_LOAD_CACHE_WRITE=1` so compatibility runs do
 not mutate fixture directories with `.neoc` sidecars.
 
@@ -93,3 +100,10 @@ make bench-load-cache
 # or override:
 make bench-load-cache BENCH_SOURCE=cases/load-policy-fixtures/vm-policy-cache-probe.el BENCH_ITERS=200
 ```
+
+## Batch Freeze Notes (2026-02-13)
+
+- Queue slice completed and frozen: commits `7a688f4a` through `8de23c4f`.
+- Introspection behavior now oracle-guarded for predicate boundaries, function-cell lookup, alias traversal, and arity/error signaling edges.
+- Added fast introspection gate target: `make check-introspection-neovm`.
+- Required periodic full gate for this batch was run: `make check-all-neovm`.
