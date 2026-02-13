@@ -837,6 +837,14 @@ fn signal_file_io_paths(err: std::io::Error, action: &str, from: &str, to: &str)
     signal_file_io_error(err, format!("{action} {from} to {to}"))
 }
 
+fn delete_file_compat(filename: &str) -> Result<(), Flow> {
+    match delete_file(filename) {
+        Ok(()) => Ok(()),
+        Err(err) if err.kind() == ErrorKind::NotFound => Ok(()),
+        Err(err) => Err(signal_file_io_path(err, "Deleting", filename)),
+    }
+}
+
 /// (file-exists-p FILENAME) -> t or nil
 pub(crate) fn builtin_file_exists_p(args: Vec<Value>) -> EvalResult {
     expect_args("file-exists-p", &args, 1)?;
@@ -937,7 +945,7 @@ pub(crate) fn builtin_file_symlink_p_eval(eval: &Evaluator, args: Vec<Value>) ->
 pub(crate) fn builtin_delete_file(args: Vec<Value>) -> EvalResult {
     expect_args("delete-file", &args, 1)?;
     let filename = expect_string_strict(&args[0])?;
-    delete_file(&filename).map_err(|e| signal_file_io_path(e, "Deleting", &filename))?;
+    delete_file_compat(&filename)?;
     Ok(Value::Nil)
 }
 
@@ -947,7 +955,7 @@ pub(crate) fn builtin_delete_file_eval(eval: &Evaluator, args: Vec<Value>) -> Ev
     expect_args("delete-file", &args, 1)?;
     let filename = expect_string_strict(&args[0])?;
     let filename = resolve_filename_for_eval(eval, &filename);
-    delete_file(&filename).map_err(|e| signal_file_io_path(e, "Deleting", &filename))?;
+    delete_file_compat(&filename)?;
     Ok(Value::Nil)
 }
 
@@ -1593,6 +1601,14 @@ mod tests {
             }
             other => panic!("expected signal, got {:?}", other),
         }
+    }
+
+    #[test]
+    fn test_delete_file_compat_missing_is_noop() {
+        let path = std::env::temp_dir().join("neovm_delete_missing_noop.tmp");
+        let path_str = path.to_string_lossy().to_string();
+        let _ = fs::remove_file(&path);
+        assert!(delete_file_compat(&path_str).is_ok());
     }
 
     // -----------------------------------------------------------------------
