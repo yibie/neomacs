@@ -7266,6 +7266,26 @@ merge_faces (struct window *w, Lisp_Object face_name, int face_id,
   return lookup_face (f, attrs);
 }
 
+/* Merge an arbitrary face reference (symbol, plist, list of faces)
+   onto a base realized face.  Returns the new realized face ID.
+   This is a public wrapper around the static merge_face_ref.  */
+int
+merge_face_ref_from (struct window *w, Lisp_Object face_ref, int base_face_id)
+{
+  struct frame *f = WINDOW_XFRAME (w);
+  struct face *base_face = FACE_FROM_ID_OR_NULL (f, base_face_id);
+  if (!base_face || NILP (face_ref))
+    return base_face_id;
+
+  Lisp_Object attrs[LFACE_VECTOR_SIZE];
+  memcpy (attrs, base_face->lface, sizeof attrs);
+
+  if (!merge_face_ref (w, f, face_ref, attrs, true, NULL, 0))
+    return base_face_id;
+
+  return lookup_face (f, attrs);
+}
+
 
 
 #ifndef HAVE_X_WINDOWS

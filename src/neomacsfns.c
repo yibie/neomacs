@@ -1049,18 +1049,28 @@ If the parameters specify a display, that display is used.  */)
   if (FIXNUMP (tem))
     store_frame_param (f, Qmin_height, tem);
 
-  /* Call adjust_frame_size - this initializes glyph matrices.
+  /* Call adjust_frame_size to initialize glyph matrices.
      CRITICAL: This sets glyphs_initialized_p which is required for redisplay!
-     Use the display dimensions (dpyinfo->width/height) as the target size
-     so the frame matches the actual window created by the render thread.
-     Note: adjust_frame_size expects TEXT pixel dimensions, so we need to
-     convert from native (window) pixel dimensions. */
+
+     In neomacs the winit window already exists (created by init_threaded).
+     We must size the frame to match that window, not the other way around.
+     (In official X11 Emacs the window is created AFTER adjust_frame_size,
+     so it can be sized to match the frame.  Here we do the reverse.)
+
+     Compute text dimensions from the initial window size minus decorations
+     (fringes, scroll bars, internal borders) so that the resulting native
+     frame dimensions match the pre-existing winit window.  */
   {
-    int native_width = dpyinfo->width;
-    int native_height = dpyinfo->height;
-    /* Convert native pixels to text pixels by subtracting decorations */
-    int text_width = FRAME_PIXEL_TO_TEXT_WIDTH (f, native_width);
-    int text_height = FRAME_PIXEL_TO_TEXT_HEIGHT (f, native_height);
+    int win_w = dpyinfo->init_window_width;
+    int win_h = dpyinfo->init_window_height;
+    int text_width = win_w
+      - FRAME_LEFT_FRINGE_WIDTH (f) - FRAME_RIGHT_FRINGE_WIDTH (f)
+      - FRAME_SCROLL_BAR_AREA_WIDTH (f)
+      - 2 * FRAME_INTERNAL_BORDER_WIDTH (f);
+    int text_height = win_h
+      - 2 * FRAME_INTERNAL_BORDER_WIDTH (f);
+    if (text_width < 0) text_width = 0;
+    if (text_height < 0) text_height = 0;
     adjust_frame_size (f, text_width, text_height, 5, true,
 		       Qx_create_frame_1);
   }
@@ -1077,12 +1087,6 @@ If the parameters specify a display, that display is used.  */)
 			 make_fixnum (0),
 			 NULL, NULL, RES_TYPE_NUMBER);
 
-  /* Re-fit the frame within the display dimensions now that all margins
-     (menu bar, tab bar, tool bar, fringes, borders) are finalized.
-     Without this, the frame can grow beyond the display because each
-     gui_default_parameter that adds bar lines triggers adjust_frame_size
-     which may try to preserve the text area and grow the native frame.  */
-  change_frame_size (f, dpyinfo->width, dpyinfo->height, false, false, false);
 
   gui_default_parameter (f, parms, Qbuffer_predicate, Qnil,
 			 "bufferPredicate", "BufferPredicate",

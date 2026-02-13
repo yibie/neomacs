@@ -3825,6 +3825,7 @@ int face_at_string_position (struct window *, Lisp_Object, ptrdiff_t, ptrdiff_t,
                              ptrdiff_t *, enum face_id, bool,
                              enum lface_attribute_index);
 int merge_faces (struct window *, Lisp_Object, int, int);
+int merge_face_ref_from (struct window *, Lisp_Object, int);
 int compute_char_face (struct frame *, int, Lisp_Object);
 void free_all_realized_faces (Lisp_Object);
 extern char unspecified_fg[], unspecified_bg[];

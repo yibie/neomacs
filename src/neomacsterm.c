@@ -343,8 +343,14 @@ neomacs_open_display (const char *display_name)
   neomacs_initialize_display_info (dpyinfo);
 
   /* Initialize the Rust display engine in threaded mode.
-     This spawns the render thread with winit event loop.  */
-  int wakeup_fd = neomacs_display_init_threaded (dpyinfo->width, dpyinfo->height, "Emacs");
+     This spawns the render thread with winit event loop.
+     Use a reasonable initial window size (not full display dimensions)
+     to match official Emacs behavior — the frame creation will set
+     the actual size from frame parameters.  */
+  int init_w = 960, init_h = 640;
+  int wakeup_fd = neomacs_display_init_threaded (init_w, init_h, "Emacs");
+  dpyinfo->init_window_width = init_w;
+  dpyinfo->init_window_height = init_h;
 
   if (wakeup_fd < 0)
     {
@@ -372,9 +378,9 @@ neomacs_open_display (const char *display_name)
   /* Register wakeup handler with Emacs event loop */
   add_read_fd (wakeup_fd, neomacs_display_wakeup_handler, dpyinfo);
 
-  /* Update render thread with actual display dimensions if they changed */
-  if (dpyinfo->display_handle)
-    neomacs_display_resize (dpyinfo->display_handle, dpyinfo->width, dpyinfo->height);
+  /* Note: dpyinfo->width/height are DISPLAY dimensions (for Emacs
+     frame sizing logic), NOT the desired window size.  The window
+     will be resized when a frame is created with proper parameters.  */
 
   /* Add to display list */
   dpyinfo->next = neomacs_display_list;
@@ -2799,7 +2805,9 @@ neomacs_layout_mode_line_text (void *window_ptr, void *frame_ptr,
       if (!face)
         face = FACE_FROM_ID_OR_NULL (f, DEFAULT_FACE_ID);
       if (face)
-        fill_face_data (f, face, (struct FaceDataFFI *) face_out);
+        {
+          fill_face_data (f, face, (struct FaceDataFFI *) face_out);
+        }
     }
 
   /* Get mode-line-format from the window's buffer */
@@ -2815,14 +2823,14 @@ neomacs_layout_mode_line_text (void *window_ptr, void *frame_ptr,
   struct buffer *old = current_buffer;
   set_buffer_internal_1 (buf);
 
-  /* Call (format-mode-line FORMAT FACE WINDOW BUFFER)
-     Use the mode-line face to get propertized string with face text properties
-     from :propertize specs. */
-  Lisp_Object face_sym = selected
-    ? Qmode_line_active : Qmode_line_inactive;
+  /* Call (format-mode-line FORMAT nil WINDOW BUFFER)
+     Pass nil as FACE so that per-segment face properties from
+     :propertize specs are preserved in the output string.
+     The base mode-line face is applied later via
+     face_at_string_position with face_id as base.  */
   Lisp_Object window_obj;
   XSETWINDOW (window_obj, w);
-  Lisp_Object result = Fformat_mode_line (format, face_sym,
+  Lisp_Object result = Fformat_mode_line (format, Qnil,
                                            window_obj, w->contents);
 
   set_buffer_internal_1 (old);
@@ -2854,29 +2862,41 @@ neomacs_layout_mode_line_text (void *window_ptr, void *frame_ptr,
 
       while (charpos < nchars && nruns < max_runs)
         {
-          /* Get face property at this position */
-          Lisp_Object face_prop
-            = Fget_text_property (make_fixnum (charpos), Qface, result);
-
-          /* Find next change */
-          Lisp_Object next_change
-            = Fnext_single_property_change (make_fixnum (charpos), Qface,
+          /* Find next change position for face OR font-lock-face.
+             We need to track both since doom-modeline uses
+             font-lock-face for per-segment styling.  */
+          Lisp_Object pos_obj = make_fixnum (charpos);
+          Lisp_Object face_next
+            = Fnext_single_property_change (pos_obj, Qface,
                                              result, Qnil);
-          ptrdiff_t next_pos = NILP (next_change)
-            ? nchars : XFIXNUM (next_change);
+          Lisp_Object flf_next
+            = Fnext_single_property_change (pos_obj, Qfont_lock_face,
+                                             result, Qnil);
+          ptrdiff_t next_pos = nchars;
+          if (!NILP (face_next))
+            next_pos = XFIXNUM (face_next);
+          if (!NILP (flf_next) && XFIXNUM (flf_next) < next_pos)
+            next_pos = XFIXNUM (flf_next);
 
-          /* Resolve face to colors using face_at_string_position, which
-             properly handles all face property formats (symbols, lists,
-             plists) and merges with the base mode-line face.  */
+          /* Resolve face: start with face_at_string_position which
+             merges the 'face' text property with the base mode-line
+             face.  */
           uint32_t fg = 0, bg = 0;
           {
             ptrdiff_t endpos;
             int rid = face_at_string_position (w, result, charpos, 0,
                                                &endpos, face_id,
                                                false, 0);
-            /* Use endpos as next change position for efficiency */
-            if (endpos > charpos && endpos <= nchars)
+            if (endpos > charpos && endpos < next_pos)
               next_pos = endpos;
+
+            /* Also check font-lock-face property (used by
+               doom-modeline for per-segment colors) and merge it
+               on top of the resolved face.  */
+            Lisp_Object flf_prop
+              = Fget_text_property (pos_obj, Qfont_lock_face, result);
+            if (!NILP (flf_prop))
+              rid = merge_face_ref_from (w, flf_prop, rid);
 
             struct face *rf = FACE_FROM_ID_OR_NULL (f, rid);
             if (rf)
@@ -2895,7 +2915,6 @@ neomacs_layout_mode_line_text (void *window_ptr, void *frame_ptr,
           /* Only emit a run if colors changed */
           if (fg != prev_fg || bg != prev_bg)
             {
-              /* Get byte offset for this charpos */
               ptrdiff_t byte_off = string_char_to_byte (result, charpos);
               if (byte_off > 0xFFFF) byte_off = 0xFFFF;
               uint16_t boff = (uint16_t) byte_off;
@@ -15675,10 +15694,6 @@ neomacs_display_wakeup_handler (int fd, void *data)
             struct neomacs_display_info *dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
             int new_width = ev->width;
             int new_height = ev->height;
-
-            nlog_info ("RESIZE: %dx%d -> %dx%d",
-                       FRAME_PIXEL_WIDTH (f), FRAME_PIXEL_HEIGHT (f),
-                       new_width, new_height);
 
             /* Update the Rust display handle */
             if (dpyinfo && dpyinfo->display_handle)

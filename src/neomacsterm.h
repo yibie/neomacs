@@ -107,9 +107,15 @@ struct neomacs_display_info
   /* Reference count for frames using this display */
   int reference_count;
 
-  /* Display dimensions */
+  /* Display dimensions (full monitor size in logical pixels) */
   int width;
   int height;
+
+  /* Initial winit window dimensions (logical pixels).
+     The frame creation code uses these so the Emacs frame matches
+     the pre-existing winit window — avoiding size mismatch.  */
+  int init_window_width;
+  int init_window_height;
 
   /* Bits per pixel */
   int n_planes;
