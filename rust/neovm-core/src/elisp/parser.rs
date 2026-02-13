@@ -395,6 +395,22 @@ impl<'a> Parser<'a> {
                 // #(...) — Emacs uses this for byte-code, treat as vector for now
                 self.parse_vector_paren()
             }
+            '[' => {
+                // #[...] — compiled-function literal in .elc.
+                // Preserve it as data so forms like (defalias 'f #[...]) load.
+                let vector = self.parse_vector()?;
+                Ok(Expr::List(vec![Expr::Symbol("quote".into()), vector]))
+            }
+            '@' => {
+                // #@N<bytes> — reader skip used by .elc for inline data blocks.
+                self.parse_hash_skip_bytes()
+            }
+            '$' => {
+                // #$ — expands to the current load file name during read.
+                // We model it as the special variable symbol and let eval resolve it.
+                self.bump();
+                Ok(Expr::Symbol("load-file-name".into()))
+            }
             'b' | 'B' => {
                 // #b... binary integer
                 self.bump();
@@ -440,6 +456,13 @@ impl<'a> Parser<'a> {
                 None => return Err(self.error("unterminated vector")),
             }
         }
+    }
+
+    fn parse_hash_skip_bytes(&mut self) -> Result<Expr, ParseError> {
+        self.expect('@')?;
+        let len = self.parse_decimal_usize()?;
+        self.skip_exact_bytes(len)?;
+        self.parse_expr()
     }
 
     fn parse_radix_number(&mut self, radix: u32) -> Result<Expr, ParseError> {
@@ -567,6 +590,33 @@ impl<'a> Parser<'a> {
             position: self.pos,
             message: message.to_string(),
         }
+    }
+
+    fn parse_decimal_usize(&mut self) -> Result<usize, ParseError> {
+        let start = self.pos;
+        while matches!(self.current(), Some(c) if c.is_ascii_digit()) {
+            self.bump();
+        }
+        if self.pos == start {
+            return Err(self.error("expected decimal length"));
+        }
+        self.input[start..self.pos]
+            .parse::<usize>()
+            .map_err(|_| self.error("invalid decimal length"))
+    }
+
+    fn skip_exact_bytes(&mut self, len: usize) -> Result<(), ParseError> {
+        let Some(new_pos) = self.pos.checked_add(len) else {
+            return Err(self.error("byte skip overflow"));
+        };
+        if new_pos > self.input.len() {
+            return Err(self.error("byte skip past end of input"));
+        }
+        if !self.input.is_char_boundary(new_pos) {
+            return Err(self.error("byte skip ended mid-character"));
+        }
+        self.pos = new_pos;
+        Ok(())
     }
 }
 
@@ -745,5 +795,37 @@ mod tests {
     fn parse_nested_block_comment() {
         let forms = parse_forms("42 #| outer #| inner |# still outer |# 7").unwrap();
         assert_eq!(forms, vec![Expr::Int(42), Expr::Int(7)]);
+    }
+
+    #[test]
+    fn parse_bytecode_literal_vector_is_quoted() {
+        let forms = parse_forms("#[(x) \"\\bT\\207\" [x] 1 (#$ . 83)]").unwrap();
+        assert_eq!(forms.len(), 1);
+        let Expr::List(items) = &forms[0] else {
+            panic!("expected quoted literal");
+        };
+        assert_eq!(items.len(), 2);
+        assert_eq!(items[0], Expr::Symbol("quote".into()));
+
+        let Expr::Vector(values) = &items[1] else {
+            panic!("expected vector body");
+        };
+        let Expr::DottedList(cons_items, cdr) = &values[4] else {
+            panic!("expected source-loc dotted pair");
+        };
+        assert_eq!(cons_items, &vec![Expr::Symbol("load-file-name".into())]);
+        assert_eq!(**cdr, Expr::Int(83));
+    }
+
+    #[test]
+    fn parse_hash_skip_bytes_reads_next_form() {
+        let forms = parse_forms("#@4data42").unwrap();
+        assert_eq!(forms, vec![Expr::Int(42)]);
+    }
+
+    #[test]
+    fn parse_hash_dollar_maps_to_load_file_name_symbol() {
+        let forms = parse_forms("#$").unwrap();
+        assert_eq!(forms, vec![Expr::Symbol("load-file-name".into())]);
     }
 }
