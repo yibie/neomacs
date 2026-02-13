@@ -763,6 +763,41 @@ pub(crate) fn builtin_completing_read(
     Err(signal("end-of-file", vec![]))
 }
 
+fn pop_unread_command_event(eval: &mut super::eval::Evaluator) -> Option<Value> {
+    let current = eval
+        .obarray
+        .symbol_value("unread-command-events")
+        .cloned()
+        .unwrap_or(Value::Nil);
+    match current {
+        Value::Cons(cell) => {
+            let pair = cell.lock().expect("poisoned");
+            let head = pair.car.clone();
+            let tail = pair.cdr.clone();
+            drop(pair);
+            eval.obarray.set_symbol_value("unread-command-events", tail);
+            Some(head)
+        }
+        _ => None,
+    }
+}
+
+fn event_to_int(event: &Value) -> Option<i64> {
+    match event {
+        Value::Int(n) => Some(*n),
+        Value::Char(c) => Some(*c as i64),
+        _ => None,
+    }
+}
+
+fn event_to_char(event: &Value) -> Option<char> {
+    match event {
+        Value::Char(c) => Some(*c),
+        Value::Int(n) if *n >= 0 => char::from_u32(*n as u32),
+        _ => None,
+    }
+}
+
 // ---------------------------------------------------------------------------
 // 9. y-or-n-p (stub)
 // ---------------------------------------------------------------------------
@@ -805,10 +840,33 @@ pub(crate) fn builtin_yes_or_no_p(args: Vec<Value>) -> EvalResult {
 ///
 /// Batch stub: returns nil (no input available).
 pub(crate) fn builtin_read_char(
-    _eval: &mut super::eval::Evaluator,
+    eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
     let _ = args;
+    if let Some(event) = pop_unread_command_event(eval) {
+        if let Some(n) = event_to_int(&event) {
+            return Ok(Value::Int(n));
+        }
+        return Ok(event);
+    }
+    Ok(Value::Nil)
+}
+
+/// `(read-key &optional PROMPT)`
+///
+/// Batch stub: return next `unread-command-events` event when present, else nil.
+pub(crate) fn builtin_read_key(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    let _ = args;
+    if let Some(event) = pop_unread_command_event(eval) {
+        if let Some(n) = event_to_int(&event) {
+            return Ok(Value::Int(n));
+        }
+        return Ok(event);
+    }
     Ok(Value::Nil)
 }
 
@@ -820,11 +878,18 @@ pub(crate) fn builtin_read_char(
 ///
 /// Stub: returns empty vector.
 pub(crate) fn builtin_read_key_sequence(
-    _eval: &mut super::eval::Evaluator,
+    eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("read-key-sequence", &args, 1)?;
-    Ok(Value::vector(vec![]))
+    let _prompt = expect_string(&args[0])?;
+    if let Some(event) = pop_unread_command_event(eval) {
+        if let Some(c) = event_to_char(&event) {
+            return Ok(Value::string(c.to_string()));
+        }
+        return Ok(Value::vector(vec![event]));
+    }
+    Ok(Value::string(""))
 }
 
 // ---------------------------------------------------------------------------
@@ -1374,10 +1439,37 @@ mod tests {
     }
 
     #[test]
-    fn read_key_sequence_returns_empty_vector() {
+    fn read_char_consumes_unread_command_event() {
+        let mut ev = Evaluator::new();
+        ev.obarray
+            .set_symbol_value("unread-command-events", Value::list(vec![Value::Int(97)]));
+        let result = builtin_read_char(&mut ev, vec![]).unwrap();
+        assert_eq!(result.as_int(), Some(97));
+    }
+
+    #[test]
+    fn read_key_consumes_unread_command_event() {
+        let mut ev = Evaluator::new();
+        ev.obarray
+            .set_symbol_value("unread-command-events", Value::list(vec![Value::Int(97)]));
+        let result = builtin_read_key(&mut ev, vec![]).unwrap();
+        assert_eq!(result.as_int(), Some(97));
+    }
+
+    #[test]
+    fn read_key_sequence_returns_empty_string() {
         let mut ev = Evaluator::new();
         let result = builtin_read_key_sequence(&mut ev, vec![Value::string("key: ")]).unwrap();
-        assert!(result.is_vector());
+        assert!(matches!(result, Value::Str(s) if s.as_str().is_empty()));
+    }
+
+    #[test]
+    fn read_key_sequence_consumes_unread_command_event() {
+        let mut ev = Evaluator::new();
+        ev.obarray
+            .set_symbol_value("unread-command-events", Value::list(vec![Value::Int(97)]));
+        let result = builtin_read_key_sequence(&mut ev, vec![Value::string("key: ")]).unwrap();
+        assert!(matches!(result, Value::Str(s) if s.as_str() == "a"));
     }
 
     // ===================================================================
