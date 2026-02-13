@@ -3674,12 +3674,8 @@ pub(crate) fn dispatch_builtin(
         "ftruncate" => super::floatfns::builtin_ftruncate(args),
 
         // Case/char (pure)
-        "upcase" => super::casefiddle::builtin_upcase(args),
-        "downcase" => super::casefiddle::builtin_downcase(args),
         "capitalize" => super::casefiddle::builtin_capitalize(args),
         "upcase-initials" => super::casefiddle::builtin_upcase_initials(args),
-        "characterp" => super::casefiddle::builtin_characterp(args),
-        "string-width" => super::casefiddle::builtin_string_width(args),
         "char-resolve-modifiers" => super::casefiddle::builtin_char_resolve_modifiers(args),
         "get-byte" => super::casefiddle::builtin_get_byte(args),
 
