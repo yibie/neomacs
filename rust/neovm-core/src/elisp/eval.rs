@@ -102,12 +102,23 @@ impl Default for Evaluator {
 impl Evaluator {
     pub fn new() -> Self {
         let mut obarray = Obarray::new();
+        let default_directory = std::env::current_dir()
+            .ok()
+            .and_then(|p| p.to_str().map(|s| s.to_string()))
+            .map(|mut s| {
+                if !s.ends_with('/') {
+                    s.push('/');
+                }
+                s
+            })
+            .unwrap_or_else(|| "./".to_string());
 
         // Set up standard global variables
         obarray.set_symbol_value("most-positive-fixnum", Value::Int(i64::MAX));
         obarray.set_symbol_value("most-negative-fixnum", Value::Int(i64::MIN));
         obarray.set_symbol_value("emacs-version", Value::string("29.1"));
         obarray.set_symbol_value("system-type", Value::symbol("gnu/linux"));
+        obarray.set_symbol_value("default-directory", Value::string(default_directory));
         obarray.set_symbol_value("load-path", Value::Nil);
         obarray.set_symbol_value("load-history", Value::Nil);
         obarray.set_symbol_value("features", Value::Nil);
@@ -128,6 +139,7 @@ impl Evaluator {
             "load-path",
             "load-history",
             "features",
+            "default-directory",
             "load-file-name",
             "noninteractive",
             "inhibit-quit",
@@ -1897,6 +1909,18 @@ mod tests {
             .collect();
         assert_eq!(results[0], "OK my-feature");
         assert_eq!(results[1], "OK t");
+    }
+
+    #[test]
+    fn default_directory_is_bound_to_directory_path() {
+        let results = eval_all(
+            "(stringp default-directory)
+             (file-directory-p default-directory)
+             (string-suffix-p \"/\" default-directory)",
+        );
+        assert_eq!(results[0], "OK t");
+        assert_eq!(results[1], "OK t");
+        assert_eq!(results[2], "OK t");
     }
 
     #[test]
