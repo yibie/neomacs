@@ -4,8 +4,9 @@ use super::error::EvalError;
 use super::expr::print_expr;
 use super::expr::Expr;
 use super::value::Value;
-use std::hash::{Hash, Hasher};
 use std::fs;
+use std::hash::{Hash, Hasher};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 fn has_load_suffix(name: &str) -> bool {
@@ -145,6 +146,50 @@ fn cache_sidecar_path(source_path: &Path) -> PathBuf {
     source_path.with_extension("neoc")
 }
 
+fn cache_temp_path(source_path: &Path) -> PathBuf {
+    cache_sidecar_path(source_path).with_extension("neoc.tmp")
+}
+
+const CACHE_WRITE_PHASE_BEFORE_WRITE: u8 = 1;
+const CACHE_WRITE_PHASE_AFTER_WRITE: u8 = 2;
+
+#[cfg(test)]
+thread_local! {
+    static CACHE_WRITE_FAIL_PHASE: std::cell::Cell<u8> = const { std::cell::Cell::new(0) };
+}
+
+#[cfg(test)]
+fn set_cache_write_fail_phase_for_test(phase: u8) {
+    CACHE_WRITE_FAIL_PHASE.with(|p| p.set(phase));
+}
+
+#[cfg(test)]
+fn clear_cache_write_fail_phase_for_test() {
+    CACHE_WRITE_FAIL_PHASE.with(|p| p.set(0));
+}
+
+fn maybe_inject_cache_write_failure(_phase: u8) -> std::io::Result<()> {
+    #[cfg(test)]
+    {
+        let should_fail = CACHE_WRITE_FAIL_PHASE.with(|p| p.get() == _phase);
+        if should_fail {
+            return Err(std::io::Error::other(format!(
+                "injected .neoc write failure at phase {_phase}"
+            )));
+        }
+    }
+
+    Ok(())
+}
+
+fn best_effort_sync_parent_dir(path: &Path) {
+    if let Some(parent) = path.parent() {
+        if let Ok(dir) = fs::File::open(parent) {
+            let _ = dir.sync_data();
+        }
+    }
+}
+
 fn maybe_load_cached_forms(
     source_path: &Path,
     source: &str,
@@ -178,7 +223,12 @@ fn maybe_load_cached_forms(
     super::parser::parse_forms(payload).ok()
 }
 
-fn write_forms_cache(source_path: &Path, source: &str, lexical_binding: bool, forms: &[Expr]) {
+fn write_forms_cache(
+    source_path: &Path,
+    source: &str,
+    lexical_binding: bool,
+    forms: &[Expr],
+) -> std::io::Result<()> {
     let cache_path = cache_sidecar_path(source_path);
     let payload = forms.iter().map(print_expr).collect::<Vec<_>>().join("\n");
     let raw = format!(
@@ -188,9 +238,26 @@ fn write_forms_cache(source_path: &Path, source: &str, lexical_binding: bool, fo
         payload
     );
 
-    let tmp_path = cache_path.with_extension("neoc.tmp");
-    let _ = fs::write(&tmp_path, raw);
-    let _ = fs::rename(&tmp_path, &cache_path);
+    let tmp_path = cache_temp_path(source_path);
+    let write_result = (|| -> std::io::Result<()> {
+        maybe_inject_cache_write_failure(CACHE_WRITE_PHASE_BEFORE_WRITE)?;
+
+        let mut file = fs::File::create(&tmp_path)?;
+        file.write_all(raw.as_bytes())?;
+        file.sync_data()?;
+
+        maybe_inject_cache_write_failure(CACHE_WRITE_PHASE_AFTER_WRITE)?;
+
+        fs::rename(&tmp_path, &cache_path)?;
+        best_effort_sync_parent_dir(&cache_path);
+        Ok(())
+    })();
+
+    if write_result.is_err() {
+        let _ = fs::remove_file(&tmp_path);
+    }
+
+    write_result
 }
 
 fn parse_source_with_cache(
@@ -210,7 +277,8 @@ fn parse_source_with_cache(
             e
         ))],
     })?;
-    write_forms_cache(source_path, source, lexical_binding, &forms);
+    // Cache persistence failures must not affect `load` semantics.
+    let _ = write_forms_cache(source_path, source, lexical_binding, &forms);
     Ok(forms)
 }
 
@@ -296,6 +364,21 @@ mod tests {
     use super::*;
     use std::fs;
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    struct CacheWriteFailGuard;
+
+    impl CacheWriteFailGuard {
+        fn set(phase: u8) -> Self {
+            set_cache_write_fail_phase_for_test(phase);
+            Self
+        }
+    }
+
+    impl Drop for CacheWriteFailGuard {
+        fn drop(&mut self) {
+            clear_cache_write_fail_phase_for_test();
+        }
+    }
 
     #[test]
     fn find_file_nonexistent() {
@@ -534,6 +617,68 @@ mod tests {
         assert!(
             rewritten.starts_with(ELISP_CACHE_MAGIC),
             "rewritten cache should have expected header",
+        );
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn load_file_ignores_cache_write_failures_before_write() {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock before epoch")
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("neovm-load-neoc-write-fail-pre-{unique}"));
+        fs::create_dir_all(&dir).expect("create temp fixture dir");
+        let file = dir.join("probe.el");
+        fs::write(&file, "(setq vm-load-neoc-write-fail-pre 'ok)\n").expect("write source fixture");
+
+        let _guard = CacheWriteFailGuard::set(CACHE_WRITE_PHASE_BEFORE_WRITE);
+        let mut eval = super::super::eval::Evaluator::new();
+        let loaded = load_file(&mut eval, &file).expect("load should succeed despite cache write failure");
+        assert_eq!(loaded, Value::True);
+        assert_eq!(
+            eval.obarray()
+                .symbol_value("vm-load-neoc-write-fail-pre")
+                .cloned(),
+            Some(Value::symbol("ok"))
+        );
+        assert!(
+            !cache_sidecar_path(&file).exists(),
+            "cache should be absent when write fails before cache file creation",
+        );
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn load_file_cleans_tmp_after_cache_write_failure_before_rename() {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock before epoch")
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("neovm-load-neoc-write-fail-post-{unique}"));
+        fs::create_dir_all(&dir).expect("create temp fixture dir");
+        let file = dir.join("probe.el");
+        fs::write(&file, "(setq vm-load-neoc-write-fail-post 'ok)\n").expect("write source fixture");
+
+        let _guard = CacheWriteFailGuard::set(CACHE_WRITE_PHASE_AFTER_WRITE);
+        let mut eval = super::super::eval::Evaluator::new();
+        let loaded = load_file(&mut eval, &file).expect("load should succeed despite cache rename failure");
+        assert_eq!(loaded, Value::True);
+        assert_eq!(
+            eval.obarray()
+                .symbol_value("vm-load-neoc-write-fail-post")
+                .cloned(),
+            Some(Value::symbol("ok"))
+        );
+        assert!(
+            !cache_sidecar_path(&file).exists(),
+            "cache should be absent when failure happens before rename",
+        );
+        assert!(
+            !cache_temp_path(&file).exists(),
+            "temporary cache file should be cleaned after write failure",
         );
 
         let _ = fs::remove_dir_all(&dir);
