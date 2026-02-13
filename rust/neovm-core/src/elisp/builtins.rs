@@ -1557,8 +1557,22 @@ pub(crate) fn builtin_apply(eval: &mut super::eval::Evaluator, args: Vec<Value>)
     match last {
         Value::Nil => {}
         Value::Cons(_) => {
-            if let Some(items) = list_to_vec(last) {
-                call_args.extend(items);
+            let mut cursor = last.clone();
+            loop {
+                match cursor {
+                    Value::Nil => break,
+                    Value::Cons(cell) => {
+                        let pair = cell.lock().expect("poisoned");
+                        call_args.push(pair.car.clone());
+                        cursor = pair.cdr.clone();
+                    }
+                    other => {
+                        return Err(signal(
+                            "wrong-type-argument",
+                            vec![Value::symbol("listp"), other],
+                        ))
+                    }
+                }
             }
         }
         _ => {

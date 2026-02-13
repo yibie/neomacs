@@ -1413,6 +1413,8 @@ impl Evaluator {
                 }
                 if let Some(result) = builtins::dispatch_builtin(self, &name, args) {
                     result
+                } else if super::subr_info::is_special_form(&name) {
+                    Err(signal("invalid-function", vec![Value::Subr(name)]))
                 } else {
                     Err(signal("void-function", vec![Value::symbol(name)]))
                 }
@@ -1423,10 +1425,14 @@ impl Evaluator {
                     self.apply(func, args)
                 } else if let Some(result) = builtins::dispatch_builtin(self, &name, args) {
                     result
+                } else if super::subr_info::is_special_form(&name) {
+                    Err(signal("invalid-function", vec![Value::Subr(name)]))
                 } else {
                     Err(signal("void-function", vec![Value::symbol(name)]))
                 }
             }
+            Value::True => Err(signal("void-function", vec![Value::symbol("t")])),
+            Value::Keyword(name) => Err(signal("void-function", vec![Value::symbol(name)])),
             Value::Nil => Err(signal("void-function", vec![Value::symbol("nil")])),
             _ => Err(signal("invalid-function", vec![function])),
         }
@@ -1846,6 +1852,18 @@ mod tests {
     }
 
     #[test]
+    fn apply_improper_tail_signals_wrong_type_argument() {
+        assert_eq!(
+            eval_one(
+                "(condition-case err
+                     (apply 'list '(1 . 2))
+                   (error (list (car err) (nth 2 err))))"
+            ),
+            "OK (wrong-type-argument 2)"
+        );
+    }
+
+    #[test]
     fn funcall_and_apply_nil_signal_void_function() {
         let funcall_result = eval_one(
             "(condition-case err
@@ -1860,6 +1878,38 @@ mod tests {
                (void-function (car err)))",
         );
         assert_eq!(apply_result, "OK void-function");
+    }
+
+    #[test]
+    fn funcall_and_apply_non_callable_symbol_edges() {
+        assert_eq!(
+            eval_one("(condition-case err (funcall t) (error (car err)))"),
+            "OK void-function"
+        );
+        assert_eq!(
+            eval_one("(condition-case err (funcall :vm-matrix-keyword) (error (car err)))"),
+            "OK void-function"
+        );
+        assert_eq!(
+            eval_one("(condition-case err (funcall 'if) (error (car err)))"),
+            "OK invalid-function"
+        );
+        assert_eq!(
+            eval_one("(condition-case err (funcall (symbol-function 'if) t 1 2) (error (car err)))"),
+            "OK invalid-function"
+        );
+        assert_eq!(
+            eval_one("(condition-case err (apply t nil) (error (car err)))"),
+            "OK void-function"
+        );
+        assert_eq!(
+            eval_one("(condition-case err (apply :vm-matrix-keyword nil) (error (car err)))"),
+            "OK void-function"
+        );
+        assert_eq!(
+            eval_one("(condition-case err (apply 'if '(t 1 2)) (error (car err)))"),
+            "OK invalid-function"
+        );
     }
 
     #[test]
