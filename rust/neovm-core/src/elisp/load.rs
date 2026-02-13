@@ -187,12 +187,10 @@ pub fn load_file(eval: &mut super::eval::Evaluator, path: &Path) -> Result<Value
             );
         }
 
-        for (i, form) in forms.iter().enumerate() {
+        for form in forms.iter() {
             if let Err(err) = eval.eval_expr(form) {
-                if i == 0 {
-                    if let Some(source_path) = source_sibling_for_elc(path) {
-                        return load_file(eval, &source_path);
-                    }
+                if let Some(source_path) = source_sibling_for_elc(path) {
+                    return load_file(eval, &source_path);
                 }
                 return Err(err);
             }
@@ -576,6 +574,37 @@ mod tests {
         assert_eq!(
             eval.obarray()
                 .symbol_value("vm-load-elc-eval-fallback")
+                .cloned(),
+            Some(Value::symbol("source"))
+        );
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn load_elc_falls_back_when_later_eval_form_errors() {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock before epoch")
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("neovm-load-elc-late-eval-fallback-{unique}"));
+        fs::create_dir_all(&dir).expect("create temp fixture dir");
+        let source = dir.join("probe.el");
+        let compiled = dir.join("probe.elc");
+        fs::write(&source, "(setq vm-load-elc-late-eval-fallback 'source)\n")
+            .expect("write source fixture");
+        fs::write(
+            &compiled,
+            "(setq vm-load-elc-late-eval-fallback 'compiled-prefix)\n(byte-code \"\\301\\207\" [x] 1)\n",
+        )
+        .expect("write compiled fixture");
+
+        let mut eval = super::super::eval::Evaluator::new();
+        let loaded = load_file(&mut eval, &compiled).expect("load file with late eval fallback");
+        assert_eq!(loaded, Value::True);
+        assert_eq!(
+            eval.obarray()
+                .symbol_value("vm-load-elc-late-eval-fallback")
                 .cloned(),
             Some(Value::symbol("source"))
         );
