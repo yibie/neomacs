@@ -2992,6 +2992,20 @@ enum PureBuiltinId {
     Aset,
     #[strum(serialize = "vconcat")]
     Vconcat,
+    #[strum(serialize = "float")]
+    Float,
+    #[strum(serialize = "truncate")]
+    Truncate,
+    #[strum(serialize = "floor")]
+    Floor,
+    #[strum(serialize = "ceiling")]
+    Ceiling,
+    #[strum(serialize = "round")]
+    Round,
+    #[strum(serialize = "char-to-string")]
+    CharToString,
+    #[strum(serialize = "string-to-char")]
+    StringToChar,
 }
 
 fn dispatch_builtin_id_pure(id: PureBuiltinId, args: Vec<Value>) -> EvalResult {
@@ -3073,6 +3087,13 @@ fn dispatch_builtin_id_pure(id: PureBuiltinId, args: Vec<Value>) -> EvalResult {
         PureBuiltinId::Aref => builtin_aref(args),
         PureBuiltinId::Aset => builtin_aset(args),
         PureBuiltinId::Vconcat => builtin_vconcat(args),
+        PureBuiltinId::Float => builtin_float(args),
+        PureBuiltinId::Truncate => builtin_truncate(args),
+        PureBuiltinId::Floor => builtin_floor(args),
+        PureBuiltinId::Ceiling => builtin_ceiling(args),
+        PureBuiltinId::Round => builtin_round(args),
+        PureBuiltinId::CharToString => builtin_char_to_string(args),
+        PureBuiltinId::StringToChar => builtin_string_to_char(args),
     }
 }
 
@@ -3624,14 +3645,7 @@ pub(crate) fn dispatch_builtin(
         "clrhash" => builtin_clrhash(args),
         "hash-table-count" => builtin_hash_table_count(args),
 
-        // Conversion
-        "float" => builtin_float(args),
-        "truncate" => builtin_truncate(args),
-        "floor" => builtin_floor(args),
-        "ceiling" => builtin_ceiling(args),
-        "round" => builtin_round(args),
-        "char-to-string" => builtin_char_to_string(args),
-        "string-to-char" => builtin_string_to_char(args),
+        // Conversion (typed subset is dispatched above)
 
         // Property lists
         "plist-get" => builtin_plist_get(args),
@@ -4644,5 +4658,18 @@ mod tests {
             .expect("builtin vector should resolve")
             .expect("builtin vector should evaluate");
         assert_eq!(result, Value::vector(vec![Value::Int(7), Value::Int(9)]));
+    }
+
+    #[test]
+    fn pure_dispatch_typed_char_string_conversions_work() {
+        let as_code = dispatch_builtin_pure("string-to-char", vec![Value::string("A")])
+            .expect("builtin string-to-char should resolve")
+            .expect("builtin string-to-char should evaluate");
+        assert_eq!(as_code, Value::Int(65));
+
+        let as_string = dispatch_builtin_pure("char-to-string", vec![Value::Int(65)])
+            .expect("builtin char-to-string should resolve")
+            .expect("builtin char-to-string should evaluate");
+        assert_eq!(as_string, Value::string("A"));
     }
 }
