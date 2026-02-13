@@ -212,6 +212,29 @@ fn expect_int_or_marker(value: &Value) -> Result<i64, Flow> {
     }
 }
 
+fn checked_region_bytes(
+    buf: &crate::buffer::Buffer,
+    start: i64,
+    end: i64,
+) -> Result<(usize, usize), Flow> {
+    let point_min = buf.text.byte_to_char(buf.point_min()) as i64 + 1;
+    let point_max = buf.text.byte_to_char(buf.point_max()) as i64 + 1;
+    if start < point_min || start > point_max || end < point_min || end > point_max {
+        return Err(signal(
+            "args-out-of-range",
+            vec![Value::Buffer(buf.id), Value::Int(start), Value::Int(end)],
+        ));
+    }
+
+    let start_byte = buf.text.char_to_byte((start - 1) as usize);
+    let end_byte = buf.text.char_to_byte((end - 1) as usize);
+    Ok(if start_byte <= end_byte {
+        (start_byte, end_byte)
+    } else {
+        (end_byte, start_byte)
+    })
+}
+
 fn file_error_symbol(kind: std::io::ErrorKind) -> &'static str {
     match kind {
         std::io::ErrorKind::NotFound => "file-missing",
@@ -658,17 +681,14 @@ pub(crate) fn builtin_call_process_region(
             (**s).clone()
         }
         _ => {
-            let start = expect_int_or_marker(&args[0])? as usize;
-            let end = expect_int_or_marker(&args[1])? as usize;
+            let start = expect_int_or_marker(&args[0])?;
+            let end = expect_int_or_marker(&args[1])?;
             let (text, region_beg, region_end) = {
                 let buf = eval
                     .buffers
                     .current_buffer()
                     .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
-                // Convert 1-based Emacs positions to 0-based byte positions.
-                let beg = (start.saturating_sub(1)).min(buf.text.len());
-                let e = (end.saturating_sub(1)).min(buf.text.len());
-                let (region_beg, region_end) = if beg <= e { (beg, e) } else { (e, beg) };
+                let (region_beg, region_end) = checked_region_bytes(buf, start, end)?;
                 (
                     buf.text.text_range(region_beg, region_end),
                     region_beg,
@@ -1338,6 +1358,32 @@ mod tests {
                        (buffer-string)))"#
         ));
         assert_eq!(results[0], r#"OK (0 "abc")"#);
+    }
+
+    #[test]
+    fn call_process_region_negative_start_signals_args_out_of_range() {
+        let cat = find_bin("cat");
+        let result = eval_one(&format!(
+            r#"(with-temp-buffer
+                 (insert "abc")
+                 (condition-case err
+                     (call-process-region -1 2 "{cat}" nil t nil)
+                   (error (car err))))"#
+        ));
+        assert_eq!(result, "OK args-out-of-range");
+    }
+
+    #[test]
+    fn call_process_region_huge_end_signals_args_out_of_range() {
+        let cat = find_bin("cat");
+        let result = eval_one(&format!(
+            r#"(with-temp-buffer
+                 (insert "abc")
+                 (condition-case err
+                     (call-process-region 1 999999 "{cat}" nil t nil)
+                   (error (car err))))"#
+        ));
+        assert_eq!(result, "OK args-out-of-range");
     }
 
     #[test]

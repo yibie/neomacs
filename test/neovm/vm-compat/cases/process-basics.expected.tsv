@@ -22,6 +22,8 @@
 22	(with-temp-buffer (insert "abc") (list (call-process-region (point-min) (point-max) "cat" t nil nil) (buffer-string)))	OK (0 "")
 23	(with-temp-buffer (insert "abc") (condition-case err (call-process-region (make-marker) (point-max) "cat" nil t nil) (error (car err))))	OK error
 24	(with-temp-buffer (insert "abc") (condition-case err (call-process-region (point-min) (make-marker) "cat" nil t nil) (error (car err))))	OK error
-25	(condition-case err (call-process "cat" "/nonexistent/neovm-vm-compat-process-infile") (error (car err)))	OK file-missing
-26	(condition-case err (call-process "/nonexistent/neovm-vm-compat-missing-prog") (error (car err)))	OK file-missing
-27	(with-temp-buffer (insert "x") (condition-case err (call-process-region (point-min) (point-max) "/nonexistent/neovm-vm-compat-missing-prog") (error (car err))))	OK file-missing
+25	(with-temp-buffer (insert "abc") (condition-case err (call-process-region -1 2 "cat" nil t nil) (error (car err))))	OK args-out-of-range
+26	(with-temp-buffer (insert "abc") (condition-case err (call-process-region 1 999999 "cat" nil t nil) (error (car err))))	OK args-out-of-range
+27	(condition-case err (call-process "cat" "/nonexistent/neovm-vm-compat-process-infile") (error (car err)))	OK file-missing
+28	(condition-case err (call-process "/nonexistent/neovm-vm-compat-missing-prog") (error (car err)))	OK file-missing
+29	(with-temp-buffer (insert "x") (condition-case err (call-process-region (point-min) (point-max) "/nonexistent/neovm-vm-compat-missing-prog") (error (car err))))	OK file-missing
