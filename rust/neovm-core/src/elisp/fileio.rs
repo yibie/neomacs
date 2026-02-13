@@ -887,11 +887,31 @@ pub(crate) fn builtin_delete_file(args: Vec<Value>) -> EvalResult {
     Ok(Value::Nil)
 }
 
+/// Evaluator-aware variant of `delete-file` that resolves relative paths
+/// against dynamic/default `default-directory`.
+pub(crate) fn builtin_delete_file_eval(eval: &Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_args("delete-file", &args, 1)?;
+    let filename = expect_string_strict(&args[0])?;
+    let filename = resolve_filename_for_eval(eval, &filename);
+    delete_file(&filename).map_err(|e| signal("file-error", vec![Value::string(e)]))?;
+    Ok(Value::Nil)
+}
+
 /// (rename-file FROM TO) -> nil
 pub(crate) fn builtin_rename_file(args: Vec<Value>) -> EvalResult {
     expect_args("rename-file", &args, 2)?;
     let from = expect_string_strict(&args[0])?;
     let to = expect_string_strict(&args[1])?;
+    rename_file(&from, &to).map_err(|e| signal("file-error", vec![Value::string(e)]))?;
+    Ok(Value::Nil)
+}
+
+/// Evaluator-aware variant of `rename-file` that resolves relative paths
+/// against dynamic/default `default-directory`.
+pub(crate) fn builtin_rename_file_eval(eval: &Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_args("rename-file", &args, 2)?;
+    let from = resolve_filename_for_eval(eval, &expect_string_strict(&args[0])?);
+    let to = resolve_filename_for_eval(eval, &expect_string_strict(&args[1])?);
     rename_file(&from, &to).map_err(|e| signal("file-error", vec![Value::string(e)]))?;
     Ok(Value::Nil)
 }
@@ -905,10 +925,30 @@ pub(crate) fn builtin_copy_file(args: Vec<Value>) -> EvalResult {
     Ok(Value::Nil)
 }
 
+/// Evaluator-aware variant of `copy-file` that resolves relative paths
+/// against dynamic/default `default-directory`.
+pub(crate) fn builtin_copy_file_eval(eval: &Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_min_args("copy-file", &args, 2)?;
+    let from = resolve_filename_for_eval(eval, &expect_string_strict(&args[0])?);
+    let to = resolve_filename_for_eval(eval, &expect_string_strict(&args[1])?);
+    copy_file(&from, &to).map_err(|e| signal("file-error", vec![Value::string(e)]))?;
+    Ok(Value::Nil)
+}
+
 /// (make-directory DIR &optional PARENTS) -> nil
 pub(crate) fn builtin_make_directory(args: Vec<Value>) -> EvalResult {
     expect_min_args("make-directory", &args, 1)?;
     let dir = expect_string_strict(&args[0])?;
+    let parents = args.get(1).is_some_and(|v| v.is_truthy());
+    make_directory(&dir, parents).map_err(|e| signal("file-error", vec![Value::string(e)]))?;
+    Ok(Value::Nil)
+}
+
+/// Evaluator-aware variant of `make-directory` that resolves relative paths
+/// against dynamic/default `default-directory`.
+pub(crate) fn builtin_make_directory_eval(eval: &Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_min_args("make-directory", &args, 1)?;
+    let dir = resolve_filename_for_eval(eval, &expect_string_strict(&args[0])?);
     let parents = args.get(1).is_some_and(|v| v.is_truthy());
     make_directory(&dir, parents).map_err(|e| signal("file-error", vec![Value::string(e)]))?;
     Ok(Value::Nil)
@@ -1726,6 +1766,56 @@ mod tests {
         let items = list_to_vec(&result).unwrap();
         assert_eq!(items.len(), 1);
         assert_eq!(items[0].as_str(), Some("beta.el"));
+
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn test_builtin_file_ops_eval_respects_default_directory() {
+        let base = std::env::temp_dir().join("neovm_fileops_eval_builtin");
+        let _ = fs::remove_dir_all(&base);
+        fs::create_dir_all(&base).unwrap();
+        fs::write(base.join("alpha.txt"), "x").unwrap();
+
+        let mut eval = Evaluator::new();
+        let base_str = format!("{}/", base.to_string_lossy());
+        eval.obarray
+            .set_symbol_value("default-directory", Value::string(&base_str));
+
+        builtin_copy_file_eval(
+            &eval,
+            vec![Value::string("alpha.txt"), Value::string("beta.txt")],
+        )
+        .unwrap();
+        assert!(base.join("beta.txt").exists());
+
+        builtin_rename_file_eval(
+            &eval,
+            vec![Value::string("beta.txt"), Value::string("gamma.txt")],
+        )
+        .unwrap();
+        assert!(!base.join("beta.txt").exists());
+        assert!(base.join("gamma.txt").exists());
+
+        builtin_delete_file_eval(&eval, vec![Value::string("gamma.txt")]).unwrap();
+        assert!(!base.join("gamma.txt").exists());
+
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn test_builtin_make_directory_eval_respects_default_directory() {
+        let base = std::env::temp_dir().join("neovm_mkdir_eval_builtin");
+        let _ = fs::remove_dir_all(&base);
+        fs::create_dir_all(&base).unwrap();
+
+        let mut eval = Evaluator::new();
+        let base_str = format!("{}/", base.to_string_lossy());
+        eval.obarray
+            .set_symbol_value("default-directory", Value::string(&base_str));
+
+        builtin_make_directory_eval(&eval, vec![Value::string("child")]).unwrap();
+        assert!(base.join("child").is_dir());
 
         let _ = fs::remove_dir_all(&base);
     }

@@ -3750,6 +3750,10 @@ pub(crate) fn dispatch_builtin(
             return Some(super::fileio::builtin_insert_file_contents(eval, args))
         }
         "write-region" => return Some(super::fileio::builtin_write_region(eval, args)),
+        "delete-file" => return Some(super::fileio::builtin_delete_file_eval(eval, args)),
+        "rename-file" => return Some(super::fileio::builtin_rename_file_eval(eval, args)),
+        "copy-file" => return Some(super::fileio::builtin_copy_file_eval(eval, args)),
+        "make-directory" => return Some(super::fileio::builtin_make_directory_eval(eval, args)),
         "find-file-noselect" => return Some(super::fileio::builtin_find_file_noselect(eval, args)),
         "directory-files" => return Some(super::fileio::builtin_directory_files_eval(eval, args)),
         "directory-files-and-attributes" => {
