@@ -4569,7 +4569,7 @@ pub(crate) fn dispatch_builtin(
         "copy-file" => super::fileio::builtin_copy_file(args),
         "make-directory" => super::fileio::builtin_make_directory(args),
         "directory-files" => super::fileio::builtin_directory_files(args),
-        "file-attributes" => super::fileio::builtin_file_attributes(args),
+        "file-attributes" => super::dired::builtin_file_attributes(args),
 
         // Keymap (pure — no evaluator needed)
         "kbd" => builtin_kbd(args),
@@ -5132,7 +5132,7 @@ pub(crate) fn dispatch_builtin_pure(name: &str, args: Vec<Value>) -> Option<Eval
         "copy-file" => super::fileio::builtin_copy_file(args),
         "make-directory" => super::fileio::builtin_make_directory(args),
         "directory-files" => super::fileio::builtin_directory_files(args),
-        "file-attributes" => super::fileio::builtin_file_attributes(args),
+        "file-attributes" => super::dired::builtin_file_attributes(args),
         // Keymap (pure)
         "kbd" => builtin_kbd(args),
         // Process (pure)

@@ -129,20 +129,104 @@ fn parse_wholenump_count(arg: Option<&Value>) -> Result<Option<usize>, Flow> {
 // Time helpers
 // ---------------------------------------------------------------------------
 
-/// Convert seconds since epoch to Emacs (HIGH LOW) time format.
-/// HIGH is the upper 16 bits, LOW is the lower 16 bits of the seconds count.
-fn time_to_high_low(secs: f64) -> Value {
-    let total = secs as u64;
-    let high = (total >> 16) as i64;
-    let low = (total & 0xFFFF) as i64;
-    Value::list(vec![Value::Int(high), Value::Int(low)])
+/// Convert UNIX seconds + nanoseconds to Emacs (HIGH LOW USEC PSEC) format.
+fn time_to_emacs_tuple(secs: i64, nanos: i64) -> Value {
+    let mut s = secs;
+    let mut ns = nanos;
+    if ns < 0 {
+        let borrow = ((-ns) + 999_999_999) / 1_000_000_000;
+        s -= borrow;
+        ns += borrow * 1_000_000_000;
+    } else if ns >= 1_000_000_000 {
+        s += ns / 1_000_000_000;
+        ns %= 1_000_000_000;
+    }
+
+    let high = s >> 16;
+    let low = s & 0xFFFF;
+    let usec = ns / 1_000;
+    let psec = (ns % 1_000) * 1_000;
+
+    Value::list(vec![
+        Value::Int(high),
+        Value::Int(low),
+        Value::Int(usec),
+        Value::Int(psec),
+    ])
 }
 
-/// Get time from SystemTime as seconds since epoch.
-fn system_time_to_secs(time: std::time::SystemTime) -> Option<f64> {
-    time.duration_since(std::time::UNIX_EPOCH)
-        .ok()
-        .map(|d| d.as_secs_f64())
+/// Get UNIX seconds + nanoseconds from SystemTime.
+fn system_time_to_secs_nanos(time: std::time::SystemTime) -> Option<(i64, i64)> {
+    let d = time.duration_since(std::time::UNIX_EPOCH).ok()?;
+    Some((d.as_secs() as i64, d.subsec_nanos() as i64))
+}
+
+#[cfg(unix)]
+fn uid_to_name(uid: u32) -> Option<String> {
+    unsafe {
+        let mut pwd: libc::passwd = std::mem::zeroed();
+        let mut result: *mut libc::passwd = std::ptr::null_mut();
+        let mut buf_len = 1024usize;
+
+        loop {
+            let mut buf = vec![0u8; buf_len];
+            let rc = libc::getpwuid_r(
+                uid,
+                &mut pwd,
+                buf.as_mut_ptr().cast(),
+                buf_len,
+                &mut result,
+            );
+
+            if rc == 0 {
+                if result.is_null() || pwd.pw_name.is_null() {
+                    return None;
+                }
+                return Some(CStr::from_ptr(pwd.pw_name).to_string_lossy().into_owned());
+            }
+
+            if rc == libc::ERANGE && buf_len < (1 << 20) {
+                buf_len *= 2;
+                continue;
+            }
+
+            return None;
+        }
+    }
+}
+
+#[cfg(unix)]
+fn gid_to_name(gid: u32) -> Option<String> {
+    unsafe {
+        let mut grp: libc::group = std::mem::zeroed();
+        let mut result: *mut libc::group = std::ptr::null_mut();
+        let mut buf_len = 1024usize;
+
+        loop {
+            let mut buf = vec![0u8; buf_len];
+            let rc = libc::getgrgid_r(
+                gid,
+                &mut grp,
+                buf.as_mut_ptr().cast(),
+                buf_len,
+                &mut result,
+            );
+
+            if rc == 0 {
+                if result.is_null() || grp.gr_name.is_null() {
+                    return None;
+                }
+                return Some(CStr::from_ptr(grp.gr_name).to_string_lossy().into_owned());
+            }
+
+            if rc == libc::ERANGE && buf_len < (1 << 20) {
+                buf_len *= 2;
+                continue;
+            }
+
+            return None;
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -201,10 +285,9 @@ fn build_file_attributes(filename: &str, id_format_string: bool) -> Option<Value
         let uid = sym_meta.uid();
         let gid = sym_meta.gid();
         if id_format_string {
-            // Attempt to resolve names; fall back to numeric string.
             (
-                Value::string(uid.to_string()),
-                Value::string(gid.to_string()),
+                Value::string(uid_to_name(uid).unwrap_or_else(|| uid.to_string())),
+                Value::string(gid_to_name(gid).unwrap_or_else(|| gid.to_string())),
             )
         } else {
             (Value::Int(uid as i64), Value::Int(gid as i64))
@@ -221,36 +304,42 @@ fn build_file_attributes(filename: &str, id_format_string: bool) -> Option<Value
     #[cfg(unix)]
     let atime = {
         use std::os::unix::fs::MetadataExt;
-        time_to_high_low(sym_meta.atime() as f64)
+        time_to_emacs_tuple(sym_meta.atime(), sym_meta.atime_nsec())
     };
     #[cfg(not(unix))]
     let atime = meta
         .accessed()
         .ok()
-        .and_then(|t| system_time_to_secs(t))
-        .map(time_to_high_low)
+        .and_then(system_time_to_secs_nanos)
+        .map(|(secs, nanos)| time_to_emacs_tuple(secs, nanos))
         .unwrap_or(Value::Nil);
 
     // Modification time.
+    #[cfg(unix)]
+    let mtime = {
+        use std::os::unix::fs::MetadataExt;
+        time_to_emacs_tuple(meta.mtime(), meta.mtime_nsec())
+    };
+    #[cfg(not(unix))]
     let mtime = meta
         .modified()
         .ok()
-        .and_then(|t| system_time_to_secs(t))
-        .map(time_to_high_low)
+        .and_then(system_time_to_secs_nanos)
+        .map(|(secs, nanos)| time_to_emacs_tuple(secs, nanos))
         .unwrap_or(Value::Nil);
 
     // Status change time (ctime on Unix, creation time on other platforms).
     #[cfg(unix)]
     let ctime = {
         use std::os::unix::fs::MetadataExt;
-        time_to_high_low(sym_meta.ctime() as f64)
+        time_to_emacs_tuple(sym_meta.ctime(), sym_meta.ctime_nsec())
     };
     #[cfg(not(unix))]
     let ctime = meta
         .created()
         .ok()
-        .and_then(|t| system_time_to_secs(t))
-        .map(time_to_high_low)
+        .and_then(system_time_to_secs_nanos)
+        .map(|(secs, nanos)| time_to_emacs_tuple(secs, nanos))
         .unwrap_or(Value::Nil);
 
     // Size.
@@ -270,8 +359,10 @@ fn build_file_attributes(filename: &str, id_format_string: bool) -> Option<Value
         "-rw-r--r--"
     });
 
-    // GID-CHANGEP: whether the file's GID would change on recreation.
-    // Stub: always nil.
+    // GID-CHANGEP: Emacs commonly reports t on Unix filesystems.
+    #[cfg(unix)]
+    let gid_changep = Value::True;
+    #[cfg(not(unix))]
     let gid_changep = Value::Nil;
 
     // Inode.
@@ -679,10 +770,7 @@ pub(crate) fn builtin_file_attributes(args: Vec<Value>) -> EvalResult {
     expect_range_args("file-attributes", &args, 1, 2)?;
 
     let filename = expect_string("file-attributes", &args[0])?;
-    let id_format_string = match args.get(1) {
-        Some(Value::Symbol(s)) if s == "string" => true,
-        _ => false,
-    };
+    let id_format_string = args.get(1).is_some_and(|v| v.is_truthy());
 
     match build_file_attributes(&filename, id_format_string) {
         Some(attrs) => Ok(attrs),
@@ -1186,6 +1274,30 @@ mod tests {
     }
 
     #[test]
+    fn test_file_attributes_time_tuple_shape_and_gid_changep() {
+        let (dir, _) = make_test_dir("fa_time");
+        let path = dir.join("time.txt");
+        let path_str = path.to_string_lossy().to_string();
+        create_file(&dir, "time.txt", "hello");
+
+        let result = builtin_file_attributes(vec![Value::string(&path_str)]).unwrap();
+        let items = list_to_vec(&result).unwrap();
+        assert_eq!(items.len(), 12);
+
+        for idx in [4usize, 5usize, 6usize] {
+            let tm = list_to_vec(&items[idx]).expect("time tuple must be a list");
+            assert_eq!(tm.len(), 4);
+            assert!(tm.iter().all(|v| matches!(v, Value::Int(_))));
+        }
+
+        // Emacs commonly reports non-nil here on Unix.
+        #[cfg(unix)]
+        assert!(items[9].is_truthy());
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
     fn test_file_attributes_id_format_string() {
         let (dir, _) = make_test_dir("fa_idfmt");
         let path = dir.join("idtest.txt");
@@ -1290,13 +1402,15 @@ mod tests {
     // -----------------------------------------------------------------------
 
     #[test]
-    fn test_time_to_high_low() {
-        let val = time_to_high_low(1234567890.0);
+    fn test_time_to_emacs_tuple() {
+        let val = time_to_emacs_tuple(1_234_567_890, 123_456_789);
         let items = list_to_vec(&val).unwrap();
-        assert_eq!(items.len(), 2);
+        assert_eq!(items.len(), 4);
         let high = items[0].as_int().unwrap();
         let low = items[1].as_int().unwrap();
-        assert_eq!((high << 16) | low, 1234567890);
+        assert_eq!((high << 16) | low, 1_234_567_890);
+        assert_eq!(items[2].as_int(), Some(123_456));
+        assert_eq!(items[3].as_int(), Some(789_000));
     }
 
     #[cfg(unix)]
