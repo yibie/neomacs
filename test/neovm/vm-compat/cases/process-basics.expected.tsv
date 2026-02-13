@@ -9,5 +9,7 @@
 9	(let ((out "/tmp/neovm-vm-compat-process-out-split.txt") (err "/tmp/neovm-vm-compat-process-err-split.txt")) (condition-case nil (delete-file out) (error nil)) (condition-case nil (delete-file err) (error nil)) (call-process "sh" nil (list (list :file out) err) nil "-c" "echo out; echo err >&2") (list (with-temp-buffer (insert-file-contents out) (string-prefix-p "out" (buffer-string))) (with-temp-buffer (insert-file-contents err) (string-prefix-p "err" (buffer-string)))))	OK (t t)
 10	(condition-case err (call-process "echo" nil 'foo nil "x") (error (car err)))	OK wrong-type-argument
 11	(condition-case err (call-process "echo" nil '(t 99) nil "x") (error (car err)))	OK wrong-type-argument
-12	(condition-case err (call-process "/nonexistent/neovm-vm-compat-missing-prog") (error (car err)))	OK file-missing
-13	(with-temp-buffer (insert "x") (condition-case err (call-process-region (point-min) (point-max) "/nonexistent/neovm-vm-compat-missing-prog") (error (car err))))	OK file-missing
+12	(with-temp-buffer (list (call-process "cat" "/etc/passwd" t nil) (> (length (buffer-string)) 0)))	OK (0 t)
+13	(condition-case err (call-process "cat" "/nonexistent/neovm-vm-compat-process-infile") (error (car err)))	OK file-missing
+14	(condition-case err (call-process "/nonexistent/neovm-vm-compat-missing-prog") (error (car err)))	OK file-missing
+15	(with-temp-buffer (insert "x") (condition-case err (call-process-region (point-min) (point-max) "/nonexistent/neovm-vm-compat-missing-prog") (error (car err))))	OK file-missing

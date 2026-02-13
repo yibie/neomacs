@@ -438,6 +438,21 @@ fn route_captured_output(
     }
 }
 
+fn configure_call_process_stdin(command: &mut Command, infile: Option<&str>) -> Result<(), Flow> {
+    match infile {
+        None => {
+            command.stdin(Stdio::null());
+            Ok(())
+        }
+        Some(path) => {
+            let file = std::fs::File::open(path)
+                .map_err(|e| signal_process_io("Opening process input file", Some(path), e))?;
+            command.stdin(Stdio::from(file));
+            Ok(())
+        }
+    }
+}
+
 /// Resolve a process argument: either a ProcessId integer or a name string.
 fn resolve_process(eval: &super::eval::Evaluator, value: &Value) -> Result<ProcessId, Flow> {
     match value {
@@ -510,8 +525,8 @@ pub(crate) fn builtin_call_process(
     expect_min_args("call-process", &args, 1)?;
     let program = expect_string(&args[0])?;
 
-    let _infile = if args.len() > 1 && !args[1].is_nil() {
-        Some(expect_string(&args[1])?)
+    let infile = if args.len() > 1 && !args[1].is_nil() {
+        Some(expect_string_strict(&args[1])?)
     } else {
         None
     };
@@ -536,7 +551,8 @@ pub(crate) fn builtin_call_process(
 
     if destination_spec.no_wait {
         let mut command = Command::new(&program);
-        command.args(&cmd_args).stdin(Stdio::null()).stdout(Stdio::null());
+        command.args(&cmd_args).stdout(Stdio::null());
+        configure_call_process_stdin(&mut command, infile.as_deref())?;
         match destination_spec.stderr {
             StderrTarget::Discard | StderrTarget::ToStdoutTarget => {
                 command.stderr(Stdio::null());
@@ -565,11 +581,13 @@ pub(crate) fn builtin_call_process(
         return Ok(Value::Nil);
     }
 
-    let output = Command::new(&program)
+    let mut command = Command::new(&program);
+    command
         .args(&cmd_args)
-        .stdin(Stdio::null())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
+        .stderr(Stdio::piped());
+    configure_call_process_stdin(&mut command, infile.as_deref())?;
+    let output = command
         .output()
         .map_err(|e| signal_process_io("Searching for program", Some(&program), e))?;
 
@@ -1069,6 +1087,21 @@ mod tests {
     }
 
     #[test]
+    fn call_process_infile_feeds_stdin() {
+        let cat = find_bin("cat");
+        let infile = tmp_file("cp-infile");
+        std::fs::write(&infile, "infile-data").expect("write infile");
+        let results = eval_all(&format!(
+            r#"(with-temp-buffer
+                 (list
+                   (call-process "{cat}" "{infile}" t nil)
+                   (buffer-string)))"#
+        ));
+        assert_eq!(results[0], r#"OK (0 "infile-data")"#);
+        let _ = std::fs::remove_file(&infile);
+    }
+
+    #[test]
     fn call_process_destination_buffer_name_inserts_there() {
         let echo = find_bin("echo");
         let results = eval_all(&format!(
@@ -1266,6 +1299,15 @@ mod tests {
         let result = eval_one(
             r#"(condition-case err (call-process "/nonexistent/program_xyz") (error (car err)))"#,
         );
+        assert_eq!(result, "OK file-missing");
+    }
+
+    #[test]
+    fn call_process_missing_infile_signals_file_missing() {
+        let cat = find_bin("cat");
+        let result = eval_one(&format!(
+            r#"(condition-case err (call-process "{cat}" "/nonexistent/neovm-process-infile") (error (car err)))"#
+        ));
         assert_eq!(result, "OK file-missing");
     }
 

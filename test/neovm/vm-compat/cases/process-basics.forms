@@ -56,6 +56,13 @@
 (condition-case err
     (call-process "echo" nil '(t 99) nil "x")
   (error (car err)))
+(with-temp-buffer
+  (list
+   (call-process "cat" "/etc/passwd" t nil)
+   (> (length (buffer-string)) 0)))
+(condition-case err
+    (call-process "cat" "/nonexistent/neovm-vm-compat-process-infile")
+  (error (car err)))
 (condition-case err
     (call-process "/nonexistent/neovm-vm-compat-missing-prog")
   (error (car err)))
