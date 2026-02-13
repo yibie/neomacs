@@ -52,11 +52,6 @@ fn expect_max_args(name: &str, args: &[Value], max: usize) -> Result<(), Flow> {
     }
 }
 
-fn expect_range_args(name: &str, args: &[Value], min: usize, max: usize) -> Result<(), Flow> {
-    expect_min_args(name, args, min)?;
-    expect_max_args(name, args, max)
-}
-
 // ---------------------------------------------------------------------------
 // Property list helpers
 // ---------------------------------------------------------------------------
