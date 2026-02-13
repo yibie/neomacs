@@ -1,0 +1,5 @@
+1	(minibufferp)	OK nil
+2	(minibuffer-depth)	OK 0
+3	(condition-case err (read-from-minibuffer "") (error (car err)))	OK end-of-file
+4	(condition-case err (read-string "") (error (car err)))	OK end-of-file
+5	(condition-case err (completing-read "" '("a" "b")) (error (car err)))	OK end-of-file

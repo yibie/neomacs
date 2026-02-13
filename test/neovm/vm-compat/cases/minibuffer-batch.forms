@@ -1,0 +1,6 @@
+; minibuffer behavior in batch mode should signal end-of-file for interactive reads.
+(minibufferp)
+(minibuffer-depth)
+(condition-case err (read-from-minibuffer "") (error (car err)))
+(condition-case err (read-string "") (error (car err)))
+(condition-case err (completing-read "" '("a" "b")) (error (car err)))
