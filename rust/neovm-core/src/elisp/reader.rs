@@ -31,6 +31,17 @@ fn expect_min_args(name: &str, args: &[Value], min: usize) -> Result<(), Flow> {
     }
 }
 
+fn expect_max_args(name: &str, args: &[Value], max: usize) -> Result<(), Flow> {
+    if args.len() > max {
+        Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol(name), Value::Int(args.len() as i64)],
+        ))
+    } else {
+        Ok(())
+    }
+}
+
 fn expect_string(value: &Value) -> Result<String, Flow> {
     match value {
         Value::Str(s) => Ok((**s).clone()),
@@ -712,6 +723,7 @@ pub(crate) fn builtin_read_from_minibuffer(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("read-from-minibuffer", &args, 1)?;
+    expect_max_args("read-from-minibuffer", &args, 7)?;
     let _prompt = expect_string(&args[0])?;
     Err(signal("end-of-file", vec![]))
 }
@@ -728,6 +740,7 @@ pub(crate) fn builtin_read_string(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("read-string", &args, 1)?;
+    expect_max_args("read-string", &args, 5)?;
     let _prompt = expect_string(&args[0])?;
     Err(signal("end-of-file", vec![]))
 }
@@ -744,6 +757,7 @@ pub(crate) fn builtin_read_number(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("read-number", &args, 1)?;
+    expect_max_args("read-number", &args, 3)?;
     Err(signal("end-of-file", vec![]))
 }
 
@@ -759,6 +773,7 @@ pub(crate) fn builtin_completing_read(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("completing-read", &args, 2)?;
+    expect_max_args("completing-read", &args, 8)?;
     let _prompt = expect_string(&args[0])?;
     Err(signal("end-of-file", vec![]))
 }
@@ -1399,6 +1414,28 @@ mod tests {
     }
 
     #[test]
+    fn read_from_minibuffer_rejects_more_than_seven_args() {
+        let mut ev = Evaluator::new();
+        let result = builtin_read_from_minibuffer(
+            &mut ev,
+            vec![
+                Value::string("Prompt: "),
+                Value::Nil,
+                Value::Nil,
+                Value::Nil,
+                Value::Nil,
+                Value::Nil,
+                Value::Nil,
+                Value::Nil,
+            ],
+        );
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"
+        ));
+    }
+
+    #[test]
     fn read_string_signals_end_of_file() {
         let mut ev = Evaluator::new();
         let result = builtin_read_string(&mut ev, vec![Value::string("Prompt: ")]);
@@ -1416,6 +1453,26 @@ mod tests {
     }
 
     #[test]
+    fn read_string_rejects_more_than_five_args() {
+        let mut ev = Evaluator::new();
+        let result = builtin_read_string(
+            &mut ev,
+            vec![
+                Value::string("Prompt: "),
+                Value::Nil,
+                Value::Nil,
+                Value::Nil,
+                Value::Nil,
+                Value::Nil,
+            ],
+        );
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"
+        ));
+    }
+
+    #[test]
     fn read_number_signals_end_of_file_even_with_default() {
         let mut ev = Evaluator::new();
         let result = builtin_read_number(&mut ev, vec![Value::string("Number: "), Value::Int(42)]);
@@ -1427,6 +1484,19 @@ mod tests {
         let mut ev = Evaluator::new();
         let result = builtin_read_number(&mut ev, vec![Value::string("Number: ")]);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn read_number_rejects_more_than_three_args() {
+        let mut ev = Evaluator::new();
+        let result = builtin_read_number(
+            &mut ev,
+            vec![Value::string("Number: "), Value::Int(42), Value::Nil, Value::Nil],
+        );
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"
+        ));
     }
 
     #[test]
@@ -1450,6 +1520,29 @@ mod tests {
             ],
         );
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn completing_read_rejects_more_than_eight_args() {
+        let mut ev = Evaluator::new();
+        let result = builtin_completing_read(
+            &mut ev,
+            vec![
+                Value::string("Choose: "),
+                Value::Nil,
+                Value::Nil,
+                Value::Nil,
+                Value::Nil,
+                Value::Nil,
+                Value::Nil,
+                Value::Nil,
+                Value::Nil,
+            ],
+        );
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"
+        ));
     }
 
     #[test]
