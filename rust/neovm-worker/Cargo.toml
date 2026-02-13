@@ -5,6 +5,11 @@ edition = "2021"
 license = "GPL-3.0-or-later"
 description = "Worker runtime and scheduler scaffolding for NeoVM"
 
+[features]
+default = ["core-backend-emacs-c"]
+core-backend-emacs-c = ["neovm-core/core-backend-emacs-c"]
+core-backend-rust = ["neovm-core/core-backend-rust"]
+
 [dependencies]
 neovm-core = { path = "../neovm-core" }
 neovm-host-abi = { path = "../neovm-host-abi" }

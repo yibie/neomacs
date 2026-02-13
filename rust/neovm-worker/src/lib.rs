@@ -10,6 +10,8 @@ use std::sync::{Arc, Condvar, Mutex, RwLock};
 use std::thread;
 use std::time::{Duration, Instant};
 
+pub const CORE_BACKEND: &str = neovm_core::CORE_BACKEND;
+
 type ExecuteFn =
     dyn Fn(&LispValue, &TaskOptions, &TaskContext) -> Result<LispValue, TaskError> + Send + Sync;
 
@@ -502,10 +504,7 @@ impl WorkerRuntime {
     }
 
     fn enqueue_finished(&self, handle: TaskHandle) {
-        let mut finished = self
-            .finished
-            .lock()
-            .expect("finished queue mutex poisoned");
+        let mut finished = self.finished.lock().expect("finished queue mutex poisoned");
         finished.push_back(handle.0);
     }
 
@@ -516,10 +515,7 @@ impl WorkerRuntime {
 
         let mut to_reap = Vec::with_capacity(limit);
         {
-            let mut finished = self
-                .finished
-                .lock()
-                .expect("finished queue mutex poisoned");
+            let mut finished = self.finished.lock().expect("finished queue mutex poisoned");
             for _ in 0..limit {
                 let Some(handle) = finished.pop_front() else {
                     break;
@@ -582,7 +578,9 @@ impl WorkerRuntime {
             data: None,
         })?;
 
-        channel.send(value, timeout).map_err(channel_error_to_signal)?;
+        channel
+            .send(value, timeout)
+            .map_err(channel_error_to_signal)?;
         self.channel_events.notify();
         Ok(())
     }
@@ -610,7 +608,9 @@ impl WorkerRuntime {
 
     pub fn spawn(&self, form: LispValue, opts: TaskOptions) -> Result<TaskHandle, EnqueueError> {
         if opts.affinity == Affinity::MainOnly {
-            self.metrics.rejected_affinity.fetch_add(1, Ordering::Relaxed);
+            self.metrics
+                .rejected_affinity
+                .fetch_add(1, Ordering::Relaxed);
             return Err(EnqueueError::MainAffinityUnsupported);
         }
 
@@ -619,7 +619,11 @@ impl WorkerRuntime {
         let task = Arc::new(TaskEntry::new(form, opts));
 
         {
-            let mut state = self.queue.state.lock().expect("worker queue mutex poisoned");
+            let mut state = self
+                .queue
+                .state
+                .lock()
+                .expect("worker queue mutex poisoned");
             if state.closed {
                 self.metrics.rejected_closed.fetch_add(1, Ordering::Relaxed);
                 return Err(EnqueueError::Closed);
@@ -665,7 +669,11 @@ impl WorkerRuntime {
     }
 
     pub fn close(&self) {
-        let mut state = self.queue.state.lock().expect("worker queue mutex poisoned");
+        let mut state = self
+            .queue
+            .state
+            .lock()
+            .expect("worker queue mutex poisoned");
         state.closed = true;
         drop(state);
         self.queue.ready.notify_all();
@@ -1045,7 +1053,9 @@ mod tests {
             affinity: Affinity::MainOnly,
             ..TaskOptions::default()
         };
-        let err = rt.spawn(LispValue::default(), opts).expect_err("must reject");
+        let err = rt
+            .spawn(LispValue::default(), opts)
+            .expect_err("must reject");
         assert!(matches!(err, EnqueueError::MainAffinityUnsupported));
     }
 

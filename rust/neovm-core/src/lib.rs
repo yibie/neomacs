@@ -7,6 +7,18 @@ pub mod hooks;
 pub mod keyboard;
 pub mod window;
 
+#[cfg(all(feature = "core-backend-emacs-c", feature = "core-backend-rust"))]
+compile_error!("features `core-backend-emacs-c` and `core-backend-rust` are mutually exclusive");
+
+#[cfg(not(any(feature = "core-backend-emacs-c", feature = "core-backend-rust")))]
+compile_error!("one of `core-backend-emacs-c` or `core-backend-rust` must be enabled");
+
+#[cfg(feature = "core-backend-rust")]
+pub const CORE_BACKEND: &str = "rust";
+
+#[cfg(feature = "core-backend-emacs-c")]
+pub const CORE_BACKEND: &str = "emacs-c";
+
 use neovm_host_abi::{
     HostAbi, HostError, IsolateId, LispValue, PatchRequest, PatchResult, PrimitiveDescriptor,
     PrimitiveId, SelectOp, SelectResult, Signal, SnapshotBlob, SnapshotRequest, TaskError,
@@ -180,9 +192,7 @@ impl Default for SchedulerConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use neovm_host_abi::{
-        Affinity, ChannelId, EffectClass, PrimitiveDescriptor, TaskPriority,
-    };
+    use neovm_host_abi::{Affinity, ChannelId, EffectClass, PrimitiveDescriptor, TaskPriority};
 
     #[derive(Default)]
     struct DummyHost;

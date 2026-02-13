@@ -368,7 +368,7 @@ cargo build --release --manifest-path rust/neomacs-display/Cargo.toml
 
 # Build Emacs
 ./autogen.sh
-./configure --with-neomacs
+./configure --with-neomacs --with-neovm-core-backend=emacs-c
 make -j$(nproc)
 ```
 
@@ -440,9 +440,16 @@ nix-shell
 ```bash
 cargo build --release --manifest-path rust/neomacs-display/Cargo.toml
 ./autogen.sh
-./configure --with-neomacs
+./configure --with-neomacs --with-neovm-core-backend=emacs-c
 make -j$(nproc)
 ```
+
+### Core Backend Switch
+
+Use `--with-neovm-core-backend=` to select which core backend gets compiled:
+
+- `emacs-c` (default): current stable path, uses Emacs C core.
+- `rust`: enables the Rust-core compile-time mode for NeoVM integration work.
 
 ---
 

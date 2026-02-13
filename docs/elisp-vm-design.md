@@ -106,6 +106,9 @@ Implemented now:
 - `rust/neovm-worker/examples/elisp_bench.rs`: throughput benchmark for threaded Elisp task execution path
 - `rust/neovm-core/examples/compat_runner.rs`: NeoVM compatibility runner producing oracle-style TSV
 - `rust/neovm-worker/examples/elisp_compat_runner.rs`: compatibility runner through threaded worker runtime path
+- configure-time core backend selection: `--with-neovm-core-backend=emacs-c|rust`
+  - `emacs-c` keeps the current legacy core path
+  - `rust` enables the future Rust-core build mode surface for migration
 
 Not implemented yet:
 

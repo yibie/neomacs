@@ -573,6 +573,11 @@ On by default on macOS.])],[],[with_ns=maybe])
 OPTION_DEFAULT_OFF([w32], [use native MS Windows GUI in a Cygwin build])
 OPTION_DEFAULT_OFF([pgtk], [use GTK to support window systems other than X])
 OPTION_DEFAULT_OFF([neomacs], [use Neomacs GPU-accelerated display engine with winit/wgpu])
+AC_ARG_WITH([neovm-core-backend],
+  [AS_HELP_STRING([--with-neovm-core-backend=BACKEND],
+     [select NeoVM core backend: emacs-c (default) or rust])],
+  [with_neovm_core_backend=$withval],
+  [with_neovm_core_backend=emacs-c])
 
 OPTION_DEFAULT_ON([gpm],[don't use -lgpm for mouse support on a GNU/Linux console])
 OPTION_DEFAULT_IFAVAILABLE([dbus],[compile with D-Bus support])
@@ -2701,6 +2706,28 @@ AS_IF([test x"$REALLY_ANDROID" = "xyes"],
 if test "${with_neomacs}" = "yes"; then
   window_system=neomacs
 fi
+
+case "${with_neovm_core_backend}" in
+  yes) with_neovm_core_backend=rust ;;
+  no) with_neovm_core_backend=emacs-c ;;
+  emacs-c|rust) ;;
+  *) AC_MSG_ERROR([bad value ${with_neovm_core_backend} for --with-neovm-core-backend (expected emacs-c or rust)]) ;;
+esac
+
+NEOVM_CORE_BACKEND="${with_neovm_core_backend}"
+if test "${NEOVM_CORE_BACKEND}" = "rust"; then
+  NEOVM_CORE_BACKEND_CARGO_FEATURE="core-backend-rust"
+  AC_DEFINE([NEOVM_CORE_BACKEND_RUST], [1],
+            [Define to 1 if building with NeoVM Rust core backend.])
+else
+  NEOVM_CORE_BACKEND_CARGO_FEATURE="core-backend-emacs-c"
+  AC_DEFINE([NEOVM_CORE_BACKEND_RUST], [0],
+            [Define to 1 if building with NeoVM Rust core backend.])
+fi
+AC_DEFINE_UNQUOTED([NEOVM_CORE_BACKEND_NAME], ["${NEOVM_CORE_BACKEND}"],
+                   [NeoVM core backend selected at configure time.])
+AC_SUBST([NEOVM_CORE_BACKEND])
+AC_SUBST([NEOVM_CORE_BACKEND_CARGO_FEATURE])
 
 if test "${with_pgtk}" = "yes"; then
   window_system=pgtk
@@ -7697,6 +7724,7 @@ Configured for '${canonical}'.
   Should Emacs use a relocating allocator for buffers?    ${REL_ALLOC}
   Should Emacs use mmap(2) for buffer allocation?         $use_mmap_for_buffers
   What window system should Emacs use?                    ${window_system}
+  What NeoVM core backend should Neomacs use?             ${NEOVM_CORE_BACKEND}
   What toolkit should Emacs use?                          ${USE_X_TOOLKIT}
   Where do we find X Windows header files?                ${x_includes:-$emacs_standard_dirs}
   Where do we find X Windows libraries?                   ${x_libraries:-$emacs_standard_dirs}"])
