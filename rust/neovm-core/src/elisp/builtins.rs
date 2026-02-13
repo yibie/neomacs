@@ -3294,13 +3294,8 @@ pub(crate) fn dispatch_builtin(
         "upcase-initials-region" => return Some(super::casefiddle::builtin_upcase_initials_region(eval, args)),
 
         // Search (evaluator-dependent)
-        "search-forward" => return Some(super::search::builtin_search_forward(eval, args)),
-        "search-backward" => return Some(super::search::builtin_search_backward(eval, args)),
-        "re-search-forward" => return Some(super::search::builtin_re_search_forward(eval, args)),
-        "re-search-backward" => return Some(super::search::builtin_re_search_backward(eval, args)),
         "posix-search-forward" => return Some(super::search::builtin_posix_search_forward(eval, args)),
         "posix-search-backward" => return Some(super::search::builtin_posix_search_backward(eval, args)),
-        "replace-match" => return Some(super::search::builtin_replace_match(eval, args)),
         "word-search-forward" => return Some(super::search::builtin_word_search_forward(eval, args)),
         "word-search-backward" => return Some(super::search::builtin_word_search_backward(eval, args)),
 
