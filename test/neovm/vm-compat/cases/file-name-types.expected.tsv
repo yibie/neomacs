@@ -19,3 +19,6 @@
 19	(file-name-extension ".bashrc" t)	OK ""
 20	(file-name-extension "a." t)	OK "."
 21	(condition-case err (file-name-extension "x" nil nil) (error (car err)))	OK wrong-number-of-arguments
+22	(file-name-sans-extension "foo.bar/")	OK "foo.bar/"
+23	(file-name-sans-extension "foo/")	OK "foo/"
+24	(file-name-sans-extension "/tmp/foo.bar/")	OK "/tmp/foo.bar/"

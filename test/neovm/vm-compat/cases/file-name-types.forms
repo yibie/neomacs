@@ -20,3 +20,6 @@
 (file-name-extension ".bashrc" t)
 (file-name-extension "a." t)
 (condition-case err (file-name-extension "x" nil nil) (error (car err)))
+(file-name-sans-extension "foo.bar/")
+(file-name-sans-extension "foo/")
+(file-name-sans-extension "/tmp/foo.bar/")
