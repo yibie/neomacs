@@ -319,7 +319,8 @@ pub(crate) fn builtin_safe_length(args: Vec<Value>) -> EvalResult {
         return Ok(Value::Int(0));
     }
 
-    // Use tortoise-and-hare to detect cycles
+    // Traverse once while running tortoise-and-hare cycle detection.
+    // `length` tracks visited cons cells via `slow`.
     let mut slow = list.clone();
     let mut fast = list.clone();
     let mut length: i64 = 0;
@@ -335,14 +336,18 @@ pub(crate) fn builtin_safe_length(args: Vec<Value>) -> EvalResult {
             _ => return Ok(Value::Int(length)),
         }
 
-        // Advance fast by 2
+        // Advance fast by 2 when possible. If it reaches a non-cons, we still
+        // continue counting via `slow` so proper odd-length lists are exact.
         for _ in 0..2 {
             match fast {
                 Value::Cons(cell) => {
                     let pair = cell.lock().expect("poisoned");
                     fast = pair.cdr.clone();
                 }
-                _ => return Ok(Value::Int(length)),
+                _ => {
+                    fast = Value::Nil;
+                    break;
+                }
             }
         }
 
