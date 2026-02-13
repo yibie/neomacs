@@ -3076,23 +3076,24 @@ pub(crate) fn builtin_buffer_local_value(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_args("buffer-local-value", &args, 2)?;
-    let name = match &args[0] {
-        Value::Symbol(s) => s.clone(),
-        other => {
-            return Err(signal(
-                "wrong-type-argument",
-                vec![Value::symbol("symbolp"), other.clone()],
-            ))
-        }
-    };
+    let name = args[0].as_symbol_name().ok_or_else(|| {
+        signal(
+            "wrong-type-argument",
+            vec![Value::symbol("symbolp"), args[0].clone()],
+        )
+    })?;
     let id = expect_buffer_id(&args[1])?;
     let buf = eval
         .buffers
         .get(id)
         .ok_or_else(|| signal("error", vec![Value::string("No such buffer")]))?;
-    match buf.get_buffer_local(&name) {
+    match buf.get_buffer_local(name) {
         Some(v) => Ok(v.clone()),
-        None => Ok(Value::Nil),
+        None => eval
+            .obarray()
+            .symbol_value(name)
+            .cloned()
+            .ok_or_else(|| signal("void-variable", vec![Value::symbol(name)])),
     }
 }
 
