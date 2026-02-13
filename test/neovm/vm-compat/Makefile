@@ -1,7 +1,7 @@
 FORMS ?= cases/core.forms
 EXPECTED ?= cases/core.expected.tsv
 NEOVM_OUT ?= cases/core.neovm.tsv
-CASES ?= cases/core cases/bindings cases/pcase cases/seq-position
+CASES ?= cases/core cases/bindings cases/pcase cases/seq-position cases/seq-misc
 
 .PHONY: oracle neovm record check compare check-neovm record-all check-all check-all-neovm
 
