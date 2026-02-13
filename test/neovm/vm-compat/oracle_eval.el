@@ -21,9 +21,9 @@
             (prin1 form)
             (princ "\t")
             (condition-case err
-                (progn
+                (let ((value (eval form nil)))
                   (princ "OK ")
-                  (prin1 (eval form nil)))
+                  (prin1 value))
               (error
                (princ "ERR ")
                (prin1 (list (car err) (cdr err)))))
