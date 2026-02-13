@@ -45,6 +45,7 @@ pub mod textprop;
 pub mod navigation;
 pub mod chartable;
 pub mod errors;
+pub mod pcase;
 
 // Re-export the main public API
 pub use value::{Value, ConsCell, LambdaData, LambdaParams};

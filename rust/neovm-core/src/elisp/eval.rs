@@ -391,6 +391,11 @@ impl Evaluator {
             "with-eval-after-load" => super::autoload::sf_with_eval_after_load(self, tail),
             // Error hierarchy
             "define-error" => super::errors::sf_define_error(self, tail),
+            // Pattern matching (pcase)
+            "pcase" => super::pcase::sf_pcase(self, tail),
+            "pcase-let" => super::pcase::sf_pcase_let(self, tail),
+            "pcase-let*" => super::pcase::sf_pcase_let_star(self, tail),
+            "pcase-dolist" => super::pcase::sf_pcase_dolist(self, tail),
             // Interactive / mode definition special forms
             "define-minor-mode" => super::interactive::sf_define_minor_mode(self, tail),
             "define-derived-mode" => super::interactive::sf_define_derived_mode(self, tail),
