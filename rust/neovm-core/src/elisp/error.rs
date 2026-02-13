@@ -16,7 +16,12 @@ impl Display for EvalError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::Signal { symbol, data } => {
-                write!(f, "signal {} {}", symbol, super::print::print_value(&Value::list(data.clone())))
+                write!(
+                    f,
+                    "signal {} {}",
+                    symbol,
+                    super::print::print_value(&Value::list(data.clone()))
+                )
             }
             Self::UncaughtThrow { tag, value } => write!(
                 f,

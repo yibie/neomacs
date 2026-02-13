@@ -449,10 +449,7 @@ fn skip_string(input: &str, mut pos: usize) -> usize {
 /// - If STREAM is a string, read from that string (equivalent to car of read-from-string).
 /// - If STREAM is nil, would read from stdin (returns nil in non-interactive mode).
 /// - If STREAM is a buffer, read from buffer at point.
-pub(crate) fn builtin_read(
-    eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
+pub(crate) fn builtin_read(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     if args.is_empty() || args[0].is_nil() {
         // No stream / nil — non-interactive, return nil
         return Ok(Value::Nil);
@@ -475,9 +472,10 @@ pub(crate) fn builtin_read(
             // Read from buffer at point
             let buf_id = *id;
             let (text, pt) = {
-                let buf = eval.buffers.get(buf_id).ok_or_else(|| {
-                    signal("error", vec![Value::string("Buffer does not exist")])
-                })?;
+                let buf = eval
+                    .buffers
+                    .get(buf_id)
+                    .ok_or_else(|| signal("error", vec![Value::string("Buffer does not exist")]))?;
                 (buf.buffer_string(), buf.pt)
             };
             // pt is 1-based, substring from (pt-1)
@@ -873,8 +871,7 @@ mod tests {
     #[test]
     fn read_from_string_list() {
         let mut ev = Evaluator::new();
-        let result =
-            builtin_read_from_string(&mut ev, vec![Value::string("(+ 1 2)")]).unwrap();
+        let result = builtin_read_from_string(&mut ev, vec![Value::string("(+ 1 2)")]).unwrap();
         match &result {
             Value::Cons(cell) => {
                 let pair = cell.lock().unwrap();
@@ -890,11 +887,9 @@ mod tests {
     fn read_from_string_with_start() {
         let mut ev = Evaluator::new();
         // "  42 rest" — start at 2
-        let result = builtin_read_from_string(
-            &mut ev,
-            vec![Value::string("  42 rest"), Value::Int(2)],
-        )
-        .unwrap();
+        let result =
+            builtin_read_from_string(&mut ev, vec![Value::string("  42 rest"), Value::Int(2)])
+                .unwrap();
         match &result {
             Value::Cons(cell) => {
                 let pair = cell.lock().unwrap();
@@ -908,8 +903,7 @@ mod tests {
     #[test]
     fn read_from_string_float() {
         let mut ev = Evaluator::new();
-        let result =
-            builtin_read_from_string(&mut ev, vec![Value::string("3.14")]).unwrap();
+        let result = builtin_read_from_string(&mut ev, vec![Value::string("3.14")]).unwrap();
         match &result {
             Value::Cons(cell) => {
                 let pair = cell.lock().unwrap();
@@ -922,8 +916,7 @@ mod tests {
     #[test]
     fn read_from_string_char() {
         let mut ev = Evaluator::new();
-        let result =
-            builtin_read_from_string(&mut ev, vec![Value::string("?a")]).unwrap();
+        let result = builtin_read_from_string(&mut ev, vec![Value::string("?a")]).unwrap();
         match &result {
             Value::Cons(cell) => {
                 let pair = cell.lock().unwrap();
@@ -936,8 +929,7 @@ mod tests {
     #[test]
     fn read_from_string_nil() {
         let mut ev = Evaluator::new();
-        let result =
-            builtin_read_from_string(&mut ev, vec![Value::string("nil")]).unwrap();
+        let result = builtin_read_from_string(&mut ev, vec![Value::string("nil")]).unwrap();
         match &result {
             Value::Cons(cell) => {
                 let pair = cell.lock().unwrap();
@@ -950,8 +942,7 @@ mod tests {
     #[test]
     fn read_from_string_t() {
         let mut ev = Evaluator::new();
-        let result =
-            builtin_read_from_string(&mut ev, vec![Value::string("t")]).unwrap();
+        let result = builtin_read_from_string(&mut ev, vec![Value::string("t")]).unwrap();
         match &result {
             Value::Cons(cell) => {
                 let pair = cell.lock().unwrap();
@@ -964,8 +955,7 @@ mod tests {
     #[test]
     fn read_from_string_vector() {
         let mut ev = Evaluator::new();
-        let result =
-            builtin_read_from_string(&mut ev, vec![Value::string("[1 2 3]")]).unwrap();
+        let result = builtin_read_from_string(&mut ev, vec![Value::string("[1 2 3]")]).unwrap();
         match &result {
             Value::Cons(cell) => {
                 let pair = cell.lock().unwrap();
@@ -978,8 +968,7 @@ mod tests {
     #[test]
     fn read_from_string_quoted() {
         let mut ev = Evaluator::new();
-        let result =
-            builtin_read_from_string(&mut ev, vec![Value::string("'foo")]).unwrap();
+        let result = builtin_read_from_string(&mut ev, vec![Value::string("'foo")]).unwrap();
         match &result {
             Value::Cons(cell) => {
                 let pair = cell.lock().unwrap();
@@ -994,8 +983,7 @@ mod tests {
     #[test]
     fn read_from_string_dotted_pair() {
         let mut ev = Evaluator::new();
-        let result =
-            builtin_read_from_string(&mut ev, vec![Value::string("(a . b)")]).unwrap();
+        let result = builtin_read_from_string(&mut ev, vec![Value::string("(a . b)")]).unwrap();
         match &result {
             Value::Cons(cell) => {
                 let pair = cell.lock().unwrap();
@@ -1009,8 +997,7 @@ mod tests {
     #[test]
     fn read_from_string_keyword() {
         let mut ev = Evaluator::new();
-        let result =
-            builtin_read_from_string(&mut ev, vec![Value::string(":test")]).unwrap();
+        let result = builtin_read_from_string(&mut ev, vec![Value::string(":test")]).unwrap();
         match &result {
             Value::Cons(cell) => {
                 let pair = cell.lock().unwrap();
@@ -1037,8 +1024,7 @@ mod tests {
     #[test]
     fn read_from_string_multiple_forms_reads_first() {
         let mut ev = Evaluator::new();
-        let result =
-            builtin_read_from_string(&mut ev, vec![Value::string("42 99")]).unwrap();
+        let result = builtin_read_from_string(&mut ev, vec![Value::string("42 99")]).unwrap();
         match &result {
             Value::Cons(cell) => {
                 let pair = cell.lock().unwrap();
@@ -1110,11 +1096,8 @@ mod tests {
 
     #[test]
     fn prin1_to_string_noescape() {
-        let result = builtin_prin1_to_string_full(vec![
-            Value::string("hello"),
-            Value::True,
-        ])
-        .unwrap();
+        let result =
+            builtin_prin1_to_string_full(vec![Value::string("hello"), Value::True]).unwrap();
         // Without escaping: no quotes
         assert_eq!(result.as_str(), Some("hello"));
     }
@@ -1150,11 +1133,8 @@ mod tests {
 
     #[test]
     fn format_spec_basic() {
-        let spec = Value::list(vec![
-            Value::cons(Value::Char('a'), Value::string("world")),
-        ]);
-        let result =
-            builtin_format_spec(vec![Value::string("hello %a"), spec]).unwrap();
+        let spec = Value::list(vec![Value::cons(Value::Char('a'), Value::string("world"))]);
+        let result = builtin_format_spec(vec![Value::string("hello %a"), spec]).unwrap();
         assert_eq!(result.as_str(), Some("hello world"));
     }
 
@@ -1164,53 +1144,43 @@ mod tests {
             Value::cons(Value::Char('n'), Value::string("Alice")),
             Value::cons(Value::Char('a'), Value::Int(30)),
         ]);
-        let result =
-            builtin_format_spec(vec![Value::string("%n is %a years old"), spec]).unwrap();
+        let result = builtin_format_spec(vec![Value::string("%n is %a years old"), spec]).unwrap();
         assert_eq!(result.as_str(), Some("Alice is 30 years old"));
     }
 
     #[test]
     fn format_spec_percent_escape() {
-        let spec = Value::list(vec![
-            Value::cons(Value::Char('x'), Value::string("100")),
-        ]);
-        let result =
-            builtin_format_spec(vec![Value::string("%x%%"), spec]).unwrap();
+        let spec = Value::list(vec![Value::cons(Value::Char('x'), Value::string("100"))]);
+        let result = builtin_format_spec(vec![Value::string("%x%%"), spec]).unwrap();
         assert_eq!(result.as_str(), Some("100%"));
     }
 
     #[test]
     fn format_spec_empty_spec() {
         let spec = Value::Nil;
-        let result =
-            builtin_format_spec(vec![Value::string("no specs here"), spec]).unwrap();
+        let result = builtin_format_spec(vec![Value::string("no specs here"), spec]).unwrap();
         assert_eq!(result.as_str(), Some("no specs here"));
     }
 
     #[test]
     fn format_spec_unknown_spec_kept() {
         let spec = Value::Nil;
-        let result =
-            builtin_format_spec(vec![Value::string("keep %z"), spec]).unwrap();
+        let result = builtin_format_spec(vec![Value::string("keep %z"), spec]).unwrap();
         assert_eq!(result.as_str(), Some("keep %z"));
     }
 
     #[test]
     fn format_spec_integer_char_key() {
         // Use integer ?a = 97 as key instead of Char
-        let spec = Value::list(vec![
-            Value::cons(Value::Int(97), Value::string("hello")),
-        ]);
-        let result =
-            builtin_format_spec(vec![Value::string("%a"), spec]).unwrap();
+        let spec = Value::list(vec![Value::cons(Value::Int(97), Value::string("hello"))]);
+        let result = builtin_format_spec(vec![Value::string("%a"), spec]).unwrap();
         assert_eq!(result.as_str(), Some("hello"));
     }
 
     #[test]
     fn format_spec_trailing_percent() {
         let spec = Value::Nil;
-        let result =
-            builtin_format_spec(vec![Value::string("end%"), spec]).unwrap();
+        let result = builtin_format_spec(vec![Value::string("end%"), spec]).unwrap();
         assert_eq!(result.as_str(), Some("end%"));
     }
 
@@ -1240,38 +1210,30 @@ mod tests {
     #[test]
     fn read_string_returns_empty() {
         let mut ev = Evaluator::new();
-        let result =
-            builtin_read_string(&mut ev, vec![Value::string("Prompt: ")]).unwrap();
+        let result = builtin_read_string(&mut ev, vec![Value::string("Prompt: ")]).unwrap();
         assert_eq!(result.as_str(), Some(""));
     }
 
     #[test]
     fn read_number_returns_default() {
         let mut ev = Evaluator::new();
-        let result = builtin_read_number(
-            &mut ev,
-            vec![Value::string("Number: "), Value::Int(42)],
-        )
-        .unwrap();
+        let result =
+            builtin_read_number(&mut ev, vec![Value::string("Number: "), Value::Int(42)]).unwrap();
         assert!(matches!(result, Value::Int(42)));
     }
 
     #[test]
     fn read_number_returns_zero_no_default() {
         let mut ev = Evaluator::new();
-        let result =
-            builtin_read_number(&mut ev, vec![Value::string("Number: ")]).unwrap();
+        let result = builtin_read_number(&mut ev, vec![Value::string("Number: ")]).unwrap();
         assert!(matches!(result, Value::Int(0)));
     }
 
     #[test]
     fn completing_read_returns_empty() {
         let mut ev = Evaluator::new();
-        let result = builtin_completing_read(
-            &mut ev,
-            vec![Value::string("Choose: "), Value::Nil],
-        )
-        .unwrap();
+        let result =
+            builtin_completing_read(&mut ev, vec![Value::string("Choose: "), Value::Nil]).unwrap();
         assert_eq!(result.as_str(), Some(""));
     }
 
@@ -1297,8 +1259,7 @@ mod tests {
     #[test]
     fn read_key_sequence_returns_empty_vector() {
         let mut ev = Evaluator::new();
-        let result =
-            builtin_read_key_sequence(&mut ev, vec![Value::string("key: ")]).unwrap();
+        let result = builtin_read_key_sequence(&mut ev, vec![Value::string("key: ")]).unwrap();
         assert!(result.is_vector());
     }
 
@@ -1343,11 +1304,8 @@ mod tests {
     #[test]
     fn read_from_string_nested_list() {
         let mut ev = Evaluator::new();
-        let result = builtin_read_from_string(
-            &mut ev,
-            vec![Value::string("((a b) (c d))")],
-        )
-        .unwrap();
+        let result =
+            builtin_read_from_string(&mut ev, vec![Value::string("((a b) (c d))")]).unwrap();
         match &result {
             Value::Cons(cell) => {
                 let pair = cell.lock().unwrap();
@@ -1361,11 +1319,7 @@ mod tests {
     #[test]
     fn read_from_string_with_leading_whitespace() {
         let mut ev = Evaluator::new();
-        let result = builtin_read_from_string(
-            &mut ev,
-            vec![Value::string("   42")],
-        )
-        .unwrap();
+        let result = builtin_read_from_string(&mut ev, vec![Value::string("   42")]).unwrap();
         match &result {
             Value::Cons(cell) => {
                 let pair = cell.lock().unwrap();
@@ -1380,8 +1334,7 @@ mod tests {
     #[test]
     fn read_from_string_negative_number() {
         let mut ev = Evaluator::new();
-        let result =
-            builtin_read_from_string(&mut ev, vec![Value::string("-7")]).unwrap();
+        let result = builtin_read_from_string(&mut ev, vec![Value::string("-7")]).unwrap();
         match &result {
             Value::Cons(cell) => {
                 let pair = cell.lock().unwrap();
@@ -1393,21 +1346,15 @@ mod tests {
 
     #[test]
     fn format_spec_symbol_replacement() {
-        let spec = Value::list(vec![
-            Value::cons(Value::Char('s'), Value::symbol("foo")),
-        ]);
-        let result =
-            builtin_format_spec(vec![Value::string("sym: %s"), spec]).unwrap();
+        let spec = Value::list(vec![Value::cons(Value::Char('s'), Value::symbol("foo"))]);
+        let result = builtin_format_spec(vec![Value::string("sym: %s"), spec]).unwrap();
         assert_eq!(result.as_str(), Some("sym: foo"));
     }
 
     #[test]
     fn format_spec_nil_replacement() {
-        let spec = Value::list(vec![
-            Value::cons(Value::Char('v'), Value::Nil),
-        ]);
-        let result =
-            builtin_format_spec(vec![Value::string("val: %v"), spec]).unwrap();
+        let spec = Value::list(vec![Value::cons(Value::Char('v'), Value::Nil)]);
+        let result = builtin_format_spec(vec![Value::string("val: %v"), spec]).unwrap();
         assert_eq!(result.as_str(), Some("val: nil"));
     }
 
@@ -1440,8 +1387,7 @@ mod tests {
     #[test]
     fn read_from_string_hash_syntax() {
         let mut ev = Evaluator::new();
-        let result =
-            builtin_read_from_string(&mut ev, vec![Value::string("#xff")]).unwrap();
+        let result = builtin_read_from_string(&mut ev, vec![Value::string("#xff")]).unwrap();
         match &result {
             Value::Cons(cell) => {
                 let pair = cell.lock().unwrap();
@@ -1454,21 +1400,14 @@ mod tests {
     #[test]
     fn prin1_to_string_noescape_char() {
         // With NOESCAPE, a char should print as the character itself
-        let result = builtin_prin1_to_string_full(vec![
-            Value::Char('x'),
-            Value::True,
-        ])
-        .unwrap();
+        let result = builtin_prin1_to_string_full(vec![Value::Char('x'), Value::True]).unwrap();
         assert_eq!(result.as_str(), Some("x"));
     }
 
     #[test]
     fn format_spec_float_replacement() {
-        let spec = Value::list(vec![
-            Value::cons(Value::Char('f'), Value::Float(3.14)),
-        ]);
-        let result =
-            builtin_format_spec(vec![Value::string("pi=%f"), spec]).unwrap();
+        let spec = Value::list(vec![Value::cons(Value::Char('f'), Value::Float(3.14))]);
+        let result = builtin_format_spec(vec![Value::string("pi=%f"), spec]).unwrap();
         assert_eq!(result.as_str(), Some("pi=3.14"));
     }
 }

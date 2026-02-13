@@ -8,8 +8,8 @@
 //! - A property list (plist)
 //! - A `special` flag (for dynamic binding in lexical scope)
 
-use std::collections::HashMap;
 use super::value::Value;
+use std::collections::HashMap;
 
 /// Per-symbol metadata stored in the obarray.
 #[derive(Clone, Debug)]
@@ -82,7 +82,8 @@ impl Obarray {
     /// Returns the symbol name (which is the key for identity).
     pub fn intern(&mut self, name: &str) -> String {
         if !self.symbols.contains_key(name) {
-            self.symbols.insert(name.to_string(), SymbolData::new(name.to_string()));
+            self.symbols
+                .insert(name.to_string(), SymbolData::new(name.to_string()));
         }
         name.to_string()
     }
@@ -95,7 +96,8 @@ impl Obarray {
     /// Get symbol data (mutable). Interns the symbol if needed.
     pub fn get_or_intern(&mut self, name: &str) -> &mut SymbolData {
         if !self.symbols.contains_key(name) {
-            self.symbols.insert(name.to_string(), SymbolData::new(name.to_string()));
+            self.symbols
+                .insert(name.to_string(), SymbolData::new(name.to_string()));
         }
         self.symbols.get_mut(name).unwrap()
     }

@@ -85,7 +85,11 @@ fn iter_symbol_list(value: &Value) -> Vec<String> {
 ///
 /// This is the hierarchical replacement for the flat `signal_matches` in
 /// `error.rs`.
-pub fn signal_matches_hierarchical(obarray: &Obarray, signal_sym: &str, condition_sym: &str) -> bool {
+pub fn signal_matches_hierarchical(
+    obarray: &Obarray,
+    signal_sym: &str,
+    condition_sym: &str,
+) -> bool {
     // `t` catches all signals.
     if condition_sym == "t" {
         return true;
@@ -138,39 +142,124 @@ pub fn init_standard_errors(obarray: &mut Obarray) {
 
     register_simple(obarray, "quit", "Quit", &["error"]);
     register_simple(obarray, "user-error", "User error", &["error"]);
-    register_simple(obarray, "args-out-of-range", "Args out of range", &["error"]);
-    register_simple(obarray, "beginning-of-buffer", "Beginning of buffer", &["error"]);
+    register_simple(
+        obarray,
+        "args-out-of-range",
+        "Args out of range",
+        &["error"],
+    );
+    register_simple(
+        obarray,
+        "beginning-of-buffer",
+        "Beginning of buffer",
+        &["error"],
+    );
     register_simple(obarray, "end-of-buffer", "End of buffer", &["error"]);
-    register_simple(obarray, "buffer-read-only", "Buffer is read-only", &["error"]);
-    register_simple(obarray, "coding-system-error", "Invalid coding system", &["error"]);
+    register_simple(
+        obarray,
+        "buffer-read-only",
+        "Buffer is read-only",
+        &["error"],
+    );
+    register_simple(
+        obarray,
+        "coding-system-error",
+        "Invalid coding system",
+        &["error"],
+    );
     register_simple(obarray, "invalid-function", "Invalid function", &["error"]);
-    register_simple(obarray, "invalid-read-syntax", "Invalid read syntax", &["error"]);
+    register_simple(
+        obarray,
+        "invalid-read-syntax",
+        "Invalid read syntax",
+        &["error"],
+    );
     register_simple(obarray, "invalid-regexp", "Invalid regexp", &["error"]);
-    register_simple(obarray, "mark-inactive", "The mark is not active now", &["error"]);
+    register_simple(
+        obarray,
+        "mark-inactive",
+        "The mark is not active now",
+        &["error"],
+    );
     register_simple(obarray, "no-catch", "No catch for tag", &["error"]);
     register_simple(obarray, "scan-error", "Scan error", &["error"]);
     register_simple(obarray, "search-failed", "Search failed", &["error"]);
-    register_simple(obarray, "setting-constant", "Attempt to set a constant symbol", &["error"]);
+    register_simple(
+        obarray,
+        "setting-constant",
+        "Attempt to set a constant symbol",
+        &["error"],
+    );
     register_simple(obarray, "text-read-only", "Text is read-only", &["error"]);
-    register_simple(obarray, "void-function", "Symbol's function definition is void", &["error"]);
-    register_simple(obarray, "void-variable", "Symbol's value as variable is void", &["error"]);
+    register_simple(
+        obarray,
+        "void-function",
+        "Symbol's function definition is void",
+        &["error"],
+    );
+    register_simple(
+        obarray,
+        "void-variable",
+        "Symbol's value as variable is void",
+        &["error"],
+    );
     register_simple(
         obarray,
         "wrong-number-of-arguments",
         "Wrong number of arguments",
         &["error"],
     );
-    register_simple(obarray, "wrong-type-argument", "Wrong type argument", &["error"]);
-    register_simple(obarray, "cl-assertion-failed", "Assertion failed", &["error"]);
-    register_simple(obarray, "permission-denied", "Permission denied", &["error"]);
-    register_simple(obarray, "recursion-error", "Excessive recursive calling", &["error"]);
+    register_simple(
+        obarray,
+        "wrong-type-argument",
+        "Wrong type argument",
+        &["error"],
+    );
+    register_simple(
+        obarray,
+        "cl-assertion-failed",
+        "Assertion failed",
+        &["error"],
+    );
+    register_simple(
+        obarray,
+        "permission-denied",
+        "Permission denied",
+        &["error"],
+    );
+    register_simple(
+        obarray,
+        "recursion-error",
+        "Excessive recursive calling",
+        &["error"],
+    );
 
     // --- arith-error family ---
     register_simple(obarray, "arith-error", "Arithmetic error", &["error"]);
-    register_simple(obarray, "overflow-error", "Arithmetic overflow error", &["arith-error"]);
-    register_simple(obarray, "range-error", "Arithmetic range error", &["arith-error"]);
-    register_simple(obarray, "domain-error", "Arithmetic domain error", &["arith-error"]);
-    register_simple(obarray, "underflow-error", "Arithmetic underflow error", &["arith-error"]);
+    register_simple(
+        obarray,
+        "overflow-error",
+        "Arithmetic overflow error",
+        &["arith-error"],
+    );
+    register_simple(
+        obarray,
+        "range-error",
+        "Arithmetic range error",
+        &["arith-error"],
+    );
+    register_simple(
+        obarray,
+        "domain-error",
+        "Arithmetic domain error",
+        &["arith-error"],
+    );
+    register_simple(
+        obarray,
+        "underflow-error",
+        "Arithmetic underflow error",
+        &["arith-error"],
+    );
 
     // --- file-error family ---
     register_simple(obarray, "file-error", "File error", &["error"]);
@@ -180,7 +269,12 @@ pub fn init_standard_errors(obarray: &mut Obarray) {
         "File already exists",
         &["file-error"],
     );
-    register_simple(obarray, "file-date-error", "Cannot set file date", &["file-error"]);
+    register_simple(
+        obarray,
+        "file-date-error",
+        "Cannot set file date",
+        &["file-error"],
+    );
     register_simple(obarray, "file-locked", "File is locked", &["file-error"]);
     register_simple(obarray, "file-missing", "File is missing", &["file-error"]);
     register_simple(
@@ -192,7 +286,12 @@ pub fn init_standard_errors(obarray: &mut Obarray) {
 
     // --- json-error family ---
     register_simple(obarray, "json-error", "JSON error", &["error"]);
-    register_simple(obarray, "json-parse-error", "JSON parse error", &["json-error"]);
+    register_simple(
+        obarray,
+        "json-parse-error",
+        "JSON parse error",
+        &["json-error"],
+    );
     register_simple(
         obarray,
         "json-serialize-error",
@@ -238,17 +337,11 @@ fn register_simple(obarray: &mut Obarray, name: &str, message: &str, parents: &[
 /// or a list of symbols.
 ///
 /// Sets `error-conditions` and `error-message` on NAME's plist in the obarray.
-pub(crate) fn sf_define_error(
-    eval: &mut super::eval::Evaluator,
-    tail: &[Expr],
-) -> EvalResult {
+pub(crate) fn sf_define_error(eval: &mut super::eval::Evaluator, tail: &[Expr]) -> EvalResult {
     if tail.is_empty() || tail.len() > 3 {
         return Err(signal(
             "wrong-number-of-arguments",
-            vec![
-                Value::symbol("define-error"),
-                Value::Int(tail.len() as i64),
-            ],
+            vec![Value::symbol("define-error"), Value::Int(tail.len() as i64)],
         ));
     }
 
@@ -402,9 +495,7 @@ pub(crate) fn builtin_error_message_string(
             };
             let rest = match &pair.cdr {
                 Value::Nil => vec![],
-                Value::Cons(_) => {
-                    list_to_vec(&pair.cdr).unwrap_or_else(|| vec![pair.cdr.clone()])
-                }
+                Value::Cons(_) => list_to_vec(&pair.cdr).unwrap_or_else(|| vec![pair.cdr.clone()]),
                 other => vec![other.clone()],
             };
             (sym, rest)
@@ -426,11 +517,12 @@ pub(crate) fn builtin_error_message_string(
         Ok(Value::string(base_message))
     } else {
         // Format data items.
-        let data_strs: Vec<String> = data
-            .iter()
-            .map(|v| super::print::print_value(v))
-            .collect();
-        Ok(Value::string(format!("{}: {}", base_message, data_strs.join(", "))))
+        let data_strs: Vec<String> = data.iter().map(|v| super::print::print_value(v)).collect();
+        Ok(Value::string(format!(
+            "{}: {}",
+            base_message,
+            data_strs.join(", ")
+        )))
     }
 }
 
@@ -738,7 +830,9 @@ mod tests {
     fn obarray_void_variable_conditions() {
         let mut ob = Obarray::new();
         init_standard_errors(&mut ob);
-        let conds = ob.get_property("void-variable", "error-conditions").unwrap();
+        let conds = ob
+            .get_property("void-variable", "error-conditions")
+            .unwrap();
         let items = iter_symbol_list(conds);
         assert!(items.contains(&"void-variable".to_string()));
         assert!(items.contains(&"error".to_string()));
@@ -761,9 +855,7 @@ mod tests {
     fn obarray_file_missing_conditions() {
         let mut ob = Obarray::new();
         init_standard_errors(&mut ob);
-        let conds = ob
-            .get_property("file-missing", "error-conditions")
-            .unwrap();
+        let conds = ob.get_property("file-missing", "error-conditions").unwrap();
         let items = iter_symbol_list(conds);
         assert!(items.contains(&"file-missing".to_string()));
         assert!(items.contains(&"file-error".to_string()));
@@ -780,7 +872,11 @@ mod tests {
             "overflow-error",
             "arith-error"
         ));
-        assert!(signal_matches_hierarchical(&ob, "file-missing", "file-error"));
+        assert!(signal_matches_hierarchical(
+            &ob,
+            "file-missing",
+            "file-error"
+        ));
         assert!(!signal_matches_hierarchical(
             &ob,
             "void-variable",
@@ -1067,10 +1163,7 @@ mod tests {
         let result = builtin_error_message_string(&evaluator, vec![err_data]);
         assert!(result.is_ok());
         let msg = result.unwrap();
-        assert_eq!(
-            msg.as_str(),
-            Some("Symbol's value as variable is void: x")
-        );
+        assert_eq!(msg.as_str(), Some("Symbol's value as variable is void: x"));
     }
 
     #[test]

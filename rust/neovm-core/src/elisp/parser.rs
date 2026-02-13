@@ -271,8 +271,7 @@ impl<'a> Parser<'a> {
         if hex_str.is_empty() {
             return Err(self.error("expected hex digits after \\x"));
         }
-        u32::from_str_radix(hex_str, 16)
-            .map_err(|_| self.error("invalid hex escape"))
+        u32::from_str_radix(hex_str, 16).map_err(|_| self.error("invalid hex escape"))
     }
 
     fn read_fixed_hex(&mut self, count: usize) -> Result<u32, ParseError> {
@@ -317,18 +316,15 @@ impl<'a> Parser<'a> {
                 'd' => '\x7F',
                 'x' => {
                     let val = self.read_hex_digits()?;
-                    char::from_u32(val)
-                        .ok_or_else(|| self.error("invalid unicode codepoint"))?
+                    char::from_u32(val).ok_or_else(|| self.error("invalid unicode codepoint"))?
                 }
                 'u' => {
                     let val = self.read_fixed_hex(4)?;
-                    char::from_u32(val)
-                        .ok_or_else(|| self.error("invalid unicode codepoint"))?
+                    char::from_u32(val).ok_or_else(|| self.error("invalid unicode codepoint"))?
                 }
                 'U' => {
                     let val = self.read_fixed_hex(8)?;
-                    char::from_u32(val)
-                        .ok_or_else(|| self.error("invalid unicode codepoint"))?
+                    char::from_u32(val).ok_or_else(|| self.error("invalid unicode codepoint"))?
                 }
                 '0'..='7' => {
                     let mut val = (esc as u32) - ('0' as u32);
@@ -341,8 +337,7 @@ impl<'a> Parser<'a> {
                             _ => break,
                         }
                     }
-                    char::from_u32(val)
-                        .ok_or_else(|| self.error("invalid octal character"))?
+                    char::from_u32(val).ok_or_else(|| self.error("invalid octal character"))?
                 }
                 // Modifier keys (Emacs-style)
                 'C' if self.current() == Some('-') => {
@@ -362,8 +357,7 @@ impl<'a> Parser<'a> {
                     };
                     self.bump();
                     // Meta character (set bit 27)
-                    char::from_u32((base as u32) | (1 << 27))
-                        .unwrap_or(base)
+                    char::from_u32((base as u32) | (1 << 27)).unwrap_or(base)
                 }
                 'S' if self.current() == Some('-') => {
                     self.bump(); // -
@@ -372,8 +366,7 @@ impl<'a> Parser<'a> {
                     };
                     self.bump();
                     // Shift modifier (set bit 25)
-                    char::from_u32((base as u32) | (1 << 25))
-                        .unwrap_or(base)
+                    char::from_u32((base as u32) | (1 << 25)).unwrap_or(base)
                 }
                 other => other,
             };
@@ -477,8 +470,8 @@ impl<'a> Parser<'a> {
             return Err(self.error("expected digits after radix prefix"));
         }
 
-        let val = i64::from_str_radix(&digits, radix)
-            .map_err(|_| self.error("invalid radix number"))?;
+        let val =
+            i64::from_str_radix(&digits, radix).map_err(|_| self.error("invalid radix number"))?;
         Ok(Expr::Int(if negative { -val } else { val }))
     }
 
@@ -657,10 +650,7 @@ mod tests {
         let forms = parse_forms(":test :size").unwrap();
         assert_eq!(
             forms,
-            vec![
-                Expr::Keyword(":test".into()),
-                Expr::Keyword(":size".into()),
-            ]
+            vec![Expr::Keyword(":test".into()), Expr::Keyword(":size".into()),]
         );
     }
 
@@ -670,11 +660,7 @@ mod tests {
         assert_eq!(
             forms,
             vec![
-                Expr::List(vec![
-                    Expr::Symbol("+".into()),
-                    Expr::Int(1),
-                    Expr::Int(2),
-                ]),
+                Expr::List(vec![Expr::Symbol("+".into()), Expr::Int(1), Expr::Int(2),]),
                 Expr::List(vec![]),
             ]
         );
@@ -707,7 +693,10 @@ mod tests {
         assert_eq!(
             forms,
             vec![
-                Expr::List(vec![Expr::Symbol("quote".into()), Expr::Symbol("foo".into())]),
+                Expr::List(vec![
+                    Expr::Symbol("quote".into()),
+                    Expr::Symbol("foo".into())
+                ]),
                 Expr::List(vec![
                     Expr::Symbol("quote".into()),
                     Expr::List(vec![Expr::Int(1), Expr::Int(2)]),
@@ -737,10 +726,7 @@ mod tests {
     #[test]
     fn parse_hex_literal() {
         let forms = parse_forms("#xff #b1010 #o17").unwrap();
-        assert_eq!(
-            forms,
-            vec![Expr::Int(255), Expr::Int(10), Expr::Int(15)]
-        );
+        assert_eq!(forms, vec![Expr::Int(255), Expr::Int(10), Expr::Int(15)]);
     }
 
     #[test]

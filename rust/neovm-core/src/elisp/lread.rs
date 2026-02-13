@@ -43,10 +43,7 @@ fn expect_string(value: &Value) -> Result<String, Flow> {
 /// Intern a symbol with the given name in the obarray.  If the symbol already
 /// exists, return the existing one; otherwise create it.  The optional OBARRAY
 /// argument is accepted but ignored (we use the single global obarray).
-pub(crate) fn builtin_intern(
-    eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
+pub(crate) fn builtin_intern(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_min_args("intern", &args, 1)?;
     let name = expect_string(&args[0])?;
     eval.obarray.intern(&name);
@@ -76,10 +73,7 @@ pub(crate) fn builtin_intern_soft(
 /// - If STREAM is a string, parse the first form from it.
 /// - If STREAM is nil or omitted, return nil (no terminal input in batch mode).
 /// - If STREAM is a buffer, read from buffer at point.
-pub(crate) fn builtin_read(
-    eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
+pub(crate) fn builtin_read(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     if args.is_empty() || args[0].is_nil() {
         // No stream / nil -- non-interactive, return nil
         return Ok(Value::Nil);
@@ -106,9 +100,10 @@ pub(crate) fn builtin_read(
             // Read from buffer at point
             let buf_id = *id;
             let (text, pt) = {
-                let buf = eval.buffers.get(buf_id).ok_or_else(|| {
-                    signal("error", vec![Value::string("Buffer does not exist")])
-                })?;
+                let buf = eval
+                    .buffers
+                    .get(buf_id)
+                    .ok_or_else(|| signal("error", vec![Value::string("Buffer does not exist")]))?;
                 (buf.buffer_string(), buf.pt)
             };
             let start = if pt > 0 { pt - 1 } else { 0 };
@@ -288,10 +283,7 @@ pub(crate) fn builtin_read_char_exclusive(
 ///
 /// Load a file of Lisp code.  Delegates to the existing load module when
 /// possible; otherwise signals an error or returns nil based on NOERROR.
-pub(crate) fn builtin_load(
-    eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
+pub(crate) fn builtin_load(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_min_args("load", &args, 1)?;
     let file = match &args[0] {
         Value::Str(s) => (**s).clone(),
@@ -306,9 +298,7 @@ pub(crate) fn builtin_load(
 
     let load_path = super::load::get_load_path(&eval.obarray);
     match super::load::find_file_in_load_path(&file, &load_path) {
-        Some(path) => {
-            super::load::load_file(eval, &path).map_err(eval_error_to_flow)
-        }
+        Some(path) => super::load::load_file(eval, &path).map_err(eval_error_to_flow),
         None => {
             // Try as absolute path
             let path = std::path::Path::new(&file);
@@ -383,9 +373,7 @@ fn eval_error_to_flow(e: super::error::EvalError) -> Flow {
         super::error::EvalError::Signal { symbol, data } => {
             Flow::Signal(SignalData { symbol, data })
         }
-        super::error::EvalError::UncaughtThrow { tag, value } => {
-            Flow::Throw { tag, value }
-        }
+        super::error::EvalError::UncaughtThrow { tag, value } => Flow::Throw { tag, value },
     }
 }
 
@@ -742,11 +730,9 @@ mod tests {
     #[test]
     fn read_from_string_with_start() {
         let mut ev = Evaluator::new();
-        let result = builtin_read_from_string(
-            &mut ev,
-            vec![Value::string("  42 rest"), Value::Int(2)],
-        )
-        .unwrap();
+        let result =
+            builtin_read_from_string(&mut ev, vec![Value::string("  42 rest"), Value::Int(2)])
+                .unwrap();
         match &result {
             Value::Cons(cell) => {
                 let pair = cell.lock().unwrap();
@@ -767,8 +753,7 @@ mod tests {
     #[test]
     fn read_from_string_list() {
         let mut ev = Evaluator::new();
-        let result =
-            builtin_read_from_string(&mut ev, vec![Value::string("(+ 1 2)")]).unwrap();
+        let result = builtin_read_from_string(&mut ev, vec![Value::string("(+ 1 2)")]).unwrap();
         match &result {
             Value::Cons(cell) => {
                 let pair = cell.lock().unwrap();
@@ -846,30 +831,22 @@ mod tests {
 
     #[test]
     fn locate_file_returns_nil() {
-        let result = builtin_locate_file(vec![
-            Value::string("foo"),
-            Value::Nil,
-            Value::Nil,
-        ])
-        .unwrap();
+        let result =
+            builtin_locate_file(vec![Value::string("foo"), Value::Nil, Value::Nil]).unwrap();
         assert!(result.is_nil());
     }
 
     #[test]
     fn locate_file_internal_returns_nil() {
-        let result = builtin_locate_file_internal(vec![
-            Value::string("foo"),
-            Value::Nil,
-            Value::Nil,
-        ])
-        .unwrap();
+        let result =
+            builtin_locate_file_internal(vec![Value::string("foo"), Value::Nil, Value::Nil])
+                .unwrap();
         assert!(result.is_nil());
     }
 
     #[test]
     fn read_coding_system_returns_utf8() {
-        let result =
-            builtin_read_coding_system(vec![Value::string("Coding system: ")]).unwrap();
+        let result = builtin_read_coding_system(vec![Value::string("Coding system: ")]).unwrap();
         assert!(matches!(result, Value::Symbol(ref s) if s == "utf-8"));
     }
 

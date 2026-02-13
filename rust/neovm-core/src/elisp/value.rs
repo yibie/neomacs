@@ -140,7 +140,11 @@ impl Value {
     }
 
     pub fn bool(b: bool) -> Self {
-        if b { Value::True } else { Value::Nil }
+        if b {
+            Value::True
+        } else {
+            Value::Nil
+        }
     }
 
     pub fn symbol(s: impl Into<String>) -> Self {
@@ -167,9 +171,10 @@ impl Value {
     }
 
     pub fn list(values: Vec<Value>) -> Self {
-        values.into_iter().rev().fold(Value::Nil, |acc, item| {
-            Value::cons(item, acc)
-        })
+        values
+            .into_iter()
+            .rev()
+            .fold(Value::Nil, |acc, item| Value::cons(item, acc))
     }
 
     pub fn vector(values: Vec<Value>) -> Self {
@@ -410,8 +415,7 @@ pub fn equal_value(left: &Value, right: &Value, depth: usize) -> bool {
             }
             let a = a.lock().expect("poisoned");
             let b = b.lock().expect("poisoned");
-            equal_value(&a.car, &b.car, depth + 1)
-                && equal_value(&a.cdr, &b.cdr, depth + 1)
+            equal_value(&a.car, &b.car, depth + 1) && equal_value(&a.cdr, &b.cdr, depth + 1)
         }
         (Value::Vector(a), Value::Vector(b)) => {
             if Arc::ptr_eq(a, b) {

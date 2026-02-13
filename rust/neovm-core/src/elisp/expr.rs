@@ -116,11 +116,7 @@ mod tests {
 
     #[test]
     fn print_list() {
-        let expr = Expr::List(vec![
-            Expr::Symbol("+".into()),
-            Expr::Int(1),
-            Expr::Int(2),
-        ]);
+        let expr = Expr::List(vec![Expr::Symbol("+".into()), Expr::Int(1), Expr::Int(2)]);
         assert_eq!(print_expr(&expr), "(+ 1 2)");
     }
 

@@ -6,20 +6,20 @@ use super::abbrev::AbbrevManager;
 use super::advice::{AdviceManager, VariableWatcherList};
 use super::autoload::AutoloadManager;
 use super::bookmark::BookmarkManager;
+use super::builtins;
 use super::category::CategoryManager;
 use super::coding::CodingSystemManager;
-use super::builtins;
 use super::custom::CustomManager;
 use super::error::*;
 use super::expr::Expr;
 use super::interactive::InteractiveRegistry;
-use super::mode::ModeRegistry;
 use super::keymap::KeymapManager;
 use super::kill_ring::KillRing;
-use super::rect::RectangleState;
 use super::kmacro::KmacroManager;
+use super::mode::ModeRegistry;
 use super::network::NetworkManager;
 use super::process::ProcessManager;
+use super::rect::RectangleState;
 use super::regex::MatchData;
 use super::register::RegisterManager;
 use super::symbol::Obarray;
@@ -117,9 +117,17 @@ impl Evaluator {
         obarray.set_symbol_value("print-level", Value::Nil);
 
         // Mark standard variables as special (dynamically bound)
-        for name in &["debug-on-error", "lexical-binding", "load-path", "features",
-                      "load-file-name", "noninteractive", "inhibit-quit",
-                      "print-length", "print-level"] {
+        for name in &[
+            "debug-on-error",
+            "lexical-binding",
+            "load-path",
+            "features",
+            "load-file-name",
+            "noninteractive",
+            "inhibit-quit",
+            "print-length",
+            "print-level",
+        ] {
             obarray.make_special(name);
         }
 
@@ -164,24 +172,22 @@ impl Evaluator {
 
     /// Whether lexical-binding is currently enabled.
     pub fn lexical_binding(&self) -> bool {
-        self.obarray.symbol_value("lexical-binding")
+        self.obarray
+            .symbol_value("lexical-binding")
             .is_some_and(|v| v.is_truthy())
     }
 
     /// Enable or disable lexical binding.
     pub fn set_lexical_binding(&mut self, enabled: bool) {
-        self.obarray.set_symbol_value("lexical-binding", Value::bool(enabled));
+        self.obarray
+            .set_symbol_value("lexical-binding", Value::bool(enabled));
     }
 
     /// Load a file, converting EvalError back to Flow for use in special forms.
     pub(crate) fn load_file_internal(&mut self, path: &std::path::Path) -> EvalResult {
         super::load::load_file(self, path).map_err(|e| match e {
-            EvalError::Signal { symbol, data } => {
-                signal(&symbol, data)
-            }
-            EvalError::UncaughtThrow { tag, value } => {
-                Flow::Throw { tag, value }
-            }
+            EvalError::Signal { symbol, data } => signal(&symbol, data),
+            EvalError::UncaughtThrow { tag, value } => Flow::Throw { tag, value },
         })
     }
 
@@ -225,7 +231,10 @@ impl Evaluator {
         self.depth += 1;
         if self.depth > self.max_depth {
             self.depth -= 1;
-            return Err(signal("excessive-lisp-nesting", vec![Value::Int(self.max_depth as i64)]));
+            return Err(signal(
+                "excessive-lisp-nesting",
+                vec![Value::Int(self.max_depth as i64)],
+            ));
         }
         let result = self.eval_inner(expr);
         self.depth -= 1;
@@ -407,8 +416,12 @@ impl Evaluator {
             "eval-when-compile" => super::autoload::sf_eval_when_compile(self, tail),
             "eval-and-compile" => super::autoload::sf_eval_and_compile(self, tail),
             "declare-function" => super::autoload::sf_declare_function(self, tail),
-            "define-obsolete-function-alias" => super::autoload::sf_define_obsolete_function_alias(self, tail),
-            "define-obsolete-variable-alias" => super::autoload::sf_define_obsolete_variable_alias(self, tail),
+            "define-obsolete-function-alias" => {
+                super::autoload::sf_define_obsolete_function_alias(self, tail)
+            }
+            "define-obsolete-variable-alias" => {
+                super::autoload::sf_define_obsolete_variable_alias(self, tail)
+            }
             "make-obsolete" => super::autoload::sf_make_obsolete(self, tail),
             "make-obsolete-variable" => super::autoload::sf_make_obsolete_variable(self, tail),
             "with-eval-after-load" => super::autoload::sf_with_eval_after_load(self, tail),
@@ -593,7 +606,9 @@ impl Evaluator {
                 }
                 Expr::List(pair) if !pair.is_empty() => {
                     let Expr::Symbol(name) = &pair[0] else {
-                        if pushed_lex { self.lexenv.pop(); }
+                        if pushed_lex {
+                            self.lexenv.pop();
+                        }
                         self.dynamic.pop();
                         return Err(signal("wrong-type-argument", vec![]));
                     };
@@ -601,7 +616,9 @@ impl Evaluator {
                         match self.eval(&pair[1]) {
                             Ok(v) => v,
                             Err(e) => {
-                                if pushed_lex { self.lexenv.pop(); }
+                                if pushed_lex {
+                                    self.lexenv.pop();
+                                }
                                 self.dynamic.pop();
                                 return Err(e);
                             }
@@ -618,7 +635,9 @@ impl Evaluator {
                     }
                 }
                 _ => {
-                    if pushed_lex { self.lexenv.pop(); }
+                    if pushed_lex {
+                        self.lexenv.pop();
+                    }
                     self.dynamic.pop();
                     return Err(signal("wrong-type-argument", vec![]));
                 }
@@ -626,8 +645,12 @@ impl Evaluator {
         }
 
         let result = self.sf_progn(&tail[1..]);
-        if pushed_dyn { self.dynamic.pop(); }
-        if pushed_lex { self.lexenv.pop(); }
+        if pushed_dyn {
+            self.dynamic.pop();
+        }
+        if pushed_lex {
+            self.lexenv.pop();
+        }
         result
     }
 
@@ -923,7 +946,12 @@ impl Evaluator {
         let def = self.eval(&tail[1])?;
         let name = match &sym {
             Value::Symbol(s) => s.clone(),
-            _ => return Err(signal("wrong-type-argument", vec![Value::symbol("symbolp"), sym])),
+            _ => {
+                return Err(signal(
+                    "wrong-type-argument",
+                    vec![Value::symbol("symbolp"), sym],
+                ))
+            }
         };
         self.obarray.set_symbol_function(&name, def);
         Ok(sym)
@@ -936,7 +964,12 @@ impl Evaluator {
         let feature = self.eval(&tail[0])?;
         let name = match &feature {
             Value::Symbol(s) => s.clone(),
-            _ => return Err(signal("wrong-type-argument", vec![Value::symbol("symbolp"), feature])),
+            _ => {
+                return Err(signal(
+                    "wrong-type-argument",
+                    vec![Value::symbol("symbolp"), feature],
+                ))
+            }
         };
         if !self.features.contains(&name) {
             self.features.push(name);
@@ -951,7 +984,12 @@ impl Evaluator {
         let feature = self.eval(&tail[0])?;
         let name = match &feature {
             Value::Symbol(s) => s.clone(),
-            _ => return Err(signal("wrong-type-argument", vec![Value::symbol("symbolp"), feature])),
+            _ => {
+                return Err(signal(
+                    "wrong-type-argument",
+                    vec![Value::symbol("symbolp"), feature],
+                ))
+            }
         };
         if self.features.contains(&name) {
             return Ok(Value::symbol(name));
@@ -975,9 +1013,13 @@ impl Evaluator {
                 if self.features.contains(&name) {
                     Ok(Value::symbol(name))
                 } else {
-                    Err(signal("file-missing", vec![
-                        Value::string(format!("Required feature '{}' was not provided", name))
-                    ]))
+                    Err(signal(
+                        "file-missing",
+                        vec![Value::string(format!(
+                            "Required feature '{}' was not provided",
+                            name
+                        ))],
+                    ))
                 }
             }
             None => {
@@ -988,9 +1030,13 @@ impl Evaluator {
                         return Ok(Value::Nil);
                     }
                 }
-                Err(signal("file-missing", vec![
-                    Value::string(format!("Cannot open load file: no such file or directory, {}", name))
-                ]))
+                Err(signal(
+                    "file-missing",
+                    vec![Value::string(format!(
+                        "Cannot open load file: no such file or directory, {}",
+                        name
+                    ))],
+                ))
             }
         }
     }
@@ -1002,12 +1048,15 @@ impl Evaluator {
         let buf_val = self.eval(&tail[0])?;
         let target_id = match &buf_val {
             Value::Buffer(id) => *id,
-            Value::Str(s) => {
-                self.buffers.find_buffer_by_name(s)
-                    .ok_or_else(|| signal("error", vec![Value::string(format!("No buffer named {s}"))]))?
+            Value::Str(s) => self.buffers.find_buffer_by_name(s).ok_or_else(|| {
+                signal("error", vec![Value::string(format!("No buffer named {s}"))])
+            })?,
+            other => {
+                return Err(signal(
+                    "wrong-type-argument",
+                    vec![Value::symbol("bufferp"), other.clone()],
+                ))
             }
-            other => return Err(signal("wrong-type-argument",
-                vec![Value::symbol("bufferp"), other.clone()])),
         };
         // Save current buffer, switch, run body, restore
         let saved = self.buffers.current_buffer().map(|b| b.id);
@@ -1077,7 +1126,12 @@ impl Evaluator {
         let count = self.eval(&spec[1])?;
         let count = match &count {
             Value::Int(n) => *n,
-            _ => return Err(signal("wrong-type-argument", vec![Value::symbol("integerp"), count])),
+            _ => {
+                return Err(signal(
+                    "wrong-type-argument",
+                    vec![Value::symbol("integerp"), count],
+                ))
+            }
         };
 
         self.dynamic.push(HashMap::new());
@@ -1148,7 +1202,11 @@ impl Evaluator {
 
         // Skip docstring if present
         let body_start = if tail.len() > 2 {
-            if let Expr::Str(_) = &tail[1] { 2 } else { 1 }
+            if let Expr::Str(_) = &tail[1] {
+                2
+            } else {
+                1
+            }
         } else {
             1
         };
@@ -1182,19 +1240,32 @@ impl Evaluator {
                         return Err(signal("wrong-type-argument", vec![]));
                     };
                     match name.as_str() {
-                        "&optional" => { mode = 1; continue; }
-                        "&rest" => { mode = 2; continue; }
+                        "&optional" => {
+                            mode = 1;
+                            continue;
+                        }
+                        "&rest" => {
+                            mode = 2;
+                            continue;
+                        }
                         _ => {}
                     }
                     match mode {
                         0 => required.push(name.clone()),
                         1 => optional.push(name.clone()),
-                        2 => { rest = Some(name.clone()); break; }
+                        2 => {
+                            rest = Some(name.clone());
+                            break;
+                        }
                         _ => unreachable!(),
                     }
                 }
 
-                Ok(LambdaParams { required, optional, rest })
+                Ok(LambdaParams {
+                    required,
+                    optional,
+                    rest,
+                })
             }
             _ => Err(signal("wrong-type-argument", vec![])),
         }
@@ -1212,9 +1283,7 @@ impl Evaluator {
                 );
                 vm.execute(&bc, args)
             }
-            Value::Lambda(lambda) | Value::Macro(lambda) => {
-                self.apply_lambda(&lambda, args)
-            }
+            Value::Lambda(lambda) | Value::Macro(lambda) => self.apply_lambda(&lambda, args),
             Value::Subr(name) => {
                 // Try obarray function cell first
                 if let Some(func) = self.obarray.symbol_function(&name).cloned() {
@@ -1370,9 +1439,10 @@ pub fn quote_to_value(expr: &Expr) -> Value {
         Expr::DottedList(items, last) => {
             let head_vals: Vec<Value> = items.iter().map(quote_to_value).collect();
             let tail_val = quote_to_value(last);
-            head_vals.into_iter().rev().fold(tail_val, |acc, item| {
-                Value::cons(item, acc)
-            })
+            head_vals
+                .into_iter()
+                .rev()
+                .fold(tail_val, |acc, item| Value::cons(item, acc))
         }
         Expr::Vector(items) => {
             let vals = items.iter().map(quote_to_value).collect();
@@ -1420,7 +1490,7 @@ fn value_to_expr(value: &Value) -> Expr {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::elisp::{parse_forms, format_eval_result};
+    use crate::elisp::{format_eval_result, parse_forms};
 
     fn eval_one(src: &str) -> String {
         let forms = parse_forms(src).expect("parse");
@@ -1432,7 +1502,10 @@ mod tests {
     fn eval_all(src: &str) -> Vec<String> {
         let forms = parse_forms(src).expect("parse");
         let mut ev = Evaluator::new();
-        ev.eval_forms(&forms).iter().map(format_eval_result).collect()
+        ev.eval_forms(&forms)
+            .iter()
+            .map(format_eval_result)
+            .collect()
     }
 
     #[test]
@@ -1477,7 +1550,10 @@ mod tests {
 
     #[test]
     fn string_operations() {
-        assert_eq!(eval_one(r#"(concat "hello" " " "world")"#), r#"OK "hello world""#);
+        assert_eq!(
+            eval_one(r#"(concat "hello" " " "world")"#),
+            r#"OK "hello world""#
+        );
         assert_eq!(eval_one(r#"(substring "hello" 1 3)"#), r#"OK "el""#);
         assert_eq!(eval_one(r#"(length "hello")"#), "OK 5");
         assert_eq!(eval_one(r#"(upcase "hello")"#), r#"OK "HELLO""#);
@@ -1523,7 +1599,7 @@ mod tests {
             "(defun f (a &optional b &rest c) (list a b c))
              (f 1)
              (f 1 2)
-             (f 1 2 3 4)"
+             (f 1 2 3 4)",
         );
         assert_eq!(results[1], "OK (1 nil nil)");
         assert_eq!(results[2], "OK (1 2 nil)");
@@ -1543,7 +1619,7 @@ mod tests {
         let results = eval_all(
             "(let ((ht (make-hash-table :test 'equal)))
                (puthash \"key\" 42 ht)
-               (gethash \"key\" ht))"
+               (gethash \"key\" ht))",
         );
         assert_eq!(results[0], "OK 42");
     }
@@ -1556,7 +1632,10 @@ mod tests {
 
     #[test]
     fn format_function() {
-        assert_eq!(eval_one(r#"(format "hello %s, %d" "world" 42)"#), r#"OK "hello world, 42""#);
+        assert_eq!(
+            eval_one(r#"(format "hello %s, %d" "world" 42)"#),
+            r#"OK "hello world, 42""#
+        );
     }
 
     #[test]
@@ -1568,7 +1647,7 @@ mod tests {
     fn function_special_form() {
         let results = eval_all(
             "(defun add1 (x) (+ x 1))
-             (funcall #'add1 5)"
+             (funcall #'add1 5)",
         );
         assert_eq!(results[1], "OK 6");
     }
@@ -1601,7 +1680,11 @@ mod tests {
 
         let forms = parse_forms(source).expect("parse");
         let mut ev = Evaluator::new();
-        let rendered: Vec<String> = ev.eval_forms(&forms).iter().map(format_eval_result).collect();
+        let rendered: Vec<String> = ev
+            .eval_forms(&forms)
+            .iter()
+            .map(format_eval_result)
+            .collect();
 
         assert_eq!(
             rendered,
@@ -1619,12 +1702,15 @@ mod tests {
     #[test]
     fn lexical_binding_closure() {
         // With lexical binding, closures capture the lexical environment
-        let forms = parse_forms(r#"
+        let forms = parse_forms(
+            r#"
             (let ((x 1))
               (let ((f (lambda () x)))
                 (let ((x 2))
                   (funcall f))))
-        "#).expect("parse");
+        "#,
+        )
+        .expect("parse");
         let mut ev = Evaluator::new();
         ev.set_lexical_binding(true);
         let result = format_eval_result(&ev.eval_expr(&forms[0]));
@@ -1635,12 +1721,15 @@ mod tests {
     #[test]
     fn dynamic_binding_closure() {
         // Without lexical binding (default), closures see dynamic scope
-        let forms = parse_forms(r#"
+        let forms = parse_forms(
+            r#"
             (let ((x 1))
               (let ((f (lambda () x)))
                 (let ((x 2))
                   (funcall f))))
-        "#).expect("parse");
+        "#,
+        )
+        .expect("parse");
         let mut ev = Evaluator::new();
         let result = format_eval_result(&ev.eval_expr(&forms[0]));
         // In dynamic binding, the lambda sees x=2 (innermost dynamic binding)
@@ -1650,16 +1739,23 @@ mod tests {
     #[test]
     fn lexical_binding_special_var_stays_dynamic() {
         // defvar makes a variable special — it stays dynamically scoped
-        let forms = parse_forms(r#"
+        let forms = parse_forms(
+            r#"
             (defvar my-special 10)
             (let ((my-special 20))
               (let ((f (lambda () my-special)))
                 (let ((my-special 30))
                   (funcall f))))
-        "#).expect("parse");
+        "#,
+        )
+        .expect("parse");
         let mut ev = Evaluator::new();
         ev.set_lexical_binding(true);
-        let results: Vec<String> = ev.eval_forms(&forms).iter().map(format_eval_result).collect();
+        let results: Vec<String> = ev
+            .eval_forms(&forms)
+            .iter()
+            .map(format_eval_result)
+            .collect();
         // my-special is declared special, so even in lexical mode it's dynamic
         assert_eq!(results[1], "OK 30");
     }
@@ -1669,7 +1765,7 @@ mod tests {
         let results = eval_all(
             "(defun my-add (a b) (+ a b))
              (defalias 'my-plus 'my-add)
-             (my-plus 3 4)"
+             (my-plus 3 4)",
         );
         assert_eq!(results[2], "OK 7");
     }
@@ -1678,23 +1774,25 @@ mod tests {
     fn provide_require() {
         let forms = parse_forms("(provide 'my-feature) (featurep 'my-feature)").expect("parse");
         let mut ev = Evaluator::new();
-        let results: Vec<String> = ev.eval_forms(&forms).iter().map(format_eval_result).collect();
+        let results: Vec<String> = ev
+            .eval_forms(&forms)
+            .iter()
+            .map(format_eval_result)
+            .collect();
         assert_eq!(results[0], "OK my-feature");
         assert_eq!(results[1], "OK t");
     }
 
     #[test]
     fn dotimes_loop() {
-        let result = eval_one(
-            "(let ((sum 0)) (dotimes (i 5) (setq sum (+ sum i))) sum)"
-        );
+        let result = eval_one("(let ((sum 0)) (dotimes (i 5) (setq sum (+ sum i))) sum)");
         assert_eq!(result, "OK 10"); // 0+1+2+3+4 = 10
     }
 
     #[test]
     fn dolist_loop() {
         let result = eval_one(
-            "(let ((result nil)) (dolist (x '(a b c)) (setq result (cons x result))) result)"
+            "(let ((result nil)) (dolist (x '(a b c)) (setq result (cons x result))) result)",
         );
         assert_eq!(result, "OK (c b a)");
     }
@@ -1717,7 +1815,7 @@ mod tests {
             "(defvar my-hook nil)
              (defun hook-fn () 42)
              (add-hook 'my-hook 'hook-fn)
-             (run-hooks 'my-hook)"
+             (run-hooks 'my-hook)",
         );
         assert_eq!(results[3], "OK nil"); // run-hooks returns nil
     }
@@ -1729,7 +1827,7 @@ mod tests {
              (boundp 'x)
              (symbol-value 'x)
              (put 'x 'doc \"A variable\")
-             (get 'x 'doc)"
+             (get 'x 'doc)",
         );
         assert_eq!(results[1], "OK t");
         assert_eq!(results[2], "OK 42");
@@ -1744,7 +1842,7 @@ mod tests {
             "(get-buffer-create \"test-buf\")
              (set-buffer \"test-buf\")
              (buffer-name)
-             (bufferp (current-buffer))"
+             (bufferp (current-buffer))",
         );
         assert!(results[0].starts_with("OK #<buffer"));
         assert!(results[1].starts_with("OK #<buffer"));
@@ -1763,7 +1861,7 @@ mod tests {
              (point)
              (buffer-string)
              (point-min)
-             (point-max)"
+             (point-max)",
         );
         assert_eq!(results[3], "OK 6"); // after inserting "hello", point is 6 (1-based)
         assert_eq!(results[5], "OK 1"); // after goto-char 1
@@ -1779,7 +1877,7 @@ mod tests {
              (set-buffer \"del\")
              (insert \"abcdef\")
              (delete-region 2 5)
-             (buffer-string)"
+             (buffer-string)",
         );
         assert_eq!(results[4], r#"OK "aef""#);
     }
@@ -1792,7 +1890,7 @@ mod tests {
              (insert \"stuff\")
              (erase-buffer)
              (buffer-string)
-             (buffer-size)"
+             (buffer-size)",
         );
         assert_eq!(results[4], r#"OK """#);
         assert_eq!(results[5], "OK 0");
@@ -1807,7 +1905,7 @@ mod tests {
              (narrow-to-region 7 12)
              (buffer-string)
              (widen)
-             (buffer-string)"
+             (buffer-string)",
         );
         assert_eq!(results[4], r#"OK "world""#);
         assert_eq!(results[6], r#"OK "hello world""#);
@@ -1822,7 +1920,7 @@ mod tests {
              (insert \"x\")
              (buffer-modified-p)
              (set-buffer-modified-p nil)
-             (buffer-modified-p)"
+             (buffer-modified-p)",
         );
         assert_eq!(results[2], "OK nil");
         assert_eq!(results[4], "OK t");
@@ -1836,7 +1934,7 @@ mod tests {
              (set-buffer \"mk\")
              (insert \"hello\")
              (set-mark 3)
-             (mark)"
+             (mark)",
         );
         assert_eq!(results[4], "OK 3");
     }
@@ -1852,7 +1950,7 @@ mod tests {
                (insert \"in-b\")
                (buffer-string))
              (buffer-name)
-             (buffer-string)"
+             (buffer-string)",
         );
         // with-current-buffer should switch to b, insert, get string, then restore a
         assert_eq!(results[4], r#"OK "in-b""#);
@@ -1870,7 +1968,7 @@ mod tests {
              (save-excursion
                (goto-char 1)
                (insert \"X\"))
-             (point)"
+             (point)",
         );
         // save-excursion restores point to 3
         assert_eq!(results[5], "OK 3");
@@ -1884,7 +1982,7 @@ mod tests {
              (insert \"abc\")
              (goto-char 2)
              (char-after)
-             (char-before)"
+             (char-before)",
         );
         assert_eq!(results[4], "OK 98"); // ?b = 98
         assert_eq!(results[5], "OK 97"); // ?a = 97
@@ -1895,7 +1993,7 @@ mod tests {
         let results = eval_all(
             "(get-buffer-create \"kill-me\")
              (kill-buffer \"kill-me\")
-             (get-buffer \"kill-me\")"
+             (get-buffer \"kill-me\")",
         );
         assert_eq!(results[1], "OK t");
         assert_eq!(results[2], "OK nil");
@@ -1905,7 +2003,7 @@ mod tests {
     fn buffer_generate_new_buffer() {
         let results = eval_all(
             "(buffer-name (generate-new-buffer \"test\"))
-             (buffer-name (generate-new-buffer \"test\"))"
+             (buffer-name (generate-new-buffer \"test\"))",
         );
         assert_eq!(results[0], r#"OK "test""#);
         assert_eq!(results[1], r#"OK "test<2>""#);
