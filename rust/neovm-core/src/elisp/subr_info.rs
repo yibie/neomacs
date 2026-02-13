@@ -50,6 +50,7 @@ fn is_special_form_name(name: &str) -> bool {
             | "let"
             | "let*"
             | "setq"
+            | "setq-local"
             | "if"
             | "and"
             | "or"

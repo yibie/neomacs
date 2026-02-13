@@ -451,6 +451,7 @@ impl Evaluator {
             "let" => self.sf_let(tail),
             "let*" => self.sf_let_star(tail),
             "setq" => self.sf_setq(tail),
+            "setq-local" => self.sf_setq_local(tail),
             "if" => self.sf_if(tail),
             "and" => self.sf_and(tail),
             "or" => self.sf_or(tail),
@@ -745,6 +746,43 @@ impl Evaluator {
             };
             let value = self.eval(&tail[i + 1])?;
             self.assign(name, value.clone());
+            last = value;
+            i += 2;
+        }
+        Ok(last)
+    }
+
+    fn sf_setq_local(&mut self, tail: &[Expr]) -> EvalResult {
+        if tail.is_empty() {
+            return Ok(Value::Nil);
+        }
+        if tail.len() % 2 != 0 {
+            return Err(signal(
+                "wrong-number-of-arguments",
+                vec![
+                    Value::symbol("setq-local"),
+                    Value::Int(tail.len() as i64),
+                ],
+            ));
+        }
+
+        let mut last = Value::Nil;
+        let mut i = 0;
+        while i < tail.len() {
+            let Expr::Symbol(name) = &tail[i] else {
+                return Err(signal("wrong-type-argument", vec![]));
+            };
+
+            if name == "nil" || name == "t" {
+                return Err(signal("setting-constant", vec![Value::symbol(name)]));
+            }
+
+            let value = self.eval(&tail[i + 1])?;
+            if let Some(buf) = self.buffers.current_buffer_mut() {
+                buf.set_buffer_local(name, value.clone());
+            } else {
+                self.assign(name, value.clone());
+            }
             last = value;
             i += 2;
         }
@@ -1701,6 +1739,12 @@ mod tests {
     fn defvar_only_sets_if_unbound() {
         let results = eval_all("(defvar x 42) x (defvar x 99) x");
         assert_eq!(results, vec!["OK x", "OK 42", "OK x", "OK 42"]);
+    }
+
+    #[test]
+    fn setq_local_makes_binding_buffer_local() {
+        let result = eval_one("(with-temp-buffer (setq-local vm-x 7) vm-x)");
+        assert_eq!(result, "OK 7");
     }
 
     #[test]
