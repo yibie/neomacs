@@ -501,15 +501,6 @@ pub(crate) fn builtin_defining_kbd_macro_p(args: Vec<Value>) -> EvalResult {
     Ok(Value::Nil)
 }
 
-/// (last-kbd-macro) -> vector or nil
-///
-/// Return the last keyboard macro as a vector, or nil if none.
-/// Pure stub -- returns nil.  The eval-dependent dispatch is preferred.
-pub(crate) fn builtin_last_kbd_macro(args: Vec<Value>) -> EvalResult {
-    let _ = args;
-    Ok(Value::Nil)
-}
-
 /// (kmacro-p OBJECT) -> t or nil
 ///
 /// Return non-nil if OBJECT looks like a keyboard macro.
