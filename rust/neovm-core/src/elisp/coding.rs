@@ -18,7 +18,7 @@
 
 use super::error::{signal, EvalResult, Flow};
 use super::value::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 // ---------------------------------------------------------------------------
 // Argument helpers (local to this module)
@@ -625,6 +625,140 @@ pub(crate) fn builtin_find_coding_system(
     } else {
         Ok(Value::Nil)
     }
+}
+
+/// `(coding-system-p OBJECT)` -- return t when OBJECT names a known coding
+/// system or alias, nil otherwise.
+pub(crate) fn builtin_coding_system_p(mgr: &CodingSystemManager, args: Vec<Value>) -> EvalResult {
+    expect_args("coding-system-p", &args, 1)?;
+    let known = match &args[0] {
+        Value::Symbol(name) => mgr.is_known(name),
+        Value::Nil => mgr.is_known("nil"),
+        _ => false,
+    };
+    Ok(Value::bool(known))
+}
+
+/// `(check-coding-system CODING-SYSTEM)` -- validate CODING-SYSTEM.
+/// Returns CODING-SYSTEM when valid, nil for nil, and signals on invalid input.
+pub(crate) fn builtin_check_coding_system(
+    mgr: &CodingSystemManager,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_args("check-coding-system", &args, 1)?;
+    match &args[0] {
+        Value::Nil => Ok(Value::Nil),
+        Value::Symbol(name) => {
+            if mgr.is_known(name) {
+                Ok(args[0].clone())
+            } else {
+                Err(signal("coding-system-error", vec![args[0].clone()]))
+            }
+        }
+        other => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("symbolp"), other.clone()],
+        )),
+    }
+}
+
+/// `(define-coding-system-alias ALIAS CODING-SYSTEM)` -- register ALIAS for
+/// CODING-SYSTEM and return nil.
+pub(crate) fn builtin_define_coding_system_alias(
+    mgr: &mut CodingSystemManager,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_args("define-coding-system-alias", &args, 2)?;
+
+    let alias = match &args[0] {
+        Value::Symbol(name) => name.clone(),
+        Value::Nil => "nil".to_string(),
+        other => {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("symbolp"), other.clone()],
+            ));
+        }
+    };
+
+    let target = match &args[1] {
+        Value::Symbol(name) => name.clone(),
+        Value::Nil => {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("coding-system-p"), Value::Nil],
+            ));
+        }
+        other => {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("symbolp"), other.clone()],
+            ));
+        }
+    };
+
+    let canonical = mgr
+        .resolve(&target)
+        .ok_or_else(|| signal("coding-system-error", vec![Value::symbol(target.clone())]))?
+        .to_string();
+    mgr.add_alias(&alias, &canonical);
+    Ok(Value::Nil)
+}
+
+/// `(set-coding-system-priority &rest CODING-SYSTEMS)` -- move CODING-SYSTEMS
+/// to the front of the detection priority list in order, keeping relative order
+/// of the remaining systems.
+pub(crate) fn builtin_set_coding_system_priority(
+    mgr: &mut CodingSystemManager,
+    args: Vec<Value>,
+) -> EvalResult {
+    if args.is_empty() {
+        return Ok(Value::Nil);
+    }
+
+    let mut requested: Vec<(String, String)> = Vec::with_capacity(args.len());
+    for arg in &args {
+        match arg {
+            Value::Nil => {
+                return Err(signal(
+                    "wrong-type-argument",
+                    vec![Value::symbol("coding-system-p"), Value::Nil],
+                ));
+            }
+            Value::Symbol(name) => {
+                let canonical = mgr
+                    .resolve(name)
+                    .ok_or_else(|| signal("coding-system-error", vec![arg.clone()]))?;
+                requested.push((name.clone(), canonical.to_string()));
+            }
+            other => {
+                return Err(signal(
+                    "wrong-type-argument",
+                    vec![Value::symbol("symbolp"), other.clone()],
+                ));
+            }
+        }
+    }
+
+    let mut seen_canonicals: HashSet<String> =
+        HashSet::with_capacity(mgr.priority.len() + requested.len());
+    let mut reordered: Vec<String> = Vec::with_capacity(mgr.priority.len() + requested.len());
+
+    for (display, canonical) in requested {
+        if seen_canonicals.insert(canonical) {
+            reordered.push(display);
+        }
+    }
+
+    for name in &mgr.priority {
+        let canonical = mgr.resolve(name).unwrap_or(name.as_str()).to_string();
+        if seen_canonicals.insert(canonical) {
+            reordered.push(name.clone());
+        }
+    }
+
+    mgr.priority = reordered;
+    Ok(Value::Nil)
 }
 
 /// `(detect-coding-string STRING &optional HIGHEST)` -- detect the encoding of
@@ -1314,5 +1448,61 @@ mod tests {
         let m = mgr();
         let result = builtin_coding_system_aliases(&m, vec![]);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn coding_system_p_reads_runtime_aliases() {
+        let mut m = mgr();
+        let before = builtin_coding_system_p(&m, vec![Value::symbol("vm-utf8")]).unwrap();
+        assert!(before.is_nil());
+
+        builtin_define_coding_system_alias(
+            &mut m,
+            vec![Value::symbol("vm-utf8"), Value::symbol("utf-8")],
+        )
+        .unwrap();
+        let after = builtin_coding_system_p(&m, vec![Value::symbol("vm-utf8")]).unwrap();
+        assert!(after.is_truthy());
+    }
+
+    #[test]
+    fn check_coding_system_signals_unknown_symbols() {
+        let m = mgr();
+        let result = builtin_check_coding_system(&m, vec![Value::symbol("vm-no-such")]);
+        match result {
+            Err(Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "coding-system-error");
+                assert_eq!(sig.data, vec![Value::symbol("vm-no-such")]);
+            }
+            other => panic!("expected coding-system-error signal, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn set_coding_system_priority_reorders_front_in_arg_order() {
+        let mut m = mgr();
+        builtin_set_coding_system_priority(
+            &mut m,
+            vec![Value::symbol("raw-text"), Value::symbol("utf-8")],
+        )
+        .unwrap();
+
+        let list = builtin_coding_system_priority_list(&m, vec![]).unwrap();
+        let items = list_to_vec(&list).unwrap();
+        assert!(matches!(&items[0], Value::Symbol(s) if s == "raw-text"));
+        assert!(matches!(&items[1], Value::Symbol(s) if s == "utf-8"));
+    }
+
+    #[test]
+    fn set_coding_system_priority_rejects_nil_payload() {
+        let mut m = mgr();
+        let result = builtin_set_coding_system_priority(&mut m, vec![Value::Nil]);
+        match result {
+            Err(Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "wrong-type-argument");
+                assert_eq!(sig.data, vec![Value::symbol("coding-system-p"), Value::Nil]);
+            }
+            other => panic!("expected wrong-type-argument signal, got {other:?}"),
+        }
     }
 }

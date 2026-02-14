@@ -6625,10 +6625,16 @@ pub(crate) fn dispatch_builtin(
         "string-as-multibyte" => super::misc::builtin_string_as_multibyte(args),
         "unibyte-char-to-multibyte" => super::misc::builtin_unibyte_char_to_multibyte(args),
         "multibyte-char-to-unibyte" => super::misc::builtin_multibyte_char_to_unibyte(args),
-        "define-coding-system-alias" => super::misc::builtin_define_coding_system_alias(args),
-        "coding-system-p" => super::misc::builtin_coding_system_p(args),
-        "check-coding-system" => super::misc::builtin_check_coding_system(args),
-        "set-coding-system-priority" => super::misc::builtin_set_coding_system_priority(args),
+        "define-coding-system-alias" => {
+            super::coding::builtin_define_coding_system_alias(&mut eval.coding_systems, args)
+        }
+        "coding-system-p" => super::coding::builtin_coding_system_p(&eval.coding_systems, args),
+        "check-coding-system" => {
+            super::coding::builtin_check_coding_system(&eval.coding_systems, args)
+        }
+        "set-coding-system-priority" => {
+            super::coding::builtin_set_coding_system_priority(&mut eval.coding_systems, args)
+        }
         "locale-info" => super::misc::builtin_locale_info(args),
 
         // Reader/printer (pure)
