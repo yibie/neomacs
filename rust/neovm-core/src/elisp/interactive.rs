@@ -245,6 +245,9 @@ fn builtin_command_name(name: &str) -> bool {
             | "upcase-word"
             | "downcase-word"
             | "capitalize-word"
+            | "upcase-region"
+            | "downcase-region"
+            | "capitalize-region"
             | "switch-to-buffer"
             | "find-file"
             | "save-buffer"
@@ -1833,6 +1836,9 @@ mod tests {
             "upcase-word",
             "downcase-word",
             "capitalize-word",
+            "upcase-region",
+            "downcase-region",
+            "capitalize-region",
             "kill-word",
             "backward-kill-word",
             "kill-region",
