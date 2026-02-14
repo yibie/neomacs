@@ -17,7 +17,7 @@
 
 use std::collections::HashMap;
 
-use super::error::{signal, EvalResult, Flow};
+use super::error::{make_signal_binding_value, signal, EvalResult, Flow};
 use super::value::{eq_value, Value};
 
 // ---------------------------------------------------------------------------
@@ -525,10 +525,7 @@ pub(crate) fn builtin_make_thread(
             eval.threads.finish_thread(thread_id, val);
         }
         Err(Flow::Signal(ref sig)) => {
-            let error_val = Value::list(vec![
-                Value::symbol(sig.symbol.clone()),
-                Value::list(sig.data.clone()),
-            ]);
+            let error_val = make_signal_binding_value(sig);
             eval.threads.signal_thread(thread_id, error_val);
         }
         Err(Flow::Throw { ref tag, ref value }) => {
@@ -1500,6 +1497,15 @@ mod tests {
         let result = builtin_make_thread(&mut eval, vec![Value::Int(42)]).unwrap();
         let is_thread = builtin_threadp(&mut eval, vec![result]).unwrap();
         assert!(is_thread.is_truthy());
+    }
+
+    #[test]
+    fn test_make_thread_non_callable_last_error_shape() {
+        let mut eval = Evaluator::new();
+        let thread = builtin_make_thread(&mut eval, vec![Value::Int(1)]).unwrap();
+        let _ = builtin_thread_join(&mut eval, vec![thread]).unwrap();
+        let err = builtin_thread_last_error(&mut eval, vec![]).unwrap();
+        assert_eq!(super::super::print::print_value(&err), "(invalid-function 1)");
     }
 
     #[test]
