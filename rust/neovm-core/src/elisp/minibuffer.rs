@@ -787,6 +787,30 @@ pub(crate) fn builtin_minibufferp(args: Vec<Value>) -> EvalResult {
     Ok(Value::Nil)
 }
 
+/// `(recursive-edit)` — enter a recursive edit.
+///
+/// Stub (batch/non-interactive): returns nil.
+pub(crate) fn builtin_recursive_edit(args: Vec<Value>) -> EvalResult {
+    expect_args("recursive-edit", &args, 0)?;
+    Ok(Value::Nil)
+}
+
+/// `(top-level)` — exit all recursive edits.
+///
+/// Stub (batch/non-interactive): returns nil.
+pub(crate) fn builtin_top_level(args: Vec<Value>) -> EvalResult {
+    expect_args("top-level", &args, 0)?;
+    Ok(Value::Nil)
+}
+
+/// `(exit-recursive-edit)` — exit innermost recursive edit.
+///
+/// Stub (batch/non-interactive): returns nil.
+pub(crate) fn builtin_exit_recursive_edit(args: Vec<Value>) -> EvalResult {
+    expect_args("exit-recursive-edit", &args, 0)?;
+    Ok(Value::Nil)
+}
+
 /// `(exit-minibuffer)` — exit the active minibuffer.
 ///
 /// Emacs exits by throwing to the `exit` tag; without a catch this
@@ -1392,6 +1416,51 @@ mod tests {
     fn builtin_minibufferp_returns_nil() {
         let result = builtin_minibufferp(vec![]).unwrap();
         assert!(matches!(result, Value::Nil));
+    }
+
+    #[test]
+    fn builtin_recursive_edit_stub_returns_nil() {
+        let result = builtin_recursive_edit(vec![]).unwrap();
+        assert!(matches!(result, Value::Nil));
+    }
+
+    #[test]
+    fn builtin_recursive_edit_rejects_args() {
+        let result = builtin_recursive_edit(vec![Value::Nil]);
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"
+        ));
+    }
+
+    #[test]
+    fn builtin_top_level_stub_returns_nil() {
+        let result = builtin_top_level(vec![]).unwrap();
+        assert!(matches!(result, Value::Nil));
+    }
+
+    #[test]
+    fn builtin_top_level_rejects_args() {
+        let result = builtin_top_level(vec![Value::Nil]);
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"
+        ));
+    }
+
+    #[test]
+    fn builtin_exit_recursive_edit_stub_returns_nil() {
+        let result = builtin_exit_recursive_edit(vec![]).unwrap();
+        assert!(matches!(result, Value::Nil));
+    }
+
+    #[test]
+    fn builtin_exit_recursive_edit_rejects_args() {
+        let result = builtin_exit_recursive_edit(vec![Value::Nil]);
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"
+        ));
     }
 
     #[test]

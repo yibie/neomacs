@@ -4628,6 +4628,9 @@ pub(crate) fn dispatch_builtin(
         // Misc (evaluator-dependent)
         "backtrace-frame" => return Some(super::misc::builtin_backtrace_frame(eval, args)),
         "recursion-depth" => return Some(super::misc::builtin_recursion_depth(eval, args)),
+        "top-level" => return Some(super::minibuffer::builtin_top_level(args)),
+        "recursive-edit" => return Some(super::minibuffer::builtin_recursive_edit(args)),
+        "exit-recursive-edit" => return Some(super::minibuffer::builtin_exit_recursive_edit(args)),
         "abort-recursive-edit" => return Some(super::minibuffer::builtin_abort_recursive_edit(args)),
 
         // Threading (evaluator-dependent)

@@ -306,6 +306,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "execute-kbd-macro",
     "executing-kbd-macro-p",
     "exit-minibuffer",
+    "exit-recursive-edit",
     "expand-abbrev",
     "expand-file-name",
     "extract-rectangle",
@@ -633,6 +634,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "read-number",
     "read-string",
     "read-variable",
+    "recursive-edit",
     "recursion-depth",
     "regexp-quote",
     "region-beginning",
@@ -807,6 +809,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "timer-activate",
     "timerp",
     "tool-bar-height",
+    "top-level",
     "transient-mark-mode",
     "transpose-chars",
     "transpose-lines",
@@ -891,6 +894,9 @@ mod tests {
         assert!(is_dispatch_builtin_name("minibuffer-prompt"));
         assert!(is_dispatch_builtin_name("minibuffer-contents"));
         assert!(is_dispatch_builtin_name("exit-minibuffer"));
+        assert!(is_dispatch_builtin_name("recursive-edit"));
+        assert!(is_dispatch_builtin_name("exit-recursive-edit"));
+        assert!(is_dispatch_builtin_name("top-level"));
     }
 
     #[test]
