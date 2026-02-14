@@ -5502,13 +5502,6 @@ pub(crate) fn dispatch_builtin(
         "store-kbd-macro-event" => {
             return Some(super::kmacro::builtin_store_kbd_macro_event(eval, args))
         }
-        "kmacro-set-counter" => return Some(super::kmacro::builtin_kmacro_set_counter(eval, args)),
-        "kmacro-add-counter" => return Some(super::kmacro::builtin_kmacro_add_counter(eval, args)),
-        "kmacro-set-format" => return Some(super::kmacro::builtin_kmacro_set_format(eval, args)),
-        "defining-kbd-macro-p" => {
-            return Some(super::kmacro::builtin_defining_kbd_macro_p_eval(eval, args))
-        }
-        "last-kbd-macro" => return Some(super::kmacro::builtin_last_kbd_macro_eval(eval, args)),
         // Bookmark operations (evaluator-dependent)
         "bookmark-set" => return Some(super::bookmark::builtin_bookmark_set(eval, args)),
         "bookmark-jump" => return Some(super::bookmark::builtin_bookmark_jump(eval, args)),
@@ -6296,8 +6289,6 @@ pub(crate) fn dispatch_builtin(
         "primitive-undo" => super::undo::builtin_primitive_undo(args),
 
         // Keyboard macro (pure — no evaluator needed)
-        "executing-kbd-macro-p" => super::kmacro::builtin_executing_kbd_macro_p(args),
-        "kmacro-p" => super::kmacro::builtin_kmacro_p(args),
 
         // Case table (pure)
         "case-table-p" => super::casetab::builtin_case_table_p(args),
@@ -6857,8 +6848,6 @@ pub(crate) fn dispatch_builtin_pure(name: &str, args: Vec<Value>) -> Option<Eval
         "undo-boundary" => super::undo::builtin_undo_boundary(args),
         "primitive-undo" => super::undo::builtin_primitive_undo(args),
         // Keyboard macro (pure)
-        "executing-kbd-macro-p" => super::kmacro::builtin_executing_kbd_macro_p(args),
-        "kmacro-p" => super::kmacro::builtin_kmacro_p(args),
         // Character encoding (pure)
         "char-width" => crate::encoding::builtin_char_width(args),
         "string-bytes" => crate::encoding::builtin_string_bytes(args),
