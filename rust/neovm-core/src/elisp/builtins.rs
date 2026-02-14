@@ -6536,7 +6536,6 @@ pub(crate) fn dispatch_builtin(
 
         // Charset (pure)
         "charsetp" => super::charset::builtin_charsetp(args),
-        "charset-list" => super::charset::builtin_charset_list(args),
         "charset-priority-list" => super::charset::builtin_charset_priority_list(args),
         "set-charset-priority" => super::charset::builtin_set_charset_priority(args),
         "char-charset" => super::charset::builtin_char_charset(args),
@@ -6549,7 +6548,6 @@ pub(crate) fn dispatch_builtin(
         "encode-char" => super::charset::builtin_encode_char(args),
         "clear-charset-maps" => super::charset::builtin_clear_charset_maps(args),
         "charset-after" => super::charset::builtin_charset_after(args),
-        "unibyte-charset" => super::charset::builtin_unibyte_charset(args),
 
         // CCL (pure)
         "ccl-program-p" => super::ccl::builtin_ccl_program_p(args),
