@@ -330,6 +330,13 @@ impl ThreadManager {
         self.mutexes.get(&id).and_then(|m| m.name.as_deref())
     }
 
+    /// Return true when MUTEX-ID is owned by the current thread.
+    pub fn mutex_owned_by_current_thread(&self, mutex_id: u64) -> bool {
+        self.mutexes
+            .get(&mutex_id)
+            .is_some_and(|m| m.owner == Some(self.current_thread))
+    }
+
     // -- Condition variable operations --------------------------------------
 
     /// Create a condition variable associated with the given mutex.
@@ -875,6 +882,20 @@ pub(crate) fn builtin_condition_wait(
             vec![Value::symbol("condition-variable-p"), args[0].clone()],
         ));
     }
+    let Some(mutex_id) = eval.threads.condition_variable_mutex(id) else {
+        return Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("condition-variable-p"), args[0].clone()],
+        ));
+    };
+    if !eval.threads.mutex_owned_by_current_thread(mutex_id) {
+        return Err(signal(
+            "error",
+            vec![Value::string(
+                "Condition variable’s mutex is not held by current thread",
+            )],
+        ));
+    }
     // No-op: in a single-threaded VM, waiting would deadlock.
     // Return nil for compatibility.
     Ok(Value::Nil)
@@ -902,6 +923,20 @@ pub(crate) fn builtin_condition_notify(
         return Err(signal(
             "wrong-type-argument",
             vec![Value::symbol("condition-variable-p"), args[0].clone()],
+        ));
+    }
+    let Some(mutex_id) = eval.threads.condition_variable_mutex(id) else {
+        return Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("condition-variable-p"), args[0].clone()],
+        ));
+    };
+    if !eval.threads.mutex_owned_by_current_thread(mutex_id) {
+        return Err(signal(
+            "error",
+            vec![Value::string(
+                "Condition variable’s mutex is not held by current thread",
+            )],
         ));
     }
     // No-op
@@ -1358,19 +1393,31 @@ mod tests {
     fn test_builtin_condition_wait_noop() {
         let mut eval = Evaluator::new();
         let mx = builtin_make_mutex(&mut eval, vec![]).unwrap();
-        let cv = builtin_make_condition_variable(&mut eval, vec![mx]).unwrap();
+        let cv = builtin_make_condition_variable(&mut eval, vec![mx.clone()]).unwrap();
+        let owner_error = builtin_condition_wait(&mut eval, vec![cv.clone()]);
+        assert!(owner_error.is_err());
+        let lock = builtin_mutex_lock(&mut eval, vec![mx.clone()]);
+        assert!(lock.is_ok());
         let result = builtin_condition_wait(&mut eval, vec![cv]);
         assert!(result.is_ok());
         assert!(result.unwrap().is_nil());
+        let unlock = builtin_mutex_unlock(&mut eval, vec![mx]);
+        assert!(unlock.is_ok());
     }
 
     #[test]
     fn test_builtin_condition_notify_noop() {
         let mut eval = Evaluator::new();
         let mx = builtin_make_mutex(&mut eval, vec![]).unwrap();
-        let cv = builtin_make_condition_variable(&mut eval, vec![mx]).unwrap();
+        let cv = builtin_make_condition_variable(&mut eval, vec![mx.clone()]).unwrap();
+        let owner_error = builtin_condition_notify(&mut eval, vec![cv.clone()]);
+        assert!(owner_error.is_err());
+        let lock = builtin_mutex_lock(&mut eval, vec![mx.clone()]);
+        assert!(lock.is_ok());
         let result = builtin_condition_notify(&mut eval, vec![cv]);
         assert!(result.is_ok());
+        let unlock = builtin_mutex_unlock(&mut eval, vec![mx]);
+        assert!(unlock.is_ok());
     }
 
     // -- with-mutex special form tests --------------------------------------
