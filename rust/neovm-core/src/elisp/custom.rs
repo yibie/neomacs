@@ -850,20 +850,28 @@ mod tests {
     }
 
     #[test]
-    fn defgroup_custom_group_p() {
-        let results = eval_all(
-            r#"(defgroup my-group nil "Docs.") (custom-group-p 'my-group) (custom-group-p 'other)"#,
-        );
-        assert_eq!(results[1], "OK t");
-        assert_eq!(results[2], "OK nil");
+    fn defgroup_registers_group() {
+        let forms = parse_forms(r#"(defgroup my-group nil "Docs.")"#).expect("parse");
+        let mut ev = Evaluator::new();
+        let _result = ev.eval_expr(&forms[0]);
+        assert!(ev.custom.is_custom_group("my-group"));
+        assert!(!ev.custom.is_custom_group("other"));
     }
 
     #[test]
-    fn defgroup_with_parent() {
-        let results = eval_all(
-            r#"(defgroup parent-group nil "Parent.") (defgroup child-group nil "Child." :group 'parent-group) (custom-group-p 'child-group)"#,
-        );
-        assert_eq!(results[2], "OK t");
+    fn defgroup_with_parent_records_parent_group() {
+        let forms = parse_forms(
+            r#"(defgroup parent-group nil "Parent.")
+               (defgroup child-group nil "Child." :group 'parent-group)"#,
+        )
+        .expect("parse");
+        let mut ev = Evaluator::new();
+        let _results: Vec<_> = ev.eval_forms(&forms);
+        let child = ev
+            .custom
+            .get_group("child-group")
+            .expect("child-group should be registered");
+        assert_eq!(child.parent.as_deref(), Some("parent-group"));
     }
 
     // -- defvar-local special form tests ------------------------------------

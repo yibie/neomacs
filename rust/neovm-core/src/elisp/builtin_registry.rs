@@ -228,7 +228,6 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "current-time",
     "current-time-string",
     "current-time-zone",
-    "custom-group-p",
     "custom-set-faces",
     "custom-set-variables",
     "custom-variable-p",
