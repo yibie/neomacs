@@ -67,6 +67,7 @@ The compatibility corpus now explicitly guards core callable introspection behav
 
 - Predicate/classification boundaries: `fboundp`, `functionp`, `macrop`, `special-form-p`
 - Function-cell lookup/resolution: `symbol-function`, `indirect-function` (including alias chains and loop safety)
+- Function-cell mutation boundaries: `fmakunbound`, `fset` override/restoration for special-form and evaluator-callable names, and `fset` payload edges (`nil`/non-callable cells) with oracle-aligned `fboundp` and call-error payload behavior
 - Callable arity reporting: `func-arity` for subrs, fallback macros, and symbol inputs resolved through function lookup
 - Error signaling parity on introspection call paths:
   - unresolved/nil function lookup reports `void-function`
