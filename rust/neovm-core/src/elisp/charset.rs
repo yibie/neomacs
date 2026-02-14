@@ -502,10 +502,17 @@ fn classify_string_charsets(s: &str) -> Vec<&'static str> {
 
     for ch in s.chars() {
         let cp = ch as u32;
-        if (RAW_BYTE_SENTINEL_MIN..=RAW_BYTE_SENTINEL_MAX).contains(&cp)
-            || (UNIBYTE_BYTE_SENTINEL_MIN..=UNIBYTE_BYTE_SENTINEL_MAX).contains(&cp)
-        {
+        if (RAW_BYTE_SENTINEL_MIN..=RAW_BYTE_SENTINEL_MAX).contains(&cp) {
             has_eight_bit = true;
+            continue;
+        }
+        if (UNIBYTE_BYTE_SENTINEL_MIN..=UNIBYTE_BYTE_SENTINEL_MAX).contains(&cp) {
+            let byte = cp - UNIBYTE_BYTE_SENTINEL_MIN;
+            if byte <= 0x7F {
+                has_ascii = true;
+            } else {
+                has_eight_bit = true;
+            }
             continue;
         }
 
@@ -900,6 +907,18 @@ mod tests {
         assert!(matches!(&items[1], Value::Symbol(v) if v == "unicode"));
         assert!(matches!(&items[2], Value::Symbol(v) if v == "eight-bit"));
         assert!(matches!(&items[3], Value::Symbol(v) if v == "unicode-bmp"));
+    }
+
+    #[test]
+    fn find_charset_string_unibyte_ascii_and_eight_bit() {
+        let mut s = String::new();
+        s.push(char::from_u32(0xE341).expect("valid unibyte ascii sentinel"));
+        s.push(char::from_u32(0xE3FF).expect("valid unibyte 255 sentinel"));
+        let r = builtin_find_charset_string(vec![Value::string(s)]).unwrap();
+        let items = list_to_vec(&r).unwrap();
+        assert_eq!(items.len(), 2);
+        assert!(matches!(&items[0], Value::Symbol(v) if v == "ascii"));
+        assert!(matches!(&items[1], Value::Symbol(v) if v == "eight-bit"));
     }
 
     #[test]
