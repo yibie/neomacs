@@ -2682,11 +2682,28 @@ fn write_print_output(
     }
 }
 
-fn princ_text(value: &Value) -> String {
+fn print_threading_handle(eval: &super::eval::Evaluator, value: &Value) -> Option<String> {
+    if let Some(id) = eval.threads.thread_id_from_handle(value) {
+        return Some(format!("#<thread {id}>"));
+    }
+    if let Some(id) = eval.threads.mutex_id_from_handle(value) {
+        return Some(format!("#<mutex {id}>"));
+    }
+    if let Some(id) = eval.threads.condition_variable_id_from_handle(value) {
+        return Some(format!("#<condvar {id}>"));
+    }
+    None
+}
+
+fn print_value_eval(eval: &super::eval::Evaluator, value: &Value) -> String {
+    print_threading_handle(eval, value).unwrap_or_else(|| super::print::print_value(value))
+}
+
+fn princ_text_eval(eval: &super::eval::Evaluator, value: &Value) -> String {
     match value {
         Value::Str(s) => (**s).clone(),
         Value::Char(c) => (*c as u32).to_string(),
-        other => super::print::print_value(other),
+        other => print_value_eval(eval, other),
     }
 }
 
@@ -2706,7 +2723,7 @@ pub(crate) fn builtin_princ_eval(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("princ", &args, 1)?;
-    let text = princ_text(&args[0]);
+    let text = princ_text_eval(eval, &args[0]);
     write_print_output(eval, args.get(1), &text)?;
     Ok(args[0].clone())
 }
@@ -2716,7 +2733,7 @@ pub(crate) fn builtin_prin1_eval(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("prin1", &args, 1)?;
-    let text = super::print::print_value(&args[0]);
+    let text = print_value_eval(eval, &args[0]);
     write_print_output(eval, args.get(1), &text)?;
     Ok(args[0].clone())
 }
@@ -2724,6 +2741,14 @@ pub(crate) fn builtin_prin1_eval(
 pub(crate) fn builtin_prin1_to_string(args: Vec<Value>) -> EvalResult {
     expect_min_args("prin1-to-string", &args, 1)?;
     Ok(Value::string(super::print::print_value(&args[0])))
+}
+
+pub(crate) fn builtin_prin1_to_string_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_min_args("prin1-to-string", &args, 1)?;
+    Ok(Value::string(print_value_eval(eval, &args[0])))
 }
 
 pub(crate) fn builtin_print(args: Vec<Value>) -> EvalResult {
@@ -2738,7 +2763,7 @@ pub(crate) fn builtin_print_eval(
     expect_min_args("print", &args, 1)?;
     let mut text = String::new();
     text.push('\n');
-    text.push_str(&super::print::print_value(&args[0]));
+    text.push_str(&print_value_eval(eval, &args[0]));
     text.push('\n');
     write_print_output(eval, args.get(1), &text)?;
     Ok(args[0].clone())
@@ -4623,6 +4648,7 @@ pub(crate) fn dispatch_builtin(
         "minibuffer-depth" => return Some(super::minibuffer::builtin_minibuffer_depth(args)),
         "princ" => return Some(builtin_princ_eval(eval, args)),
         "prin1" => return Some(builtin_prin1_eval(eval, args)),
+        "prin1-to-string" => return Some(builtin_prin1_to_string_eval(eval, args)),
         "print" => return Some(builtin_print_eval(eval, args)),
 
         // Misc (evaluator-dependent)
@@ -6581,6 +6607,58 @@ mod tests {
         .expect("dispatch_builtin should resolve string-equal")
         .expect("dispatch_builtin should evaluate string-equal");
         assert!(result.is_truthy());
+    }
+
+    #[test]
+    fn prin1_to_string_prints_canonical_threading_handles_as_opaque() {
+        let mut eval = crate::elisp::eval::Evaluator::new();
+
+        let thread = dispatch_builtin(&mut eval, "current-thread", vec![])
+            .expect("current-thread should resolve")
+            .expect("current-thread should evaluate");
+        let thread_text = dispatch_builtin(&mut eval, "prin1-to-string", vec![thread])
+            .expect("prin1-to-string should resolve for thread")
+            .expect("prin1-to-string should evaluate for thread");
+        assert_eq!(thread_text, Value::string("#<thread 0>"));
+
+        let mutex = dispatch_builtin(&mut eval, "make-mutex", vec![])
+            .expect("make-mutex should resolve")
+            .expect("make-mutex should evaluate");
+        let mutex_text = dispatch_builtin(&mut eval, "prin1-to-string", vec![mutex.clone()])
+            .expect("prin1-to-string should resolve for mutex")
+            .expect("prin1-to-string should evaluate for mutex");
+        assert_eq!(mutex_text, Value::string("#<mutex 1>"));
+
+        let condvar = dispatch_builtin(&mut eval, "make-condition-variable", vec![mutex])
+            .expect("make-condition-variable should resolve")
+            .expect("make-condition-variable should evaluate");
+        let condvar_text = dispatch_builtin(&mut eval, "prin1-to-string", vec![condvar])
+            .expect("prin1-to-string should resolve for condvar")
+            .expect("prin1-to-string should evaluate for condvar");
+        assert_eq!(condvar_text, Value::string("#<condvar 1>"));
+    }
+
+    #[test]
+    fn prin1_to_string_keeps_forged_threading_handles_as_cons() {
+        let mut eval = crate::elisp::eval::Evaluator::new();
+
+        let forged_thread = Value::cons(Value::symbol("thread"), Value::Int(0));
+        let thread_text = dispatch_builtin(&mut eval, "prin1-to-string", vec![forged_thread])
+            .expect("prin1-to-string should resolve for forged thread")
+            .expect("prin1-to-string should evaluate for forged thread");
+        assert_eq!(thread_text, Value::string("(thread . 0)"));
+
+        let forged_mutex = Value::cons(Value::symbol("mutex"), Value::Int(1));
+        let mutex_text = dispatch_builtin(&mut eval, "prin1-to-string", vec![forged_mutex])
+            .expect("prin1-to-string should resolve for forged mutex")
+            .expect("prin1-to-string should evaluate for forged mutex");
+        assert_eq!(mutex_text, Value::string("(mutex . 1)"));
+
+        let forged_condvar = Value::cons(Value::symbol("condition-variable"), Value::Int(1));
+        let condvar_text = dispatch_builtin(&mut eval, "prin1-to-string", vec![forged_condvar])
+            .expect("prin1-to-string should resolve for forged condvar")
+            .expect("prin1-to-string should evaluate for forged condvar");
+        assert_eq!(condvar_text, Value::string("(condition-variable . 1)"));
     }
 
     #[test]
