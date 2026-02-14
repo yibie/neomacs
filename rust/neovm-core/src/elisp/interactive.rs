@@ -168,17 +168,21 @@ pub(crate) fn builtin_call_interactively(eval: &mut Evaluator, args: Vec<Value>)
     expect_min_args("call-interactively", &args, 1)?;
 
     let func_val = &args[0];
-    let _func_name = match func_val {
-        Value::Symbol(s) => Some(s.clone()),
-        Value::Subr(s) => Some(s.clone()),
-        _ => None,
+    if !command_designator_p(eval, func_val) {
+        return Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("commandp"), func_val.clone()],
+        ));
+    }
+    let Some(func) = resolve_command_target(eval, func_val) else {
+        return Err(signal("void-function", vec![func_val.clone()]));
     };
 
     // Mark as interactive call
     eval.interactive.push_interactive_call(true);
 
     // Call the function with no args (interactive arg reading is stubbed)
-    let result = eval.apply(func_val.clone(), vec![]);
+    let result = eval.apply(func, vec![]);
 
     eval.interactive.pop_interactive_call();
     result
@@ -347,22 +351,27 @@ fn command_designator_p(eval: &Evaluator, designator: &Value) -> bool {
     command_object_p(eval, None, designator)
 }
 
+fn resolve_command_target(eval: &Evaluator, designator: &Value) -> Option<Value> {
+    if let Some(name) = designator.as_symbol_name() {
+        return resolve_function_designator_symbol(eval, name).map(|(_, value)| value);
+    }
+    Some(designator.clone())
+}
+
 /// `(command-execute CMD &optional RECORD-FLAG KEYS SPECIAL)`
 /// Execute CMD as an editor command.
 pub(crate) fn builtin_command_execute(eval: &mut Evaluator, args: Vec<Value>) -> EvalResult {
     expect_min_args("command-execute", &args, 1)?;
 
     let cmd = &args[0];
-    // Resolve symbol to function if needed
-    let func = match cmd {
-        Value::Symbol(name) => {
-            if let Some(f) = eval.obarray.symbol_function(name).cloned() {
-                f
-            } else {
-                return Err(signal("void-function", vec![cmd.clone()]));
-            }
-        }
-        other => other.clone(),
+    if !command_designator_p(eval, cmd) {
+        return Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("commandp"), cmd.clone()],
+        ));
+    }
+    let Some(func) = resolve_command_target(eval, cmd) else {
+        return Err(signal("void-function", vec![cmd.clone()]));
     };
 
     eval.interactive.push_interactive_call(true);
@@ -1978,6 +1987,13 @@ mod tests {
     // -------------------------------------------------------------------
 
     #[test]
+    fn command_execute_builtin_ignore() {
+        let mut ev = Evaluator::new();
+        let result = builtin_command_execute(&mut ev, vec![Value::symbol("ignore")]).unwrap();
+        assert!(result.is_nil());
+    }
+
+    #[test]
     fn command_execute_calls_function() {
         let mut ev = Evaluator::new();
         eval_all_with(
@@ -1996,10 +2012,38 @@ mod tests {
     }
 
     #[test]
-    fn command_execute_void_function() {
+    fn command_execute_non_command_signals_commandp_error() {
         let mut ev = Evaluator::new();
-        let result = builtin_command_execute(&mut ev, vec![Value::symbol("nonexistent")]);
-        assert!(result.is_err());
+        let result = builtin_command_execute(&mut ev, vec![Value::symbol("car")])
+            .expect_err("command-execute should reject non-command symbols");
+        match result {
+            Flow::Signal(sig) => {
+                assert_eq!(sig.symbol, "wrong-type-argument");
+                assert_eq!(sig.data, vec![Value::symbol("commandp"), Value::symbol("car")]);
+            }
+            other => panic!("unexpected flow: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn call_interactively_builtin_ignore() {
+        let mut ev = Evaluator::new();
+        let result = builtin_call_interactively(&mut ev, vec![Value::symbol("ignore")]).unwrap();
+        assert!(result.is_nil());
+    }
+
+    #[test]
+    fn call_interactively_non_command_signals_commandp_error() {
+        let mut ev = Evaluator::new();
+        let result = builtin_call_interactively(&mut ev, vec![Value::symbol("car")])
+            .expect_err("call-interactively should reject non-command symbols");
+        match result {
+            Flow::Signal(sig) => {
+                assert_eq!(sig.symbol, "wrong-type-argument");
+                assert_eq!(sig.data, vec![Value::symbol("commandp"), Value::symbol("car")]);
+            }
+            other => panic!("unexpected flow: {other:?}"),
+        }
     }
 
     // -------------------------------------------------------------------
