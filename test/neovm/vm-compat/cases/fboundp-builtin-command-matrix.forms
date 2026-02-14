@@ -24,6 +24,7 @@
 (fboundp 'yank-pop)
 (fboundp 'transpose-chars)
 (fboundp 'transpose-lines)
+(fboundp 'transpose-paragraphs)
 (fboundp 'transpose-sentences)
 (fboundp 'transpose-sexps)
 (fboundp 'upcase-word)
