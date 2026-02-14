@@ -16,3 +16,7 @@
 (error-message-string '(file-error 1 2 3))
 (error-message-string '(file-missing 1 2 3))
 (error-message-string '(file-locked "Locking file" "Permission denied" "/tmp/foo"))
+(error-message-string '(error))
+(error-message-string '(user-error))
+(error-message-string '(peculiar-condition 1 2 3))
+(error-message-string t)

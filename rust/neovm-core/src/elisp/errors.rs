@@ -521,8 +521,24 @@ pub(crate) fn builtin_error_message_string(
         .get_property(&sym_name, "error-message")
         .and_then(|v| v.as_str().map(|s| s.to_string()))
         .unwrap_or_else(|| sym_name.clone());
+    let is_known_error = signal_matches_hierarchical(&eval.obarray, &sym_name, "error");
+
+    // Unknown condition symbols are formatted as peculiar errors.
+    if !is_known_error {
+        if data.is_empty() {
+            return Ok(Value::string("peculiar error"));
+        }
+        let data_strs: Vec<String> = data.iter().map(|v| format_error_arg(v, true)).collect();
+        return Ok(Value::string(format!("peculiar error: {}", data_strs.join(", "))));
+    }
 
     if data.is_empty() {
+        if sym_name == "error" {
+            return Ok(Value::string("peculiar error"));
+        }
+        if sym_name == "user-error" {
+            return Ok(Value::string(""));
+        }
         return Ok(Value::string(base_message));
     }
 
@@ -1269,12 +1285,38 @@ mod tests {
     fn builtin_error_message_string_unknown() {
         let evaluator = super::super::eval::Evaluator::new();
 
-        // Unknown error symbol — falls back to symbol name.
+        // Unknown condition symbols are treated as peculiar errors.
         let err_data = Value::list(vec![Value::symbol("mystery-error")]);
         let result = builtin_error_message_string(&evaluator, vec![err_data]);
         assert!(result.is_ok());
         let msg = result.unwrap();
-        assert_eq!(msg.as_str(), Some("mystery-error"));
+        assert_eq!(msg.as_str(), Some("peculiar error"));
+
+        let err_data_payload = Value::list(vec![
+            Value::symbol("mystery-error"),
+            Value::Int(1),
+            Value::Int(2),
+            Value::Int(3),
+        ]);
+        let payload_result = builtin_error_message_string(&evaluator, vec![err_data_payload]);
+        assert!(payload_result.is_ok());
+        assert_eq!(payload_result.unwrap().as_str(), Some("peculiar error: 1, 2, 3"));
+    }
+
+    #[test]
+    fn builtin_error_message_string_no_payload_specials() {
+        let mut evaluator = super::super::eval::Evaluator::new();
+        init_standard_errors(&mut evaluator.obarray);
+
+        let error_no_payload = Value::list(vec![Value::symbol("error")]);
+        let error_result = builtin_error_message_string(&evaluator, vec![error_no_payload]);
+        assert!(error_result.is_ok());
+        assert_eq!(error_result.unwrap().as_str(), Some("peculiar error"));
+
+        let user_error_no_payload = Value::list(vec![Value::symbol("user-error")]);
+        let user_result = builtin_error_message_string(&evaluator, vec![user_error_no_payload]);
+        assert!(user_result.is_ok());
+        assert_eq!(user_result.unwrap().as_str(), Some(""));
     }
 
     #[test]
