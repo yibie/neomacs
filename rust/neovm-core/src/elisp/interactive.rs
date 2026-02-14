@@ -389,14 +389,14 @@ fn command_designator_p(eval: &Evaluator, designator: &Value) -> bool {
     command_object_p(eval, None, designator)
 }
 
-fn interactive_region_args(eval: &Evaluator) -> Result<Vec<Value>, Flow> {
+fn interactive_region_args(eval: &Evaluator, missing_mark_signal: &str) -> Result<Vec<Value>, Flow> {
     let buf = eval
         .buffers
         .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
     let mark = buf.mark().ok_or_else(|| {
         signal(
-            "user-error",
+            missing_mark_signal,
             vec![Value::string("The mark is not set now, so there is no region")],
         )
     })?;
@@ -416,7 +416,8 @@ fn default_command_invocation_args(eval: &Evaluator, name: &str) -> Result<Vec<V
         | "upcase-word"
         | "capitalize-word"
         | "transpose-lines" => Ok(vec![Value::Int(1)]),
-        "kill-region" | "kill-ring-save" => interactive_region_args(eval),
+        "kill-region" => interactive_region_args(eval, "user-error"),
+        "kill-ring-save" => interactive_region_args(eval, "error"),
         _ => Ok(Vec::new()),
     }
 }
@@ -2386,6 +2387,42 @@ mod tests {
         assert_eq!(
             results[0],
             "OK (user-error \"The mark is not set now, so there is no region\")"
+        );
+    }
+
+    #[test]
+    fn command_execute_builtin_kill_ring_save_without_mark_signals_error() {
+        let mut ev = Evaluator::new();
+        let results = eval_all_with(
+            &mut ev,
+            r#"(with-temp-buffer
+                 (insert "abc")
+                 (goto-char 1)
+                 (condition-case err
+                     (command-execute 'kill-ring-save)
+                   (error err)))"#,
+        );
+        assert_eq!(
+            results[0],
+            "OK (error \"The mark is not set now, so there is no region\")"
+        );
+    }
+
+    #[test]
+    fn call_interactively_builtin_kill_ring_save_without_mark_signals_error() {
+        let mut ev = Evaluator::new();
+        let results = eval_all_with(
+            &mut ev,
+            r#"(with-temp-buffer
+                 (insert "abc")
+                 (goto-char 1)
+                 (condition-case err
+                     (call-interactively 'kill-ring-save)
+                   (error err)))"#,
+        );
+        assert_eq!(
+            results[0],
+            "OK (error \"The mark is not set now, so there is no region\")"
         );
     }
 
