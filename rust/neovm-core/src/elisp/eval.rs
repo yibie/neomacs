@@ -889,11 +889,20 @@ impl Evaluator {
     }
 
     fn sf_defun(&mut self, tail: &[Expr]) -> EvalResult {
-        if tail.len() < 3 {
-            return Err(signal("wrong-number-of-arguments", vec![]));
+        if tail.len() < 2 {
+            return Err(signal(
+                "wrong-number-of-arguments",
+                vec![
+                    Value::cons(Value::Int(2), Value::Int(2)),
+                    Value::Int(tail.len() as i64),
+                ],
+            ));
         }
         let Expr::Symbol(name) = &tail[0] else {
-            return Err(signal("wrong-type-argument", vec![]));
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("symbolp"), quote_to_value(&tail[0])],
+            ));
         };
         let lambda = self.eval_lambda(&tail[1..])?;
         self.obarray.set_symbol_function(name, lambda);
@@ -936,11 +945,20 @@ impl Evaluator {
     }
 
     fn sf_defmacro(&mut self, tail: &[Expr]) -> EvalResult {
-        if tail.len() < 3 {
-            return Err(signal("wrong-number-of-arguments", vec![]));
+        if tail.len() < 2 {
+            return Err(signal(
+                "wrong-number-of-arguments",
+                vec![
+                    Value::cons(Value::Int(2), Value::Int(2)),
+                    Value::Int(tail.len() as i64),
+                ],
+            ));
         }
         let Expr::Symbol(name) = &tail[0] else {
-            return Err(signal("wrong-type-argument", vec![]));
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("symbolp"), quote_to_value(&tail[0])],
+            ));
         };
         let params = self.parse_lambda_params(&tail[1])?;
         let body = tail[2..].to_vec();
@@ -1792,6 +1810,38 @@ mod tests {
              (my-when t 1 2 3)",
         );
         assert_eq!(result[1], "OK 3");
+    }
+
+    #[test]
+    fn defun_and_defmacro_allow_empty_body() {
+        let results = eval_all(
+            "(defun vm-empty-f nil)
+             (vm-empty-f)
+             (defmacro vm-empty-m nil)
+             (vm-empty-m)",
+        );
+        assert_eq!(results[0], "OK vm-empty-f");
+        assert_eq!(results[1], "OK nil");
+        assert_eq!(results[2], "OK vm-empty-m");
+        assert_eq!(results[3], "OK nil");
+    }
+
+    #[test]
+    fn defun_and_defmacro_error_payloads_match_oracle_edges() {
+        let results = eval_all(
+            "(condition-case err (defun) (error err))
+             (condition-case err (defun 1 nil) (error err))
+             (condition-case err (defun 'vm-df nil 1) (error err))
+             (condition-case err (defmacro) (error err))
+             (condition-case err (defmacro 1 nil) (error err))
+             (condition-case err (defmacro 'vm-dm nil 1) (error err))",
+        );
+        assert_eq!(results[0], "OK (wrong-number-of-arguments (2 . 2) 0)");
+        assert_eq!(results[1], "OK (wrong-type-argument symbolp 1)");
+        assert_eq!(results[2], "OK (wrong-type-argument symbolp (quote vm-df))");
+        assert_eq!(results[3], "OK (wrong-number-of-arguments (2 . 2) 0)");
+        assert_eq!(results[4], "OK (wrong-type-argument symbolp 1)");
+        assert_eq!(results[5], "OK (wrong-type-argument symbolp (quote vm-dm))");
     }
 
     #[test]
