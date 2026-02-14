@@ -6042,7 +6042,7 @@ pub(crate) fn dispatch_builtin(
 
         // Case/char (evaluator-dependent)
         "upcase-initials-region" => {
-            return Some(super::casefiddle::builtin_upcase_initials_region(
+            return Some(super::kill_ring::builtin_upcase_initials_region(
                 eval, args,
             ))
         }

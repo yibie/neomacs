@@ -875,6 +875,65 @@ pub(crate) fn builtin_capitalize_region(
     Ok(Value::Nil)
 }
 
+/// `(upcase-initials-region BEG END)` — uppercase first char of each word in region.
+pub(crate) fn builtin_upcase_initials_region(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_args("upcase-initials-region", &args, 2)?;
+    let beg_val = expect_int(&args[0])?;
+    let end_val = expect_int(&args[1])?;
+
+    let buf = eval
+        .buffers
+        .current_buffer()
+        .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
+
+    if buf.read_only {
+        return Err(signal(
+            "buffer-read-only",
+            vec![Value::string(buf.name.clone())],
+        ));
+    }
+
+    let (beg, end) = resolve_region(buf, beg_val, end_val);
+    let text = buf.buffer_substring(beg, end);
+
+    let mut result = String::with_capacity(text.len());
+    let mut in_word = false;
+    for ch in text.chars() {
+        if ch.is_alphanumeric() {
+            if !in_word {
+                for c in ch.to_uppercase() {
+                    result.push(c);
+                }
+                in_word = true;
+            } else {
+                result.push(ch);
+            }
+        } else {
+            result.push(ch);
+            in_word = false;
+        }
+    }
+
+    if text == result {
+        return Ok(Value::Nil);
+    }
+
+    let buf = eval
+        .buffers
+        .current_buffer_mut()
+        .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
+    let saved_pt = buf.point();
+    buf.delete_region(beg, end);
+    buf.goto_char(beg);
+    buf.insert(&result);
+    buf.goto_char(saved_pt.min(buf.point_max()));
+
+    Ok(Value::Nil)
+}
+
 /// `(downcase-word ARG)` — convert next ARG words to lower case, moving point past them.
 pub(crate) fn builtin_downcase_word(
     eval: &mut super::eval::Evaluator,
@@ -2054,6 +2113,16 @@ mod tests {
                (buffer-string)"#,
         );
         assert_eq!(results[2], r#"OK "Hello World""#);
+    }
+
+    #[test]
+    fn upcase_initials_region_basic() {
+        let results = eval_all(
+            r#"(insert "hELLo wORLD")
+               (upcase-initials-region 0 11)
+               (buffer-string)"#,
+        );
+        assert_eq!(results[2], r#"OK "HELLo WORLD""#);
     }
 
     // -- downcase-word tests --
