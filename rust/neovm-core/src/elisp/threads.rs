@@ -493,12 +493,6 @@ pub(crate) fn builtin_make_thread(
     expect_min_args("make-thread", &args, 1)?;
 
     let function = args[0].clone();
-    if !function.is_function() && !function.is_symbol() {
-        return Err(signal(
-            "wrong-type-argument",
-            vec![Value::symbol("functionp"), function],
-        ));
-    }
 
     let name = if args.len() > 1 {
         match &args[1] {
@@ -1501,11 +1495,11 @@ mod tests {
     }
 
     #[test]
-    fn test_make_thread_wrong_type() {
+    fn test_make_thread_non_callable_returns_thread_object() {
         let mut eval = Evaluator::new();
-        // Passing a non-function, non-symbol
-        let result = builtin_make_thread(&mut eval, vec![Value::Int(42)]);
-        assert!(result.is_err());
+        let result = builtin_make_thread(&mut eval, vec![Value::Int(42)]).unwrap();
+        let is_thread = builtin_threadp(&mut eval, vec![result]).unwrap();
+        assert!(is_thread.is_truthy());
     }
 
     #[test]
