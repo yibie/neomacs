@@ -189,6 +189,8 @@ Post-freeze updates:
   - `cases/member-assoc-semantics`
 - Added `alist-get` traversal compatibility case:
   - `cases/alist-get-semantics`
+- Added property-list mutation/error compatibility case:
+  - `cases/plist-semantics`
 - Added higher-order map primitive compatibility case:
   - `cases/map-family-semantics`
 - Added `ignore` callable compatibility case:
