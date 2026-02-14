@@ -39,6 +39,7 @@ Last updated: 2026-02-14
   - `set-terminal-parameter` returns `nil` (and ignores non-symbol keys)
   - invalid terminal designators now signal `wrong-type-argument` with `terminal-live-p`
   - `terminal-live-p` now returns `nil` for invalid designator shapes
+  - `terminal-name` now rejects invalid terminal designators
 - Added and enabled new oracle corpus:
   - `test/neovm/vm-compat/cases/terminal-parameter-semantics.forms`
   - `test/neovm/vm-compat/cases/terminal-parameter-semantics.expected.tsv`
