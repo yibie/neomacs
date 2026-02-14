@@ -551,6 +551,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "move-to-window-line",
     "multibyte-char-to-unibyte",
     "multibyte-string-p",
+    "mutex-name",
     "mutex-lock",
     "mutex-unlock",
     "mutexp",
