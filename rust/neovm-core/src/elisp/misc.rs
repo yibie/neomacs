@@ -10,7 +10,15 @@
 
 use super::error::{signal, EvalResult, Flow};
 use super::expr::Expr;
+use super::string_escape::bytes_to_unibyte_storage_string;
 use super::value::*;
+
+const RAW_BYTE_SENTINEL_BASE: u32 = 0xE000;
+const RAW_BYTE_SENTINEL_MIN: u32 = 0xE080;
+const RAW_BYTE_SENTINEL_MAX: u32 = 0xE0FF;
+const UNIBYTE_BYTE_SENTINEL_BASE: u32 = 0xE300;
+const UNIBYTE_BYTE_SENTINEL_MIN: u32 = 0xE300;
+const UNIBYTE_BYTE_SENTINEL_MAX: u32 = 0xE3FF;
 
 // ---------------------------------------------------------------------------
 // Argument helpers (local to this module)
@@ -461,16 +469,36 @@ pub(crate) fn builtin_string_to_multibyte(args: Vec<Value>) -> EvalResult {
     }
 }
 
-/// `(string-to-unibyte STRING)` -- identity for us.
+/// `(string-to-unibyte STRING)` -- convert to unibyte storage.
 pub(crate) fn builtin_string_to_unibyte(args: Vec<Value>) -> EvalResult {
     expect_args("string-to-unibyte", &args, 1)?;
-    match &args[0] {
-        Value::Str(_) => Ok(args[0].clone()),
-        other => Err(signal(
-            "wrong-type-argument",
-            vec![Value::symbol("stringp"), other.clone()],
-        )),
+    let s = expect_string(&args[0])?;
+
+    let mut bytes = Vec::with_capacity(s.chars().count());
+    for (idx, ch) in s.chars().enumerate() {
+        let cp = ch as u32;
+        if cp <= 0x7F {
+            bytes.push(cp as u8);
+            continue;
+        }
+        if (RAW_BYTE_SENTINEL_MIN..=RAW_BYTE_SENTINEL_MAX).contains(&cp) {
+            bytes.push((cp - RAW_BYTE_SENTINEL_BASE) as u8);
+            continue;
+        }
+        if (UNIBYTE_BYTE_SENTINEL_MIN..=UNIBYTE_BYTE_SENTINEL_MAX).contains(&cp) {
+            bytes.push((cp - UNIBYTE_BYTE_SENTINEL_BASE) as u8);
+            continue;
+        }
+
+        return Err(signal(
+            "error",
+            vec![Value::string(format!(
+                "Cannot convert character at index {idx} to unibyte"
+            ))],
+        ));
     }
+
+    Ok(Value::string(bytes_to_unibyte_storage_string(&bytes)))
 }
 
 /// `(string-as-unibyte STRING)` -- identity.
@@ -649,6 +677,7 @@ pub(crate) fn builtin_abort_recursive_edit(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::elisp::string_escape;
 
     // ----- copy-alist -----
 
@@ -888,10 +917,36 @@ mod tests {
     }
 
     #[test]
-    fn string_to_unibyte_identity() {
-        let s = Value::string("world");
-        let result = builtin_string_to_unibyte(vec![s.clone()]).unwrap();
-        assert!(equal_value(&s, &result, 0));
+    fn string_to_unibyte_ascii_storage() {
+        let result = builtin_string_to_unibyte(vec![Value::string("world")]).unwrap();
+        let s = result.as_str().unwrap();
+        assert_eq!(string_escape::storage_byte_len(s), 5);
+        assert_eq!(string_escape::decode_storage_char_codes(s), vec![119, 111, 114, 108, 100]);
+    }
+
+    #[test]
+    fn string_to_unibyte_rejects_unicode_scalar() {
+        let result = builtin_string_to_unibyte(vec![Value::string("é")]);
+        match result {
+            Err(Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "error");
+                assert_eq!(
+                    sig.data,
+                    vec![Value::string("Cannot convert character at index 0 to unibyte")]
+                );
+            }
+            other => panic!("expected conversion error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn string_to_unibyte_preserves_existing_unibyte_storage() {
+        let mut s = String::new();
+        s.push(char::from_u32(0xE3FF).expect("valid unibyte sentinel"));
+        let result = builtin_string_to_unibyte(vec![Value::string(s)]).unwrap();
+        let out = result.as_str().unwrap();
+        assert_eq!(string_escape::storage_byte_len(out), 1);
+        assert_eq!(string_escape::decode_storage_char_codes(out), vec![255]);
     }
 
     #[test]
