@@ -1,0 +1,4 @@
+1	(prin1-to-string "􏿿")	OK "\"􏿿\""
+2	(with-output-to-string (prin1 "􏿿"))	OK "\"􏿿\""
+3	(with-output-to-string (princ "􏿿"))	OK "􏿿"
+4	(format "%S" "􏿿")	OK "\"􏿿\""

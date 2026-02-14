@@ -1,0 +1,4 @@
+(prin1-to-string "\U0010FFFF")
+(with-output-to-string (prin1 "\U0010FFFF"))
+(with-output-to-string (princ "\U0010FFFF"))
+(format "%S" "\U0010FFFF")
