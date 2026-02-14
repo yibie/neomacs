@@ -2540,6 +2540,52 @@ mod tests {
     }
 
     #[test]
+    fn calling_extended_compiled_literal_opcodes_executes() {
+        let results = eval_all(
+            "(funcall (car (read-from-string \"#[(x y) \\\"\\\\10\\\\11\\\\127\\\\207\\\" [x y] 2]\")) 1 2)
+             (funcall (car (read-from-string \"#[(x y) \\\"\\\\10\\\\11\\\\127\\\\207\\\" [x y] 2]\")) 2 1)
+             (funcall (car (read-from-string \"#[(x y) \\\"\\\\10\\\\11\\\\126\\\\207\\\" [x y] 2]\")) 2 1)
+             (funcall (car (read-from-string \"#[(x y) \\\"\\\\10\\\\11\\\\130\\\\207\\\" [x y] 2]\")) 2 2)
+             (funcall (car (read-from-string \"#[(x y) \\\"\\\\10\\\\11\\\\131\\\\207\\\" [x y] 2]\")) 1 2)
+             (funcall (car (read-from-string \"#[(x y) \\\"\\\\10\\\\11\\\\135\\\\207\\\" [x y] 2]\")) 7 2)
+             (funcall (car (read-from-string \"#[(x y) \\\"\\\\10\\\\11\\\\136\\\\207\\\" [x y] 2]\")) 7 2)
+             (funcall (car (read-from-string \"#[(x y) \\\"\\\\10\\\\11\\\\102\\\\207\\\" [x y] 2]\")) 1 2)
+             (funcall (car (read-from-string \"#[(x y) \\\"\\\\10\\\\11\\\\104\\\\207\\\" [x y] 2]\")) 1 2)
+             (funcall (car (read-from-string \"#[(x y) \\\"\\\\10\\\\11\\\\75\\\\207\\\" [x y] 2]\")) 'a 'a)
+             (funcall (car (read-from-string \"#[(x y) \\\"\\\\10\\\\11\\\\232\\\\207\\\" [x y] 2]\")) '(1 2) '(1 2))
+             (funcall (car (read-from-string \"#[(x y) \\\"\\\\10\\\\11\\\\76\\\\207\\\" [x y] 2]\")) 'b '(a b c))
+             (funcall (car (read-from-string \"#[(x y) \\\"\\\\10\\\\11\\\\236\\\\207\\\" [x y] 2]\")) 'b '((a . 1) (b . 2)))
+             (funcall (car (read-from-string \"#[(x) \\\"\\\\10\\\\71\\\\207\\\" [x] 1]\")) 'x)
+             (funcall (car (read-from-string \"#[(x) \\\"\\\\10\\\\72\\\\207\\\" [x] 1]\")) '(1 . 2))
+             (funcall (car (read-from-string \"#[(x) \\\"\\\\10\\\\77\\\\207\\\" [x] 1]\")) nil)
+             (let ((c (cons 1 2)))
+               (funcall (car (read-from-string \"#[(x y) \\\"\\\\10\\\\11\\\\240\\\\207\\\" [x y] 2]\")) c 9)
+               c)
+             (let ((c (cons 1 2)))
+               (funcall (car (read-from-string \"#[(x y) \\\"\\\\10\\\\11\\\\241\\\\207\\\" [x y] 2]\")) c 9)
+               c)",
+        );
+        assert_eq!(results[0], "OK t");
+        assert_eq!(results[1], "OK nil");
+        assert_eq!(results[2], "OK t");
+        assert_eq!(results[3], "OK t");
+        assert_eq!(results[4], "OK nil");
+        assert_eq!(results[5], "OK 7");
+        assert_eq!(results[6], "OK 2");
+        assert_eq!(results[7], "OK (1 . 2)");
+        assert_eq!(results[8], "OK (1 2)");
+        assert_eq!(results[9], "OK t");
+        assert_eq!(results[10], "OK t");
+        assert_eq!(results[11], "OK (b c)");
+        assert_eq!(results[12], "OK (b . 2)");
+        assert_eq!(results[13], "OK t");
+        assert_eq!(results[14], "OK t");
+        assert_eq!(results[15], "OK t");
+        assert_eq!(results[16], "OK (9 . 2)");
+        assert_eq!(results[17], "OK (1 . 9)");
+    }
+
+    #[test]
     fn calling_compiled_literal_placeholder_signals_error() {
         let result = eval_one(
             "(progn

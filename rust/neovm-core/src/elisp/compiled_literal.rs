@@ -187,6 +187,26 @@ fn decode_opcode_subset(byte_stream: &str, const_len: usize) -> Option<Vec<Op>> 
                 pending.push(Pending::Op(Op::Not));
                 pc += 1;
             }
+            // symbolp
+            0o071 => {
+                pending.push(Pending::Op(Op::Symbolp));
+                pc += 1;
+            }
+            // consp
+            0o072 => {
+                pending.push(Pending::Op(Op::Consp));
+                pc += 1;
+            }
+            // eq
+            0o075 => {
+                pending.push(Pending::Op(Op::Eq));
+                pc += 1;
+            }
+            // memq
+            0o076 => {
+                pending.push(Pending::Op(Op::Memq));
+                pc += 1;
+            }
             // car
             0o100 => {
                 pending.push(Pending::Op(Op::Car));
@@ -195,6 +215,17 @@ fn decode_opcode_subset(byte_stream: &str, const_len: usize) -> Option<Vec<Op>> 
             // cdr
             0o101 => {
                 pending.push(Pending::Op(Op::Cdr));
+                pc += 1;
+            }
+            // cons
+            0o102 => {
+                pending.push(Pending::Op(Op::Cons));
+                pc += 1;
+            }
+            // list N (1..15)
+            0o103..=0o117 => {
+                let n = (b - 0o102) as u16;
+                pending.push(Pending::Op(Op::List(n)));
                 pc += 1;
             }
             // 1- (sub1)
@@ -212,6 +243,26 @@ fn decode_opcode_subset(byte_stream: &str, const_len: usize) -> Option<Vec<Op>> 
                 pending.push(Pending::Op(Op::Eqlsign));
                 pc += 1;
             }
+            // >
+            0o126 => {
+                pending.push(Pending::Op(Op::Gtr));
+                pc += 1;
+            }
+            // <
+            0o127 => {
+                pending.push(Pending::Op(Op::Lss));
+                pc += 1;
+            }
+            // <=
+            0o130 => {
+                pending.push(Pending::Op(Op::Leq));
+                pc += 1;
+            }
+            // >=
+            0o131 => {
+                pending.push(Pending::Op(Op::Geq));
+                pc += 1;
+            }
             // -
             0o132 => {
                 pending.push(Pending::Op(Op::Sub));
@@ -222,9 +273,39 @@ fn decode_opcode_subset(byte_stream: &str, const_len: usize) -> Option<Vec<Op>> 
                 pending.push(Pending::Op(Op::Add));
                 pc += 1;
             }
+            // max
+            0o135 => {
+                pending.push(Pending::Op(Op::Max));
+                pc += 1;
+            }
+            // min
+            0o136 => {
+                pending.push(Pending::Op(Op::Min));
+                pc += 1;
+            }
             // *
             0o137 => {
                 pending.push(Pending::Op(Op::Mul));
+                pc += 1;
+            }
+            // equal
+            0o232 => {
+                pending.push(Pending::Op(Op::Equal));
+                pc += 1;
+            }
+            // assq
+            0o236 => {
+                pending.push(Pending::Op(Op::Assq));
+                pc += 1;
+            }
+            // setcar
+            0o240 => {
+                pending.push(Pending::Op(Op::Setcar));
+                pc += 1;
+            }
+            // setcdr
+            0o241 => {
+                pending.push(Pending::Op(Op::Setcdr));
                 pc += 1;
             }
             // return
@@ -484,6 +565,60 @@ mod tests {
                 Op::Constant(2),
                 Op::Return,
             ]
+        );
+    }
+
+    #[test]
+    fn decodes_list_opcode_subset() {
+        let literal = Value::vector(vec![
+            Value::list(vec![Value::symbol("x"), Value::symbol("y")]),
+            Value::string("\u{8}\u{9}D\u{87}"),
+            Value::vector(vec![Value::symbol("x"), Value::symbol("y")]),
+            Value::Int(2),
+        ]);
+        let coerced = maybe_coerce_compiled_literal_function(literal);
+        let Value::ByteCode(bc) = coerced else {
+            panic!("expected Value::ByteCode");
+        };
+        assert_eq!(
+            bc.ops,
+            vec![Op::VarRef(0), Op::VarRef(1), Op::List(2), Op::Return]
+        );
+    }
+
+    #[test]
+    fn decodes_comparison_opcode_subset() {
+        let literal = Value::vector(vec![
+            Value::list(vec![Value::symbol("x"), Value::symbol("y")]),
+            Value::string("\u{8}\u{9}W\u{87}"),
+            Value::vector(vec![Value::symbol("x"), Value::symbol("y")]),
+            Value::Int(2),
+        ]);
+        let coerced = maybe_coerce_compiled_literal_function(literal);
+        let Value::ByteCode(bc) = coerced else {
+            panic!("expected Value::ByteCode");
+        };
+        assert_eq!(
+            bc.ops,
+            vec![Op::VarRef(0), Op::VarRef(1), Op::Lss, Op::Return]
+        );
+    }
+
+    #[test]
+    fn decodes_setcar_opcode_subset() {
+        let literal = Value::vector(vec![
+            Value::list(vec![Value::symbol("x"), Value::symbol("y")]),
+            Value::string("\u{8}\u{9}\u{A0}\u{87}"),
+            Value::vector(vec![Value::symbol("x"), Value::symbol("y")]),
+            Value::Int(2),
+        ]);
+        let coerced = maybe_coerce_compiled_literal_function(literal);
+        let Value::ByteCode(bc) = coerced else {
+            panic!("expected Value::ByteCode");
+        };
+        assert_eq!(
+            bc.ops,
+            vec![Op::VarRef(0), Op::VarRef(1), Op::Setcar, Op::Return]
         );
     }
 
