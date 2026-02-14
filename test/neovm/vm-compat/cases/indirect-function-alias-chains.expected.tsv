@@ -10,3 +10,8 @@
 10	(let ((a 'vm-if-cycle-a) (b 'vm-if-cycle-b)) (fset a b) (fset b a))	ERR (cyclic-function-indirection (vm-if-cycle-b))
 11	(defalias 'vm-da-cycle-self 'vm-da-cycle-self)	ERR (cyclic-function-indirection (vm-da-cycle-self))
 12	(let ((a 'vm-da-cycle-a) (b 'vm-da-cycle-b)) (defalias a b) (defalias b a))	ERR (cyclic-function-indirection (vm-da-cycle-b))
+13	(fset nil 'car)	ERR (setting-constant (nil))
+14	(fset t 'car)	OK car
+15	(defalias nil 'car)	ERR (setting-constant (nil))
+16	(defalias t 'car)	OK t
+17	(indirect-function t)	OK #<subr car>

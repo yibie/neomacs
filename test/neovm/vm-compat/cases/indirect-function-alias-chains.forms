@@ -31,3 +31,8 @@
       (b 'vm-da-cycle-b))
   (defalias a b)
   (defalias b a))
+(fset nil 'car)
+(fset t 'car)
+(defalias nil 'car)
+(defalias t 'car)
+(indirect-function t)
