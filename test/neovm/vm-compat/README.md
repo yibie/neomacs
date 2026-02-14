@@ -225,6 +225,8 @@ Post-freeze updates:
   - `cases/specpdl-dynamic-unwind-semantics`
 - Added function unbinding fallback-boundary compatibility case:
   - `cases/fmakunbound-fallback-boundary`
+- Added special-form function-cell override/restoration compatibility case:
+  - `cases/fset-special-form-override-boundary`
 - Added bytecode literal reader compatibility case (legacy opt-in):
   - `cases/bytecode-literal-reader-semantics`
 - Added bytecode literal execution compatibility case (legacy opt-in):
