@@ -412,6 +412,21 @@ impl Evaluator {
                     let expanded = self.expand_macro(func, tail)?;
                     return self.eval(&expanded);
                 }
+
+                if let Value::Subr(bound_name) = &func {
+                    if bound_name == name && super::subr_info::is_special_form(name) {
+                        if let Some(result) = self.try_special_form(name, tail) {
+                            return result;
+                        }
+                    }
+                }
+
+                // Explicit function-cell bindings override special-form fallback.
+                let mut args = Vec::with_capacity(tail.len());
+                for expr in tail {
+                    args.push(self.eval(expr)?);
+                }
+                return self.apply(func, args);
             }
 
             // Special forms
@@ -1654,7 +1669,21 @@ impl Evaluator {
         }
 
         let target = if let Some(func) = self.obarray.symbol_function(name).cloned() {
-            NamedCallTarget::Obarray(func)
+            match &func {
+                // `(fset 'foo (symbol-function 'foo))` writes `#<subr foo>` into
+                // the function cell. Treat this as a direct builtin/special-form
+                // callable, not an obarray indirection cycle.
+                Value::Subr(bound_name) if bound_name == name => {
+                    if super::subr_info::is_evaluator_callable_name(name) {
+                        NamedCallTarget::EvaluatorCallable
+                    } else if super::subr_info::is_special_form(name) {
+                        NamedCallTarget::SpecialForm
+                    } else {
+                        NamedCallTarget::Probe
+                    }
+                }
+                _ => NamedCallTarget::Obarray(func),
+            }
         } else if self.obarray.is_function_unbound(name) {
             NamedCallTarget::Void
         } else if super::subr_info::is_evaluator_callable_name(name) {
@@ -2407,6 +2436,40 @@ mod tests {
         assert_eq!(results[9], "OK nil");
         assert_eq!(results[10], "OK nil");
         assert_eq!(results[11], "OK void-function");
+    }
+
+    #[test]
+    fn fset_can_override_special_form_name_for_direct_calls() {
+        let result = eval_one(
+            "(let ((orig (symbol-function 'if)))
+               (unwind-protect
+                   (progn
+                     (fset 'if (lambda (&rest _args) 'ov))
+                     (if t 1 2))
+                 (fset 'if orig)))",
+        );
+        assert_eq!(result, "OK ov");
+    }
+
+    #[test]
+    fn fset_restoring_subr_object_keeps_callability() {
+        assert_eq!(
+            eval_one(
+                "(let ((orig (symbol-function 'car)))
+                   (fset 'car orig)
+                   (car '(1 2)))"
+            ),
+            "OK 1"
+        );
+
+        assert_eq!(
+            eval_one(
+                "(let ((orig (symbol-function 'if)))
+                   (fset 'if orig)
+                   (if t 1 2))"
+            ),
+            "OK 1"
+        );
     }
 
     #[test]
