@@ -75,6 +75,23 @@ fn expect_integer_or_marker(value: &Value) -> Result<i64, Flow> {
     }
 }
 
+enum NumberOrMarker {
+    Int(i64),
+    Float(f64),
+}
+
+fn expect_number_or_marker(value: &Value) -> Result<NumberOrMarker, Flow> {
+    match value {
+        Value::Int(n) => Ok(NumberOrMarker::Int(*n)),
+        Value::Char(c) => Ok(NumberOrMarker::Int(*c as i64)),
+        Value::Float(f) => Ok(NumberOrMarker::Float(*f)),
+        other => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("number-or-marker-p"), other.clone()],
+        )),
+    }
+}
+
 /// Extract a number as f64.
 fn expect_number(value: &Value) -> Result<f64, Flow> {
     match value {
@@ -3134,40 +3151,76 @@ pub(crate) fn builtin_string_width(args: Vec<Value>) -> EvalResult {
 
 pub(crate) fn builtin_last(args: Vec<Value>) -> EvalResult {
     expect_min_args("last", &args, 1)?;
-    let n = if args.len() > 1 { expect_int(&args[1])? } else { 1 };
-    if n < 0 {
-        return Ok(Value::Nil);
-    }
+    let n = if args.len() > 1 && !args[1].is_nil() {
+        expect_number_or_marker(&args[1])?
+    } else {
+        NumberOrMarker::Int(1)
+    };
 
-    let mut lag = args[0].clone();
-    let mut lead = args[0].clone();
-    for _ in 0..(n as usize) {
-        match lead {
-            Value::Cons(cell) => {
-                lead = cell.lock().expect("poisoned").cdr.clone();
+    match n {
+        NumberOrMarker::Int(n) => {
+            if n < 0 {
+                return Ok(Value::Nil);
             }
-            _ => return Ok(lag),
+
+            let mut lag = args[0].clone();
+            let mut lead = args[0].clone();
+            for _ in 0..(n as usize) {
+                match lead {
+                    Value::Cons(cell) => {
+                        lead = cell.lock().expect("poisoned").cdr.clone();
+                    }
+                    _ => return Ok(lag),
+                }
+            }
+
+            loop {
+                match lead {
+                    Value::Cons(cell) => {
+                        lead = cell.lock().expect("poisoned").cdr.clone();
+                        lag = match lag {
+                            Value::Cons(lag_cell) => {
+                                lag_cell.lock().expect("poisoned").cdr.clone()
+                            }
+                            _ => unreachable!("lag should be a cons while lead is a cons"),
+                        };
+                    }
+                    _ => return Ok(lag),
+                }
+            }
         }
-    }
-
-    loop {
-        match lead {
-            Value::Cons(cell) => {
-                lead = cell.lock().expect("poisoned").cdr.clone();
-                lag = match lag {
-                    Value::Cons(lag_cell) => lag_cell.lock().expect("poisoned").cdr.clone(),
-                    _ => unreachable!("lag should be a cons while lead is a cons"),
-                };
+        NumberOrMarker::Float(n) => {
+            if n < 0.0 {
+                return Ok(Value::Nil);
             }
-            _ => return Ok(lag),
+
+            if let Some(len) = list_length(&args[0]) {
+                let remaining = len as f64 - n;
+                if remaining > 0.0 {
+                    return Err(signal(
+                        "wrong-type-argument",
+                        vec![Value::symbol("integerp"), Value::Float(remaining)],
+                    ));
+                }
+            }
+            Ok(args[0].clone())
         }
     }
 }
 
 pub(crate) fn builtin_butlast(args: Vec<Value>) -> EvalResult {
     expect_min_args("butlast", &args, 1)?;
-    let n = if args.len() > 1 { expect_int(&args[1])? } else { 1 };
-    if n <= 0 {
+    let n = if args.len() > 1 && !args[1].is_nil() {
+        expect_number_or_marker(&args[1])?
+    } else {
+        NumberOrMarker::Int(1)
+    };
+
+    let n_non_positive = match n {
+        NumberOrMarker::Int(v) => v <= 0,
+        NumberOrMarker::Float(v) => v <= 0.0,
+    };
+    if n_non_positive {
         return Ok(args[0].clone());
     }
 
@@ -3206,8 +3259,16 @@ pub(crate) fn builtin_butlast(args: Vec<Value>) -> EvalResult {
         }
     }
 
-    let keep = items.len().saturating_sub(n as usize);
-    Ok(Value::list(items[..keep].to_vec()))
+    match n {
+        NumberOrMarker::Int(v) => {
+            let keep = items.len().saturating_sub(v as usize);
+            Ok(Value::list(items[..keep].to_vec()))
+        }
+        NumberOrMarker::Float(v) => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("integerp"), Value::Float(items.len() as f64 - v)],
+        )),
+    }
 }
 
 fn delete_from_list_in_place<F>(seq: &Value, should_delete: F) -> Result<Value, Flow>
