@@ -5731,6 +5731,10 @@ pub(crate) fn dispatch_builtin(
         }
         "commandp" => return Some(super::interactive::builtin_commandp_interactive(eval, args)),
         "command-execute" => return Some(super::interactive::builtin_command_execute(eval, args)),
+        "eval-expression" => return Some(super::interactive::builtin_eval_expression(eval, args)),
+        "self-insert-command" => {
+            return Some(super::interactive::builtin_self_insert_command(eval, args))
+        }
         "execute-extended-command" => {
             return Some(super::interactive::builtin_execute_extended_command(
                 eval, args,

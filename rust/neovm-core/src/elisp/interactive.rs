@@ -174,15 +174,16 @@ pub(crate) fn builtin_call_interactively(eval: &mut Evaluator, args: Vec<Value>)
             vec![Value::symbol("commandp"), func_val.clone()],
         ));
     }
-    let Some(func) = resolve_command_target(eval, func_val) else {
+    let Some((resolved_name, func)) = resolve_command_target(eval, func_val) else {
         return Err(signal("void-function", vec![func_val.clone()]));
     };
+    let call_args = default_command_invocation_args(&resolved_name);
 
     // Mark as interactive call
     eval.interactive.push_interactive_call(true);
 
     // Call the function with no args (interactive arg reading is stubbed)
-    let result = eval.apply(func, vec![]);
+    let result = eval.apply(func, call_args);
 
     eval.interactive.pop_interactive_call();
     result
@@ -351,11 +352,29 @@ fn command_designator_p(eval: &Evaluator, designator: &Value) -> bool {
     command_object_p(eval, None, designator)
 }
 
-fn resolve_command_target(eval: &Evaluator, designator: &Value) -> Option<Value> {
-    if let Some(name) = designator.as_symbol_name() {
-        return resolve_function_designator_symbol(eval, name).map(|(_, value)| value);
+fn default_command_invocation_args(name: &str) -> Vec<Value> {
+    match name {
+        "self-insert-command" => vec![Value::Int(1)],
+        _ => Vec::new(),
     }
-    Some(designator.clone())
+}
+
+fn resolve_command_target(eval: &Evaluator, designator: &Value) -> Option<(String, Value)> {
+    if let Some(name) = designator.as_symbol_name() {
+        if let Some((resolved_name, value)) = resolve_function_designator_symbol(eval, name) {
+            return Some((resolved_name, value));
+        }
+        if builtin_command_name(name) {
+            return Some((name.to_string(), Value::Subr(name.to_string())));
+        }
+        return None;
+    }
+    match designator {
+        Value::Subr(name) => Some((name.clone(), designator.clone())),
+        Value::True => Some(("t".to_string(), designator.clone())),
+        Value::Keyword(name) => Some((name.clone(), designator.clone())),
+        _ => Some(("<anonymous>".to_string(), designator.clone())),
+    }
 }
 
 /// `(command-execute CMD &optional RECORD-FLAG KEYS SPECIAL)`
@@ -370,14 +389,55 @@ pub(crate) fn builtin_command_execute(eval: &mut Evaluator, args: Vec<Value>) ->
             vec![Value::symbol("commandp"), cmd.clone()],
         ));
     }
-    let Some(func) = resolve_command_target(eval, cmd) else {
+    let Some((resolved_name, func)) = resolve_command_target(eval, cmd) else {
         return Err(signal("void-function", vec![cmd.clone()]));
     };
+    let call_args = default_command_invocation_args(&resolved_name);
 
     eval.interactive.push_interactive_call(true);
-    let result = eval.apply(func, vec![]);
+    let result = eval.apply(func, call_args);
     eval.interactive.pop_interactive_call();
     result
+}
+
+/// `(eval-expression EXPRESSION &optional INSERT-VALUE NO-TRUNCATE LEXICAL)` -- evaluate and
+/// return EXPRESSION.
+pub(crate) fn builtin_eval_expression(eval: &mut Evaluator, args: Vec<Value>) -> EvalResult {
+    if args.is_empty() {
+        if eval.interactive.is_called_interactively() {
+            return Err(signal(
+                "end-of-file",
+                vec![Value::string("Error reading from stdin")],
+            ));
+        }
+        return Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol("eval-expression"), Value::Int(0)],
+        ));
+    }
+
+    let expr = super::eval::value_to_expr_pub(&args[0]);
+    eval.eval(&expr)
+}
+
+/// `(self-insert-command N)` -- insert the last typed character N times.
+///
+/// NeoVM currently does not track `last-command-event`; when it is unavailable
+/// this command acts as a no-op and returns nil.
+pub(crate) fn builtin_self_insert_command(_eval: &mut Evaluator, args: Vec<Value>) -> EvalResult {
+    if args.is_empty() {
+        return Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol("self-insert-command"), Value::Int(0)],
+        ));
+    }
+    if !matches!(&args[0], Value::Int(_)) {
+        return Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("fixnump"), args[0].clone()],
+        ));
+    }
+    Ok(Value::Nil)
 }
 
 /// `(execute-extended-command PREFIXARG &optional COMMAND-NAME TYPED)`
@@ -1994,6 +2054,28 @@ mod tests {
     }
 
     #[test]
+    fn command_execute_builtin_eval_expression_reads_stdin_in_batch() {
+        let mut ev = Evaluator::new();
+        let result = builtin_command_execute(&mut ev, vec![Value::symbol("eval-expression")])
+            .expect_err("command-execute eval-expression should signal end-of-file in batch");
+        match result {
+            Flow::Signal(sig) => {
+                assert_eq!(sig.symbol, "end-of-file");
+                assert_eq!(sig.data, vec![Value::string("Error reading from stdin")]);
+            }
+            other => panic!("unexpected flow: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn command_execute_builtin_self_insert_command_is_noop() {
+        let mut ev = Evaluator::new();
+        let result = builtin_command_execute(&mut ev, vec![Value::symbol("self-insert-command")])
+            .expect("self-insert-command should execute");
+        assert!(result.is_nil());
+    }
+
+    #[test]
     fn command_execute_calls_function() {
         let mut ev = Evaluator::new();
         eval_all_with(
@@ -2041,6 +2123,48 @@ mod tests {
             Flow::Signal(sig) => {
                 assert_eq!(sig.symbol, "wrong-type-argument");
                 assert_eq!(sig.data, vec![Value::symbol("commandp"), Value::symbol("car")]);
+            }
+            other => panic!("unexpected flow: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn call_interactively_eval_expression_reads_stdin_in_batch() {
+        let mut ev = Evaluator::new();
+        let result = builtin_call_interactively(&mut ev, vec![Value::symbol("eval-expression")])
+            .expect_err("call-interactively eval-expression should signal end-of-file in batch");
+        match result {
+            Flow::Signal(sig) => {
+                assert_eq!(sig.symbol, "end-of-file");
+                assert_eq!(sig.data, vec![Value::string("Error reading from stdin")]);
+            }
+            other => panic!("unexpected flow: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn self_insert_command_argument_validation() {
+        let mut ev = Evaluator::new();
+
+        let missing = builtin_self_insert_command(&mut ev, vec![])
+            .expect_err("self-insert-command should require one arg");
+        match missing {
+            Flow::Signal(sig) => {
+                assert_eq!(sig.symbol, "wrong-number-of-arguments");
+                assert_eq!(
+                    sig.data,
+                    vec![Value::symbol("self-insert-command"), Value::Int(0)]
+                );
+            }
+            other => panic!("unexpected flow: {other:?}"),
+        }
+
+        let wrong_type = builtin_self_insert_command(&mut ev, vec![Value::symbol("x")])
+            .expect_err("self-insert-command should type check arg");
+        match wrong_type {
+            Flow::Signal(sig) => {
+                assert_eq!(sig.symbol, "wrong-type-argument");
+                assert_eq!(sig.data, vec![Value::symbol("fixnump"), Value::symbol("x")]);
             }
             other => panic!("unexpected flow: {other:?}"),
         }
