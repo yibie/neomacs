@@ -19,6 +19,7 @@ const RAW_BYTE_SENTINEL_MAX: u32 = 0xE0FF;
 const UNIBYTE_BYTE_SENTINEL_BASE: u32 = 0xE300;
 const UNIBYTE_BYTE_SENTINEL_MIN: u32 = 0xE300;
 const UNIBYTE_BYTE_SENTINEL_MAX: u32 = 0xE3FF;
+const MAX_EMACS_CHAR: i64 = 0x3FFFFF;
 
 // ---------------------------------------------------------------------------
 // Argument helpers (local to this module)
@@ -76,6 +77,17 @@ fn expect_char(val: &Value) -> Result<char, Flow> {
                 vec![Value::symbol("characterp"), val.clone()],
             )
         }),
+        other => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("characterp"), other.clone()],
+        )),
+    }
+}
+
+fn expect_character_code(val: &Value) -> Result<i64, Flow> {
+    match val {
+        Value::Char(c) => Ok(*c as i64),
+        Value::Int(n) if (0..=MAX_EMACS_CHAR).contains(n) => Ok(*n),
         other => Err(signal(
             "wrong-type-argument",
             vec![Value::symbol("characterp"), other.clone()],
@@ -556,28 +568,34 @@ pub(crate) fn builtin_string_as_multibyte(args: Vec<Value>) -> EvalResult {
     }
 }
 
-/// `(unibyte-char-to-multibyte CHAR)` -- identity conversion (char passthrough).
+/// `(unibyte-char-to-multibyte CHAR)` -- map 0..255 to multibyte/raw-byte char code.
 pub(crate) fn builtin_unibyte_char_to_multibyte(args: Vec<Value>) -> EvalResult {
     expect_args("unibyte-char-to-multibyte", &args, 1)?;
-    match &args[0] {
-        Value::Char(_) | Value::Int(_) => Ok(args[0].clone()),
-        other => Err(signal(
-            "wrong-type-argument",
-            vec![Value::symbol("characterp"), other.clone()],
-        )),
+    let code = expect_character_code(&args[0])?;
+    if code > 0xFF {
+        return Err(signal(
+            "error",
+            vec![Value::string(format!("Not a unibyte character: {code}"))],
+        ));
+    }
+    if code < 0x80 {
+        Ok(Value::Int(code))
+    } else {
+        Ok(Value::Int(code + 0x3FFF00))
     }
 }
 
-/// `(multibyte-char-to-unibyte CHAR)` -- identity conversion (char passthrough).
+/// `(multibyte-char-to-unibyte CHAR)` -- map multibyte/raw-byte char code to byte.
 pub(crate) fn builtin_multibyte_char_to_unibyte(args: Vec<Value>) -> EvalResult {
     expect_args("multibyte-char-to-unibyte", &args, 1)?;
-    match &args[0] {
-        Value::Char(_) | Value::Int(_) => Ok(args[0].clone()),
-        other => Err(signal(
-            "wrong-type-argument",
-            vec![Value::symbol("characterp"), other.clone()],
-        )),
+    let code = expect_character_code(&args[0])?;
+    if code <= 0xFF {
+        return Ok(Value::Int(code));
     }
+    if (0x3FFF80..=0x3FFFFF).contains(&code) {
+        return Ok(Value::Int(code - 0x3FFF00));
+    }
+    Ok(Value::Int(-1))
 }
 
 /// `(decode-char CHARSET CODE)` -- stub: returns CODE as a character.
@@ -1023,18 +1041,51 @@ mod tests {
         assert!(equal_value(&s, &result, 0));
     }
 
-    // ----- char encoding identity stubs -----
+    // ----- char encoding conversions -----
 
     #[test]
-    fn unibyte_char_to_multibyte_identity() {
-        let result = builtin_unibyte_char_to_multibyte(vec![Value::Char('A')]).unwrap();
-        assert!(eq_value(&result, &Value::Char('A')));
+    fn unibyte_char_to_multibyte_ascii_identity() {
+        let result = builtin_unibyte_char_to_multibyte(vec![Value::Int(65)]).unwrap();
+        assert!(eq_value(&result, &Value::Int(65)));
     }
 
     #[test]
-    fn multibyte_char_to_unibyte_identity() {
+    fn unibyte_char_to_multibyte_high_byte_maps_to_raw_range() {
+        let result = builtin_unibyte_char_to_multibyte(vec![Value::Int(255)]).unwrap();
+        assert!(eq_value(&result, &Value::Int(0x3FFFFF)));
+    }
+
+    #[test]
+    fn unibyte_char_to_multibyte_rejects_non_unibyte_code() {
+        let result = builtin_unibyte_char_to_multibyte(vec![Value::Int(256)]);
+        match result {
+            Err(Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "error");
+                assert_eq!(
+                    sig.data,
+                    vec![Value::string("Not a unibyte character: 256")]
+                );
+            }
+            other => panic!("expected conversion error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn multibyte_char_to_unibyte_ascii_passthrough() {
         let result = builtin_multibyte_char_to_unibyte(vec![Value::Int(65)]).unwrap();
         assert!(eq_value(&result, &Value::Int(65)));
+    }
+
+    #[test]
+    fn multibyte_char_to_unibyte_raw_range_maps_to_byte() {
+        let result = builtin_multibyte_char_to_unibyte(vec![Value::Int(0x3FFFFF)]).unwrap();
+        assert!(eq_value(&result, &Value::Int(255)));
+    }
+
+    #[test]
+    fn multibyte_char_to_unibyte_returns_minus_one_for_non_unibyte_unicode() {
+        let result = builtin_multibyte_char_to_unibyte(vec![Value::Int(256)]).unwrap();
+        assert!(eq_value(&result, &Value::Int(-1)));
     }
 
     // ----- decode-char / encode-char -----
