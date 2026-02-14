@@ -96,46 +96,40 @@ fn skip_sexp_ignorable_forward(buf: &Buffer, table: &SyntaxTable, mut pos: usize
     pos
 }
 
-fn previous_sexp_before(
-    buf: &Buffer,
-    table: &SyntaxTable,
-    start: usize,
-) -> Option<(usize, usize)> {
-    let prev_start = scan_sexps(buf, table, start, -1).ok()?;
-    let prev_end = scan_sexps(buf, table, prev_start, 1).ok()?;
-    if prev_end <= start {
-        Some((prev_start, prev_end))
-    } else {
-        None
-    }
-}
-
-fn next_sexp_after(buf: &Buffer, table: &SyntaxTable, from: usize) -> Option<(usize, usize)> {
-    let start = skip_sexp_ignorable_forward(buf, table, from);
-    if start >= buf.point_max() {
-        return None;
-    }
-    let end = scan_sexps(buf, table, start, 1).ok()?;
-    if end > start {
-        Some((start, end))
-    } else {
-        None
-    }
-}
-
-fn pivot_sexp_at_point_or_after(
-    buf: &Buffer,
-    table: &SyntaxTable,
-    pt: usize,
-) -> Option<(usize, usize)> {
-    if let Ok(start) = scan_sexps(buf, table, pt, -1) {
-        if let Ok(end) = scan_sexps(buf, table, start, 1) {
-            if pt > start && pt <= end {
-                return Some((start, end));
-            }
+fn collect_sexp_spans(buf: &Buffer, table: &SyntaxTable) -> Vec<(usize, usize)> {
+    let pmax = buf.point_max();
+    let mut spans = Vec::new();
+    let mut pos = skip_sexp_ignorable_forward(buf, table, buf.point_min());
+    while pos < pmax {
+        let Ok(end) = scan_sexps(buf, table, pos, 1) else {
+            let Some(ch) = buf.char_after(pos) else {
+                break;
+            };
+            pos += ch.len_utf8();
+            pos = skip_sexp_ignorable_forward(buf, table, pos);
+            continue;
+        };
+        if end <= pos {
+            break;
         }
+        spans.push((pos, end));
+        pos = skip_sexp_ignorable_forward(buf, table, end);
     }
-    next_sexp_after(buf, table, pt)
+    spans
+}
+
+fn move_point_by_sexps(buf: &Buffer, table: &SyntaxTable, mut pos: usize, count: i64) -> usize {
+    if count == 0 {
+        return pos;
+    }
+    let step = if count > 0 { 1 } else { -1 };
+    for _ in 0..count.unsigned_abs() {
+        let Ok(next) = scan_sexps(buf, table, pos, step) else {
+            break;
+        };
+        pos = next;
+    }
+    pos
 }
 
 fn is_text_whitespace(ch: char) -> bool {
@@ -1667,80 +1661,128 @@ pub(crate) fn builtin_transpose_sexps(
         ));
     }
 
-    let steps = n.unsigned_abs() as usize;
-    let backward = n < 0;
     let two_sexp_error =
         || signal("error", vec![Value::string("Don\u{2019}t have two things to transpose")]);
 
-    for _ in 0..steps {
-        let mut moved_only = false;
-        let (s1, e1, s2, e2) = {
+    let (point, table, spans, scan_error_pos) = {
+        let buf = eval
+            .buffers
+            .current_buffer()
+            .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
+        let table = buf.syntax_table.clone();
+        let spans = collect_sexp_spans(buf, &table);
+        let point = buf.point();
+        let scan_error_pos = spans
+            .iter()
+            .find_map(|(start, end)| (point > *start && point < *end).then_some(*start));
+        (point, table, spans, scan_error_pos)
+    };
+
+    if let Some(start) = scan_error_pos {
+        return Err(signal(
+            "scan-error",
+            vec![
+                Value::string("Containing expression ends prematurely"),
+                Value::Int((start + 1) as i64),
+                Value::Int((start + 1) as i64),
+            ],
+        ));
+    }
+
+    let moving_idx = spans.iter().rposition(|(_, end)| *end <= point);
+
+    // Emacs behavior: when point is effectively at BOB for positive transpose,
+    // only move point over sexps and do not transpose text.
+    if n > 0 && moving_idx.is_none() {
+        let next_point = {
             let buf = eval
                 .buffers
                 .current_buffer()
                 .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
-            let table = buf.syntax_table.clone();
-            let pt = buf.point();
-            let pmin = buf.point_min();
-
-            // Emacs behavior: at BOB, forward transpose-sexps just advances point.
-            if !backward && pt == pmin {
-                let next_pt = scan_sexps(buf, &table, pt, 1)
-                    .map_err(|msg| signal("scan-error", vec![Value::string(&msg)]))?;
-                let buf_m = eval
-                    .buffers
-                    .current_buffer_mut()
-                    .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
-                buf_m.goto_char(next_pt);
-                moved_only = true;
-                (0usize, 0usize, 0usize, 0usize)
-            } else {
-                let (pivot_start, pivot_end) =
-                    pivot_sexp_at_point_or_after(buf, &table, pt).ok_or_else(&two_sexp_error)?;
-
-                if backward {
-                    let (prev_start, prev_end) = previous_sexp_before(buf, &table, pivot_start)
-                        .ok_or_else(&two_sexp_error)?;
-                    (prev_start, prev_end, pivot_start, pivot_end)
-                } else if let Some((prev_start, prev_end)) =
-                    previous_sexp_before(buf, &table, pivot_start)
-                {
-                    (prev_start, prev_end, pivot_start, pivot_end)
-                } else {
-                    let (next_start, next_end) = next_sexp_after(buf, &table, pivot_end)
-                        .ok_or_else(&two_sexp_error)?;
-                    (pivot_start, pivot_end, next_start, next_end)
-                }
-            }
+            move_point_by_sexps(buf, &table, point, n)
         };
+        let buf_m = eval
+            .buffers
+            .current_buffer_mut()
+            .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
+        buf_m.goto_char(next_point);
+        return Ok(Value::Nil);
+    }
 
-        if moved_only {
-            continue;
+    let Some(i) = moving_idx else {
+        return Err(two_sexp_error());
+    };
+
+    if n > 0 {
+        let max_forward = spans.len().saturating_sub(1).saturating_sub(i);
+        if max_forward == 0 {
+            return Err(two_sexp_error());
         }
+        let shift = usize::min(n as usize, max_forward);
+        let dest_idx = i + shift;
+        let (start_i, end_i) = spans[i];
+        let (start_next, _) = spans[i + 1];
+        let (_, end_dest) = spans[dest_idx];
 
-        let (sexp_a, between, sexp_b) = {
+        let (moving, block, separator) = {
             let buf_r = eval
                 .buffers
                 .current_buffer()
                 .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
             (
-                buf_r.buffer_substring(s1, e1),
-                buf_r.buffer_substring(e1, s2),
-                buf_r.buffer_substring(s2, e2),
+                buf_r.buffer_substring(start_i, end_i),
+                buf_r.buffer_substring(start_next, end_dest),
+                buf_r.buffer_substring(end_i, start_next),
             )
         };
 
+        let new_point = end_dest;
         let buf_m = eval
             .buffers
             .current_buffer_mut()
             .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
-        buf_m.delete_region(s1, e2);
-        buf_m.goto_char(s1);
-        buf_m.insert(&sexp_b);
-        buf_m.insert(&between);
-        buf_m.insert(&sexp_a);
-        buf_m.goto_char(s1 + sexp_b.len() + between.len());
+        buf_m.delete_region(start_i, end_dest);
+        buf_m.goto_char(start_i);
+        buf_m.insert(&block);
+        buf_m.insert(&separator);
+        buf_m.insert(&moving);
+        buf_m.goto_char(new_point);
+        return Ok(Value::Nil);
     }
+
+    let max_backward = i;
+    if max_backward == 0 {
+        return Err(two_sexp_error());
+    }
+    let shift = usize::min(n.unsigned_abs() as usize, max_backward);
+    let dest_idx = i - shift;
+    let (start_dest, _) = spans[dest_idx];
+    let (_, end_prev) = spans[i - 1];
+    let (start_i, end_i) = spans[i];
+
+    let (moving, separator, block) = {
+        let buf_r = eval
+            .buffers
+            .current_buffer()
+            .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
+        (
+            buf_r.buffer_substring(start_i, end_i),
+            buf_r.buffer_substring(end_prev, start_i),
+            buf_r.buffer_substring(start_dest, end_prev),
+        )
+    };
+
+    let new_point = start_dest + moving.len();
+    let buf_m = eval
+        .buffers
+        .current_buffer_mut()
+        .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
+    buf_m.delete_region(start_dest, end_i);
+    buf_m.goto_char(start_dest);
+    buf_m.insert(&moving);
+    buf_m.insert(&separator);
+    buf_m.insert(&block);
+    buf_m.goto_char(new_point);
 
     Ok(Value::Nil)
 }

@@ -20,6 +20,7 @@ cases/commandp-builtin-command-matrix
 cases/command-dispatch-semantics
 cases/command-dispatch-default-arg-semantics
 cases/transpose-words-semantics
+cases/transpose-sexps-semantics
 cases/transpose-paragraphs-semantics
 cases/command-prefix-state-return-shape
 cases/command-dispatch-line-motion-semantics
