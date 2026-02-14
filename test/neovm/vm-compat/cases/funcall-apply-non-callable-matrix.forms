@@ -25,3 +25,6 @@
 (apply #'(lambda (&rest xs) xs) 1 2 '(3))
 (catch 'vm-tag (funcall 'throw 'vm-tag 42))
 (condition-case err (funcall 'throw 'vm-tag 42) (error err))
+(catch 'vm-tag (apply 'throw '(vm-tag 42)))
+(condition-case err (apply 'throw '(vm-tag 42)) (error err))
+(condition-case err (apply 'throw '(vm-tag)) (error err))
