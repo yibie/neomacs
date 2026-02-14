@@ -149,14 +149,23 @@ fn decode_opcode_subset(byte_stream: &str, const_len: usize) -> Option<Vec<Op>> 
                 pending.push(Pending::Op(Op::Constant(idx as u16)));
                 pc += 1;
             }
-            // varref 0..7
-            0o010..=0o017 => {
+            // varref 0..5
+            0o010..=0o015 => {
                 let idx = (b - 0o010) as usize;
                 if idx >= const_len {
                     return None;
                 }
                 pending.push(Pending::Op(Op::VarRef(idx as u16)));
                 pc += 1;
+            }
+            // varref (wide 8-bit index)
+            0o016 => {
+                let idx = *bytes.get(pc + 1)? as usize;
+                if idx >= const_len {
+                    return None;
+                }
+                pending.push(Pending::Op(Op::VarRef(idx as u16)));
+                pc += 2;
             }
             // call 0..7 (function object already pushed on stack)
             0o040..=0o047 => {
@@ -1059,6 +1068,53 @@ mod tests {
                 Op::Nconc,
                 Op::VarRef(2),
                 Op::Nconc,
+                Op::Return,
+            ]
+        );
+    }
+
+    #[test]
+    fn decodes_wide_varref_opcode_subset() {
+        let literal = Value::vector(vec![
+            Value::list(vec![
+                Value::symbol("a"),
+                Value::symbol("b"),
+                Value::symbol("c"),
+                Value::symbol("d"),
+                Value::symbol("e"),
+                Value::symbol("f"),
+                Value::symbol("g"),
+                Value::symbol("h"),
+            ]),
+            Value::string("\u{8}\u{9}\u{A}\u{B}\u{C}\u{D}\u{E}\u{6}\u{E}\u{7}\u{AF}\u{8}\u{87}"),
+            Value::vector(vec![
+                Value::symbol("a"),
+                Value::symbol("b"),
+                Value::symbol("c"),
+                Value::symbol("d"),
+                Value::symbol("e"),
+                Value::symbol("f"),
+                Value::symbol("g"),
+                Value::symbol("h"),
+            ]),
+            Value::Int(8),
+        ]);
+        let coerced = maybe_coerce_compiled_literal_function(literal);
+        let Value::ByteCode(bc) = coerced else {
+            panic!("expected Value::ByteCode");
+        };
+        assert_eq!(
+            bc.ops,
+            vec![
+                Op::VarRef(0),
+                Op::VarRef(1),
+                Op::VarRef(2),
+                Op::VarRef(3),
+                Op::VarRef(4),
+                Op::VarRef(5),
+                Op::VarRef(6),
+                Op::VarRef(7),
+                Op::List(8),
                 Op::Return,
             ]
         );
