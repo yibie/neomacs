@@ -137,6 +137,10 @@ Implemented now:
 - `rust/neovm-core/examples/compat_runner.rs`: NeoVM compatibility runner producing oracle-style TSV
 - `rust/neovm-core/examples/load_cache_bench.rs`: cold/warm `.neoc` load benchmark helper
 - `rust/neovm-worker/examples/elisp_compat_runner.rs`: compatibility runner through threaded worker runtime path
+- thread primitive compatibility hardening:
+  - `thread-join` matches GNU Emacs self-join behavior (`error` with "Cannot join current thread")
+  - `thread-last-error` publication is join-driven (set on first join of a signaled thread; not on thread creation)
+  - compatibility corpus includes oracle-checked `cases/thread-join-semantics`, `cases/thread-join-error-paths`, `cases/thread-last-error-publication`, `cases/thread-signal-semantics`, and `cases/thread-sync-error-payloads`
 - configure-time core backend selection: `--with-neovm-core-backend=emacs-c|rust`
   - `emacs-c` keeps the current legacy core path
   - `rust` enables the future Rust-core build mode surface for migration
