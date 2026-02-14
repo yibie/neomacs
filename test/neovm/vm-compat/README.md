@@ -168,5 +168,7 @@ Post-freeze updates:
   - `cases/vconcat-mixed-sequence-semantics`
 - Added destructive sequence mutation compatibility case:
   - `cases/nreverse-destructive-semantics`
+- Added destructive list concatenation compatibility case:
+  - `cases/nconc-destructive-semantics`
 - Full NeoVM gate is green with these additions:
   - `make check-all-neovm`
