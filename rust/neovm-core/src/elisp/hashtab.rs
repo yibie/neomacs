@@ -136,7 +136,7 @@ pub(crate) fn builtin_hash_table_size(args: Vec<Value>) -> EvalResult {
     match &args[0] {
         Value::HashTable(ht) => {
             let table = ht.lock().expect("poisoned");
-            Ok(Value::Int(table.data.capacity() as i64))
+            Ok(Value::Int(table.size))
         }
         other => Err(signal(
             "wrong-type-argument",
@@ -169,11 +169,20 @@ pub(crate) fn builtin_hash_table_rehash_threshold(args: Vec<Value>) -> EvalResul
     }
 }
 
-/// (hash-table-weakness TABLE) -> nil (no weak references in our impl)
+/// (hash-table-weakness TABLE) -> nil | symbol
 pub(crate) fn builtin_hash_table_weakness(args: Vec<Value>) -> EvalResult {
     expect_args("hash-table-weakness", &args, 1)?;
     match &args[0] {
-        Value::HashTable(_) => Ok(Value::Nil),
+        Value::HashTable(ht) => {
+            let table = ht.lock().expect("poisoned");
+            Ok(match table.weakness {
+                None => Value::Nil,
+                Some(HashTableWeakness::Key) => Value::symbol("key"),
+                Some(HashTableWeakness::Value) => Value::symbol("value"),
+                Some(HashTableWeakness::KeyOrValue) => Value::symbol("key-or-value"),
+                Some(HashTableWeakness::KeyAndValue) => Value::symbol("key-and-value"),
+            })
+        }
         other => Err(signal(
             "wrong-type-argument",
             vec![Value::symbol("hash-table-p"), other.clone()],

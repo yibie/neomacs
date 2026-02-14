@@ -95,6 +95,8 @@ impl LambdaParams {
 #[derive(Clone, Debug)]
 pub struct LispHashTable {
     pub test: HashTableTest,
+    pub size: i64,
+    pub weakness: Option<HashTableWeakness>,
     pub data: HashMap<HashKey, Value>,
 }
 
@@ -103,6 +105,14 @@ pub enum HashTableTest {
     Eq,
     Eql,
     Equal,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum HashTableWeakness {
+    Key,
+    Value,
+    KeyOrValue,
+    KeyAndValue,
 }
 
 /// Key type that supports hashing for `eq`, `eql`, and `equal` tests.
@@ -123,9 +133,19 @@ pub enum HashKey {
 
 impl LispHashTable {
     pub fn new(test: HashTableTest) -> Self {
+        Self::new_with_options(test, 0, None)
+    }
+
+    pub fn new_with_options(
+        test: HashTableTest,
+        size: i64,
+        weakness: Option<HashTableWeakness>,
+    ) -> Self {
         Self {
             test,
-            data: HashMap::new(),
+            size,
+            weakness,
+            data: HashMap::with_capacity(size.max(0) as usize),
         }
     }
 }
@@ -183,6 +203,16 @@ impl Value {
 
     pub fn hash_table(test: HashTableTest) -> Self {
         Value::HashTable(Arc::new(Mutex::new(LispHashTable::new(test))))
+    }
+
+    pub fn hash_table_with_options(
+        test: HashTableTest,
+        size: i64,
+        weakness: Option<HashTableWeakness>,
+    ) -> Self {
+        Value::HashTable(Arc::new(Mutex::new(LispHashTable::new_with_options(
+            test, size, weakness,
+        ))))
     }
 
     pub fn is_nil(&self) -> bool {

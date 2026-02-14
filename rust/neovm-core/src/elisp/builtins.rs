@@ -1619,25 +1619,149 @@ pub(crate) fn builtin_vconcat(args: Vec<Value>) -> EvalResult {
 // Hash table operations
 // ===========================================================================
 
+fn invalid_hash_table_argument_list(arg: Value) -> Flow {
+    signal(
+        "error",
+        vec![Value::string("Invalid argument list"), arg],
+    )
+}
+
 pub(crate) fn builtin_make_hash_table(args: Vec<Value>) -> EvalResult {
     let mut test = HashTableTest::Eql;
+    let mut size: i64 = 0;
+    let mut weakness: Option<HashTableWeakness> = None;
+    let mut seen_test = false;
+    let mut seen_size = false;
+    let mut seen_weakness = false;
+
+    fn is_known_hash_table_option(name: &str) -> bool {
+        matches!(
+            name,
+            ":test" | ":size" | ":weakness" | ":rehash-size" | ":rehash-threshold"
+        )
+    }
+
     let mut i = 0;
     while i < args.len() {
-        if let Value::Keyword(ref k) = args[i] {
-            if k == ":test" && i + 1 < args.len() {
-                test = match args[i + 1].as_symbol_name() {
-                    Some("eq") => HashTableTest::Eq,
-                    Some("eql") => HashTableTest::Eql,
-                    Some("equal") => HashTableTest::Equal,
-                    _ => HashTableTest::Eql,
+        let Value::Keyword(option) = &args[i] else {
+            return Err(invalid_hash_table_argument_list(args[i].clone()));
+        };
+
+        match option.as_str() {
+            ":test" => {
+                if seen_test {
+                    return Err(invalid_hash_table_argument_list(args[i].clone()));
+                }
+                let Some(value) = args.get(i + 1) else {
+                    return Err(invalid_hash_table_argument_list(args[i].clone()));
+                };
+                seen_test = true;
+                match value {
+                    Value::Nil => {
+                        return Err(signal(
+                            "error",
+                            vec![Value::string("Invalid hash table test")],
+                        ));
+                    }
+                    _ => {
+                        let Some(name) = value.as_symbol_name() else {
+                            return Err(signal(
+                                "wrong-type-argument",
+                                vec![Value::symbol("symbolp"), value.clone()],
+                            ));
+                        };
+                        test = match name {
+                            "eq" => HashTableTest::Eq,
+                            "eql" => HashTableTest::Eql,
+                            "equal" => HashTableTest::Equal,
+                            _ => {
+                                return Err(signal(
+                                    "error",
+                                    vec![
+                                        Value::string("Invalid hash table test"),
+                                        value.clone(),
+                                    ],
+                                ));
+                            }
+                        };
+                    }
+                }
+                i += 2;
+            }
+            ":size" => {
+                if seen_size {
+                    return Err(invalid_hash_table_argument_list(args[i].clone()));
+                }
+                let Some(value) = args.get(i + 1) else {
+                    return Err(invalid_hash_table_argument_list(args[i].clone()));
+                };
+                seen_size = true;
+                size = match value {
+                    Value::Nil => 0,
+                    Value::Int(n) if *n >= 0 => *n,
+                    _ => {
+                        return Err(signal(
+                            "error",
+                            vec![Value::string("Invalid hash table size"), value.clone()],
+                        ));
+                    }
                 };
                 i += 2;
+            }
+            ":weakness" => {
+                if seen_weakness {
+                    return Err(invalid_hash_table_argument_list(args[i].clone()));
+                }
+                let Some(value) = args.get(i + 1) else {
+                    return Err(invalid_hash_table_argument_list(args[i].clone()));
+                };
+                seen_weakness = true;
+                weakness = match value {
+                    Value::Nil => None,
+                    Value::True => Some(HashTableWeakness::KeyAndValue),
+                    _ => {
+                        let Some(name) = value.as_symbol_name() else {
+                            return Err(signal(
+                                "error",
+                                vec![Value::string("Invalid hash table weakness"), value.clone()],
+                            ));
+                        };
+                        Some(match name {
+                            "key" => HashTableWeakness::Key,
+                            "value" => HashTableWeakness::Value,
+                            "key-or-value" => HashTableWeakness::KeyOrValue,
+                            "key-and-value" => HashTableWeakness::KeyAndValue,
+                            _ => {
+                                return Err(signal(
+                                    "error",
+                                    vec![
+                                        Value::string("Invalid hash table weakness"),
+                                        value.clone(),
+                                    ],
+                                ));
+                            }
+                        })
+                    }
+                };
+                i += 2;
+            }
+            ":rehash-size" | ":rehash-threshold" => {
+                // GNU Emacs tolerates missing values for these options.
+                // If the following token is another known option keyword,
+                // treat this option as value-less and continue parsing.
+                if i + 1 >= args.len() {
+                    i += 1;
+                } else if matches!(&args[i + 1], Value::Keyword(next) if is_known_hash_table_option(next)) {
+                    i += 1;
+                } else {
+                    i += 2;
+                }
                 continue;
             }
+            _ => return Err(invalid_hash_table_argument_list(args[i].clone())),
         }
-        i += 1;
     }
-    Ok(Value::hash_table(test))
+    Ok(Value::hash_table_with_options(test, size, weakness))
 }
 
 pub(crate) fn builtin_gethash(args: Vec<Value>) -> EvalResult {
