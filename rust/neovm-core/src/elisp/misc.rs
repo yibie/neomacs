@@ -501,16 +501,33 @@ pub(crate) fn builtin_string_to_unibyte(args: Vec<Value>) -> EvalResult {
     Ok(Value::string(bytes_to_unibyte_storage_string(&bytes)))
 }
 
-/// `(string-as-unibyte STRING)` -- identity.
+/// `(string-as-unibyte STRING)` -- reinterpret as unibyte byte sequence.
 pub(crate) fn builtin_string_as_unibyte(args: Vec<Value>) -> EvalResult {
     expect_args("string-as-unibyte", &args, 1)?;
-    match &args[0] {
-        Value::Str(_) => Ok(args[0].clone()),
-        other => Err(signal(
-            "wrong-type-argument",
-            vec![Value::symbol("stringp"), other.clone()],
-        )),
+    let s = expect_string(&args[0])?;
+
+    let mut bytes = Vec::with_capacity(s.len());
+    for ch in s.chars() {
+        let cp = ch as u32;
+        if cp <= 0x7F {
+            bytes.push(cp as u8);
+            continue;
+        }
+        if (RAW_BYTE_SENTINEL_MIN..=RAW_BYTE_SENTINEL_MAX).contains(&cp) {
+            bytes.push((cp - RAW_BYTE_SENTINEL_BASE) as u8);
+            continue;
+        }
+        if (UNIBYTE_BYTE_SENTINEL_MIN..=UNIBYTE_BYTE_SENTINEL_MAX).contains(&cp) {
+            bytes.push((cp - UNIBYTE_BYTE_SENTINEL_BASE) as u8);
+            continue;
+        }
+
+        let mut utf8 = [0u8; 4];
+        let encoded = ch.encode_utf8(&mut utf8);
+        bytes.extend_from_slice(encoded.as_bytes());
     }
+
+    Ok(Value::string(bytes_to_unibyte_storage_string(&bytes)))
 }
 
 /// `(string-as-multibyte STRING)` -- identity.
@@ -950,10 +967,29 @@ mod tests {
     }
 
     #[test]
-    fn string_as_unibyte_identity() {
-        let s = Value::string("test");
-        let result = builtin_string_as_unibyte(vec![s.clone()]).unwrap();
-        assert!(equal_value(&s, &result, 0));
+    fn string_as_unibyte_utf8_bytes_for_unicode() {
+        let result = builtin_string_as_unibyte(vec![Value::string("é")]).unwrap();
+        let s = result.as_str().unwrap();
+        assert_eq!(string_escape::storage_byte_len(s), 2);
+        assert_eq!(string_escape::decode_storage_char_codes(s), vec![195, 169]);
+    }
+
+    #[test]
+    fn string_as_unibyte_ascii_passthrough_bytes() {
+        let result = builtin_string_as_unibyte(vec![Value::string("test")]).unwrap();
+        let s = result.as_str().unwrap();
+        assert_eq!(string_escape::storage_byte_len(s), 4);
+        assert_eq!(string_escape::decode_storage_char_codes(s), vec![116, 101, 115, 116]);
+    }
+
+    #[test]
+    fn string_as_unibyte_preserves_unibyte_storage_bytes() {
+        let mut s = String::new();
+        s.push(char::from_u32(0xE3FF).expect("valid unibyte sentinel"));
+        let result = builtin_string_as_unibyte(vec![Value::string(s)]).unwrap();
+        let out = result.as_str().unwrap();
+        assert_eq!(string_escape::storage_byte_len(out), 1);
+        assert_eq!(string_escape::decode_storage_char_codes(out), vec![255]);
     }
 
     #[test]
