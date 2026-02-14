@@ -2575,8 +2575,14 @@ pub(crate) fn would_create_function_alias_cycle(
         }
 
         let next = match eval.obarray().symbol_function(&current) {
-            Some(Value::Symbol(next)) => next.clone(),
-            _ => return false,
+            Some(function) => {
+                if let Some(name) = function.as_symbol_name() {
+                    name.to_string()
+                } else {
+                    return false;
+                }
+            }
+            None => return false,
         };
         current = next;
     }
@@ -8402,6 +8408,41 @@ mod tests {
             Flow::Signal(sig) => {
                 assert_eq!(sig.symbol, "cyclic-function-indirection");
                 assert_eq!(sig.data, vec![Value::symbol("vm-test-fset-cycle-b")]);
+            }
+            other => panic!("unexpected flow: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn fset_rejects_keyword_and_t_alias_cycles() {
+        let mut eval = crate::elisp::eval::Evaluator::new();
+
+        let first = builtin_fset(&mut eval, vec![Value::keyword(":vmk2"), Value::keyword(":vmk3")])
+            .expect("first keyword alias should be accepted");
+        assert_eq!(first, Value::keyword(":vmk3"));
+
+        let keyword_cycle = builtin_fset(
+            &mut eval,
+            vec![Value::keyword(":vmk3"), Value::keyword(":vmk2")],
+        )
+        .expect_err("second keyword edge should close cycle");
+        match keyword_cycle {
+            Flow::Signal(sig) => {
+                assert_eq!(sig.symbol, "cyclic-function-indirection");
+                assert_eq!(sig.data, vec![Value::symbol(":vmk3")]);
+            }
+            other => panic!("unexpected flow: {other:?}"),
+        }
+
+        builtin_fset(&mut eval, vec![Value::True, Value::keyword(":vmk")])
+            .expect("fset should allow binding t to keyword alias");
+
+        let t_cycle = builtin_fset(&mut eval, vec![Value::keyword(":vmk"), Value::True])
+            .expect_err("keyword->t edge should be rejected when t->keyword exists");
+        match t_cycle {
+            Flow::Signal(sig) => {
+                assert_eq!(sig.symbol, "cyclic-function-indirection");
+                assert_eq!(sig.data, vec![Value::symbol(":vmk")]);
             }
             other => panic!("unexpected flow: {other:?}"),
         }
