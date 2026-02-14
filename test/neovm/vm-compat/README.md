@@ -251,8 +251,9 @@ Post-freeze updates:
   - `make check-all-neovm`
 - Added command dispatch and command identity compatibility cases:
   - `cases/commandp-builtin-command-matrix`
+  - `cases/command-dispatch-default-arg-semantics`
   - `cases/command-dispatch-line-motion-semantics`
   - `cases/command-prefix-state-return-shape`
   - `cases/keyboard-quit-command-semantics`
   - `cases/fboundp-builtin-command-matrix`
-  - matrices now include baseline command names plus editing-command coverage (`backward-char`/`delete-char`/`kill-region`/`kill-ring-save`/`yank`/`transpose-lines`/`scroll-up-command`/`scroll-down-command`/`recenter-top-bottom`), and line-motion dispatch includes both `command-execute` and `call-interactively` `other-window` no-frame fallback.
+  - matrices now include baseline command names plus editing-command coverage (`backward-char`/`delete-char`/`kill-region`/`kill-ring-save`/`yank`/`transpose-lines`/`scroll-up-command`/`scroll-down-command`/`recenter-top-bottom`), default-arg dispatch coverage (`delete-char`/`kill-word`/`backward-kill-word`/`downcase-word`), and line-motion dispatch includes both `command-execute` and `call-interactively` `other-window` no-frame fallback.
