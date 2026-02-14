@@ -29,6 +29,23 @@ use super::value::*;
 use crate::buffer::BufferManager;
 use crate::window::FrameManager;
 
+#[derive(Clone, Debug)]
+enum NamedCallTarget {
+    Obarray(Value),
+    EvaluatorCallable,
+    Probe,
+    Builtin,
+    SpecialForm,
+    Void,
+}
+
+#[derive(Clone, Debug)]
+struct NamedCallCache {
+    symbol: String,
+    function_epoch: u64,
+    target: NamedCallTarget,
+}
+
 /// The Elisp evaluator.
 pub struct Evaluator {
     /// The obarray — unified symbol table with value cells, function cells, plists.
@@ -91,6 +108,8 @@ pub struct Evaluator {
     depth: usize,
     /// Maximum recursion depth.
     max_depth: usize,
+    /// Single-entry hot cache for named callable resolution in `funcall`/`apply`.
+    named_call_cache: Option<NamedCallCache>,
 }
 
 impl Default for Evaluator {
@@ -188,6 +207,7 @@ impl Evaluator {
             coding_systems: CodingSystemManager::new(),
             depth: 0,
             max_depth: 200,
+            named_call_cache: None,
         }
     }
 
@@ -405,22 +425,7 @@ impl Evaluator {
                 args.push(self.eval(expr)?);
             }
 
-            // Try builtin dispatch first
-            if let Some(result) = builtins::dispatch_builtin(self, name, args.clone()) {
-                return result;
-            }
-
-            // Try obarray function cell (including defalias chains)
-            if let Some(func) = self.obarray.symbol_function(name).cloned() {
-                return self.apply(func, args);
-            }
-
-            // Try indirect function resolution (defalias)
-            if let Some(func) = self.obarray.indirect_function(name) {
-                return self.apply(func, args);
-            }
-
-            return Err(signal("void-function", vec![Value::symbol(name.clone())]));
+            return self.apply_named_callable(name, args, Value::Subr(name.clone()), false);
         }
 
         // Head is a list (possibly a lambda expression)
@@ -1625,39 +1630,96 @@ impl Evaluator {
             }
             Value::Lambda(lambda) | Value::Macro(lambda) => self.apply_lambda(&lambda, args),
             Value::Subr(name) => {
-                // Try obarray function cell first
-                if let Some(func) = self.obarray.symbol_function(&name).cloned() {
-                    return self.apply(func, args);
-                }
-                if super::subr_info::is_evaluator_callable_name(&name) {
-                    return self.apply_evaluator_callable(&name, args);
-                }
-                if let Some(result) = builtins::dispatch_builtin(self, &name, args) {
-                    result.map_err(|flow| rewrite_wrong_arity_function_object(flow, &name))
-                } else if super::subr_info::is_special_form(&name) {
-                    Err(signal("invalid-function", vec![Value::Subr(name)]))
-                } else {
-                    Err(signal("void-function", vec![Value::symbol(name)]))
-                }
+                self.apply_named_callable(&name, args, Value::Subr(name.clone()), true)
             }
             Value::Symbol(name) => {
-                // Symbol used as function — look up in obarray function cell
-                if let Some(func) = self.obarray.symbol_function(&name).cloned() {
-                    self.apply(func, args)
-                } else if super::subr_info::is_evaluator_callable_name(&name) {
-                    self.apply_evaluator_callable(&name, args)
-                } else if let Some(result) = builtins::dispatch_builtin(self, &name, args) {
-                    result.map_err(|flow| rewrite_wrong_arity_function_object(flow, &name))
-                } else if super::subr_info::is_special_form(&name) {
-                    Err(signal("invalid-function", vec![Value::Subr(name)]))
-                } else {
-                    Err(signal("void-function", vec![Value::symbol(name)]))
-                }
+                self.apply_named_callable(&name, args, Value::Subr(name.clone()), true)
             }
             Value::True => Err(signal("void-function", vec![Value::symbol("t")])),
             Value::Keyword(name) => Err(signal("void-function", vec![Value::symbol(name)])),
             Value::Nil => Err(signal("void-function", vec![Value::symbol("nil")])),
             _ => Err(signal("invalid-function", vec![function])),
+        }
+    }
+
+    #[inline]
+    fn resolve_named_call_target(&mut self, name: &str) -> NamedCallTarget {
+        let function_epoch = self.obarray.function_epoch();
+        if let Some(cache) = &self.named_call_cache {
+            if cache.symbol == name && cache.function_epoch == function_epoch {
+                return cache.target.clone();
+            }
+        }
+
+        let target = if let Some(func) = self.obarray.symbol_function(name).cloned() {
+            NamedCallTarget::Obarray(func)
+        } else if super::subr_info::is_evaluator_callable_name(name) {
+            NamedCallTarget::EvaluatorCallable
+        } else if super::subr_info::is_special_form(name) {
+            NamedCallTarget::SpecialForm
+        } else {
+            NamedCallTarget::Probe
+        };
+
+        self.named_call_cache = Some(NamedCallCache {
+            symbol: name.to_string(),
+            function_epoch,
+            target: target.clone(),
+        });
+
+        target
+    }
+
+    #[inline]
+    fn apply_named_callable(
+        &mut self,
+        name: &str,
+        args: Vec<Value>,
+        invalid_fn: Value,
+        rewrite_builtin_wrong_arity: bool,
+    ) -> EvalResult {
+        match self.resolve_named_call_target(name) {
+            NamedCallTarget::Obarray(func) => self.apply(func, args),
+            NamedCallTarget::EvaluatorCallable => self.apply_evaluator_callable(name, args),
+            NamedCallTarget::Probe => {
+                if let Some(result) = builtins::dispatch_builtin(self, name, args) {
+                    self.named_call_cache = Some(NamedCallCache {
+                        symbol: name.to_string(),
+                        function_epoch: self.obarray.function_epoch(),
+                        target: NamedCallTarget::Builtin,
+                    });
+                    if rewrite_builtin_wrong_arity {
+                        result.map_err(|flow| rewrite_wrong_arity_function_object(flow, name))
+                    } else {
+                        result
+                    }
+                } else {
+                    self.named_call_cache = Some(NamedCallCache {
+                        symbol: name.to_string(),
+                        function_epoch: self.obarray.function_epoch(),
+                        target: NamedCallTarget::Void,
+                    });
+                    Err(signal("void-function", vec![Value::symbol(name)]))
+                }
+            }
+            NamedCallTarget::Builtin => {
+                if let Some(result) = builtins::dispatch_builtin(self, name, args) {
+                    if rewrite_builtin_wrong_arity {
+                        result.map_err(|flow| rewrite_wrong_arity_function_object(flow, name))
+                    } else {
+                        result
+                    }
+                } else {
+                    self.named_call_cache = Some(NamedCallCache {
+                        symbol: name.to_string(),
+                        function_epoch: self.obarray.function_epoch(),
+                        target: NamedCallTarget::Void,
+                    });
+                    Err(signal("void-function", vec![Value::symbol(name)]))
+                }
+            }
+            NamedCallTarget::SpecialForm => Err(signal("invalid-function", vec![invalid_fn])),
+            NamedCallTarget::Void => Err(signal("void-function", vec![Value::symbol(name)])),
         }
     }
 
@@ -2314,6 +2376,22 @@ mod tests {
             eval_one("(condition-case err (funcall 'throw) (error err))"),
             "OK (wrong-number-of-arguments #<subr throw> 0)"
         );
+    }
+
+    #[test]
+    fn named_call_cache_invalidates_on_function_cell_mutation() {
+        let results = eval_all(
+            "(condition-case err
+                 (funcall 'vm-cache-target)
+               (error (car err)))
+             (fset 'vm-cache-target (lambda () 9))
+             (funcall 'vm-cache-target)
+             (fset 'vm-cache-target (lambda () 11))
+             (funcall 'vm-cache-target)",
+        );
+        assert_eq!(results[0], "OK void-function");
+        assert_eq!(results[2], "OK 9");
+        assert_eq!(results[4], "OK 11");
     }
 
     #[test]
