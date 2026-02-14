@@ -1038,7 +1038,34 @@ impl Evaluator {
                 }
                 Err(Flow::Signal(sig))
             }
-            Err(flow) => Err(flow),
+            Err(Flow::Throw { tag, value }) => {
+                let no_catch = SignalData {
+                    symbol: "no-catch".to_string(),
+                    data: vec![tag.clone(), value.clone()],
+                };
+
+                for handler in handlers {
+                    let Expr::List(handler_items) = handler else {
+                        return Err(signal("wrong-type-argument", vec![]));
+                    };
+                    if handler_items.is_empty() {
+                        return Err(signal("wrong-type-argument", vec![]));
+                    }
+
+                    if signal_matches(&handler_items[0], &no_catch.symbol) {
+                        let mut frame = HashMap::new();
+                        if var != "nil" {
+                            frame.insert(var.clone(), make_signal_binding_value(&no_catch));
+                        }
+                        self.dynamic.push(frame);
+                        let result = self.sf_progn(&handler_items[1..]);
+                        self.dynamic.pop();
+                        return result;
+                    }
+                }
+
+                Err(Flow::Throw { tag, value })
+            }
         }
     }
 
@@ -1909,6 +1936,22 @@ mod tests {
         assert_eq!(
             eval_one("(condition-case err (apply 'if '(t 1 2)) (error (car err)))"),
             "OK invalid-function"
+        );
+    }
+
+    #[test]
+    fn condition_case_catches_uncaught_throw_as_no_catch() {
+        assert_eq!(
+            eval_one("(condition-case err (throw 'tag 42) (error (car err)))"),
+            "OK no-catch"
+        );
+        assert_eq!(
+            eval_one("(condition-case err (exit-minibuffer) (error (car err)))"),
+            "OK no-catch"
+        );
+        assert_eq!(
+            eval_one("(condition-case err (exit-minibuffer) (no-catch err))"),
+            "OK (no-catch exit nil)"
         );
     }
 

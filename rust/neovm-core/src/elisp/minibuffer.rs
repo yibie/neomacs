@@ -751,10 +751,18 @@ pub(crate) fn builtin_minibuffer_prompt(args: Vec<Value>) -> EvalResult {
 
 /// `(minibuffer-contents)` — returns the current minibuffer contents.
 ///
-/// Stub: returns "".
-pub(crate) fn builtin_minibuffer_contents(args: Vec<Value>) -> EvalResult {
+/// In non-interactive batch mode, Emacs exposes current buffer contents.
+pub(crate) fn builtin_minibuffer_contents(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
     expect_args("minibuffer-contents", &args, 0)?;
-    Ok(Value::string(""))
+    let text = eval
+        .buffers
+        .current_buffer()
+        .map(|buf| buf.buffer_string())
+        .unwrap_or_default();
+    Ok(Value::string(text))
 }
 
 /// `(minibuffer-depth)` — returns the current recursive minibuffer depth.
@@ -781,12 +789,14 @@ pub(crate) fn builtin_minibufferp(args: Vec<Value>) -> EvalResult {
 
 /// `(exit-minibuffer)` — exit the active minibuffer.
 ///
-/// Stub: signals an error if not in a minibuffer.
+/// Emacs exits by throwing to the `exit` tag; without a catch this
+/// surfaces as `no-catch`.
 pub(crate) fn builtin_exit_minibuffer(args: Vec<Value>) -> EvalResult {
     expect_args("exit-minibuffer", &args, 0)?;
-    // In a real interactive session this would exit the minibuffer.
-    // Stub: signal an error since we're non-interactive.
-    Err(signal("error", vec![Value::string("Not in a minibuffer")]))
+    Err(Flow::Throw {
+        tag: Value::symbol("exit"),
+        value: Value::Nil,
+    })
 }
 
 /// `(abort-recursive-edit)` — abort the innermost recursive edit.
@@ -1382,6 +1392,27 @@ mod tests {
     fn builtin_minibufferp_returns_nil() {
         let result = builtin_minibufferp(vec![]).unwrap();
         assert!(matches!(result, Value::Nil));
+    }
+
+    #[test]
+    fn builtin_minibuffer_contents_returns_current_buffer_text() {
+        let mut eval = super::super::eval::Evaluator::new();
+        eval.buffers
+            .current_buffer_mut()
+            .expect("scratch buffer")
+            .insert("probe");
+        let result = builtin_minibuffer_contents(&mut eval, vec![]).unwrap();
+        assert!(matches!(result, Value::Str(ref s) if &**s == "probe"));
+    }
+
+    #[test]
+    fn builtin_exit_minibuffer_throws_exit_tag() {
+        let result = builtin_exit_minibuffer(vec![]);
+        assert!(matches!(
+            result,
+            Err(Flow::Throw { tag, value })
+                if matches!(tag, Value::Symbol(ref s) if s == "exit") && value.is_nil()
+        ));
     }
 
     #[test]
