@@ -252,6 +252,7 @@ Post-freeze updates:
 - Added command dispatch and command identity compatibility cases:
   - `cases/commandp-builtin-command-matrix`
   - `cases/command-dispatch-default-arg-semantics`
+  - `cases/transpose-words-semantics`
   - `cases/command-dispatch-line-motion-semantics`
   - `cases/command-prefix-state-return-shape`
   - `cases/keyboard-quit-command-semantics`
