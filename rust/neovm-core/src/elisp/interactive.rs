@@ -2296,6 +2296,34 @@ mod tests {
     }
 
     #[test]
+    fn command_execute_builtin_upcase_word_uses_default_prefix_arg() {
+        let mut ev = Evaluator::new();
+        let results = eval_all_with(
+            &mut ev,
+            r#"(with-temp-buffer
+                 (insert "abc def")
+                 (goto-char 1)
+                 (command-execute 'upcase-word)
+                 (buffer-string))"#,
+        );
+        assert_eq!(results[0], "OK \"ABC def\"");
+    }
+
+    #[test]
+    fn call_interactively_builtin_capitalize_word_uses_default_prefix_arg() {
+        let mut ev = Evaluator::new();
+        let results = eval_all_with(
+            &mut ev,
+            r#"(with-temp-buffer
+                 (insert "abc def")
+                 (goto-char 1)
+                 (call-interactively 'capitalize-word)
+                 (buffer-string))"#,
+        );
+        assert_eq!(results[0], "OK \"Abc def\"");
+    }
+
+    #[test]
     fn command_execute_builtin_find_file_reads_stdin_in_batch() {
         let mut ev = Evaluator::new();
         let result = builtin_command_execute(&mut ev, vec![Value::symbol("find-file")])
