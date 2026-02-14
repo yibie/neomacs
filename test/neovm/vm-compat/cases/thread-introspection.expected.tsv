@@ -18,20 +18,27 @@
 18	(fboundp 'condition-variable-p)	OK t
 19	(fboundp 'condition-wait)	OK t
 20	(fboundp 'condition-notify)	OK t
-21	(symbol-function 'thread-live-p)	OK #<subr thread-live-p>
-22	(condition-case err (symbol-function 'thread-alive-p) (error (car err)))	OK nil
-23	(functionp 'thread-live-p)	OK t
-24	(functionp 'with-mutex)	OK nil
-25	(special-form-p 'with-mutex)	OK nil
-26	(macrop 'with-mutex)	OK t
-27	(condition-case err (thread-name) (error (car err)))	OK wrong-number-of-arguments
-28	(condition-case err (thread-name 1 2) (error (car err)))	OK wrong-number-of-arguments
-29	(condition-case err (make-mutex 1 2) (error (car err)))	OK wrong-number-of-arguments
-30	(condition-case err (mutex-name) (error (car err)))	OK wrong-number-of-arguments
-31	(condition-case err (mutex-name 1 2) (error (car err)))	OK wrong-number-of-arguments
-32	(condition-case err (mutex-name 1) (error (car err)))	OK wrong-type-argument
-33	(condition-case err (condition-wait) (error (car err)))	OK wrong-number-of-arguments
-34	(condition-case err (condition-wait 1) (error (car err)))	OK wrong-type-argument
-35	(condition-case err (condition-wait 1 2 3) (error (car err)))	OK wrong-number-of-arguments
-36	(condition-case err (condition-notify) (error (car err)))	OK wrong-number-of-arguments
-37	(condition-case err (condition-notify 1 2 3) (error (car err)))	OK wrong-number-of-arguments
+21	(threadp 0)	OK nil
+22	(threadp (current-thread))	OK t
+23	(threadp (car (all-threads)))	OK t
+24	(mutexp 1)	OK nil
+25	(condition-variable-p 1)	OK nil
+26	(let ((m (make-mutex))) (mutexp m))	OK t
+27	(let ((m (make-mutex))) (let ((cv (make-condition-variable m))) (condition-variable-p cv)))	OK t
+28	(symbol-function 'thread-live-p)	OK #<subr thread-live-p>
+29	(condition-case err (symbol-function 'thread-alive-p) (error (car err)))	OK nil
+30	(functionp 'thread-live-p)	OK t
+31	(functionp 'with-mutex)	OK nil
+32	(special-form-p 'with-mutex)	OK nil
+33	(macrop 'with-mutex)	OK t
+34	(condition-case err (thread-name) (error (car err)))	OK wrong-number-of-arguments
+35	(condition-case err (thread-name 1 2) (error (car err)))	OK wrong-number-of-arguments
+36	(condition-case err (make-mutex 1 2) (error (car err)))	OK wrong-number-of-arguments
+37	(condition-case err (mutex-name) (error (car err)))	OK wrong-number-of-arguments
+38	(condition-case err (mutex-name 1 2) (error (car err)))	OK wrong-number-of-arguments
+39	(condition-case err (mutex-name 1) (error (car err)))	OK wrong-type-argument
+40	(condition-case err (condition-wait) (error (car err)))	OK wrong-number-of-arguments
+41	(condition-case err (condition-wait 1) (error (car err)))	OK wrong-type-argument
+42	(condition-case err (condition-wait 1 2 3) (error (car err)))	OK wrong-number-of-arguments
+43	(condition-case err (condition-notify) (error (car err)))	OK wrong-number-of-arguments
+44	(condition-case err (condition-notify 1 2 3) (error (car err)))	OK wrong-number-of-arguments
