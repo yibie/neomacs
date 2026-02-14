@@ -73,6 +73,7 @@ pub mod setf;
 pub mod subr_info;
 pub mod symbol;
 pub mod syntax;
+pub(crate) mod string_escape;
 pub mod textprop;
 pub mod threads;
 pub mod timefns;

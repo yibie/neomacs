@@ -3,6 +3,8 @@
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
+use super::string_escape::format_lisp_string;
+
 /// Parsed Lisp expression (AST node).
 #[derive(Clone, Debug, PartialEq)]
 pub enum Expr {
@@ -82,32 +84,6 @@ pub fn print_expr(expr: &Expr) -> String {
             format!("[{}]", parts.join(" "))
         }
     }
-}
-
-fn format_lisp_string(s: &str) -> String {
-    let mut out = String::with_capacity(s.len() + 2);
-    out.push('"');
-    for ch in s.chars() {
-        match ch {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\u{08}' => out.push_str("\\b"),
-            '\t' => out.push_str("\\t"),
-            '\n' => out.push_str("\\n"),
-            '\u{0b}' => out.push_str("\\v"),
-            '\u{0c}' => out.push_str("\\f"),
-            '\r' => out.push_str("\\r"),
-            '\u{07}' => out.push_str("\\a"),
-            '\u{1b}' => out.push_str("\\e"),
-            c if (c as u32) < 0x20 || c == '\u{7f}' => {
-                out.push('\\');
-                out.push_str(&format!("{:03o}", c as u32));
-            }
-            _ => out.push(ch),
-        }
-    }
-    out.push('"');
-    out
 }
 
 fn format_float(f: f64) -> String {
