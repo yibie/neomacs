@@ -25,6 +25,7 @@ Last updated: 2026-02-14
   - removed stale misc stubs superseded by evaluator paths
   - removed unexposed bookmark helper builtin implementations
   - removed unexposed `string-repeat` helper implementation
+  - removed unexposed `bool-vector-complement` implementation
 - Kept branch green with targeted Rust tests and vm-compat checks after each slice.
 
 ## Doing
