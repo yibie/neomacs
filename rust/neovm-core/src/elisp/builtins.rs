@@ -6,7 +6,7 @@
 use super::error::{signal, EvalResult, Flow};
 use super::string_escape::{
     bytes_to_storage_string, decode_storage_char_codes, encode_nonunicode_char_for_storage,
-    storage_string_display_width,
+    storage_char_len, storage_string_display_width, storage_substring,
 };
 use super::value::*;
 use std::collections::HashSet;
@@ -708,7 +708,7 @@ pub(crate) fn builtin_length(args: Vec<Value>) -> EvalResult {
                 vec![Value::symbol("listp"), args[0].clone()],
             )),
         },
-        Value::Str(s) => Ok(Value::Int(s.chars().count() as i64)),
+        Value::Str(s) => Ok(Value::Int(storage_char_len(s) as i64)),
         Value::Vector(v) => Ok(Value::Int(v.lock().expect("poisoned").len() as i64)),
         _ => Err(signal(
             "wrong-type-argument",
@@ -935,8 +935,7 @@ pub(crate) fn builtin_substring(args: Vec<Value>) -> EvalResult {
     expect_min_args("substring", &args, 1)?;
     expect_max_args("substring", &args, 3)?;
     let s = expect_string(&args[0])?;
-    let chars: Vec<char> = s.chars().collect();
-    let len = chars.len() as i64;
+    let len = storage_char_len(&s) as i64;
 
     let normalize_index = |value: &Value, default: i64| -> Result<i64, Flow> {
         let raw = if value.is_nil() {
@@ -976,7 +975,16 @@ pub(crate) fn builtin_substring(args: Vec<Value>) -> EvalResult {
             ],
         ));
     }
-    let result: String = chars[from..to].iter().collect();
+    let result = storage_substring(&s, from, to).ok_or_else(|| {
+        signal(
+            "args-out-of-range",
+            vec![
+                args[0].clone(),
+                args.get(1).cloned().unwrap_or(Value::Int(0)),
+                args.get(2).cloned().unwrap_or(Value::Nil),
+            ],
+        )
+    })?;
     Ok(Value::string(result))
 }
 

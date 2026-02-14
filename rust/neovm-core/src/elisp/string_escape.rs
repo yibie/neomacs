@@ -154,6 +154,67 @@ fn encode_extended_sequence_for_storage(bytes: &[u8]) -> String {
     out
 }
 
+fn decode_extended_sequence_span(s: &str, start: usize) -> Option<(usize, u32)> {
+    let mut iter = s[start..].char_indices();
+    let (_, prefix) = iter.next()?;
+    if prefix as u32 != EXT_SEQ_PREFIX {
+        return None;
+    }
+
+    let (len_off, len_ch) = iter.next()?;
+    let len_code = len_ch as u32;
+    if !(EXT_SEQ_LEN_BASE + 1..=EXT_SEQ_LEN_BASE + EXT_SEQ_MAX_LEN).contains(&len_code) {
+        return None;
+    }
+    let len = (len_code - EXT_SEQ_LEN_BASE) as usize;
+
+    let mut bytes = Vec::with_capacity(len);
+    let mut end_rel = len_off + len_ch.len_utf8();
+    for _ in 0..len {
+        let (byte_off, byte_ch) = iter.next()?;
+        let byte_code = byte_ch as u32;
+        if !(EXT_SEQ_BYTE_BASE..=EXT_SEQ_BYTE_BASE + 0xFF).contains(&byte_code) {
+            return None;
+        }
+        bytes.push((byte_code - EXT_SEQ_BYTE_BASE) as u8);
+        end_rel = byte_off + byte_ch.len_utf8();
+    }
+
+    let cp = decode_emacs_extended_utf8(&bytes)?;
+    Some((start + end_rel, cp))
+}
+
+fn scan_storage_units(s: &str) -> Vec<(usize, usize, u32, usize)> {
+    let mut out = Vec::new();
+    let mut idx = 0usize;
+
+    while idx < s.len() {
+        let ch = s[idx..].chars().next().expect("valid utf-8 char boundary");
+        let code = ch as u32;
+        let next = idx + ch.len_utf8();
+
+        if (RAW_BYTE_SENTINEL_MIN..=RAW_BYTE_SENTINEL_MAX).contains(&code) {
+            let raw = (code - RAW_BYTE_SENTINEL_BASE) as u8;
+            out.push((idx, next, 0x3FFF00 + raw as u32, 4));
+            idx = next;
+            continue;
+        }
+
+        if code == EXT_SEQ_PREFIX {
+            if let Some((end, cp)) = decode_extended_sequence_span(s, idx) {
+                out.push((idx, end, cp, 1));
+                idx = end;
+                continue;
+            }
+        }
+
+        out.push((idx, next, code, 1));
+        idx = next;
+    }
+
+    out
+}
+
 /// Losslessly encode potentially non-UTF-8 bytes into internal string storage.
 pub(crate) fn bytes_to_storage_string(bytes: &[u8]) -> String {
     if let Ok(utf8) = String::from_utf8(bytes.to_vec()) {
@@ -169,30 +230,10 @@ pub(crate) fn bytes_to_storage_string(bytes: &[u8]) -> String {
 }
 
 fn decode_storage_units(s: &str) -> Vec<(u32, usize)> {
-    let mut out = Vec::new();
-    let mut chars = s.chars().peekable();
-
-    while let Some(ch) = chars.next() {
-        let code = ch as u32;
-        if (RAW_BYTE_SENTINEL_MIN..=RAW_BYTE_SENTINEL_MAX).contains(&code) {
-            let raw = (code - RAW_BYTE_SENTINEL_BASE) as u8;
-            out.push((0x3FFF00 + raw as u32, 4));
-            continue;
-        }
-
-        if code == EXT_SEQ_PREFIX {
-            if let Some(bytes) = decode_extended_sequence(&mut chars) {
-                if let Some(cp) = decode_emacs_extended_utf8(&bytes) {
-                    out.push((cp, 1));
-                    continue;
-                }
-            }
-        }
-
-        out.push((code, 1));
-    }
-
-    out
+    scan_storage_units(s)
+        .into_iter()
+        .map(|(_, _, cp, width)| (cp, width))
+        .collect()
 }
 
 /// Decode NeoVM string storage into Emacs character codes.
@@ -203,6 +244,31 @@ pub(crate) fn decode_storage_char_codes(s: &str) -> Vec<u32> {
 /// Compute Emacs-like display width for NeoVM string storage.
 pub(crate) fn storage_string_display_width(s: &str) -> usize {
     decode_storage_units(s).into_iter().map(|(_, width)| width).sum()
+}
+
+/// Count logical Emacs characters in NeoVM string storage.
+pub(crate) fn storage_char_len(s: &str) -> usize {
+    scan_storage_units(s).len()
+}
+
+/// Slice NeoVM string storage by logical Emacs character index.
+pub(crate) fn storage_substring(s: &str, from: usize, to: usize) -> Option<String> {
+    if from > to {
+        return None;
+    }
+
+    let units = scan_storage_units(s);
+    if to > units.len() {
+        return None;
+    }
+
+    let start_byte = if from == units.len() {
+        s.len()
+    } else {
+        units[from].0
+    };
+    let end_byte = if to == units.len() { s.len() } else { units[to].0 };
+    Some(s[start_byte..end_byte].to_string())
 }
 
 fn decode_extended_sequence(chars: &mut Peekable<Chars<'_>>) -> Option<Vec<u8>> {
@@ -365,5 +431,17 @@ mod tests {
         );
         assert_eq!(decode_storage_char_codes(&encoded), vec![0x110000, 0x3FFFFF]);
         assert_eq!(storage_string_display_width(&encoded), 5);
+    }
+
+    #[test]
+    fn storage_char_len_and_substring_for_nonunicode() {
+        let ext = encode_nonunicode_char_for_storage(0x110000).expect("should encode");
+        let raw = encode_nonunicode_char_for_storage(0x3FFFFF).expect("should encode");
+        let s = format!("{ext}A{raw}");
+
+        assert_eq!(storage_char_len(&s), 3);
+        assert_eq!(storage_substring(&s, 0, 1), Some(ext));
+        assert_eq!(storage_substring(&s, 1, 2), Some("A".to_string()));
+        assert_eq!(storage_substring(&s, 2, 3), Some(raw));
     }
 }
