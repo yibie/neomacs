@@ -45,3 +45,6 @@
 (fboundp 'recenter-top-bottom)
 (fboundp 'move-beginning-of-line)
 (fboundp 'move-end-of-line)
+(fboundp 'open-line)
+(fboundp 'delete-horizontal-space)
+(fboundp 'just-one-space)

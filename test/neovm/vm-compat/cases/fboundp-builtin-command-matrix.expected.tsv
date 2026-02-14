@@ -44,3 +44,6 @@
 44	(fboundp 'recenter-top-bottom)	OK t
 45	(fboundp 'move-beginning-of-line)	OK t
 46	(fboundp 'move-end-of-line)	OK t
+47	(fboundp 'open-line)	OK t
+48	(fboundp 'delete-horizontal-space)	OK t
+49	(fboundp 'just-one-space)	OK t
