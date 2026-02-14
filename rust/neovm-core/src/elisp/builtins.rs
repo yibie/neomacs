@@ -2621,22 +2621,87 @@ pub(crate) fn builtin_split_string(args: Vec<Value>) -> EvalResult {
     Ok(Value::list(parts))
 }
 
+fn compile_trim_regex(name: &str, pattern: &str) -> Result<regex::Regex, Flow> {
+    regex::Regex::new(pattern).map_err(|e| {
+        signal(
+            "invalid-regexp",
+            vec![Value::string(format!(
+                "Invalid regexp \"{}\" in {}: {}",
+                pattern, name, e
+            ))],
+        )
+    })
+}
+
+fn trim_leading_with_regex(input: &str, re: &regex::Regex) -> String {
+    let mut out = input.to_string();
+    loop {
+        let Some(m) = re.find(&out) else { break };
+        if m.start() == 0 && m.end() > 0 {
+            out = out[m.end()..].to_string();
+        } else {
+            break;
+        }
+    }
+    out
+}
+
+fn trim_trailing_with_regex(input: &str, re: &regex::Regex) -> String {
+    let mut out = input.to_string();
+    loop {
+        let tail = re
+            .find_iter(&out)
+            .filter(|m| m.end() == out.len() && m.start() < m.end())
+            .last();
+        let Some(m) = tail else { break };
+        out = out[..m.start()].to_string();
+    }
+    out
+}
+
 pub(crate) fn builtin_string_trim(args: Vec<Value>) -> EvalResult {
-    expect_args("string-trim", &args, 1)?;
+    expect_min_args("string-trim", &args, 1)?;
+    expect_max_args("string-trim", &args, 3)?;
     let s = expect_string(&args[0])?;
-    Ok(Value::string(s.trim().to_string()))
+    let trim_left_pattern = match args.get(1) {
+        None | Some(Value::Nil) => "[ \t\n\r]+".to_string(),
+        Some(other) => expect_string(other)?,
+    };
+    let trim_right_pattern = match args.get(2) {
+        None | Some(Value::Nil) => "[ \t\n\r]+".to_string(),
+        Some(other) => expect_string(other)?,
+    };
+    let trim_left = compile_trim_regex("string-trim", &trim_left_pattern)?;
+    let trim_right = compile_trim_regex("string-trim", &trim_right_pattern)?;
+    let left_trimmed = trim_leading_with_regex(&s, &trim_left);
+    Ok(Value::string(trim_trailing_with_regex(
+        &left_trimmed,
+        &trim_right,
+    )))
 }
 
 pub(crate) fn builtin_string_trim_left(args: Vec<Value>) -> EvalResult {
-    expect_args("string-trim-left", &args, 1)?;
+    expect_min_args("string-trim-left", &args, 1)?;
+    expect_max_args("string-trim-left", &args, 2)?;
     let s = expect_string(&args[0])?;
-    Ok(Value::string(s.trim_start().to_string()))
+    let trim_left_pattern = match args.get(1) {
+        None | Some(Value::Nil) => "[ \t\n\r]+".to_string(),
+        Some(other) => expect_string(other)?,
+    };
+    let trim_left = compile_trim_regex("string-trim-left", &trim_left_pattern)?;
+    Ok(Value::string(trim_leading_with_regex(&s, &trim_left)))
 }
 
 pub(crate) fn builtin_string_trim_right(args: Vec<Value>) -> EvalResult {
-    expect_args("string-trim-right", &args, 1)?;
+    expect_min_args("string-trim-right", &args, 1)?;
+    expect_max_args("string-trim-right", &args, 2)?;
     let s = expect_string(&args[0])?;
-    Ok(Value::string(s.trim_end().to_string()))
+    let trim_right_pattern = match args.get(1) {
+        None | Some(Value::Nil) => "[ \t\n\r]+".to_string(),
+        Some(other) => expect_string(other)?,
+    };
+    let trim_right = compile_trim_regex("string-trim-right", &trim_right_pattern)?;
+    Ok(Value::string(trim_trailing_with_regex(&s, &trim_right)))
 }
 
 pub(crate) fn builtin_make_string(args: Vec<Value>) -> EvalResult {
