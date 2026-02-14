@@ -217,20 +217,6 @@ fn expect_max_args(name: &str, args: &[Value], max: usize) -> Result<(), Flow> {
     }
 }
 
-/// Extract a charset name from a Value (symbol or string).
-fn charset_name(value: &Value) -> Result<String, Flow> {
-    match value {
-        Value::Symbol(s) => Ok(s.clone()),
-        Value::Nil => Ok("nil".to_string()),
-        Value::True => Ok("t".to_string()),
-        Value::Str(s) => Ok((**s).clone()),
-        other => Err(signal(
-            "wrong-type-argument",
-            vec![Value::symbol("symbolp"), other.clone()],
-        )),
-    }
-}
-
 fn require_known_charset(value: &Value) -> Result<String, Flow> {
     let name = match value {
         Value::Symbol(s) => s.clone(),
@@ -372,21 +358,20 @@ pub(crate) fn builtin_char_charset(args: Vec<Value>) -> EvalResult {
 /// `(charset-plist CHARSET)` -- return property list for CHARSET.
 pub(crate) fn builtin_charset_plist(args: Vec<Value>) -> EvalResult {
     expect_args("charset-plist", &args, 1)?;
-    let name = charset_name(&args[0])?;
+    let name = require_known_charset(&args[0])?;
     let reg = global_registry().lock().expect("poisoned");
-    match reg.plist(&name) {
-        Some(pairs) => {
-            let mut elems = Vec::with_capacity(pairs.len() * 2);
-            for (key, val) in pairs {
-                elems.push(Value::symbol(key.clone()));
-                elems.push(val.clone());
-            }
-            Ok(Value::list(elems))
+    if let Some(pairs) = reg.plist(&name) {
+        let mut elems = Vec::with_capacity(pairs.len() * 2);
+        for (key, val) in pairs {
+            elems.push(Value::symbol(key.clone()));
+            elems.push(val.clone());
         }
-        None => Err(signal(
-            "error",
-            vec![Value::string("Invalid charset"), Value::symbol(name)],
-        )),
+        Ok(Value::list(elems))
+    } else {
+        Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("charsetp"), Value::symbol(name)],
+        ))
     }
 }
 
@@ -783,7 +768,17 @@ mod tests {
 
     #[test]
     fn charset_plist_unknown() {
-        assert!(builtin_charset_plist(vec![Value::symbol("nonexistent")]).is_err());
+        let r = builtin_charset_plist(vec![Value::symbol("nonexistent")]);
+        match r {
+            Err(Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "wrong-type-argument");
+                assert_eq!(
+                    sig.data,
+                    vec![Value::symbol("charsetp"), Value::symbol("nonexistent")]
+                );
+            }
+            other => panic!("expected wrong-type-argument charsetp, got {other:?}"),
+        }
     }
 
     #[test]
