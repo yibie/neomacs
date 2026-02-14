@@ -229,13 +229,29 @@ fn builtin_command_name(name: &str) -> bool {
             | "newline"
             | "execute-extended-command"
             | "forward-char"
+            | "backward-char"
+            | "delete-char"
             | "next-line"
             | "previous-line"
             | "kill-line"
+            | "kill-word"
+            | "backward-kill-word"
+            | "kill-region"
+            | "kill-ring-save"
+            | "yank"
+            | "yank-pop"
+            | "transpose-chars"
+            | "transpose-lines"
+            | "upcase-word"
+            | "downcase-word"
+            | "capitalize-word"
             | "switch-to-buffer"
             | "find-file"
             | "save-buffer"
             | "set-mark-command"
+            | "recenter-top-bottom"
+            | "scroll-up-command"
+            | "scroll-down-command"
             | "other-window"
             | "keyboard-quit"
             | "quoted-insert"
@@ -1776,6 +1792,33 @@ mod tests {
         let mut ev = Evaluator::new();
         let result = builtin_commandp_interactive(&mut ev, vec![Value::symbol("forward-char")]);
         assert!(result.unwrap().is_truthy());
+    }
+
+    #[test]
+    fn commandp_true_for_builtin_editing_commands() {
+        let mut ev = Evaluator::new();
+        for name in [
+            "backward-char",
+            "delete-char",
+            "yank",
+            "yank-pop",
+            "transpose-chars",
+            "transpose-lines",
+            "upcase-word",
+            "downcase-word",
+            "capitalize-word",
+            "kill-word",
+            "backward-kill-word",
+            "kill-region",
+            "kill-ring-save",
+            "scroll-up-command",
+            "scroll-down-command",
+            "recenter-top-bottom",
+        ] {
+            let result = builtin_commandp_interactive(&mut ev, vec![Value::symbol(name)])
+                .expect("commandp call");
+            assert!(result.is_truthy(), "expected commandp true for {name}");
+        }
     }
 
     #[test]
