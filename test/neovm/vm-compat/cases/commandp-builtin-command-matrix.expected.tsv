@@ -34,6 +34,11 @@
 34	(commandp 'backward-kill-word)	OK t
 35	(commandp 'kill-region)	OK t
 36	(commandp 'kill-ring-save)	OK t
-37	(commandp 'scroll-up-command)	OK t
-38	(commandp 'scroll-down-command)	OK t
-39	(commandp 'recenter-top-bottom)	OK t
+37	(commandp 'kill-whole-line)	OK t
+38	(commandp 'copy-region-as-kill)	OK t
+39	(commandp 'delete-indentation)	OK t
+40	(commandp 'indent-for-tab-command)	OK t
+41	(commandp 'transpose-words)	OK t
+42	(commandp 'scroll-up-command)	OK t
+43	(commandp 'scroll-down-command)	OK t
+44	(commandp 'recenter-top-bottom)	OK t
