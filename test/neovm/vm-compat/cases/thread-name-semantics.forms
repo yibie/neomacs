@@ -1,0 +1,5 @@
+(stringp (thread-name (current-thread)))
+(let ((th (make-thread (lambda () nil) "worker-x"))) (thread-name th))
+(let ((th (make-thread (lambda () nil) "worker-x"))) (thread-join th) (thread-name th))
+(let ((th (make-thread (lambda () nil)))) (thread-name th))
+(let ((th (make-thread (lambda () nil)))) (thread-join th) (thread-name th))
