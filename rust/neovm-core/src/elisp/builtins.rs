@@ -32,6 +32,18 @@ fn expect_min_args(name: &str, args: &[Value], min: usize) -> Result<(), Flow> {
     }
 }
 
+/// Expect at most N arguments.
+fn expect_max_args(name: &str, args: &[Value], max: usize) -> Result<(), Flow> {
+    if args.len() > max {
+        Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol(name), Value::Int(args.len() as i64)],
+        ))
+    } else {
+        Ok(())
+    }
+}
+
 /// Extract an integer, signaling wrong-type-argument if not.
 fn expect_int(value: &Value) -> Result<i64, Flow> {
     match value {
@@ -2147,7 +2159,16 @@ pub(crate) fn builtin_macrop_eval(
 }
 
 pub(crate) fn builtin_intern_fn(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
-    expect_args("intern", &args, 1)?;
+    expect_min_args("intern", &args, 1)?;
+    expect_max_args("intern", &args, 2)?;
+    if let Some(obarray) = args.get(1) {
+        if !obarray.is_nil() && !matches!(obarray, Value::Vector(_)) {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("obarrayp"), obarray.clone()],
+            ));
+        }
+    }
     let name = expect_string(&args[0])?;
     eval.obarray_mut().intern(&name);
     Ok(Value::symbol(name))
@@ -2157,7 +2178,16 @@ pub(crate) fn builtin_intern_soft(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    expect_args("intern-soft", &args, 1)?;
+    expect_min_args("intern-soft", &args, 1)?;
+    expect_max_args("intern-soft", &args, 2)?;
+    if let Some(obarray) = args.get(1) {
+        if !obarray.is_nil() && !matches!(obarray, Value::Vector(_)) {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("obarrayp"), obarray.clone()],
+            ));
+        }
+    }
     let name = expect_string(&args[0])?;
     if eval.obarray().intern_soft(&name).is_some() {
         Ok(Value::symbol(name))
