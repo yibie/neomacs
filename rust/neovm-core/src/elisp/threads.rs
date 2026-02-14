@@ -396,24 +396,24 @@ fn expect_thread_id(value: &Value) -> Result<u64, Flow> {
     }
 }
 
-/// Extract a mutex id from an `Int` value.
+/// Extract a mutex id from a `(mutex . ID)` object.
 fn expect_mutex_id(value: &Value) -> Result<u64, Flow> {
-    match value {
-        Value::Int(n) if *n >= 0 => Ok(*n as u64),
-        other => Err(signal(
+    match tagged_object_id(value, "mutex") {
+        Some(id) => Ok(id),
+        None => Err(signal(
             "wrong-type-argument",
-            vec![Value::symbol("mutexp"), other.clone()],
+            vec![Value::symbol("mutexp"), value.clone()],
         )),
     }
 }
 
-/// Extract a condition variable id from an `Int` value.
+/// Extract a condition variable id from a `(condition-variable . ID)` object.
 fn expect_cv_id(value: &Value) -> Result<u64, Flow> {
-    match value {
-        Value::Int(n) if *n >= 0 => Ok(*n as u64),
-        other => Err(signal(
+    match tagged_object_id(value, "condition-variable") {
+        Some(id) => Ok(id),
+        None => Err(signal(
             "wrong-type-argument",
-            vec![Value::symbol("condition-variable-p"), other.clone()],
+            vec![Value::symbol("condition-variable-p"), value.clone()],
         )),
     }
 }
@@ -662,15 +662,18 @@ pub(crate) fn builtin_make_mutex(
         None
     };
     let id = eval.threads.create_mutex(name);
-    Ok(Value::Int(id as i64))
+    Ok(tagged_object_value("mutex", id))
 }
 
 /// `(mutexp OBJ)` -- type predicate for mutexes.
-pub(crate) fn builtin_mutexp(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_mutexp(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
     expect_args("mutexp", &args, 1)?;
-    match &args[0] {
-        Value::Int(n) if *n >= 0 => Ok(Value::True),
-        _ => Ok(Value::Nil),
+    match tagged_object_id(&args[0], "mutex") {
+        Some(id) => Ok(Value::bool(eval.threads.is_mutex(id))),
+        None => Ok(Value::Nil),
     }
 }
 
@@ -770,7 +773,7 @@ pub(crate) fn builtin_make_condition_variable(
         None
     };
     match eval.threads.create_condition_variable(mutex_id, name) {
-        Some(id) => Ok(Value::Int(id as i64)),
+        Some(id) => Ok(tagged_object_value("condition-variable", id)),
         None => Err(signal(
             "wrong-type-argument",
             vec![Value::symbol("mutexp"), args[0].clone()],
@@ -779,11 +782,14 @@ pub(crate) fn builtin_make_condition_variable(
 }
 
 /// `(condition-variable-p OBJ)` -- type predicate.
-pub(crate) fn builtin_condition_variable_p(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_condition_variable_p(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
     expect_args("condition-variable-p", &args, 1)?;
-    match &args[0] {
-        Value::Int(n) if *n >= 0 => Ok(Value::True),
-        _ => Ok(Value::Nil),
+    match tagged_object_id(&args[0], "condition-variable") {
+        Some(id) => Ok(Value::bool(eval.threads.is_condition_variable(id))),
+        None => Ok(Value::Nil),
     }
 }
 
@@ -1188,16 +1194,23 @@ mod tests {
         let result = builtin_make_mutex(&mut eval, vec![Value::string("my-mutex")]);
         assert!(result.is_ok());
         let mx = result.unwrap();
-        assert!(matches!(mx, Value::Int(_)));
+        assert_eq!(tagged_object_id(&mx, "mutex"), Some(1));
     }
 
     #[test]
     fn test_builtin_mutexp() {
-        let r = builtin_mutexp(vec![Value::Int(1)]);
+        let mut eval = Evaluator::new();
+        let mx = builtin_make_mutex(&mut eval, vec![]).unwrap();
+
+        let r = builtin_mutexp(&mut eval, vec![mx]);
         assert!(r.is_ok());
         assert!(r.unwrap().is_truthy());
 
-        let r = builtin_mutexp(vec![Value::Nil]);
+        let r = builtin_mutexp(&mut eval, vec![Value::Int(1)]);
+        assert!(r.is_ok());
+        assert!(r.unwrap().is_nil());
+
+        let r = builtin_mutexp(&mut eval, vec![Value::Nil]);
         assert!(r.is_ok());
         assert!(r.unwrap().is_nil());
     }
@@ -1229,15 +1242,24 @@ mod tests {
         let mx = builtin_make_mutex(&mut eval, vec![]).unwrap();
         let result = builtin_make_condition_variable(&mut eval, vec![mx, Value::string("my-cv")]);
         assert!(result.is_ok());
+        assert!(tagged_object_id(&result.unwrap(), "condition-variable").is_some());
     }
 
     #[test]
     fn test_builtin_condition_variable_p() {
-        let r = builtin_condition_variable_p(vec![Value::Int(1)]);
+        let mut eval = Evaluator::new();
+        let mx = builtin_make_mutex(&mut eval, vec![]).unwrap();
+        let cv = builtin_make_condition_variable(&mut eval, vec![mx]).unwrap();
+
+        let r = builtin_condition_variable_p(&mut eval, vec![cv]);
         assert!(r.is_ok());
         assert!(r.unwrap().is_truthy());
 
-        let r = builtin_condition_variable_p(vec![Value::Nil]);
+        let r = builtin_condition_variable_p(&mut eval, vec![Value::Int(1)]);
+        assert!(r.is_ok());
+        assert!(r.unwrap().is_nil());
+
+        let r = builtin_condition_variable_p(&mut eval, vec![Value::Nil]);
         assert!(r.is_ok());
         assert!(r.unwrap().is_nil());
     }
@@ -1269,7 +1291,7 @@ mod tests {
 
         let mut eval = Evaluator::new();
         let mx = builtin_make_mutex(&mut eval, vec![]).unwrap();
-        let mx_id = mx.as_int().unwrap();
+        let mx_id = tagged_object_id(&mx, "mutex").unwrap();
 
         // Store the mutex id in a variable so the special form can look it up
         eval.set_variable("test-mx", mx);
@@ -1281,7 +1303,7 @@ mod tests {
         assert_eq!(result.unwrap().as_int(), Some(42));
 
         // Mutex should be unlocked after with-mutex completes
-        let m = eval.threads.mutexes.get(&(mx_id as u64)).unwrap();
+        let m = eval.threads.mutexes.get(&mx_id).unwrap();
         assert!(m.owner.is_none());
     }
 
@@ -1291,7 +1313,7 @@ mod tests {
 
         let mut eval = Evaluator::new();
         let mx = builtin_make_mutex(&mut eval, vec![]).unwrap();
-        let mx_id = mx.as_int().unwrap();
+        let mx_id = tagged_object_id(&mx, "mutex").unwrap();
         eval.set_variable("test-mx2", mx);
 
         // (with-mutex test-mx2 (/ 1 0))  -- will signal arith-error
@@ -1304,7 +1326,7 @@ mod tests {
         assert!(result.is_err());
 
         // But the mutex should still be unlocked
-        let m = eval.threads.mutexes.get(&(mx_id as u64)).unwrap();
+        let m = eval.threads.mutexes.get(&mx_id).unwrap();
         assert!(m.owner.is_none());
     }
 
@@ -1343,21 +1365,24 @@ mod tests {
     #[test]
     fn test_thread_name_nonexistent() {
         let mut eval = Evaluator::new();
-        let result = builtin_thread_name(&mut eval, vec![Value::Int(999)]);
+        let fake = Value::cons(Value::symbol("thread"), Value::Int(999));
+        let result = builtin_thread_name(&mut eval, vec![fake]);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_mutex_lock_nonexistent() {
         let mut eval = Evaluator::new();
-        let result = builtin_mutex_lock(&mut eval, vec![Value::Int(999)]);
+        let fake = Value::cons(Value::symbol("mutex"), Value::Int(999));
+        let result = builtin_mutex_lock(&mut eval, vec![fake]);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_condition_wait_nonexistent() {
         let mut eval = Evaluator::new();
-        let result = builtin_condition_wait(&mut eval, vec![Value::Int(999)]);
+        let fake = Value::cons(Value::symbol("condition-variable"), Value::Int(999));
+        let result = builtin_condition_wait(&mut eval, vec![fake]);
         assert!(result.is_err());
     }
 }

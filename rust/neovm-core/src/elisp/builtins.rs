@@ -4648,8 +4648,12 @@ pub(crate) fn dispatch_builtin(
         "mutex-name" => return Some(super::threads::builtin_mutex_name(eval, args)),
         "mutex-lock" => return Some(super::threads::builtin_mutex_lock(eval, args)),
         "mutex-unlock" => return Some(super::threads::builtin_mutex_unlock(eval, args)),
+        "mutexp" => return Some(super::threads::builtin_mutexp(eval, args)),
         "make-condition-variable" => {
             return Some(super::threads::builtin_make_condition_variable(eval, args))
+        }
+        "condition-variable-p" => {
+            return Some(super::threads::builtin_condition_variable_p(eval, args))
         }
         "condition-wait" => return Some(super::threads::builtin_condition_wait(eval, args)),
         "condition-notify" => return Some(super::threads::builtin_condition_notify(eval, args)),
@@ -5342,9 +5346,6 @@ pub(crate) fn dispatch_builtin(
         "copy-hash-table" => super::hashtab::builtin_copy_hash_table(args),
 
         // Threading (pure)
-        "mutexp" => super::threads::builtin_mutexp(args),
-        "condition-variable-p" => super::threads::builtin_condition_variable_p(args),
-
         // Misc (pure)
         "copy-alist" => super::misc::builtin_copy_alist(args),
         "rassoc" => super::misc::builtin_rassoc(args),
