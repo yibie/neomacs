@@ -255,4 +255,4 @@ Post-freeze updates:
   - `cases/command-prefix-state-return-shape`
   - `cases/keyboard-quit-command-semantics`
   - `cases/fboundp-builtin-command-matrix`
-  - matrices now include `ignore`/`eval-expression`/`self-insert-command`/`newline`/`execute-extended-command`, and line-motion dispatch includes `other-window` no-frame fallback.
+  - matrices now include `ignore`/`eval-expression`/`self-insert-command`/`newline`/`execute-extended-command`, and line-motion dispatch includes both `command-execute` and `call-interactively` `other-window` no-frame fallback.
