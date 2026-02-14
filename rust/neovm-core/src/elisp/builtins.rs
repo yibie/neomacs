@@ -3345,6 +3345,40 @@ pub(crate) fn builtin_make_string(args: Vec<Value>) -> EvalResult {
     ))
 }
 
+pub(crate) fn builtin_string(args: Vec<Value>) -> EvalResult {
+    let mut result = String::new();
+    for arg in args {
+        match arg {
+            Value::Char(c) => result.push(c),
+            Value::Int(code) => {
+                if code < 0 {
+                    return Err(signal(
+                        "wrong-type-argument",
+                        vec![Value::symbol("characterp"), Value::Int(code)],
+                    ));
+                }
+                if let Some(ch) = char::from_u32(code as u32) {
+                    result.push(ch);
+                } else if let Some(encoded) = encode_nonunicode_char_for_storage(code as u32) {
+                    result.push_str(&encoded);
+                } else {
+                    return Err(signal(
+                        "wrong-type-argument",
+                        vec![Value::symbol("characterp"), Value::Int(code)],
+                    ));
+                }
+            }
+            other => {
+                return Err(signal(
+                    "wrong-type-argument",
+                    vec![Value::symbol("characterp"), other],
+                ));
+            }
+        }
+    }
+    Ok(Value::string(result))
+}
+
 pub(crate) fn builtin_string_to_list(args: Vec<Value>) -> EvalResult {
     expect_args("string-to-list", &args, 1)?;
     let s = expect_string(&args[0])?;
@@ -4980,6 +5014,8 @@ enum PureBuiltinId {
     Substring,
     #[strum(serialize = "concat")]
     Concat,
+    #[strum(serialize = "string")]
+    String,
     #[strum(serialize = "string-to-number")]
     StringToNumber,
     #[strum(serialize = "number-to-string")]
@@ -5166,6 +5202,7 @@ fn dispatch_builtin_id_pure(id: PureBuiltinId, args: Vec<Value>) -> EvalResult {
         PureBuiltinId::StringLessp => builtin_string_lessp(args),
         PureBuiltinId::Substring => builtin_substring(args),
         PureBuiltinId::Concat => builtin_concat(args),
+        PureBuiltinId::String => builtin_string(args),
         PureBuiltinId::StringToNumber => builtin_string_to_number(args),
         PureBuiltinId::NumberToString => builtin_number_to_string(args),
         PureBuiltinId::Upcase => builtin_upcase(args),
@@ -6734,6 +6771,7 @@ pub(crate) fn dispatch_builtin_pure(name: &str, args: Vec<Value>) -> Option<Eval
         "string-trim-left" => builtin_string_trim_left(args),
         "string-trim-right" => builtin_string_trim_right(args),
         "make-string" => builtin_make_string(args),
+        "string" => builtin_string(args),
         "string-to-list" => builtin_string_to_list(args),
         "string-width" => builtin_string_width(args),
         // Extended list
@@ -7586,6 +7624,17 @@ mod tests {
             .expect("builtin string= should evaluate");
         assert_eq!(full, short);
         assert!(full.is_truthy());
+    }
+
+    #[test]
+    fn pure_dispatch_typed_string_constructor_builds_string() {
+        let result = dispatch_builtin_pure(
+            "string",
+            vec![Value::Int(65), Value::Int(66), Value::Char('C')],
+        )
+        .expect("builtin string should resolve")
+        .expect("builtin string should evaluate");
+        assert_eq!(result, Value::string("ABC"));
     }
 
     #[test]

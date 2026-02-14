@@ -755,6 +755,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "start-kbd-macro",
     "start-process",
     "store-kbd-macro-event",
+    "string",
     "string-as-multibyte",
     "string-as-unibyte",
     "string-blank-p",
