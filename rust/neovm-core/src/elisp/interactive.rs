@@ -238,10 +238,15 @@ fn builtin_command_name(name: &str) -> bool {
             | "backward-kill-word"
             | "kill-region"
             | "kill-ring-save"
+            | "kill-whole-line"
+            | "copy-region-as-kill"
             | "yank"
             | "yank-pop"
             | "transpose-chars"
             | "transpose-lines"
+            | "transpose-words"
+            | "delete-indentation"
+            | "indent-for-tab-command"
             | "upcase-word"
             | "downcase-word"
             | "capitalize-word"
@@ -1859,6 +1864,11 @@ mod tests {
             "backward-kill-word",
             "kill-region",
             "kill-ring-save",
+            "kill-whole-line",
+            "copy-region-as-kill",
+            "delete-indentation",
+            "indent-for-tab-command",
+            "transpose-words",
             "scroll-up-command",
             "scroll-down-command",
             "recenter-top-bottom",
