@@ -588,10 +588,14 @@ pub(crate) fn builtin_nconc_improved(args: Vec<Value>) -> EvalResult {
     Ok(Value::list(all_items))
 }
 
-/// `(locale-info ITEM)` -- stub returning nil.
+/// `(locale-info ITEM)` -- minimal locale info.
+/// Returns "UTF-8" for symbol ITEM `codeset`; nil otherwise.
 pub(crate) fn builtin_locale_info(args: Vec<Value>) -> EvalResult {
     expect_args("locale-info", &args, 1)?;
-    Ok(Value::Nil)
+    match &args[0] {
+        Value::Symbol(item) if item == "codeset" => Ok(Value::string("UTF-8")),
+        _ => Ok(Value::Nil),
+    }
 }
 
 // ===========================================================================
@@ -977,8 +981,20 @@ mod tests {
     // ----- locale-info -----
 
     #[test]
-    fn locale_info_stub() {
+    fn locale_info_codeset_returns_utf8() {
         let result = builtin_locale_info(vec![Value::symbol("codeset")]).unwrap();
+        assert_eq!(result.as_str(), Some("UTF-8"));
+    }
+
+    #[test]
+    fn locale_info_other_items_return_nil() {
+        let result = builtin_locale_info(vec![Value::symbol("codeset")]).unwrap();
+        assert!(result.is_truthy());
+        let result = builtin_locale_info(vec![Value::symbol("time")]).unwrap();
+        assert!(result.is_nil());
+        let result = builtin_locale_info(vec![Value::string("codeset")]).unwrap();
+        assert!(result.is_nil());
+        let result = builtin_locale_info(vec![Value::Int(1)]).unwrap();
         assert!(result.is_nil());
     }
 
