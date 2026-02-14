@@ -248,6 +248,7 @@ fn builtin_command_name(name: &str) -> bool {
             | "upcase-region"
             | "downcase-region"
             | "capitalize-region"
+            | "upcase-initials-region"
             | "switch-to-buffer"
             | "find-file"
             | "save-buffer"
@@ -422,6 +423,7 @@ fn default_command_execute_args(eval: &Evaluator, name: &str) -> Result<Vec<Valu
         "kill-region" => interactive_region_args(eval, "user-error"),
         "kill-ring-save" => interactive_region_args(eval, "error"),
         "capitalize-region" => interactive_region_args(eval, "error"),
+        "upcase-initials-region" => interactive_region_args(eval, "error"),
         "upcase-region" | "downcase-region" => {
             Err(signal("args-out-of-range", vec![Value::string(""), Value::Int(0)]))
         }
@@ -1852,6 +1854,7 @@ mod tests {
             "upcase-region",
             "downcase-region",
             "capitalize-region",
+            "upcase-initials-region",
             "kill-word",
             "backward-kill-word",
             "kill-region",
@@ -2493,6 +2496,54 @@ mod tests {
                  (goto-char 1)
                  (condition-case err
                      (command-execute 'capitalize-region)
+                   (error err)))"#,
+        );
+        assert_eq!(
+            results[0],
+            "OK (error \"The mark is not set now, so there is no region\")"
+        );
+    }
+
+    #[test]
+    fn call_interactively_builtin_upcase_initials_region_uses_marked_region() {
+        let mut ev = Evaluator::new();
+        let results = eval_all_with(
+            &mut ev,
+            r#"(with-temp-buffer
+                 (insert "abc")
+                 (goto-char 1)
+                 (set-mark 3)
+                 (call-interactively 'upcase-initials-region)
+                 (buffer-string))"#,
+        );
+        assert_eq!(results[0], "OK \"Abc\"");
+    }
+
+    #[test]
+    fn command_execute_builtin_upcase_initials_region_uses_marked_region() {
+        let mut ev = Evaluator::new();
+        let results = eval_all_with(
+            &mut ev,
+            r#"(with-temp-buffer
+                 (insert "abc")
+                 (goto-char 1)
+                 (set-mark 3)
+                 (command-execute 'upcase-initials-region)
+                 (buffer-string))"#,
+        );
+        assert_eq!(results[0], "OK \"Abc\"");
+    }
+
+    #[test]
+    fn command_execute_builtin_upcase_initials_region_without_mark_signals_error() {
+        let mut ev = Evaluator::new();
+        let results = eval_all_with(
+            &mut ev,
+            r#"(with-temp-buffer
+                 (insert "abc")
+                 (goto-char 1)
+                 (condition-case err
+                     (command-execute 'upcase-initials-region)
                    (error err)))"#,
         );
         assert_eq!(
