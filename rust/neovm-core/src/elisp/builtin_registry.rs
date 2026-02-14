@@ -794,7 +794,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "thing-at-point",
     "this-command-keys",
     "this-command-keys-vector",
-    "thread-alive-p",
+    "thread-live-p",
     "thread-join",
     "thread-last-error",
     "thread-name",

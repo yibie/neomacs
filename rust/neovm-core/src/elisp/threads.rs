@@ -8,7 +8,7 @@
 //!
 //! Provided primitives:
 //! - Threads: `make-thread`, `thread-join`, `thread-yield`, `thread-name`,
-//!   `thread-alive-p`, `threadp`, `thread-signal`, `current-thread`,
+//!   `thread-live-p`, `threadp`, `thread-signal`, `current-thread`,
 //!   `all-threads`, `thread-last-error`
 //! - Mutexes: `make-mutex`, `mutexp`, `mutex-name`, `mutex-lock`, `mutex-unlock`
 //! - Condition variables: `make-condition-variable`, `condition-variable-p`,
@@ -518,12 +518,12 @@ pub(crate) fn builtin_thread_name(
     }
 }
 
-/// `(thread-alive-p THREAD)` -- check if the thread is alive.
-pub(crate) fn builtin_thread_alive_p(
+/// `(thread-live-p THREAD)` -- check if the thread is alive.
+pub(crate) fn builtin_thread_live_p(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    expect_args("thread-alive-p", &args, 1)?;
+    expect_args("thread-live-p", &args, 1)?;
     let id = expect_thread_id(&args[0])?;
     if !eval.threads.is_thread(id) {
         return Err(signal(
@@ -1059,9 +1059,9 @@ mod tests {
     }
 
     #[test]
-    fn test_builtin_thread_alive_p_main() {
+    fn test_builtin_thread_live_p_main() {
         let mut eval = Evaluator::new();
-        let result = builtin_thread_alive_p(&mut eval, vec![Value::Int(0)]);
+        let result = builtin_thread_live_p(&mut eval, vec![Value::Int(0)]);
         assert!(result.is_ok());
         assert!(result.unwrap().is_truthy());
     }
