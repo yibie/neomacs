@@ -350,6 +350,11 @@ fn decode_opcode_subset(byte_stream: &str, const_len: usize) -> Option<Vec<Op>> 
                 pending.push(Pending::Op(Op::Equal));
                 pc += 1;
             }
+            // member
+            0o235 => {
+                pending.push(Pending::Op(Op::Member));
+                pc += 1;
+            }
             // string=
             0o230 => {
                 pending.push(Pending::Op(Op::StringEqual));
@@ -378,6 +383,11 @@ fn decode_opcode_subset(byte_stream: &str, const_len: usize) -> Option<Vec<Op>> 
             // setcdr
             0o241 => {
                 pending.push(Pending::Op(Op::Setcdr));
+                pc += 1;
+            }
+            // nreverse
+            0o237 => {
+                pending.push(Pending::Op(Op::Nreverse));
                 pc += 1;
             }
             // numberp
@@ -880,6 +890,36 @@ mod tests {
                 Op::Return,
             ]
         );
+    }
+
+    #[test]
+    fn decodes_member_nreverse_opcode_subset() {
+        let member = Value::vector(vec![
+            Value::list(vec![Value::symbol("x"), Value::symbol("y")]),
+            Value::string("\u{8}\u{9}\u{9D}\u{87}"),
+            Value::vector(vec![Value::symbol("x"), Value::symbol("y")]),
+            Value::Int(2),
+        ]);
+        let coerced = maybe_coerce_compiled_literal_function(member);
+        let Value::ByteCode(bc) = coerced else {
+            panic!("expected Value::ByteCode");
+        };
+        assert_eq!(
+            bc.ops,
+            vec![Op::VarRef(0), Op::VarRef(1), Op::Member, Op::Return]
+        );
+
+        let nreverse = Value::vector(vec![
+            Value::list(vec![Value::symbol("x")]),
+            Value::string("\u{8}\u{9F}\u{87}"),
+            Value::vector(vec![Value::symbol("x")]),
+            Value::Int(1),
+        ]);
+        let coerced = maybe_coerce_compiled_literal_function(nreverse);
+        let Value::ByteCode(bc) = coerced else {
+            panic!("expected Value::ByteCode");
+        };
+        assert_eq!(bc.ops, vec![Op::VarRef(0), Op::Nreverse, Op::Return]);
     }
 
     #[test]

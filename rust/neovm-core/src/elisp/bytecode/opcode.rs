@@ -88,6 +88,8 @@ pub enum Op {
     Nthcdr,
     Setcar,
     Setcdr,
+    Nreverse,
+    Member,
     Memq,
     Assq,
 
@@ -206,6 +208,8 @@ impl Op {
             Op::Nthcdr => "nthcdr".to_string(),
             Op::Setcar => "setcar".to_string(),
             Op::Setcdr => "setcdr".to_string(),
+            Op::Nreverse => "nreverse".to_string(),
+            Op::Member => "member".to_string(),
             Op::Memq => "memq".to_string(),
             Op::Assq => "assq".to_string(),
             Op::Symbolp => "symbolp".to_string(),

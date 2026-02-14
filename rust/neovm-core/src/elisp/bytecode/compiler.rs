@@ -1721,7 +1721,8 @@ fn stack_delta(op: &Op) -> i32 {
         Op::Cons => -1,
         Op::List(n) => -(*n as i32) + 1,
         Op::Length => 0,
-        Op::Nth | Op::Nthcdr | Op::Memq | Op::Assq => -1,
+        Op::Nth | Op::Nthcdr | Op::Member | Op::Memq | Op::Assq => -1,
+        Op::Nreverse => 0,
         Op::Setcar | Op::Setcdr => -1,
         Op::Symbolp
         | Op::Consp
