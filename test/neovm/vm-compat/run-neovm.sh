@@ -18,6 +18,8 @@ forms_file_abs="$forms_dir/$(basename "$forms_file")"
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 worker_manifest="$repo_root/rust/neovm-worker/Cargo.toml"
 worker_binary="$repo_root/rust/neovm-worker/target/debug/examples/elisp_compat_runner"
+worker_feature_stamp="$repo_root/rust/neovm-worker/target/debug/examples/elisp_compat_runner.features"
+worker_features="${NEOVM_WORKER_CARGO_FEATURES:-}"
 
 needs_build=0
 if [[ ! -x "$worker_binary" ]]; then
@@ -31,12 +33,23 @@ elif find \
   -newer "$worker_binary" \
   -print -quit | grep -q .; then
   needs_build=1
+elif [[ ! -f "$worker_feature_stamp" ]]; then
+  needs_build=1
+elif [[ "$(<"$worker_feature_stamp")" != "$worker_features" ]]; then
+  needs_build=1
 fi
 
 if [[ "$needs_build" -eq 1 ]]; then
-  cargo build \
-    --manifest-path "$worker_manifest" \
+  build_cmd=(
+    cargo build
+    --manifest-path "$worker_manifest"
     --example elisp_compat_runner
+  )
+  if [[ -n "$worker_features" ]]; then
+    build_cmd+=(--features "$worker_features")
+  fi
+  "${build_cmd[@]}"
+  printf '%s' "$worker_features" > "$worker_feature_stamp"
 fi
 
 NEOVM_FORMS_FILE="$forms_file_abs" \

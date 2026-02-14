@@ -9,18 +9,20 @@ CASES ?= $(call read_case_list,$(CASES_LIST))
 NEOVM_ONLY_CASES_LIST ?= cases/neovm-only.list
 NEOVM_ONLY_CASES ?= $(call read_case_list,$(NEOVM_ONLY_CASES_LIST))
 ALL_NEOVM_CASES ?= $(CASES) $(NEOVM_ONLY_CASES)
+LEGACY_ELC_CASES_LIST ?= cases/legacy-elc-literal.list
+LEGACY_ELC_CASES ?= $(call read_case_list,$(LEGACY_ELC_CASES_LIST))
 INTROSPECTION_CASES_LIST ?= cases/introspection.list
 INTROSPECTION_CASES ?= $(call read_case_list,$(INTROSPECTION_CASES_LIST))
 THREAD_CASES_LIST ?= cases/thread.list
 THREAD_CASES ?= $(call read_case_list,$(THREAD_CASES_LIST))
-CASE_LIST_FILES ?= $(CASES_LIST) $(NEOVM_ONLY_CASES_LIST) $(INTROSPECTION_CASES_LIST) $(THREAD_CASES_LIST)
+CASE_LIST_FILES ?= $(CASES_LIST) $(NEOVM_ONLY_CASES_LIST) $(LEGACY_ELC_CASES_LIST) $(INTROSPECTION_CASES_LIST) $(THREAD_CASES_LIST)
 BENCH_SOURCE ?= cases/load-policy-fixtures/vm-policy-cache-probe.el
 BENCH_ITERS ?= 100
 ERT_ALLOWLIST ?= cases/ert-allowlist-smoke.txt
 ERT_EXPECTED ?= cases/ert-allowlist-smoke.expected.tsv
 ERT_LOAD_FILES ?= cases/ert-allowlist-fixtures/smoke-tests.el
 
-.PHONY: oracle neovm record check compare check-neovm record-all check-all check-all-neovm check-all-neovm-only check-introspection-neovm check-thread-neovm validate-case-lists ert-oracle record-ert-allowlist check-ert-allowlist bench-load-cache
+.PHONY: oracle neovm record check compare check-neovm record-all check-all check-all-neovm check-all-neovm-only check-legacy-elc-neovm check-introspection-neovm check-thread-neovm validate-case-lists ert-oracle record-ert-allowlist check-ert-allowlist bench-load-cache
 
 oracle:
 	./run-oracle.sh $(FORMS)
@@ -77,6 +79,14 @@ check-all-neovm-only:
 	for case in $(NEOVM_ONLY_CASES); do \
 		echo "== $$case =="; \
 		$(MAKE) --no-print-directory check-neovm FORMS="$$case.forms" EXPECTED="$$case.expected.tsv"; \
+	done
+
+check-legacy-elc-neovm:
+	@set -e; \
+	for case in $(LEGACY_ELC_CASES); do \
+		echo "== $$case =="; \
+		NEOVM_WORKER_CARGO_FEATURES=legacy-elc-literal \
+			$(MAKE) --no-print-directory check-neovm FORMS="$$case.forms" EXPECTED="$$case.expected.tsv"; \
 	done
 
 check-introspection-neovm:

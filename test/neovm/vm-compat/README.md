@@ -16,6 +16,7 @@ results against that baseline once evaluator execution is wired in.
 - `bench-load-cache.sh`: runs cold/warm `.neoc` load benchmark via `load_cache_bench`
 - `cases/default.list`: default `check-all-neovm` corpus order (one case per line)
 - `cases/neovm-only.list`: NeoVM-only policy corpus order
+- `cases/legacy-elc-literal.list`: opt-in `.elc` literal compatibility corpus order
 - `cases/introspection.list`: focused callable/special-form introspection corpus order
 - `cases/thread.list`: focused thread primitive corpus order
 - `cases/core.forms`: starter corpus for expression and error behavior
@@ -69,6 +70,13 @@ make check-all
 make check-all-neovm
 ```
 
+Run the opt-in legacy `.elc` literal compatibility corpora (non-default):
+
+```bash
+cd test/neovm/vm-compat
+make check-legacy-elc-neovm
+```
+
 Run the focused callable-introspection suite (faster loop for `fboundp`/`symbol-function`/`indirect-function`/`functionp`/`macrop`/`func-arity`):
 
 ```bash
@@ -108,7 +116,9 @@ You can override all three via `ERT_ALLOWLIST`, `ERT_LOAD_FILES`, and `ERT_EXPEC
 `run-neovm.sh` sets `NEOVM_DISABLE_LOAD_CACHE_WRITE=1` so compatibility runs do
 not mutate fixture directories with `.neoc` sidecars.
 It also executes the built `elisp_compat_runner` binary directly and rebuilds it
-only when relevant Rust sources are newer than the binary.
+only when relevant Rust sources are newer than the binary. Set
+`NEOVM_WORKER_CARGO_FEATURES` to compile/run opt-in worker features, e.g.
+`NEOVM_WORKER_CARGO_FEATURES=legacy-elc-literal`.
 
 NeoVM-only policy cases (expected to diverge from GNU Emacs oracle baselines)
 can be run separately:
@@ -202,9 +212,9 @@ Post-freeze updates:
   - `cases/hash-rehash-copy-semantics`
 - Added dynamic-binding/unwind restoration compatibility case:
   - `cases/specpdl-dynamic-unwind-semantics`
-- Added bytecode literal reader compatibility case:
+- Added bytecode literal reader compatibility case (legacy opt-in):
   - `cases/bytecode-literal-reader-semantics`
-- Added bytecode literal execution compatibility case:
+- Added bytecode literal execution compatibility case (legacy opt-in):
   - `cases/bytecode-literal-exec-semantics`
 - Added higher-order map primitive compatibility case:
   - `cases/map-family-semantics`

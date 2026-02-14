@@ -106,8 +106,6 @@ cases/load-path-nil
 cases/load-path-order
 cases/reader-hash
 cases/read-from-string-edges
-cases/bytecode-literal-reader-semantics
-cases/bytecode-literal-exec-semantics
 cases/read-stream-semantics
 cases/hash-basics
 cases/hash-make-table-options-semantics
