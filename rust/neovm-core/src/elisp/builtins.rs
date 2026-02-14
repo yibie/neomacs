@@ -2014,29 +2014,72 @@ pub(crate) fn builtin_sort(eval: &mut super::eval::Evaluator, args: Vec<Value>) 
         ));
     }
     let pred = args[1].clone();
-    let mut items = list_to_vec(&args[0]).ok_or_else(|| {
-        signal(
-            "wrong-type-argument",
-            vec![Value::symbol("listp"), args[0].clone()],
-        )
-    })?;
-
-    // Simple insertion sort (stable sort with predicate)
-    // We can't use sort_by because the predicate can fail
-    for i in 1..items.len() {
-        let mut j = i;
-        while j > 0 {
-            let result = eval.apply(pred.clone(), vec![items[j].clone(), items[j - 1].clone()])?;
-            if result.is_truthy() {
-                items.swap(j, j - 1);
-                j -= 1;
-            } else {
-                break;
+    match &args[0] {
+        Value::Nil => Ok(Value::Nil),
+        Value::Cons(_) => {
+            let mut cons_cells = Vec::new();
+            let mut values = Vec::new();
+            let mut cursor = args[0].clone();
+            loop {
+                match cursor {
+                    Value::Nil => break,
+                    Value::Cons(cell) => {
+                        values.push(cell.lock().expect("poisoned").car.clone());
+                        cons_cells.push(cell.clone());
+                        cursor = cell.lock().expect("poisoned").cdr.clone();
+                    }
+                    tail => {
+                        return Err(signal(
+                            "wrong-type-argument",
+                            vec![Value::symbol("listp"), tail],
+                        ))
+                    }
+                }
             }
-        }
-    }
 
-    Ok(Value::list(items))
+            // Stable insertion sort with dynamic predicate callback.
+            for i in 1..values.len() {
+                let mut j = i;
+                while j > 0 {
+                    let result =
+                        eval.apply(pred.clone(), vec![values[j].clone(), values[j - 1].clone()])?;
+                    if result.is_truthy() {
+                        values.swap(j, j - 1);
+                        j -= 1;
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            for (cell, value) in cons_cells.iter().zip(values.into_iter()) {
+                cell.lock().expect("poisoned").car = value;
+            }
+            Ok(args[0].clone())
+        }
+        Value::Vector(v) => {
+            let mut values = v.lock().expect("poisoned").clone();
+            for i in 1..values.len() {
+                let mut j = i;
+                while j > 0 {
+                    let result =
+                        eval.apply(pred.clone(), vec![values[j].clone(), values[j - 1].clone()])?;
+                    if result.is_truthy() {
+                        values.swap(j, j - 1);
+                        j -= 1;
+                    } else {
+                        break;
+                    }
+                }
+            }
+            *v.lock().expect("poisoned") = values;
+            Ok(args[0].clone())
+        }
+        other => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("list-or-vector-p"), other.clone()],
+        )),
+    }
 }
 
 // ===========================================================================
