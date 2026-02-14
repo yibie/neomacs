@@ -267,6 +267,8 @@ fn builtin_command_name(name: &str) -> bool {
             | "universal-argument"
             | "beginning-of-line"
             | "end-of-line"
+            | "move-beginning-of-line"
+            | "move-end-of-line"
     )
 }
 
@@ -1874,6 +1876,8 @@ mod tests {
             "scroll-up-command",
             "scroll-down-command",
             "recenter-top-bottom",
+            "move-beginning-of-line",
+            "move-end-of-line",
         ] {
             let result = builtin_commandp_interactive(&mut ev, vec![Value::symbol(name)])
                 .expect("commandp call");
