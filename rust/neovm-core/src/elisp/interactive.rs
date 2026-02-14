@@ -427,6 +427,7 @@ fn default_command_execute_args(eval: &Evaluator, name: &str) -> Result<Vec<Valu
         | "transpose-lines" => Ok(vec![Value::Int(1)]),
         "kill-region" => interactive_region_args(eval, "user-error"),
         "kill-ring-save" => interactive_region_args(eval, "error"),
+        "copy-region-as-kill" => interactive_region_args(eval, "error"),
         "capitalize-region" => interactive_region_args(eval, "error"),
         "upcase-initials-region" => interactive_region_args(eval, "error"),
         "upcase-region" | "downcase-region" => {
@@ -2405,6 +2406,38 @@ mod tests {
     }
 
     #[test]
+    fn command_execute_builtin_copy_region_as_kill_uses_marked_region() {
+        let mut ev = Evaluator::new();
+        let results = eval_all_with(
+            &mut ev,
+            r#"(let ((kill-ring nil))
+                 (with-temp-buffer
+                   (insert "abc")
+                   (goto-char 1)
+                   (set-mark 3)
+                   (command-execute 'copy-region-as-kill)
+                   (current-kill 0 t)))"#,
+        );
+        assert_eq!(results[0], "OK \"ab\"");
+    }
+
+    #[test]
+    fn call_interactively_builtin_copy_region_as_kill_uses_marked_region() {
+        let mut ev = Evaluator::new();
+        let results = eval_all_with(
+            &mut ev,
+            r#"(let ((kill-ring nil))
+                 (with-temp-buffer
+                   (insert "abc")
+                   (goto-char 1)
+                   (set-mark 3)
+                   (call-interactively 'copy-region-as-kill)
+                   (current-kill 0 t)))"#,
+        );
+        assert_eq!(results[0], "OK \"ab\"");
+    }
+
+    #[test]
     fn call_interactively_builtin_upcase_region_uses_marked_region() {
         let mut ev = Evaluator::new();
         let results = eval_all_with(
@@ -2608,6 +2641,42 @@ mod tests {
                  (goto-char 1)
                  (condition-case err
                      (call-interactively 'kill-ring-save)
+                   (error err)))"#,
+        );
+        assert_eq!(
+            results[0],
+            "OK (error \"The mark is not set now, so there is no region\")"
+        );
+    }
+
+    #[test]
+    fn command_execute_builtin_copy_region_as_kill_without_mark_signals_error() {
+        let mut ev = Evaluator::new();
+        let results = eval_all_with(
+            &mut ev,
+            r#"(with-temp-buffer
+                 (insert "abc")
+                 (goto-char 1)
+                 (condition-case err
+                     (command-execute 'copy-region-as-kill)
+                   (error err)))"#,
+        );
+        assert_eq!(
+            results[0],
+            "OK (error \"The mark is not set now, so there is no region\")"
+        );
+    }
+
+    #[test]
+    fn call_interactively_builtin_copy_region_as_kill_without_mark_signals_error() {
+        let mut ev = Evaluator::new();
+        let results = eval_all_with(
+            &mut ev,
+            r#"(with-temp-buffer
+                 (insert "abc")
+                 (goto-char 1)
+                 (condition-case err
+                     (call-interactively 'copy-region-as-kill)
                    (error err)))"#,
         );
         assert_eq!(
