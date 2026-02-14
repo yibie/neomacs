@@ -23,3 +23,5 @@
 (apply 'list '(1 . 2))
 (funcall #'(lambda (x) x) 9)
 (apply #'(lambda (&rest xs) xs) 1 2 '(3))
+(catch 'vm-tag (funcall 'throw 'vm-tag 42))
+(condition-case err (funcall 'throw 'vm-tag 42) (error err))
