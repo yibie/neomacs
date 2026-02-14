@@ -2735,16 +2735,21 @@ neomacs_layout_face_at_pos (void *window_ptr, int64_t charpos,
   if (BUFFERP (w->contents))
     set_buffer_internal_1 (XBUFFER (w->contents));
 
+  /* Use lookup_basic_face to apply face-remapping-alist for the default face.
+     This is critical for packages like corfu that remap `default' to their own
+     face (e.g., corfu-default -> tooltip) via face-remapping-alist. */
+  int base_face = lookup_basic_face (w, f, DEFAULT_FACE_ID);
+
   ptrdiff_t next_check = 0;
   int face_id = face_at_buffer_position (w, (ptrdiff_t) charpos,
                                          &next_check,
                                          BUF_ZV (XBUFFER (w->contents)),
-                                         false, DEFAULT_FACE_ID,
+                                         false, base_face,
                                          0);
 
   struct face *face = FACE_FROM_ID_OR_NULL (f, face_id);
   if (!face)
-    face = FACE_FROM_ID_OR_NULL (f, DEFAULT_FACE_ID);
+    face = FACE_FROM_ID_OR_NULL (f, base_face);
 
   set_buffer_internal_1 (old);
 
@@ -5169,11 +5174,16 @@ neomacs_set_window_size (struct frame *f, bool change_gravity,
   /* Child frames are rendered as composited overlays by the Rust
      ChildFrameManager — they do not own the OS window.  Store their
      dimensions in the output struct (read by Rust layout) but do NOT
-     resize the winit window or the primary display scene.  */
+     resize the winit window or the primary display scene.
+     We must call change_frame_size to update the internal frame layout
+     (window sizes, etc.) since there is no windowing system event that
+     will bounce back the resize confirmation — unlike X11/Wayland where
+     a ConfigureNotify would trigger this.  */
   if (FRAME_PARENT_FRAME (f))
     {
       output->pixel_width = width;
       output->pixel_height = height;
+      change_frame_size (f, width, height, false, true, false);
       SET_FRAME_GARBAGED (f);
       unblock_input ();
       return;

@@ -105,13 +105,13 @@ impl WgpuRenderer {
         {
             let mut rect_verts: Vec<RectVertex> = Vec::new();
 
-            // Background fill
+            // Background fill (colors from FrameGlyphBuffer are already linear)
             let bg = Color::new(
                 child.background.r,
                 child.background.g,
                 child.background.b,
                 bg_alpha,
-            ).srgb_to_linear();
+            );
             self.add_rect(&mut rect_verts, offset_x, offset_y, frame_w, frame_h, &bg);
 
             if !rect_verts.is_empty() {
@@ -151,7 +151,7 @@ impl WgpuRenderer {
                 use super::super::vertex::RoundedRectVertex;
                 let mut border_verts: Vec<RoundedRectVertex> = Vec::new();
                 let bc = if bw > 0.0 {
-                    child.border_color.srgb_to_linear()
+                    child.border_color
                 } else {
                     Color::new(0.5, 0.5, 0.5, 0.3).srgb_to_linear()
                 };
@@ -215,13 +215,11 @@ impl WgpuRenderer {
 
                         // Background
                         if let Some(bg_color) = bg {
-                            let c = bg_color.srgb_to_linear();
-                            self.add_rect(&mut rect_verts, gx, gy, *width, *height, &c);
+                            self.add_rect(&mut rect_verts, gx, gy, *width, *height, bg_color);
                         }
 
-                        // Text glyph
-                        let fg_linear = fg.srgb_to_linear();
-                        let color = [fg_linear.r, fg_linear.g, fg_linear.b, fg_linear.a];
+                        // Text glyph (fg is already linear)
+                        let color = [fg.r, fg.g, fg.b, fg.a];
 
                         let key = GlyphKey {
                             charcode: *ch as u32,
@@ -232,33 +230,29 @@ impl WgpuRenderer {
 
                         // Underline
                         if *underline > 0 {
-                            let uc = underline_color.map(|c| c.srgb_to_linear())
-                                .unwrap_or(fg_linear);
+                            let uc = underline_color.as_ref().unwrap_or(fg);
                             let ul_y = gy + ascent + 2.0;
-                            self.add_rect(&mut rect_verts, gx, ul_y, *width, 1.0, &uc);
+                            self.add_rect(&mut rect_verts, gx, ul_y, *width, 1.0, uc);
                         }
                     }
                     FrameGlyph::Stretch { x, y, width, height, bg, .. } => {
-                        let c = bg.srgb_to_linear();
                         self.add_rect(&mut rect_verts,
-                            *x + offset_x, *y + offset_y, *width, *height, &c);
+                            *x + offset_x, *y + offset_y, *width, *height, bg);
                     }
                     FrameGlyph::Background { bounds, color } => {
-                        let c = color.srgb_to_linear();
                         self.add_rect(&mut rect_verts,
                             bounds.x + offset_x, bounds.y + offset_y,
-                            bounds.width, bounds.height, &c);
+                            bounds.width, bounds.height, color);
                     }
                     FrameGlyph::Border { x, y, width, height, color } => {
-                        let c = color.srgb_to_linear();
                         self.add_rect(&mut rect_verts,
-                            *x + offset_x, *y + offset_y, *width, *height, &c);
+                            *x + offset_x, *y + offset_y, *width, *height, color);
                     }
                     FrameGlyph::Cursor { x, y, width, height, style, color, window_id } => {
                         if !cursor_visible {
                             continue;
                         }
-                        let c = color.srgb_to_linear();
+                        let c = *color;
                         // Use animated position if this cursor matches the animated cursor
                         let (gx, gy, gw, gh) = if *style != 3 {
                             if let Some(ref ac) = animated_cursor {
@@ -298,18 +292,16 @@ impl WgpuRenderer {
                     }
                     FrameGlyph::ScrollBar { x, y, width, height, thumb_start, thumb_size,
                                             track_color, thumb_color, horizontal, .. } => {
-                        let tc = track_color.srgb_to_linear();
-                        let thc = thumb_color.srgb_to_linear();
                         self.add_rect(&mut rect_verts,
-                            *x + offset_x, *y + offset_y, *width, *height, &tc);
+                            *x + offset_x, *y + offset_y, *width, *height, track_color);
                         if *horizontal {
                             self.add_rect(&mut rect_verts,
                                 *x + offset_x + *thumb_start, *y + offset_y,
-                                *thumb_size, *height, &thc);
+                                *thumb_size, *height, thumb_color);
                         } else {
                             self.add_rect(&mut rect_verts,
                                 *x + offset_x, *y + offset_y + *thumb_start,
-                                *width, *thumb_size, &thc);
+                                *width, *thumb_size, thumb_color);
                         }
                     }
                     // Skip image/video/webkit/terminal in child frames for now
@@ -358,8 +350,107 @@ impl WgpuRenderer {
                 glyph_atlas.get_or_create(&self.device, &self.queue, key, face);
             }
 
-            // Render text glyphs
-            self.render_overlay_glyphs(view, &mut text_glyphs, glyph_atlas);
+            // Render text glyphs inline with proper scale_factor handling
+            // (render_overlay_glyphs doesn't divide by scale_factor and adds hardcoded +14.0)
+            if !text_glyphs.is_empty() {
+                // Sort by key for batching consecutive same-texture draws
+                text_glyphs.sort_by(|a, b| {
+                    a.0.face_id.cmp(&b.0.face_id)
+                        .then(a.0.font_size_bits.cmp(&b.0.font_size_bits))
+                        .then(a.0.charcode.cmp(&b.0.charcode))
+                });
+
+                let sf = self.scale_factor;
+                let mut vertices: Vec<GlyphVertex> = Vec::with_capacity(text_glyphs.len() * 6);
+                let mut valid: Vec<bool> = Vec::with_capacity(text_glyphs.len());
+
+                for (key, x, y, color) in text_glyphs.iter() {
+                    if let Some(cached) = glyph_atlas.get(key) {
+                        // Divide atlas metrics by scale_factor to get logical positions
+                        // (matching the main frame path in glyphs.rs)
+                        let glyph_x = *x + cached.bearing_x / sf;
+                        let glyph_y = *y - cached.bearing_y / sf; // y is already baseline
+                        let glyph_w = cached.width as f32 / sf;
+                        let glyph_h = cached.height as f32 / sf;
+
+                        vertices.extend_from_slice(&[
+                            GlyphVertex { position: [glyph_x, glyph_y], tex_coords: [0.0, 0.0], color: *color },
+                            GlyphVertex { position: [glyph_x + glyph_w, glyph_y], tex_coords: [1.0, 0.0], color: *color },
+                            GlyphVertex { position: [glyph_x + glyph_w, glyph_y + glyph_h], tex_coords: [1.0, 1.0], color: *color },
+                            GlyphVertex { position: [glyph_x, glyph_y], tex_coords: [0.0, 0.0], color: *color },
+                            GlyphVertex { position: [glyph_x + glyph_w, glyph_y + glyph_h], tex_coords: [1.0, 1.0], color: *color },
+                            GlyphVertex { position: [glyph_x, glyph_y + glyph_h], tex_coords: [0.0, 1.0], color: *color },
+                        ]);
+                        valid.push(true);
+                    } else {
+                        valid.push(false);
+                    }
+                }
+
+                if !vertices.is_empty() {
+                    let buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some("Child Frame Glyph Buffer"),
+                        contents: bytemuck::cast_slice(&vertices),
+                        usage: wgpu::BufferUsages::VERTEX,
+                    });
+
+                    let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                        label: Some("Child Frame Glyph Encoder"),
+                    });
+                    {
+                        let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                            label: Some("Child Frame Glyph Pass"),
+                            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                                view,
+                                resolve_target: None,
+                                ops: wgpu::Operations {
+                                    load: wgpu::LoadOp::Load,
+                                    store: wgpu::StoreOp::Store,
+                                },
+                            })],
+                            depth_stencil_attachment: None,
+                            timestamp_writes: None,
+                            occlusion_query_set: None,
+                        });
+                        pass.set_pipeline(&self.glyph_pipeline);
+                        pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                        pass.set_vertex_buffer(0, buffer.slice(..));
+
+                        // Batch draw calls: consecutive same-key glyphs share one bind_group
+                        let mut vert_idx = 0u32;
+                        let mut i = 0;
+                        while i < text_glyphs.len() {
+                            if !valid[i] {
+                                i += 1;
+                                continue;
+                            }
+                            let (ref key, _, _, _) = text_glyphs[i];
+                            if let Some(cached) = glyph_atlas.get(key) {
+                                if cached.is_color {
+                                    // Color glyphs (emoji) use opaque image pipeline
+                                    pass.set_pipeline(&self.opaque_image_pipeline);
+                                } else {
+                                    // Mask glyphs (text) use glyph pipeline
+                                    // (samples .r as alpha, tints with vertex color)
+                                    pass.set_pipeline(&self.glyph_pipeline);
+                                }
+                                pass.set_bind_group(1, &cached.bind_group, &[]);
+                                let batch_start = vert_idx;
+                                vert_idx += 6;
+                                i += 1;
+                                while i < text_glyphs.len() && valid[i] && text_glyphs[i].0 == *key {
+                                    vert_idx += 6;
+                                    i += 1;
+                                }
+                                pass.draw(batch_start..vert_idx, 0..1);
+                            } else {
+                                i += 1;
+                            }
+                        }
+                    }
+                    self.queue.submit(std::iter::once(encoder.finish()));
+                }
+            }
         }
     }
 
