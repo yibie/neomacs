@@ -241,19 +241,6 @@ pub(crate) fn builtin_upcase_char(args: Vec<Value>) -> EvalResult {
     Ok(Value::Int(result as i64))
 }
 
-/// `(downcase CHAR)` -- convert a character to lowercase.
-///
-/// If the argument is an integer or character, returns the lowercase version
-/// using the standard ASCII case table.  Characters outside A-Z are returned
-/// unchanged.
-pub(crate) fn builtin_downcase_char(args: Vec<Value>) -> EvalResult {
-    expect_args("downcase", &args, 1)?;
-    let c = expect_char(&args[0])?;
-    let manager = CaseTableManager::new();
-    let result = manager.downcase_char(c);
-    Ok(Value::Int(result as i64))
-}
-
 // ---------------------------------------------------------------------------
 // Case-table tag and predicate
 // ---------------------------------------------------------------------------
@@ -526,46 +513,6 @@ mod tests {
     fn builtin_upcase_char_wrong_arg_count() {
         assert!(builtin_upcase_char(vec![]).is_err());
         assert!(builtin_upcase_char(vec![Value::Char('a'), Value::Char('b')]).is_err());
-    }
-
-    #[test]
-    fn builtin_downcase_char_uppercase() {
-        // (downcase ?A) -> 97 (i.e., ?a)
-        let result = builtin_downcase_char(vec![Value::Char('A')]).unwrap();
-        assert!(matches!(result, Value::Int(97)));
-    }
-
-    #[test]
-    fn builtin_downcase_char_lowercase_unchanged() {
-        // (downcase ?a) -> 97
-        let result = builtin_downcase_char(vec![Value::Char('a')]).unwrap();
-        assert!(matches!(result, Value::Int(97)));
-    }
-
-    #[test]
-    fn builtin_downcase_char_non_letter() {
-        // (downcase ?!) -> 33
-        let result = builtin_downcase_char(vec![Value::Char('!')]).unwrap();
-        assert!(matches!(result, Value::Int(33)));
-    }
-
-    #[test]
-    fn builtin_downcase_char_from_int() {
-        // (downcase 65) -> 97 (65 = ?A, 97 = ?a)
-        let result = builtin_downcase_char(vec![Value::Int(65)]).unwrap();
-        assert!(matches!(result, Value::Int(97)));
-    }
-
-    #[test]
-    fn builtin_downcase_char_wrong_type() {
-        assert!(builtin_downcase_char(vec![Value::string("A")]).is_err());
-        assert!(builtin_downcase_char(vec![Value::Nil]).is_err());
-    }
-
-    #[test]
-    fn builtin_downcase_char_wrong_arg_count() {
-        assert!(builtin_downcase_char(vec![]).is_err());
-        assert!(builtin_downcase_char(vec![Value::Char('A'), Value::Char('B')]).is_err());
     }
 
     #[test]
