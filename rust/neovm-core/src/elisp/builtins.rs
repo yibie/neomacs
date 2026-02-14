@@ -5314,6 +5314,7 @@ pub(crate) fn dispatch_builtin(
         "buffer-name" => return Some(builtin_buffer_name(eval, args)),
         "buffer-file-name" => return Some(builtin_buffer_file_name(eval, args)),
         "buffer-string" => return Some(builtin_buffer_string(eval, args)),
+        "md5" => return Some(super::fns::builtin_md5_eval(eval, args)),
         "buffer-hash" => return Some(super::fns::builtin_buffer_hash_eval(eval, args)),
         "buffer-substring" => return Some(builtin_buffer_substring(eval, args)),
         "point" => return Some(builtin_point(eval, args)),

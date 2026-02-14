@@ -68,6 +68,18 @@ fn require_int(val: &Value) -> Result<i64, Flow> {
     }
 }
 
+fn require_int_or_marker(val: &Value) -> Result<i64, Flow> {
+    match val {
+        Value::Int(n) => Ok(*n),
+        Value::Char(c) => Ok(*c as i64),
+        v if super::marker::is_marker(v) => super::marker::marker_position_as_int(v),
+        other => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("integer-or-marker-p"), other.clone()],
+        )),
+    }
+}
+
 fn bytes_to_hex(bytes: &[u8]) -> String {
     const HEX: &[u8; 16] = b"0123456789abcdef";
     let mut out = String::with_capacity(bytes.len() * 2);
@@ -232,29 +244,58 @@ pub(crate) fn builtin_base64url_decode_string(args: Vec<Value>) -> EvalResult {
 
 /// (md5 OBJECT &optional START END CODING-SYSTEM NOERROR)
 ///
-/// Simple MD5 implementation for string objects.  START/END/CODING-SYSTEM
-/// arguments are accepted but only string subranges are honoured.
+/// Pure fallback used when evaluator access is unavailable.
+/// Supports string objects and Emacs-compatible range/error semantics.
 pub(crate) fn builtin_md5(args: Vec<Value>) -> EvalResult {
     expect_range_args("md5", &args, 1, 5)?;
-    let input = match &args[0] {
-        Value::Str(s) => {
-            let s = (**s).clone();
-            let start = args.get(1).and_then(|v| v.as_int()).unwrap_or(0) as usize;
-            let end = args.get(2).and_then(|v| v.as_int()).map(|n| n as usize);
-            let bytes = s.as_bytes();
-            let end = end.unwrap_or(bytes.len()).min(bytes.len());
-            let start = start.min(end);
-            bytes[start..end].to_vec()
-        }
+    let object = &args[0];
+    match object {
+        Value::Str(_) => Ok(Value::string(md5_hex_for_string(
+            object,
+            args.get(1),
+            args.get(2),
+        )?)),
+        other => Err(signal(
+            "error",
+            vec![
+                Value::string("Invalid object argument"),
+                invalid_object_payload(other),
+            ],
+        )),
+    }
+}
+
+/// (md5 OBJECT &optional START END CODING-SYSTEM NOERROR)
+///
+/// Evaluator-aware implementation that also supports buffer objects.
+pub(crate) fn builtin_md5_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_range_args("md5", &args, 1, 5)?;
+    let object = &args[0];
+    match object {
+        Value::Str(_) => Ok(Value::string(md5_hex_for_string(
+            object,
+            args.get(1),
+            args.get(2),
+        )?)),
+        Value::Buffer(id) => Ok(Value::string(md5_hex_for_buffer(
+            eval,
+            *id,
+            args.get(1),
+            args.get(2),
+        )?)),
         other => {
             return Err(signal(
-                "wrong-type-argument",
-                vec![Value::symbol("stringp"), other.clone()],
+                "error",
+                vec![
+                    Value::string("Invalid object argument"),
+                    invalid_object_payload(other),
+                ],
             ));
         }
-    };
-    let digest = md5_hash(&input);
-    Ok(Value::string(digest))
+    }
 }
 
 /// Minimal MD5 implementation (RFC 1321).
@@ -356,6 +397,99 @@ fn md5_digest(message: &[u8]) -> [u8; 16] {
 
 fn md5_hash(message: &[u8]) -> String {
     bytes_to_hex(&md5_digest(message))
+}
+
+fn md5_hex_for_string(
+    object: &Value,
+    start_raw: Option<&Value>,
+    end_raw: Option<&Value>,
+) -> Result<String, Flow> {
+    let input = match object {
+        Value::Str(s) => (**s).clone(),
+        _ => unreachable!("md5_hex_for_string only accepts string object"),
+    };
+    let len = storage_char_len(&input) as i64;
+    let start_arg = start_raw.cloned().unwrap_or(Value::Nil);
+    let end_arg = end_raw.cloned().unwrap_or(Value::Nil);
+    let start =
+        normalize_secure_hash_index(start_raw, 0, len, object, &start_arg, &end_arg)? as usize;
+    let end = normalize_secure_hash_index(end_raw, len, len, object, &start_arg, &end_arg)? as usize;
+
+    if start > end {
+        return Err(signal(
+            "args-out-of-range",
+            vec![object.clone(), start_arg.clone(), end_arg.clone()],
+        ));
+    }
+
+    let slice = storage_substring(&input, start, end).ok_or_else(|| {
+        signal(
+            "args-out-of-range",
+            vec![object.clone(), start_arg.clone(), end_arg.clone()],
+        )
+    })?;
+    Ok(md5_hash(slice.as_bytes()))
+}
+
+fn normalize_md5_buffer_position(
+    val: Option<&Value>,
+    default: i64,
+    point_min: i64,
+    point_max: i64,
+    start_arg: &Value,
+    end_arg: &Value,
+) -> Result<i64, Flow> {
+    let raw = match val {
+        None => default,
+        Some(v) if v.is_nil() => default,
+        Some(v) => require_int_or_marker(v)?,
+    };
+    if raw < point_min || raw > point_max {
+        return Err(signal(
+            "args-out-of-range",
+            vec![start_arg.clone(), end_arg.clone()],
+        ));
+    }
+    Ok(raw)
+}
+
+fn md5_hex_for_buffer(
+    eval: &super::eval::Evaluator,
+    buffer_id: crate::buffer::BufferId,
+    start_raw: Option<&Value>,
+    end_raw: Option<&Value>,
+) -> Result<String, Flow> {
+    let buf = eval
+        .buffers
+        .get(buffer_id)
+        .ok_or_else(|| signal("error", vec![Value::string("Selecting deleted buffer")]))?;
+
+    let text = buf.buffer_string();
+    let point_min = buf.text.byte_to_char(buf.point_min()) as i64 + 1;
+    let point_max = buf.text.byte_to_char(buf.point_max()) as i64 + 1;
+
+    let start_arg = start_raw.cloned().unwrap_or(Value::Nil);
+    let end_arg = end_raw.cloned().unwrap_or(Value::Nil);
+    let start = normalize_md5_buffer_position(
+        start_raw, point_min, point_min, point_max, &start_arg, &end_arg,
+    )?;
+    let end =
+        normalize_md5_buffer_position(end_raw, point_max, point_min, point_max, &start_arg, &end_arg)?;
+
+    let (lo, hi) = if start <= end {
+        (start, end)
+    } else {
+        (end, start)
+    };
+    let lo_idx = (lo - point_min) as usize;
+    let hi_idx = (hi - point_min) as usize;
+    let slice = storage_substring(&text, lo_idx, hi_idx).ok_or_else(|| {
+        signal(
+            "args-out-of-range",
+            vec![start_arg.clone(), end_arg.clone()],
+        )
+    })?;
+    Ok(md5_hash(slice.as_bytes()))
 }
 
 fn secure_hash_algorithm_name(val: &Value) -> Result<String, Flow> {
@@ -1027,6 +1161,115 @@ mod tests {
         )])
         .unwrap();
         assert_eq!(r.as_str(), Some("9e107d9d372bb6826bd81d3542a419d6"));
+    }
+
+    #[test]
+    fn md5_string_range_errors() {
+        match builtin_md5(vec![Value::string("abc"), Value::Int(2), Value::Int(1)]) {
+            Err(Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "args-out-of-range");
+                assert_eq!(
+                    sig.data,
+                    vec![Value::string("abc"), Value::Int(2), Value::Int(1)]
+                );
+            }
+            other => panic!("expected args-out-of-range signal, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn md5_string_index_type_error() {
+        match builtin_md5(vec![Value::string("abc"), Value::True, Value::Int(1)]) {
+            Err(Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "wrong-type-argument");
+                assert_eq!(sig.data.first(), Some(&Value::symbol("integerp")));
+            }
+            other => panic!("expected wrong-type-argument signal, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn md5_invalid_object_errors() {
+        match builtin_md5(vec![Value::Nil]) {
+            Err(Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "error");
+                assert_eq!(
+                    sig.data.first().and_then(|v| v.as_str()),
+                    Some("Invalid object argument")
+                );
+                assert_eq!(sig.data.get(1), Some(&Value::string("nil")));
+            }
+            other => panic!("expected error signal, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn md5_eval_buffer_core_semantics() {
+        let mut eval = crate::elisp::eval::Evaluator::new();
+        {
+            let buf = eval.buffers.current_buffer_mut().expect("current buffer");
+            buf.delete_region(buf.point_min(), buf.point_max());
+            buf.insert("abc");
+        }
+        let id = eval.buffers.current_buffer().expect("current buffer").id;
+
+        let full = builtin_md5_eval(&mut eval, vec![Value::Buffer(id)]).unwrap();
+        assert_eq!(full.as_str(), Some("900150983cd24fb0d6963f7d28e17f72"));
+
+        let swapped = builtin_md5_eval(&mut eval, vec![Value::Buffer(id), Value::Int(4), Value::Int(3)])
+            .unwrap();
+        assert_eq!(swapped.as_str(), Some("4a8a08f09d37b73795649038408b5f33"));
+    }
+
+    #[test]
+    fn md5_eval_buffer_range_errors() {
+        let mut eval = crate::elisp::eval::Evaluator::new();
+        {
+            let buf = eval.buffers.current_buffer_mut().expect("current buffer");
+            buf.delete_region(buf.point_min(), buf.point_max());
+            buf.insert("abc");
+        }
+        let id = eval.buffers.current_buffer().expect("current buffer").id;
+
+        match builtin_md5_eval(&mut eval, vec![Value::Buffer(id), Value::Int(5)]) {
+            Err(Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "args-out-of-range");
+                assert_eq!(sig.data, vec![Value::Int(5), Value::Nil]);
+            }
+            other => panic!("expected args-out-of-range signal, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn md5_eval_buffer_index_type_error() {
+        let mut eval = crate::elisp::eval::Evaluator::new();
+        let id = eval.buffers.current_buffer().expect("current buffer").id;
+
+        match builtin_md5_eval(&mut eval, vec![Value::Buffer(id), Value::True, Value::Int(3)]) {
+            Err(Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "wrong-type-argument");
+                assert_eq!(sig.data.first(), Some(&Value::symbol("integer-or-marker-p")));
+            }
+            other => panic!("expected wrong-type-argument signal, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn md5_eval_deleted_buffer_errors() {
+        let mut eval = crate::elisp::eval::Evaluator::new();
+        let id = eval.buffers.create_buffer("*md5-doomed*");
+        assert!(eval.buffers.kill_buffer(id));
+
+        match builtin_md5_eval(&mut eval, vec![Value::Buffer(id)]) {
+            Err(Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "error");
+                assert_eq!(
+                    sig.data.first().and_then(|v| v.as_str()),
+                    Some("Selecting deleted buffer")
+                );
+            }
+            other => panic!("expected error signal, got {other:?}"),
+        }
     }
 
     // ---- secure-hash ----
