@@ -515,8 +515,11 @@ pub(crate) fn builtin_other_window(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    expect_min_args("other-window", &args, 1)?;
-    let count = expect_int(&args[0])?;
+    let count = if args.is_empty() || args[0].is_nil() {
+        1
+    } else {
+        expect_int(&args[0])?
+    };
     let fid = eval
         .frames
         .selected_frame()
@@ -1191,6 +1194,17 @@ mod tests {
             "(let ((w1 (selected-window)))
                (split-window)
                (other-window 1)
+               (/= (selected-window) w1))",
+        );
+        assert_eq!(results[0], "OK t");
+    }
+
+    #[test]
+    fn other_window_defaults_count_to_one() {
+        let results = eval_with_frame(
+            "(let ((w1 (selected-window)))
+               (split-window)
+               (other-window)
                (/= (selected-window) w1))",
         );
         assert_eq!(results[0], "OK t");
