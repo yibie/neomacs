@@ -104,6 +104,7 @@ cases/find-charset-string-semantics
 cases/unibyte-string-semantics
 cases/string-make-unibyte-semantics
 cases/string-make-multibyte-semantics
+cases/string-as-multibyte-semantics
 cases/string-to-unibyte-semantics
 cases/string-as-unibyte-semantics
 cases/string-to-multibyte-semantics
