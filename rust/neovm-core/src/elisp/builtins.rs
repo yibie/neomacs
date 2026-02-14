@@ -4,6 +4,7 @@
 //! The evaluator dispatches here after evaluating the argument expressions.
 
 use super::error::{signal, EvalResult, Flow};
+use super::string_escape::{bytes_to_storage_string, encode_nonunicode_char_for_storage};
 use super::value::*;
 use std::collections::HashSet;
 use strum::EnumString;
@@ -2788,13 +2789,8 @@ pub(crate) fn builtin_make_string(args: Vec<Value>) -> EvalResult {
             match char::from_u32(*c as u32) {
                 Some(ch) => ch,
                 None => {
-                    if (0x3FFF80..=0x3FFFFF).contains(c) {
-                        // Emacs internal raw-byte chars map this range to bytes 0x80..0xFF.
-                        // Represent these with a private-use sentinel and render as octal in
-                        // `format_lisp_string` to preserve oracle-visible behavior.
-                        let raw = (*c as u32) - 0x3FFF00;
-                        let sentinel = char::from_u32(0xE000 + raw).expect("valid raw-byte sentinel");
-                        return Ok(Value::string(std::iter::repeat(sentinel).take(count).collect::<String>()));
+                    if let Some(encoded) = encode_nonunicode_char_for_storage(*c as u32) {
+                        return Ok(Value::string(encoded.repeat(count)));
                     }
                     // Emacs accepts broader internal character codes. When these
                     // cannot be represented as Unicode scalar values in Rust, emit
@@ -3100,7 +3096,7 @@ fn prin1_to_string_value(value: &Value, noescape: bool) -> String {
             other => super::print::print_value(other),
         }
     } else {
-        super::print::print_value(value)
+        bytes_to_storage_string(&super::print::print_value_bytes(value))
     }
 }
 
@@ -3111,7 +3107,11 @@ fn prin1_to_string_value_eval(eval: &super::eval::Evaluator, value: &Value, noes
             other => print_value_eval(eval, other),
         }
     } else {
-        print_value_eval(eval, value)
+        if let Some(handle) = print_threading_handle(eval, value) {
+            handle
+        } else {
+            bytes_to_storage_string(&super::print::print_value_bytes(value))
+        }
     }
 }
 
