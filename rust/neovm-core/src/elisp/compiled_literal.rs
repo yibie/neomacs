@@ -140,6 +140,24 @@ fn decode_opcode_subset(byte_stream: &str, const_len: usize) -> Option<Vec<Op>> 
         let b = bytes[pc];
         byte_to_op_index.insert(pc, pending.len());
         match b {
+            // stack-ref 1..5
+            0o001..=0o005 => {
+                let n = b as u16;
+                pending.push(Pending::Op(Op::StackRef(n)));
+                pc += 1;
+            }
+            // stack-ref (wide 8-bit offset)
+            0o006 => {
+                let n = *bytes.get(pc + 1)? as u16;
+                pending.push(Pending::Op(Op::StackRef(n)));
+                pc += 2;
+            }
+            // stack-ref (wide 16-bit offset)
+            0o007 => {
+                let n = read_u16_operand(&bytes, pc + 1)?;
+                pending.push(Pending::Op(Op::StackRef(n)));
+                pc += 3;
+            }
             // byte-constant 0..63
             0o300..=0o377 => {
                 let idx = (b - 0o300) as usize;
@@ -504,6 +522,16 @@ fn decode_opcode_subset(byte_stream: &str, const_len: usize) -> Option<Vec<Op>> 
             // return
             0o207 => {
                 pending.push(Pending::Op(Op::Return));
+                pc += 1;
+            }
+            // discard top of stack
+            0o210 => {
+                pending.push(Pending::Op(Op::Pop));
+                pc += 1;
+            }
+            // dup top of stack
+            0o211 => {
+                pending.push(Pending::Op(Op::Dup));
                 pc += 1;
             }
             _ => return None,
@@ -1307,6 +1335,39 @@ mod tests {
                 Op::Return,
             ]
         );
+    }
+
+    #[test]
+    fn decodes_stack_ref_opcode_subset() {
+        let literal = Value::vector(vec![
+            Value::Nil,
+            Value::string("\u{1}\u{6}\u{6}\u{7},\u{1}\u{87}"),
+            Value::vector(vec![]),
+            Value::Int(4),
+        ]);
+        let coerced = maybe_coerce_compiled_literal_function(literal);
+        let Value::ByteCode(bc) = coerced else {
+            panic!("expected Value::ByteCode");
+        };
+        assert_eq!(
+            bc.ops,
+            vec![Op::StackRef(1), Op::StackRef(6), Op::StackRef(300), Op::Return]
+        );
+    }
+
+    #[test]
+    fn decodes_dup_discard_opcode_subset() {
+        let literal = Value::vector(vec![
+            Value::Nil,
+            Value::string("\u{C0}\u{89}\u{88}\u{87}"),
+            Value::vector(vec![Value::Int(1)]),
+            Value::Int(2),
+        ]);
+        let coerced = maybe_coerce_compiled_literal_function(literal);
+        let Value::ByteCode(bc) = coerced else {
+            panic!("expected Value::ByteCode");
+        };
+        assert_eq!(bc.ops, vec![Op::Constant(0), Op::Dup, Op::Pop, Op::Return]);
     }
 
     #[test]
