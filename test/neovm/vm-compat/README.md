@@ -72,6 +72,20 @@ make check-all
 make check-all-neovm
 ```
 
+List default case order without running:
+
+```bash
+cd test/neovm/vm-compat
+make list-cases
+```
+
+Run one specific case:
+
+```bash
+cd test/neovm/vm-compat
+make check-one-neovm CASE=cases/symbol-function-core
+```
+
 Run the opt-in legacy `.elc` literal compatibility corpora (non-default):
 
 ```bash

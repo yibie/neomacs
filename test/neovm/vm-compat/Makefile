@@ -22,7 +22,7 @@ ERT_ALLOWLIST ?= cases/ert-allowlist-smoke.txt
 ERT_EXPECTED ?= cases/ert-allowlist-smoke.expected.tsv
 ERT_LOAD_FILES ?= cases/ert-allowlist-fixtures/smoke-tests.el
 
-.PHONY: oracle neovm record check compare check-neovm record-all check-all check-all-neovm check-all-neovm-only check-legacy-elc-neovm check-introspection-neovm check-thread-neovm check-runner-feature-stamp check-builtin-registry-fboundp validate-case-lists ert-oracle record-ert-allowlist check-ert-allowlist bench-load-cache
+.PHONY: oracle neovm record check compare check-neovm record-all check-all check-all-neovm check-all-neovm-only check-legacy-elc-neovm check-introspection-neovm check-thread-neovm check-runner-feature-stamp check-builtin-registry-fboundp list-cases check-one-neovm validate-case-lists ert-oracle record-ert-allowlist check-ert-allowlist bench-load-cache
 
 oracle:
 	./run-oracle.sh $(FORMS)
@@ -108,6 +108,18 @@ check-runner-feature-stamp:
 
 check-builtin-registry-fboundp:
 	./check-builtin-registry-fboundp.sh
+
+list-cases:
+	@for case in $(CASES); do \
+		printf '%s\n' "$$case" || exit 0; \
+	done
+
+check-one-neovm:
+	@if [ -z "$(CASE)" ]; then \
+		echo "usage: make check-one-neovm CASE=cases/<name>"; \
+		exit 2; \
+	fi
+	$(MAKE) --no-print-directory check-neovm FORMS="$(CASE).forms" EXPECTED="$(CASE).expected.tsv"
 
 validate-case-lists:
 	@set -e; \
