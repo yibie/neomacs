@@ -256,20 +256,6 @@ pub(crate) fn builtin_base64url_encode_string(args: Vec<Value>) -> EvalResult {
     Ok(Value::string(encoded))
 }
 
-/// (base64url-decode-string STRING)
-pub(crate) fn builtin_base64url_decode_string(args: Vec<Value>) -> EvalResult {
-    expect_args("base64url-decode-string", &args, 1)?;
-    let s = require_string("base64url-decode-string", &args[0])?;
-    let table = build_decode_table(B64_URL);
-    match base64_decode(&s, &table) {
-        Ok(bytes) => {
-            let decoded = String::from_utf8_lossy(&bytes).into_owned();
-            Ok(Value::string(decoded))
-        }
-        Err(()) => Ok(Value::Nil),
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Hash / digest builtins
 // ---------------------------------------------------------------------------
@@ -1201,7 +1187,7 @@ mod tests {
         let original = "Hello+World/Foo";
         let encoded =
             builtin_base64url_encode_string(vec![Value::string(original), Value::True]).unwrap();
-        let decoded = builtin_base64url_decode_string(vec![encoded]).unwrap();
+        let decoded = builtin_base64_decode_string(vec![encoded, Value::True]).unwrap();
         assert_eq!(decoded.as_str(), Some(original));
     }
 
