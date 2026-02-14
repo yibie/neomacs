@@ -1852,45 +1852,58 @@ pub(crate) fn builtin_plist_get(args: Vec<Value>) -> EvalResult {
 
 pub(crate) fn builtin_plist_put(args: Vec<Value>) -> EvalResult {
     expect_args("plist-put", &args, 3)?;
-    // Simple implementation: rebuild plist with new key/value
-    let plist = &args[0];
-    let key = &args[1];
-    let new_val = &args[2];
+    let plist = args[0].clone();
+    let key = args[1].clone();
+    let new_val = args[2].clone();
 
-    let mut items = Vec::new();
-    let mut found = false;
+    if plist.is_nil() {
+        return Ok(Value::list(vec![key, new_val]));
+    }
+
     let mut cursor = plist.clone();
+    let mut last_value_cell = None;
+
     loop {
         match cursor {
-            Value::Cons(cell) => {
-                let pair = cell.lock().expect("poisoned");
-                let k = pair.car.clone();
-                match &pair.cdr {
-                    Value::Cons(val_cell) => {
-                        let val_pair = val_cell.lock().expect("poisoned");
-                        if eq_value(&k, key) {
-                            items.push(k);
-                            items.push(new_val.clone());
-                            found = true;
-                        } else {
-                            items.push(k);
-                            items.push(val_pair.car.clone());
+            Value::Cons(key_cell) => {
+                let (entry_key, entry_rest) = {
+                    let pair = key_cell.lock().expect("poisoned");
+                    (pair.car.clone(), pair.cdr.clone())
+                };
+
+                match entry_rest {
+                    Value::Cons(value_cell) => {
+                        if eq_value(&entry_key, &key) {
+                            value_cell.lock().expect("poisoned").car = new_val.clone();
+                            return Ok(plist);
                         }
-                        cursor = val_pair.cdr.clone();
+                        cursor = value_cell.lock().expect("poisoned").cdr.clone();
+                        last_value_cell = Some(value_cell);
                     }
-                    _ => break,
+                    _ => {
+                        return Err(signal(
+                            "wrong-type-argument",
+                            vec![Value::symbol("plistp"), plist],
+                        ))
+                    }
                 }
             }
-            _ => break,
+            Value::Nil => {
+                if let Some(value_cell) = last_value_cell {
+                    value_cell.lock().expect("poisoned").cdr =
+                        Value::cons(key, Value::cons(new_val, Value::Nil));
+                    return Ok(plist);
+                }
+                return Ok(Value::list(vec![key, new_val]));
+            }
+            _ => {
+                return Err(signal(
+                    "wrong-type-argument",
+                    vec![Value::symbol("plistp"), plist],
+                ))
+            }
         }
     }
-
-    if !found {
-        items.push(key.clone());
-        items.push(new_val.clone());
-    }
-
-    Ok(Value::list(items))
 }
 
 // ===========================================================================
