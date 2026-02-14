@@ -152,6 +152,7 @@ Post-freeze updates:
   - `cases/make-string-raw-byte-semantics`
   - `cases/make-string-nonunicode-semantics`
   - `cases/string-print-unicode-semantics`
+  - `cases/string-nonunicode-char-semantics`
   - `cases/string-trim-semantics`
   - `cases/string-prefix-suffix-semantics`
   - `cases/string-join-semantics`
