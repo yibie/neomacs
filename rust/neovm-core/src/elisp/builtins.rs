@@ -2547,14 +2547,18 @@ pub(crate) fn builtin_string_suffix_p(args: Vec<Value>) -> EvalResult {
 }
 
 pub(crate) fn builtin_string_join(args: Vec<Value>) -> EvalResult {
-    expect_args("string-join", &args, 2)?;
+    expect_min_args("string-join", &args, 1)?;
+    expect_max_args("string-join", &args, 2)?;
     let strs = list_to_vec(&args[0]).ok_or_else(|| {
         signal(
             "wrong-type-argument",
             vec![Value::symbol("listp"), args[0].clone()],
         )
     })?;
-    let sep = expect_string(&args[1])?;
+    let sep = match args.get(1) {
+        None | Some(Value::Nil) => "".to_string(),
+        Some(other) => expect_string(other)?,
+    };
     let parts: Result<Vec<String>, _> = strs.iter().map(expect_string).collect();
     Ok(Value::string(parts?.join(&sep)))
 }
