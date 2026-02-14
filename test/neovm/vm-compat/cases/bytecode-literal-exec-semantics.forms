@@ -116,3 +116,7 @@
 (funcall (car (read-from-string "#[nil \"\\300\\202\\5\\0\\301\\207\" [10 20] 1]")))
 (funcall (car (read-from-string "#[nil \"\\300\\61\\6\\0\\301\\60\\207\" [0 99] 2]")))
 (funcall (car (read-from-string "#[nil \"\\300\\62\\6\\0\\301\\60\\207\" [0 77] 2]")))
+(funcall (car (read-from-string "#[nil \"\\300\\62\\11\\0\\301\\300\\302\\42\\60\\207\" [t throw 7] 3]")))
+(condition-case err
+    (funcall (car (read-from-string "#[nil \"\\300\\62\\11\\0\\301\\302\\303\\42\\60\\207\" [a throw b 7] 3]")))
+  (error err))
