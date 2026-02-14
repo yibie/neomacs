@@ -736,31 +736,45 @@ pub(crate) fn builtin_length(args: Vec<Value>) -> EvalResult {
 
 pub(crate) fn builtin_nth(args: Vec<Value>) -> EvalResult {
     expect_args("nth", &args, 2)?;
-    let n = expect_int(&args[0])? as usize;
-    let mut cursor = args[1].clone();
-    for _ in 0..n {
+    let n = expect_int(&args[0])?;
+    let tail = nthcdr_impl(n, args[1].clone())?;
+    match tail {
+        Value::Cons(cell) => Ok(cell.lock().expect("poisoned").car.clone()),
+        Value::Nil => Ok(Value::Nil),
+        other => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("listp"), other],
+        )),
+    }
+}
+
+fn nthcdr_impl(n: i64, list: Value) -> EvalResult {
+    if n <= 0 {
+        return Ok(list);
+    }
+
+    let mut cursor = list.clone();
+    for _ in 0..(n as usize) {
         match cursor {
-            Value::Cons(cell) => cursor = cell.lock().expect("poisoned").cdr.clone(),
-            _ => return Ok(Value::Nil),
+            Value::Cons(cell) => {
+                cursor = cell.lock().expect("poisoned").cdr.clone();
+            }
+            Value::Nil => return Ok(Value::Nil),
+            _ => {
+                return Err(signal(
+                    "wrong-type-argument",
+                    vec![Value::symbol("listp"), list],
+                ))
+            }
         }
     }
-    match cursor {
-        Value::Cons(cell) => Ok(cell.lock().expect("poisoned").car.clone()),
-        _ => Ok(Value::Nil),
-    }
+    Ok(cursor)
 }
 
 pub(crate) fn builtin_nthcdr(args: Vec<Value>) -> EvalResult {
     expect_args("nthcdr", &args, 2)?;
-    let n = expect_int(&args[0])? as usize;
-    let mut cursor = args[1].clone();
-    for _ in 0..n {
-        match cursor {
-            Value::Cons(cell) => cursor = cell.lock().expect("poisoned").cdr.clone(),
-            _ => return Ok(Value::Nil),
-        }
-    }
-    Ok(cursor)
+    let n = expect_int(&args[0])?;
+    nthcdr_impl(n, args[1].clone())
 }
 
 pub(crate) fn builtin_append(args: Vec<Value>) -> EvalResult {
