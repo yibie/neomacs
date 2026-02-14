@@ -54,3 +54,7 @@
       (command-execute 'end-of-line)
       (point))
   (error err))
+
+(condition-case err
+    (command-execute 'other-window)
+  (error err))
