@@ -14,6 +14,7 @@ results against that baseline once evaluator execution is wired in.
 - `run-neovm.sh`: runs NeoVM worker-runtime compatibility runner and prints TSV output
 - `compare-results.sh`: diffs oracle TSV vs NeoVM TSV
 - `bench-load-cache.sh`: runs cold/warm `.neoc` load benchmark via `load_cache_bench`
+- `cases/default.list`: default `check-all-neovm` corpus order (one case per line)
 - `cases/core.forms`: starter corpus for expression and error behavior
 - `cases/input-batch-readers.forms`: batch-mode input reader compatibility corpus
 
@@ -193,6 +194,8 @@ Post-freeze updates:
   - `cases/plist-semantics`
 - Added hash-table option parsing/accessor compatibility case:
   - `cases/hash-make-table-options-semantics`
+- Added hash-table rehash/copy compatibility case:
+  - `cases/hash-rehash-copy-semantics`
 - Added higher-order map primitive compatibility case:
   - `cases/map-family-semantics`
 - Added `ignore` callable compatibility case:
