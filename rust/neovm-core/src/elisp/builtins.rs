@@ -1961,7 +1961,7 @@ pub(crate) fn builtin_fset(eval: &mut super::eval::Evaluator, args: Vec<Value>) 
     Ok(def)
 }
 
-fn would_create_function_alias_cycle(
+pub(crate) fn would_create_function_alias_cycle(
     eval: &super::eval::Evaluator,
     target_name: &str,
     def: &Value,

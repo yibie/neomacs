@@ -1086,6 +1086,12 @@ impl Evaluator {
                 ))
             }
         };
+        if builtins::would_create_function_alias_cycle(self, &name, &def) {
+            return Err(signal(
+                "cyclic-function-indirection",
+                vec![Value::symbol(name.clone())],
+            ));
+        }
         self.obarray.set_symbol_function(&name, def);
         Ok(sym)
     }
@@ -2060,6 +2066,28 @@ mod tests {
              (my-plus 3 4)",
         );
         assert_eq!(results[2], "OK 7");
+    }
+
+    #[test]
+    fn defalias_rejects_self_alias_cycle() {
+        let result = eval_one(
+            "(condition-case err
+                 (defalias 'vm-da-self 'vm-da-self)
+               (error err))",
+        );
+        assert_eq!(result, "OK (cyclic-function-indirection vm-da-self)");
+    }
+
+    #[test]
+    fn defalias_rejects_two_node_alias_cycle() {
+        let results = eval_all(
+            "(defalias 'vm-da-a 'vm-da-b)
+             (condition-case err
+                 (defalias 'vm-da-b 'vm-da-a)
+               (error err))",
+        );
+        assert_eq!(results[0], "OK vm-da-a");
+        assert_eq!(results[1], "OK (cyclic-function-indirection vm-da-b)");
     }
 
     #[test]
