@@ -1,1 +1,2 @@
 (get-load-suffixes)
+(condition-case err (get-load-suffixes nil) (error (car err)))
