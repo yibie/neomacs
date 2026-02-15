@@ -23,7 +23,6 @@
 //! - `buffer-enable-undo` -- enable undo recording (stub)
 //! - `buffer-disable-undo` -- disable undo recording (stub)
 //! - `buffer-size` -- return content length
-//! - `get-file-buffer` -- find buffer visiting file (stub)
 //! - `make-indirect-buffer` -- create indirect buffer (stub)
 //! - `buffer-base-buffer` -- return base buffer of indirect (stub)
 //! - `overlay-lists` -- return overlay lists (stub)

@@ -1,15 +1,5 @@
-use super::args::{expect_args, expect_max_args, expect_min_args, expect_string};
+use super::args::{expect_args, expect_max_args, expect_min_args};
 use super::{EvalResult, Value};
-
-/// (get-file-buffer FILENAME) -> nil
-///
-/// Find the buffer visiting file FILENAME.
-/// Stub: always returns nil (no file-visiting tracking yet).
-pub(crate) fn builtin_get_file_buffer(args: Vec<Value>) -> EvalResult {
-    expect_args("get-file-buffer", &args, 1)?;
-    let _filename = expect_string(&args[0])?;
-    Ok(Value::Nil)
-}
 
 /// (make-indirect-buffer BASE-BUFFER NAME &optional CLONE) -> nil
 ///

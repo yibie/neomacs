@@ -12,27 +12,6 @@ fn new_eval() -> super::super::eval::Evaluator {
 // Pure builtins
 // =======================================================================
 
-// ----- get-file-buffer -----
-
-#[test]
-fn get_file_buffer_returns_nil() {
-    let result = builtin_get_file_buffer(vec![Value::string("/tmp/foo.el")]);
-    assert!(result.is_ok());
-    assert!(result.unwrap().is_nil());
-}
-
-#[test]
-fn get_file_buffer_wrong_arg_count() {
-    let result = builtin_get_file_buffer(vec![]);
-    assert!(result.is_err());
-}
-
-#[test]
-fn get_file_buffer_wrong_type() {
-    let result = builtin_get_file_buffer(vec![Value::Int(42)]);
-    assert!(result.is_err());
-}
-
 // ----- make-indirect-buffer -----
 
 #[test]
