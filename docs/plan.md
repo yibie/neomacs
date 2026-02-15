@@ -18,6 +18,26 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Implemented `scan-sexps` baseline and added oracle-locked corpus:
+  - updated:
+    - `rust/neovm-core/src/elisp/syntax.rs`
+      - added evaluator-backed `scan-sexps` over existing sexp scanner with baseline arity/type behavior.
+      - added unit test for forward scan and backward-nil edge.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - wired `scan-sexps` in eval dispatch.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - registered `scan-sexps` for `fboundp`/introspection parity.
+    - `test/neovm/vm-compat/cases/scan-sexps-semantics.forms`
+      - added baseline behavior and validation/error-shape checks.
+    - `test/neovm/vm-compat/cases/scan-sexps-semantics.expected.tsv`
+      - recorded with `NEOVM_ORACLE_EMACS=/nix/store/2lzapcylxkad2r63h144mp9nnin4vb5n-user-environment/bin/emacs`.
+    - `test/neovm/vm-compat/cases/default.list`
+      - included `cases/scan-sexps-semantics` in default corpus runs.
+  - verified:
+    - `cargo test 'elisp::syntax::tests::scan_sexps_basic_and_backward_nil' -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/scan-sexps-semantics` (pass, 6/6)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Implemented `syntax-after` and added oracle-locked descriptor corpus:
   - updated:
     - `rust/neovm-core/src/elisp/syntax.rs`
