@@ -2567,6 +2567,15 @@ Last updated: 2026-02-15
     - `make -C test/neovm/vm-compat check-neovm FORMS=cases/cxr-4level-second-batch-semantics.forms EXPECTED=cases/cxr-4level-second-batch-semantics.expected.tsv` (pass, 11/11)
     - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/cxr-4level-first-batch-semantics` (pass, 10/10)
     - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+- Added explicit availability lock for the full 4-level `cxr` surface:
+  - new corpus asserts all 16 standard 4-level `cxr` names are `fboundp` by default
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/cxr-4level-fboundp-availability.forms`
+    - `test/neovm/vm-compat/cases/cxr-4level-fboundp-availability.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/cxr-4level-fboundp-availability.forms EXPECTED=cases/cxr-4level-fboundp-availability.expected.tsv` (pass, 2/2)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 
 ## Doing
 
