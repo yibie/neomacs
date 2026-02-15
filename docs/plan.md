@@ -16,6 +16,17 @@ Last updated: 2026-02-15
     - `make -C test/neovm/vm-compat check-neovm FORMS=cases/display-stub-semantics.forms EXPECTED=cases/display-stub-semantics.expected.tsv` (pass)
     - `make -C test/neovm/vm-compat validate-case-lists` (pass)
     - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+- Expanded display/terminal stub semantics to match more oracle behavior:
+  - `redraw-frame` now enforces frame designator type checks (`frame-live-p` predicate payload)
+  - `open-termscript` now signals the batch tty error payload used by GNU Emacs
+  - `send-string-to-terminal` now validates optional terminal designators (`terminal-live-p` predicate payload)
+  - `internal-show-cursor` / `internal-show-cursor-p` now enforce window designator shape and maintain shared visibility state
+  - expanded oracle corpus (`cases/display-stub-semantics`) with error payload and designator checks
+  - verified:
+    - `cargo test display::tests -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/display-stub-semantics.forms EXPECTED=cases/display-stub-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
 - Added timer compatibility slice (`run-at-time` / `run-with-idle-timer` / `timer-activate`):
   - `run-at-time` now accepts GNU-compatible immediate specs for `nil` and numeric-prefixed strings like `"0 sec"` (while invalid specs signal `error`)
   - `run-with-timer` compatibility is now lock-in covered for numeric, `nil`, and `"0 sec"` immediate forms
