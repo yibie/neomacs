@@ -2301,29 +2301,6 @@ pub(crate) fn builtin_directory_files_eval(eval: &Evaluator, args: Vec<Value>) -
     Ok(Value::list(files.into_iter().map(Value::string).collect()))
 }
 
-/// (file-attributes FILENAME) -> list or nil
-pub(crate) fn builtin_file_attributes(args: Vec<Value>) -> EvalResult {
-    expect_args("file-attributes", &args, 1)?;
-    let filename = expect_string(&args[0])?;
-    match file_attributes(&filename) {
-        Some(attrs) => {
-            // Return a list: (size is-dir is-symlink modified modes)
-            let modified_val = match attrs.modified {
-                Some(t) => Value::Float(t),
-                None => Value::Nil,
-            };
-            Ok(Value::list(vec![
-                Value::Int(attrs.size as i64),
-                Value::bool(attrs.is_dir),
-                Value::bool(attrs.is_symlink),
-                modified_val,
-                Value::Int(attrs.modes as i64),
-            ]))
-        }
-        None => Ok(Value::Nil),
-    }
-}
-
 // ===========================================================================
 // Evaluator-dependent builtins
 // ===========================================================================
