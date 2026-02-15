@@ -4,6 +4,13 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Implemented pure `looking-at` regexp validation subset:
+  - updated `rust/neovm-core/src/elisp/search.rs`:
+    - pure dispatch now compiles translated regexp and signals `invalid-regexp` for malformed patterns
+    - preserves pure-path fallback return `nil` for valid regex (no buffer context available)
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml looking_at_ -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
 - Implemented `zlib-decompress-region` compatibility slice (stub -> oracle-aligned error/type subset):
   - updated `rust/neovm-core/src/elisp/xml.rs`:
     - arity aligned to `2..3`
