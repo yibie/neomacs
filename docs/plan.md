@@ -2557,6 +2557,16 @@ Last updated: 2026-02-15
     - `make -C test/neovm/vm-compat check-neovm FORMS=cases/cxr-4level-first-batch-semantics.forms EXPECTED=cases/cxr-4level-first-batch-semantics.expected.tsv` (pass, 10/10)
     - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/cxr-4level-common-semantics` (pass, 7/7)
     - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+- Completed remaining 4-level `cxr` accessor coverage:
+  - implemented pure builtins: `cdaaar`, `cdaadr`, `cdadar`, `cdaddr`, `cddaar`, `cddadr`, `cdddar`
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/cxr-4level-second-batch-semantics.forms`
+    - `test/neovm/vm-compat/cases/cxr-4level-second-batch-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/cxr-4level-second-batch-semantics.forms EXPECTED=cases/cxr-4level-second-batch-semantics.expected.tsv` (pass, 11/11)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/cxr-4level-first-batch-semantics` (pass, 10/10)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 
 ## Doing
 
