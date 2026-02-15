@@ -528,106 +528,6 @@ fn compute_common_prefix(strings: &[String]) -> Option<String> {
 // Builtin functions for Elisp
 // ---------------------------------------------------------------------------
 
-/// `(read-from-minibuffer PROMPT &optional INITIAL KEYMAP READ HISTORY DEFAULT INHERIT)`
-///
-/// Stub: returns INITIAL (or DEFAULT or "").
-pub(crate) fn builtin_read_from_minibuffer(args: Vec<Value>) -> EvalResult {
-    expect_min_args("read-from-minibuffer", &args, 1)?;
-    let _prompt = expect_string(&args[0])?;
-
-    // INITIAL (arg 1)
-    if let Some(initial) = args.get(1) {
-        if !initial.is_nil() {
-            let s = expect_string(initial)?;
-            return Ok(Value::string(s));
-        }
-    }
-
-    // DEFAULT (arg 5)
-    if let Some(default) = args.get(5) {
-        if !default.is_nil() {
-            let s = expect_string(default)?;
-            return Ok(Value::string(s));
-        }
-    }
-
-    Ok(Value::string(""))
-}
-
-/// `(read-string PROMPT &optional INITIAL HISTORY DEFAULT INHERIT)`
-///
-/// Stub: returns INITIAL or DEFAULT or "".
-pub(crate) fn builtin_read_string(args: Vec<Value>) -> EvalResult {
-    expect_min_args("read-string", &args, 1)?;
-    let _prompt = expect_string(&args[0])?;
-
-    // INITIAL (arg 1)
-    if let Some(initial) = args.get(1) {
-        if !initial.is_nil() {
-            let s = expect_string(initial)?;
-            return Ok(Value::string(s));
-        }
-    }
-
-    // DEFAULT (arg 3)
-    if let Some(default) = args.get(3) {
-        if !default.is_nil() {
-            let s = expect_string(default)?;
-            return Ok(Value::string(s));
-        }
-    }
-
-    Ok(Value::string(""))
-}
-
-/// `(read-number PROMPT &optional DEFAULT)`
-///
-/// Stub: returns DEFAULT or 0.
-pub(crate) fn builtin_read_number(args: Vec<Value>) -> EvalResult {
-    expect_min_args("read-number", &args, 1)?;
-    let _prompt = expect_string(&args[0])?;
-
-    if let Some(default) = args.get(1) {
-        if !default.is_nil() {
-            match default {
-                Value::Int(n) => return Ok(Value::Int(*n)),
-                Value::Float(f) => return Ok(Value::Float(*f)),
-                _ => {}
-            }
-        }
-    }
-
-    Ok(Value::Int(0))
-}
-
-/// `(completing-read PROMPT COLLECTION &optional PREDICATE REQUIRE-MATCH INITIAL HIST DEF INHERIT)`
-///
-/// Stub: returns INITIAL or DEF or "".
-pub(crate) fn builtin_completing_read(args: Vec<Value>) -> EvalResult {
-    expect_min_args("completing-read", &args, 2)?;
-    let _prompt = expect_string(&args[0])?;
-    // COLLECTION (arg 1) is ignored in stub
-
-    // INITIAL (arg 4)
-    if let Some(initial) = args.get(4) {
-        if !initial.is_nil() {
-            let s = expect_string(initial)?;
-            return Ok(Value::string(s));
-        }
-    }
-
-    // DEF (arg 6)
-    if let Some(def) = args.get(6) {
-        if !def.is_nil() {
-            if let Ok(s) = expect_string(def) {
-                return Ok(Value::string(s));
-            }
-        }
-    }
-
-    Ok(Value::string(""))
-}
-
 /// `(read-file-name PROMPT &optional DIR DEFAULT MUSTMATCH INITIAL PREDICATE)`
 ///
 /// Stub: returns INITIAL or DEFAULT or "".
@@ -1350,46 +1250,6 @@ mod tests {
         assert_eq!(result.len(), 2);
     }
 
-    // -- Builtin stubs --------------------------------------------------------
-
-    #[test]
-    fn builtin_read_from_minibuffer_returns_initial() {
-        let result =
-            builtin_read_from_minibuffer(vec![Value::string("prompt: "), Value::string("init")])
-                .unwrap();
-        assert!(matches!(result, Value::Str(ref s) if &**s == "init"));
-    }
-
-    #[test]
-    fn builtin_read_from_minibuffer_returns_empty() {
-        let result = builtin_read_from_minibuffer(vec![Value::string("prompt: ")]).unwrap();
-        assert!(matches!(result, Value::Str(ref s) if s.is_empty()));
-    }
-
-    #[test]
-    fn builtin_read_string_with_default() {
-        let result = builtin_read_string(vec![
-            Value::string("Name: "),
-            Value::Nil,
-            Value::Nil,
-            Value::string("default-val"),
-        ])
-        .unwrap();
-        assert!(matches!(result, Value::Str(ref s) if &**s == "default-val"));
-    }
-
-    #[test]
-    fn builtin_read_number_default() {
-        let result = builtin_read_number(vec![Value::string("N: "), Value::Int(42)]).unwrap();
-        assert!(matches!(result, Value::Int(42)));
-    }
-
-    #[test]
-    fn builtin_read_number_no_default() {
-        let result = builtin_read_number(vec![Value::string("N: ")]).unwrap();
-        assert!(matches!(result, Value::Int(0)));
-    }
-
     #[test]
     fn builtin_try_completion_unique_exact() {
         // Exact unique match should return t.
@@ -1618,22 +1478,6 @@ mod tests {
             result,
             Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"
         ));
-    }
-
-    #[test]
-    fn builtin_completing_read_returns_default() {
-        let coll = Value::list(vec![Value::string("a"), Value::string("b")]);
-        let result = builtin_completing_read(vec![
-            Value::string("Choose: "),
-            coll,
-            Value::Nil,
-            Value::Nil,
-            Value::Nil,
-            Value::Nil,
-            Value::string("default-choice"),
-        ])
-        .unwrap();
-        assert!(matches!(result, Value::Str(ref s) if &**s == "default-choice"));
     }
 
     #[test]
