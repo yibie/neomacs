@@ -4,6 +4,21 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Aligned `replace-regexp-in-string` with oracle case/start semantics and locked with corpus:
+  - updated `rust/neovm-core/src/elisp/search.rs`:
+    - honors `case-fold-search` default behavior for matching in pure path (case-insensitive)
+    - applies `FIXEDCASE` + match-case-preserving replacement behavior
+    - supports Emacs replacement escapes (`\\&`, `\\1`..`\\9`)
+    - aligns `START` behavior to replace from substring starting at `START` (without preserving prefix)
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/replace-regexp-in-string-semantics.forms`
+    - `test/neovm/vm-compat/cases/replace-regexp-in-string-semantics.expected.tsv`
+    - wired into `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml search::tests::replace_regexp_ -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/replace-regexp-in-string-semantics.forms EXPECTED=cases/replace-regexp-in-string-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Implemented and locked search-stack evaluator subsets with oracle corpus:
   - `replace-regexp`:
     - added evaluator-backed replacement path in `rust/neovm-core/src/elisp/isearch.rs`
