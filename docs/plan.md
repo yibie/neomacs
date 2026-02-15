@@ -19,6 +19,20 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Aligned xdisp tool/tab bar optional frame argument semantics with oracle:
+  - updated:
+    - `rust/neovm-core/src/elisp/xdisp.rs`
+      - added evaluator-backed `tool-bar-height` / `tab-bar-height` handlers that accept nil or live frame designators and signal `wrong-type-argument (framep ...)` for invalid frame arguments.
+      - expanded xdisp unit tests for evaluator frame validation behavior.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - routed `tool-bar-height` and `tab-bar-height` through evaluator dispatch.
+    - `test/neovm/vm-compat/cases/xdisp-stub-edges-semantics.{forms,expected.tsv}`
+      - added coverage for `(tool-bar-height (selected-frame))` / `(tab-bar-height (selected-frame))`.
+      - added invalid frame argument checks and refreshed oracle baseline.
+  - verified:
+    - `cargo test xdisp::tests --manifest-path rust/neovm-core/Cargo.toml -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/xdisp-stub-edges-semantics` (pass, 43/43)
+
 - Tightened xdisp bidi buffer-argument validation and expanded oracle lock-in:
   - updated:
     - `rust/neovm-core/src/elisp/xdisp.rs`
