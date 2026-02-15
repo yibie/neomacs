@@ -627,6 +627,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "remq",
     "rename-file",
     "replace-match",
+    "replace-regexp",
     "replace-string",
     "replace-rectangle",
     "replace-regexp-in-string",

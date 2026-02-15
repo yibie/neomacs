@@ -1267,6 +1267,81 @@ pub(crate) fn builtin_replace_string_eval(
     Ok(Value::Nil)
 }
 
+/// `(replace-regexp REGEXP TO-STRING &optional DELIMITED START END BACKWARD REGION-NONCONTIGUOUS-P)` —
+/// evaluator-backed non-interactive regexp replacement subset.
+pub(crate) fn builtin_replace_regexp_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_min_max_args("replace-regexp", &args, 2, 7)?;
+    let from = expect_sequence_string(&args[0])?;
+    let to = expect_string(&args[1])?;
+
+    let (start, end, source, read_only, buffer_name) = {
+        let buf = eval
+            .buffers
+            .current_buffer()
+            .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
+        let (start, end) = replacement_region_bounds(buf, args.get(3), args.get(4))?;
+        (
+            start,
+            end,
+            buf.buffer_substring(start, end),
+            buf.read_only,
+            buf.name.clone(),
+        )
+    };
+
+    let case_fold = resolve_case_fold(None, &from);
+    let pattern = build_regex_pattern(&from, case_fold);
+    let re = Regex::new(&pattern)
+        .map_err(|e| signal("invalid-regexp", vec![Value::string(format!("Invalid regexp: {e}"))]))?;
+
+    let mut out = String::with_capacity(source.len());
+    let mut last = 0usize;
+    let mut replaced = 0usize;
+    for m in re.find_iter(&source) {
+        if m.start() == m.end() {
+            // Emacs inserts on empty regexp matches before each character, not at end.
+            if m.start() >= source.len() {
+                continue;
+            }
+            out.push_str(&source[last..m.start()]);
+            out.push_str(&to);
+            last = m.start();
+            replaced += 1;
+            continue;
+        }
+
+        out.push_str(&source[last..m.start()]);
+        out.push_str(&preserve_case(&to, m.as_str()));
+        last = m.end();
+        replaced += 1;
+    }
+    out.push_str(&source[last..]);
+
+    if replaced == 0 {
+        return Ok(Value::Nil);
+    }
+    if read_only {
+        return Err(signal(
+            "buffer-read-only",
+            vec![Value::string(buffer_name)],
+        ));
+    }
+
+    let buf = eval
+        .buffers
+        .current_buffer_mut()
+        .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
+    buf.delete_region(start, end);
+    buf.goto_char(start);
+    buf.insert(&out);
+    buf.goto_char(start + out.len());
+
+    Ok(Value::Nil)
+}
+
 /// `(isearch-forward)` — stub: initiates forward incremental search.
 pub(crate) fn builtin_isearch_forward(args: Vec<Value>) -> EvalResult {
     // Interactive search requires a running event loop; return nil as a stub.
