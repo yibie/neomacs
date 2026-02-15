@@ -6483,6 +6483,19 @@ pub(crate) fn dispatch_builtin(
                 eval, args,
             ))
         }
+        "x-display-pixel-width" => {
+            return Some(super::display::builtin_x_display_pixel_width_eval(
+                eval, args,
+            ))
+        }
+        "x-display-pixel-height" => {
+            return Some(super::display::builtin_x_display_pixel_height_eval(
+                eval, args,
+            ))
+        }
+        "x-display-color-p" => {
+            return Some(super::display::builtin_x_display_color_p_eval(eval, args))
+        }
 
         // Interactive / command system (evaluator-dependent)
         "call-interactively" => {

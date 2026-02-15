@@ -31,7 +31,10 @@
     (x-display-pixel-width nil)
   (error (car err)))
 (condition-case err
-    (x-display-pixel-width 1)
+    (x-display-pixel-width (selected-frame))
+  (error (car err)))
+(condition-case err
+    (x-display-pixel-width 999999)
   (error (car err)))
 (condition-case err
     (x-display-pixel-width "")
@@ -48,7 +51,10 @@
     (x-display-pixel-height nil)
   (error (car err)))
 (condition-case err
-    (x-display-pixel-height 1)
+    (x-display-pixel-height (selected-frame))
+  (error (car err)))
+(condition-case err
+    (x-display-pixel-height 999999)
   (error (car err)))
 (condition-case err
     (x-display-pixel-height "")
@@ -65,7 +71,10 @@
     (x-display-color-p nil)
   (error (car err)))
 (condition-case err
-    (x-display-color-p 1)
+    (x-display-color-p (selected-frame))
+  (error (car err)))
+(condition-case err
+    (x-display-color-p 999999)
   (error (car err)))
 (condition-case err
     (x-display-color-p "")

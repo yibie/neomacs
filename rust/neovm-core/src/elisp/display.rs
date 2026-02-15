@@ -520,6 +520,26 @@ pub(crate) fn builtin_x_display_pixel_width(args: Vec<Value>) -> EvalResult {
     }
 }
 
+/// Evaluator-aware variant of `x-display-pixel-width`.
+///
+/// Accepts live frame designators and maps them to the same batch/no-X error
+/// class as nil/current-display queries.
+pub(crate) fn builtin_x_display_pixel_width_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_max_args("x-display-pixel-width", &args, 1)?;
+    if let Some(display) = args.first() {
+        if live_frame_designator_p(eval, display) {
+            return Err(signal(
+                "error",
+                vec![Value::string("X windows are not in use or not initialized")],
+            ));
+        }
+    }
+    builtin_x_display_pixel_width(args)
+}
+
 /// (x-display-pixel-height &optional TERMINAL)
 ///
 /// Batch/no-X semantics: signal X-not-in-use, invalid frame designator, or
@@ -542,6 +562,26 @@ pub(crate) fn builtin_x_display_pixel_height(args: Vec<Value>) -> EvalResult {
     }
 }
 
+/// Evaluator-aware variant of `x-display-pixel-height`.
+///
+/// Accepts live frame designators and maps them to the same batch/no-X error
+/// class as nil/current-display queries.
+pub(crate) fn builtin_x_display_pixel_height_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_max_args("x-display-pixel-height", &args, 1)?;
+    if let Some(display) = args.first() {
+        if live_frame_designator_p(eval, display) {
+            return Err(signal(
+                "error",
+                vec![Value::string("X windows are not in use or not initialized")],
+            ));
+        }
+    }
+    builtin_x_display_pixel_height(args)
+}
+
 /// (x-display-color-p &optional TERMINAL)
 ///
 /// Batch/no-X semantics: nil for current display, otherwise argument-shape
@@ -559,6 +599,22 @@ pub(crate) fn builtin_x_display_color_p(args: Vec<Value>) -> EvalResult {
             vec![Value::string("Invalid argument 1 in 'get-device-terminal'")],
         )),
     }
+}
+
+/// Evaluator-aware variant of `x-display-color-p`.
+///
+/// Live frame designators are treated as current display queries in batch mode.
+pub(crate) fn builtin_x_display_color_p_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_max_args("x-display-color-p", &args, 1)?;
+    if let Some(display) = args.first() {
+        if live_frame_designator_p(eval, display) {
+            return Ok(Value::Nil);
+        }
+    }
+    builtin_x_display_color_p(args)
 }
 
 // ---------------------------------------------------------------------------
@@ -1034,6 +1090,20 @@ mod tests {
         assert!(nil.is_nil());
         assert!(int_err.is_err());
         assert!(str_err.is_err());
+    }
+
+    #[test]
+    fn eval_x_display_queries_accept_live_frame_designator() {
+        let mut eval = crate::elisp::Evaluator::new();
+        let frame_id = crate::elisp::window_cmds::ensure_selected_frame_id(&mut eval).0 as i64;
+
+        let width = builtin_x_display_pixel_width_eval(&mut eval, vec![Value::Int(frame_id)]);
+        let height = builtin_x_display_pixel_height_eval(&mut eval, vec![Value::Int(frame_id)]);
+        let color = builtin_x_display_color_p_eval(&mut eval, vec![Value::Int(frame_id)]).unwrap();
+
+        assert!(width.is_err());
+        assert!(height.is_err());
+        assert!(color.is_nil());
     }
 
     #[test]
