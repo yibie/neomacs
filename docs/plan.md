@@ -18,6 +18,16 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Removed dead unregistered `cl-*` wrapper surface from `cl_lib`:
+  - updated:
+    - `rust/neovm-core/src/elisp/cl_lib.rs`
+      - deleted unreferenced wrappers: `cl-member`, `cl-first`, `cl-second`, `cl-third`, `cl-fourth`, `cl-rest`, `cl-subseq`, `cl-concatenate`, `cl-coerce`, `cl-every`, `cl-some`, `cl-reduce`.
+      - removed stale unit tests tied only to those wrappers.
+  - verified:
+    - `cargo test 'elisp::cl_lib::tests::' -- --nocapture` (pass, 11 tests)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/cl-helper-availability` (pass, 86/86)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/seq-more` (pass, 16/16)
+
 - Removed dead debug helper wrapper surface:
   - updated:
     - `rust/neovm-core/src/elisp/debug.rs`
