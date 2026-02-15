@@ -2,9 +2,7 @@
 //!
 //! Implements the Emacs JSON interface:
 //! - `json-serialize` — convert Lisp value to JSON string
-//! - `json-insert` — serialize and insert into current buffer (stub)
 //! - `json-parse-string` — parse JSON string to Lisp value
-//! - `json-parse-buffer` — parse JSON from current buffer (stub)
 //!
 //! Key mapping (Emacs convention):
 //! - Lisp nil / :null → JSON null
@@ -1036,23 +1034,6 @@ pub(crate) fn builtin_json_serialize(args: Vec<Value>) -> EvalResult {
     Ok(Value::string(json))
 }
 
-/// `(json-insert VALUE &rest ARGS)` — serialize and insert JSON into current buffer.
-///
-/// Stub: signals an error since we have no buffer context in a pure function.
-pub(crate) fn builtin_json_insert(args: Vec<Value>) -> EvalResult {
-    expect_min_args("json-insert", &args, 1)?;
-    // Validate that the value can be serialized (same keyword args apply).
-    let opts = parse_serialize_kwargs(&args, 1)?;
-    let _json = serialize_to_json(&args[0], &opts, 0)?;
-    // Stub: cannot insert into buffer from a pure builtin.
-    Err(signal(
-        "json-error",
-        vec![Value::string(
-            "json-insert is not yet implemented (no buffer context)",
-        )],
-    ))
-}
-
 /// `(json-parse-string STRING &rest ARGS)` — parse a JSON string into a Lisp value.
 ///
 /// ARGS are keyword arguments:
@@ -1096,19 +1077,6 @@ pub(crate) fn builtin_json_parse_string(args: Vec<Value>) -> EvalResult {
     }
 
     Ok(result)
-}
-
-/// `(json-parse-buffer &rest ARGS)` — parse JSON from current buffer at point.
-///
-/// Stub: signals an error since we have no buffer context in a pure function.
-pub(crate) fn builtin_json_parse_buffer(args: Vec<Value>) -> EvalResult {
-    let _opts = parse_parse_kwargs(&args, 0)?;
-    Err(signal(
-        "json-error",
-        vec![Value::string(
-            "json-parse-buffer is not yet implemented (no buffer context)",
-        )],
-    ))
 }
 
 // ===========================================================================
@@ -1584,22 +1552,6 @@ mod tests {
             }
             _ => panic!("expected hash-table"),
         }
-    }
-
-    // -----------------------------------------------------------------------
-    // Stub builtin tests
-    // -----------------------------------------------------------------------
-
-    #[test]
-    fn json_insert_stub_errors() {
-        let result = builtin_json_insert(vec![Value::Int(1)]);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn json_parse_buffer_stub_errors() {
-        let result = builtin_json_parse_buffer(vec![]);
-        assert!(result.is_err());
     }
 
     // -----------------------------------------------------------------------
