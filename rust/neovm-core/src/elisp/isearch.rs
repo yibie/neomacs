@@ -1639,20 +1639,13 @@ pub(crate) fn builtin_keep_lines_eval(
     expect_min_max_args("keep-lines", &args, 1, 4)?;
     let regexp = expect_sequence_string(&args[0])?;
 
-    let (point_min, start, end, source, read_only, buffer_name) = {
+    let (point_min, start, end, source) = {
         let buf = eval
             .buffers
             .current_buffer()
             .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
         let (start, end) = line_operation_region_bounds(buf, args.get(1), args.get(2))?;
-        (
-            buf.point_min(),
-            start,
-            end,
-            buf.buffer_substring(buf.point_min(), buf.point_max()),
-            buf.read_only,
-            buf.name.clone(),
-        )
+        (buf.point_min(), start, end, buf.buffer_substring(buf.point_min(), buf.point_max()))
     };
 
     let case_fold = resolve_case_fold(None, &regexp);
@@ -1691,23 +1684,16 @@ pub(crate) fn builtin_keep_lines_eval(
         rel_cursor = rel_line_end;
     }
 
-    if delete_ranges.is_empty() {
-        return Ok(Value::Nil);
-    }
-    if read_only {
-        return Err(signal(
-            "buffer-read-only",
-            vec![Value::string(buffer_name)],
-        ));
-    }
-
     let buf = eval
         .buffers
         .current_buffer_mut()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
-    for (del_start, del_end) in delete_ranges.into_iter().rev() {
-        buf.delete_region(del_start, del_end);
+    if !delete_ranges.is_empty() {
+        for (del_start, del_end) in delete_ranges.into_iter().rev() {
+            buf.delete_region(del_start, del_end);
+        }
     }
+    buf.goto_char(start);
 
     Ok(Value::Nil)
 }
@@ -1721,20 +1707,13 @@ pub(crate) fn builtin_flush_lines_eval(
     expect_min_max_args("flush-lines", &args, 1, 4)?;
     let regexp = expect_sequence_string(&args[0])?;
 
-    let (point_min, start, end, source, read_only, buffer_name) = {
+    let (point_min, start, end, source) = {
         let buf = eval
             .buffers
             .current_buffer()
             .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
         let (start, end) = line_operation_region_bounds(buf, args.get(1), args.get(2))?;
-        (
-            buf.point_min(),
-            start,
-            end,
-            buf.buffer_substring(buf.point_min(), buf.point_max()),
-            buf.read_only,
-            buf.name.clone(),
-        )
+        (buf.point_min(), start, end, buf.buffer_substring(buf.point_min(), buf.point_max()))
     };
 
     let case_fold = resolve_case_fold(None, &regexp);
@@ -1775,25 +1754,19 @@ pub(crate) fn builtin_flush_lines_eval(
         rel_cursor = rel_line_end;
     }
 
-    if delete_ranges.is_empty() {
-        return Ok(Value::Nil);
-    }
-    if read_only {
-        return Err(signal(
-            "buffer-read-only",
-            vec![Value::string(buffer_name)],
-        ));
-    }
-
     let buf = eval
         .buffers
         .current_buffer_mut()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
-    for (del_start, del_end) in delete_ranges.into_iter().rev() {
-        buf.delete_region(del_start, del_end);
+    if !delete_ranges.is_empty() {
+        for (del_start, del_end) in delete_ranges.into_iter().rev() {
+            buf.delete_region(del_start, del_end);
+        }
     }
+    buf.goto_char(start);
 
-    Ok(Value::Nil)
+    // Emacs returns integer 0 from flush-lines regardless of match count.
+    Ok(Value::Int(0))
 }
 
 /// `(how-many REGEXP &optional RSTART REND INTERACTIVE)` —
