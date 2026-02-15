@@ -6110,16 +6110,20 @@ pub(crate) fn dispatch_builtin(
 
         // Search (evaluator-dependent)
         "posix-search-forward" => {
-            return Some(super::search::builtin_posix_search_forward(eval, args))
+            // Reuse regex search engine for now; this replaces nil-stub behavior.
+            return Some(builtin_re_search_forward(eval, args))
         }
         "posix-search-backward" => {
-            return Some(super::search::builtin_posix_search_backward(eval, args))
+            // Reuse regex search engine for now; this replaces nil-stub behavior.
+            return Some(builtin_re_search_backward(eval, args))
         }
         "word-search-forward" => {
-            return Some(super::search::builtin_word_search_forward(eval, args))
+            // Literal fallback keeps search state/point semantics instead of stub nil.
+            return Some(builtin_search_forward(eval, args))
         }
         "word-search-backward" => {
-            return Some(super::search::builtin_word_search_backward(eval, args))
+            // Literal fallback keeps search state/point semantics instead of stub nil.
+            return Some(builtin_search_backward(eval, args))
         }
 
         // Lread (evaluator-dependent)
