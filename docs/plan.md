@@ -12,12 +12,21 @@ Last updated: 2026-02-15
 
 ## Next
 
-- Add one focused corpus for additional prefix-arg conversion edge cases (`(16)`, negative, malformed list) on another command family.
+- Add one focused corpus for prefix-arg line-motion boundary behavior under `call-interactively` (`end-of-buffer` / `beginning-of-buffer` cases).
 - Continue promoting already-green non-default corpora to `default.list` one-by-one with targeted checks.
 - Keep validating list hygiene and merged-case dedupe as list membership changes.
 
 ## Done
 
+- Added focused lock-in for word-case command prefix handling:
+  - added corpus:
+    - `test/neovm/vm-compat/cases/call-interactively-word-prefix-arg-semantics.forms`
+    - `test/neovm/vm-compat/cases/call-interactively-word-prefix-arg-semantics.expected.tsv`
+  - wired into:
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/call-interactively-word-prefix-arg-semantics` (pass, 4/4)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Aligned `call-interactively` numeric prefix conversion for single-arg motion/edit commands:
   - updated:
     - `rust/neovm-core/src/elisp/interactive.rs`
