@@ -58,7 +58,10 @@
     (internal-show-cursor nil t)
   (error (car err)))
 (condition-case err
-    (internal-show-cursor 1 nil)
+    (internal-show-cursor (selected-window) t)
+  (error (car err)))
+(condition-case err
+    (internal-show-cursor 999999 nil)
   (error (car err)))
 (condition-case err
     (internal-show-cursor nil nil)
@@ -72,7 +75,10 @@
     (internal-show-cursor-p)
   (error (car err)))
 (condition-case err
-    (internal-show-cursor-p 1)
+    (internal-show-cursor-p (selected-window))
+  (error (car err)))
+(condition-case err
+    (internal-show-cursor-p 999999)
   (error (car err)))
 (condition-case err
     (internal-show-cursor-p nil nil)

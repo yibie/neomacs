@@ -6450,6 +6450,16 @@ pub(crate) fn dispatch_builtin(
                 eval, args,
             ))
         }
+        "internal-show-cursor" => {
+            return Some(super::display::builtin_internal_show_cursor_eval(
+                eval, args,
+            ))
+        }
+        "internal-show-cursor-p" => {
+            return Some(super::display::builtin_internal_show_cursor_p_eval(
+                eval, args,
+            ))
+        }
         "redraw-frame" => return Some(super::display::builtin_redraw_frame_eval(eval, args)),
         "display-color-p" => return Some(super::display::builtin_display_color_p_eval(eval, args)),
         "display-pixel-width" => {

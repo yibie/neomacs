@@ -6,7 +6,7 @@
 
 use super::error::{signal, EvalResult, Flow};
 use super::value::*;
-use crate::window::FrameId;
+use crate::window::{FrameId, WindowId};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -127,6 +127,31 @@ fn expect_frame_designator(value: &Value) -> Result<(), Flow> {
 
 fn expect_window_designator(value: &Value) -> Result<(), Flow> {
     if value.is_nil() {
+        Ok(())
+    } else {
+        Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("windowp"), value.clone()],
+        ))
+    }
+}
+
+fn live_window_designator_p(eval: &mut super::eval::Evaluator, value: &Value) -> bool {
+    match value {
+        Value::Int(id) if *id >= 0 => eval
+            .frames
+            .selected_frame()
+            .and_then(|frame| frame.find_window(WindowId(*id as u64)))
+            .is_some(),
+        _ => false,
+    }
+}
+
+fn expect_window_designator_eval(
+    eval: &mut super::eval::Evaluator,
+    value: &Value,
+) -> Result<(), Flow> {
+    if value.is_nil() || live_window_designator_p(eval, value) {
         Ok(())
     } else {
         Err(signal(
@@ -308,11 +333,38 @@ pub(crate) fn builtin_internal_show_cursor(args: Vec<Value>) -> EvalResult {
     Ok(Value::Nil)
 }
 
+/// Evaluator-aware variant of `internal-show-cursor`.
+///
+/// Accepts live window designators in addition to nil.
+pub(crate) fn builtin_internal_show_cursor_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_args("internal-show-cursor", &args, 2)?;
+    expect_window_designator_eval(eval, &args[0])?;
+    CURSOR_VISIBLE.store(!args[1].is_nil(), Ordering::Relaxed);
+    Ok(Value::Nil)
+}
+
 /// (internal-show-cursor-p &optional WINDOW) -> t/nil
 pub(crate) fn builtin_internal_show_cursor_p(args: Vec<Value>) -> EvalResult {
     expect_range_args("internal-show-cursor-p", &args, 0, 1)?;
     if let Some(window) = args.first() {
         expect_window_designator(window)?;
+    }
+    Ok(Value::bool(CURSOR_VISIBLE.load(Ordering::Relaxed)))
+}
+
+/// Evaluator-aware variant of `internal-show-cursor-p`.
+///
+/// Accepts live window designators in addition to nil.
+pub(crate) fn builtin_internal_show_cursor_p_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_range_args("internal-show-cursor-p", &args, 0, 1)?;
+    if let Some(window) = args.first() {
+        expect_window_designator_eval(eval, window)?;
     }
     Ok(Value::bool(CURSOR_VISIBLE.load(Ordering::Relaxed)))
 }
@@ -1302,6 +1354,35 @@ mod tests {
     fn internal_show_cursor_rejects_non_window_designator() {
         let result = builtin_internal_show_cursor(vec![Value::Int(1), Value::Nil]);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn eval_internal_show_cursor_accepts_live_window_designator() {
+        let mut eval = crate::elisp::Evaluator::new();
+        let _ = crate::elisp::window_cmds::ensure_selected_frame_id(&mut eval);
+        let window_id = crate::elisp::window_cmds::builtin_selected_window(&mut eval, vec![])
+            .unwrap()
+            .as_int()
+            .expect("selected-window should return id");
+        let result = builtin_internal_show_cursor_eval(
+            &mut eval,
+            vec![Value::Int(window_id), Value::True],
+        )
+        .unwrap();
+        assert!(result.is_nil());
+    }
+
+    #[test]
+    fn eval_internal_show_cursor_p_accepts_live_window_designator() {
+        let mut eval = crate::elisp::Evaluator::new();
+        let _ = crate::elisp::window_cmds::ensure_selected_frame_id(&mut eval);
+        let window_id = crate::elisp::window_cmds::builtin_selected_window(&mut eval, vec![])
+            .unwrap()
+            .as_int()
+            .expect("selected-window should return id");
+        let result = builtin_internal_show_cursor_p_eval(&mut eval, vec![Value::Int(window_id)])
+            .unwrap();
+        assert!(matches!(result, Value::True | Value::Nil));
     }
 
     #[test]
