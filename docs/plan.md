@@ -4,6 +4,16 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Implemented `internal-merge-in-global-face` compatibility slice:
+  - replaced stub behavior with frame/face validation and merge semantics that copy concrete defaults-face overrides into selected-frame face state
+  - merged values now align with oracle behavior for defaults-to-selected propagation and ignore relative defaults (for example `unspecified`)
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/internal-merge-in-global-face-semantics.forms`
+    - `test/neovm/vm-compat/cases/internal-merge-in-global-face-semantics.expected.tsv`
+    - wired into `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test font::tests -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/internal-merge-in-global-face-semantics.forms EXPECTED=cases/internal-merge-in-global-face-semantics.expected.tsv` (pass)
 - Implemented `internal-set-lisp-face-attribute` compatibility slice:
   - replaced stub behavior with oracle-compatible argument checking, frame domain routing (`nil`/`t`/`0`), and return value (`FACE`)
   - added selected/default face override state and connected it to `internal-get-lisp-face-attribute`, `internal-lisp-face-equal-p`, `internal-lisp-face-empty-p`, `internal-make-lisp-face`, and `internal-copy-lisp-face`
