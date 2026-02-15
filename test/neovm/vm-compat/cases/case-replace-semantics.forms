@@ -89,3 +89,29 @@
         (unread-command-events (list ?!)))
     (query-replace-regexp "foo" "bar"))
   (buffer-string))
+
+(with-temp-buffer
+  (insert "Foo")
+  (goto-char (point-min))
+  (let ((case-fold-search t)
+        (case-replace t))
+    (replace-regexp "foo" "bAr"))
+  (buffer-string))
+
+(with-temp-buffer
+  (insert "Foo")
+  (goto-char (point-min))
+  (let ((case-fold-search t)
+        (case-replace t)
+        (unread-command-events (list ?!)))
+    (query-replace "foo" "bAr"))
+  (buffer-string))
+
+(with-temp-buffer
+  (insert "Foo")
+  (goto-char (point-min))
+  (let ((case-fold-search t)
+        (case-replace t)
+        (unread-command-events (list ?!)))
+    (query-replace-regexp "foo" "bAr"))
+  (buffer-string))

@@ -9,3 +9,6 @@
 9	(with-temp-buffer (insert "Foo") (goto-char (point-min)) (let ((case-fold-search t) (case-replace nil) (unread-command-events (list 33))) (query-replace "foo" "bar")) (buffer-string))	OK "bar"
 10	(with-temp-buffer (insert "Foo") (goto-char (point-min)) (let ((case-fold-search t) (case-replace t) (unread-command-events (list 33))) (query-replace-regexp "foo" "bar")) (buffer-string))	OK "Bar"
 11	(with-temp-buffer (insert "Foo") (goto-char (point-min)) (let ((case-fold-search t) (case-replace nil) (unread-command-events (list 33))) (query-replace-regexp "foo" "bar")) (buffer-string))	OK "bar"
+12	(with-temp-buffer (insert "Foo") (goto-char (point-min)) (let ((case-fold-search t) (case-replace t)) (replace-regexp "foo" "bAr")) (buffer-string))	OK "BAr"
+13	(with-temp-buffer (insert "Foo") (goto-char (point-min)) (let ((case-fold-search t) (case-replace t) (unread-command-events (list 33))) (query-replace "foo" "bAr")) (buffer-string))	OK "BAr"
+14	(with-temp-buffer (insert "Foo") (goto-char (point-min)) (let ((case-fold-search t) (case-replace t) (unread-command-events (list 33))) (query-replace-regexp "foo" "bAr")) (buffer-string))	OK "BAr"
