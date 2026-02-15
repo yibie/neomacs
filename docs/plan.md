@@ -129,6 +129,13 @@ Last updated: 2026-02-15
 - Expanded oracle corpus for terminal-handle top-level rendering:
   - `test/neovm/vm-compat/cases/terminal-handle-printing.forms` now includes raw `(frame-terminal)` / `(car (terminal-list))` output checks
   - refreshed `test/neovm/vm-compat/cases/terminal-handle-printing.expected.tsv`
+- Aligned batch frame introspection bootstrap semantics:
+  - `selected-frame` / `frame-list` now synthesize the initial `F1` frame lazily when no frame exists yet in evaluator state
+  - keeps batch introspection paths (`framep`, `frame-live-p`, `frame-list` membership) oracle-aligned without requiring editor-side frame bootstrap
+- Added and enabled new oracle corpus:
+  - `test/neovm/vm-compat/cases/frame-batch-semantics.forms`
+  - `test/neovm/vm-compat/cases/frame-batch-semantics.expected.tsv`
+  - wired into `test/neovm/vm-compat/cases/default.list`
 - Kept branch green with targeted Rust tests and vm-compat checks after each slice.
 
 ## Doing
