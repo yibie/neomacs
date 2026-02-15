@@ -1275,11 +1275,10 @@ fn expand_emacs_replacement(rep: &str, caps: &regex::Captures<'_>) -> String {
 // Builtin functions (stubs for evaluator dispatch)
 // ---------------------------------------------------------------------------
 
-/// `(replace-string FROM-STRING TO-STRING &optional DELIMITED START END BACKWARD REGION-NONCONTIGUOUS-P)` —
-/// evaluator-backed non-interactive replace subset.
-pub(crate) fn builtin_replace_string_eval(
+fn replace_string_eval_impl(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
+    query_style_point: bool,
 ) -> EvalResult {
     expect_min_max_args("replace-string", &args, 2, 7)?;
     let from = expect_sequence_string(&args[0])?;
@@ -1367,6 +1366,12 @@ pub(crate) fn builtin_replace_string_eval(
             } else {
                 buf.goto_char(start);
             }
+        } else if query_style_point {
+            if let Some(last) = source.chars().last() {
+                buf.goto_char(start + out.len().saturating_sub(last.len_utf8()));
+            } else {
+                buf.goto_char(start);
+            }
         } else {
             buf.goto_char(start + out.len());
         }
@@ -1378,6 +1383,7 @@ pub(crate) fn builtin_replace_string_eval(
     let mut cursor = 0usize;
     let mut replaced = 0usize;
     let mut backward_point = None;
+    let mut query_forward_point = None;
     while let Some((m_start, m_end)) = find_match(&source, &from, cursor, true, false, case_fold) {
         if delimited && !is_delimited_match(&source, m_start, m_end) {
             out.push_str(&source[cursor..m_end]);
@@ -1387,6 +1393,7 @@ pub(crate) fn builtin_replace_string_eval(
         out.push_str(&source[cursor..m_start]);
         let matched = &source[m_start..m_end];
         out.push_str(&preserve_case(&to, matched));
+        query_forward_point = Some(out.len());
         if backward && backward_point.is_none() {
             backward_point = Some(m_start);
         }
@@ -1418,6 +1425,12 @@ pub(crate) fn builtin_replace_string_eval(
         } else {
             buf.goto_char(start);
         }
+    } else if query_style_point {
+        if let Some(pos) = query_forward_point {
+            buf.goto_char(start + pos);
+        } else {
+            buf.goto_char(start);
+        }
     } else {
         buf.goto_char(start + out.len());
     }
@@ -1425,11 +1438,19 @@ pub(crate) fn builtin_replace_string_eval(
     Ok(Value::Nil)
 }
 
-/// `(replace-regexp REGEXP TO-STRING &optional DELIMITED START END BACKWARD REGION-NONCONTIGUOUS-P)` —
-/// evaluator-backed non-interactive regexp replacement subset.
-pub(crate) fn builtin_replace_regexp_eval(
+/// `(replace-string FROM-STRING TO-STRING &optional DELIMITED START END BACKWARD REGION-NONCONTIGUOUS-P)` —
+/// evaluator-backed non-interactive replace subset.
+pub(crate) fn builtin_replace_string_eval(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
+) -> EvalResult {
+    replace_string_eval_impl(eval, args, false)
+}
+
+fn replace_regexp_eval_impl(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+    query_style_point: bool,
 ) -> EvalResult {
     expect_min_max_args("replace-regexp", &args, 2, 7)?;
     let from = expect_sequence_string(&args[0])?;
@@ -1489,6 +1510,7 @@ pub(crate) fn builtin_replace_regexp_eval(
     let mut last = 0usize;
     let mut replaced = 0usize;
     let mut backward_point = None;
+    let mut query_forward_point = None;
     for caps in re.captures_iter(&source) {
         let Some(m) = caps.get(0) else {
             continue;
@@ -1511,6 +1533,7 @@ pub(crate) fn builtin_replace_regexp_eval(
             out.push_str(&source[last..m.start()]);
             let expanded = expand_emacs_replacement(&to, &caps);
             out.push_str(&preserve_case(&expanded, m.as_str()));
+            query_forward_point = Some(out.len());
             last = m.start();
             if backward && backward_point.is_none() {
                 backward_point = Some(m.start());
@@ -1522,6 +1545,7 @@ pub(crate) fn builtin_replace_regexp_eval(
         out.push_str(&source[last..m.start()]);
         let expanded = expand_emacs_replacement(&to, &caps);
         out.push_str(&preserve_case(&expanded, m.as_str()));
+        query_forward_point = Some(out.len());
         last = m.end();
         if backward && backward_point.is_none() {
             backward_point = Some(m.start());
@@ -1553,11 +1577,26 @@ pub(crate) fn builtin_replace_regexp_eval(
         } else {
             buf.goto_char(start);
         }
+    } else if query_style_point {
+        if let Some(pos) = query_forward_point {
+            buf.goto_char(start + pos);
+        } else {
+            buf.goto_char(start);
+        }
     } else {
         buf.goto_char(start + out.len());
     }
 
     Ok(Value::Nil)
+}
+
+/// `(replace-regexp REGEXP TO-STRING &optional DELIMITED START END BACKWARD REGION-NONCONTIGUOUS-P)` —
+/// evaluator-backed non-interactive regexp replacement subset.
+pub(crate) fn builtin_replace_regexp_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    replace_regexp_eval_impl(eval, args, false)
 }
 
 /// `(query-replace FROM TO &optional DELIMITED START END BACKWARD REGION-NONCONTIGUOUS-P)` —
@@ -1570,7 +1609,7 @@ pub(crate) fn builtin_query_replace_eval(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_max_args("query-replace", &args, 2, 7)?;
-    builtin_replace_string_eval(eval, args)
+    replace_string_eval_impl(eval, args, true)
 }
 
 /// `(query-replace-regexp FROM TO &optional DELIMITED START END BACKWARD REGION-NONCONTIGUOUS-P)` —
@@ -1583,7 +1622,7 @@ pub(crate) fn builtin_query_replace_regexp_eval(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_max_args("query-replace-regexp", &args, 2, 7)?;
-    match builtin_replace_regexp_eval(eval, args) {
+    match replace_regexp_eval_impl(eval, args, true) {
         // Batch `query-replace-regexp` does not signal invalid regexp payloads;
         // it reports and returns nil in non-interactive compatibility mode.
         Err(Flow::Signal(sig)) if sig.symbol == "invalid-regexp" => Ok(Value::Nil),

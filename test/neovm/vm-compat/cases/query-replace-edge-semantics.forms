@@ -40,6 +40,27 @@
     (query-replace-regexp "foo" "bar" nil nil nil t))
   (list (buffer-string) (point)))
 
+(with-temp-buffer
+  (insert "abc")
+  (goto-char (point-min))
+  (let ((unread-command-events (list ?!)))
+    (query-replace-regexp "" "x"))
+  (list (buffer-string) (point)))
+
+(with-temp-buffer
+  (insert "abc")
+  (goto-char (point-min))
+  (let ((unread-command-events (list ?!)))
+    (query-replace "" "x" nil 2 3))
+  (list (buffer-string) (point)))
+
+(with-temp-buffer
+  (insert "cat scatter cat")
+  (goto-char (point-min))
+  (let ((unread-command-events (list ?!)))
+    (query-replace-regexp "cat" "dog" nil 5 1))
+  (list (buffer-string) (point)))
+
 (condition-case err
     (with-temp-buffer
       (insert "x")
