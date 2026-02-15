@@ -136,6 +136,13 @@ Last updated: 2026-02-15
   - `test/neovm/vm-compat/cases/frame-batch-semantics.forms`
   - `test/neovm/vm-compat/cases/frame-batch-semantics.expected.tsv`
   - wired into `test/neovm/vm-compat/cases/default.list`
+- Aligned monitor `frames` slot with live evaluator frame set:
+  - added evaluator-aware monitor dispatch so `display-monitor-attributes-list` / `frame-monitor-attributes` populate `frames` from `frame-list`
+  - monitor queries now bootstrap and expose one live frame in batch mode (matching oracle shape expectations)
+- Added and enabled new oracle corpus:
+  - `test/neovm/vm-compat/cases/display-monitor-frames-semantics.forms`
+  - `test/neovm/vm-compat/cases/display-monitor-frames-semantics.expected.tsv`
+  - wired into `test/neovm/vm-compat/cases/default.list`
 - Kept branch green with targeted Rust tests and vm-compat checks after each slice.
 
 ## Doing
