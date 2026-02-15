@@ -325,6 +325,21 @@ Last updated: 2026-02-15
   - verified:
     - `make -C test/neovm/vm-compat check-neovm FORMS=cases/internal-get-lisp-face-attribute-matrix.forms EXPECTED=cases/internal-get-lisp-face-attribute-matrix.expected.tsv` (pass, 271/271)
     - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+- Aligned and locked-in make/copy Lisp face helper semantics:
+  - registered `internal-make-lisp-face` in NeoVM builtin dispatch/registry and implemented Oracle-compatible argument checks and frame error payloads
+  - updated `internal-copy-lisp-face` to match Oracle ordering and behavior: symbol checks first, `FRAME=t` fast-path, non-`t` frame `wrong-type-argument` payloads, source-face validity checks, and destination face visibility via `internal-lisp-face-p`
+  - wired created-face visibility state so faces created via `internal-make-lisp-face` / `internal-copy-lisp-face` are discoverable by `internal-lisp-face-p` (without broadening `internal-get-lisp-face-attribute` validity surface)
+  - added oracle corpus:
+    - `test/neovm/vm-compat/cases/internal-make-copy-lisp-face-semantics.forms`
+    - `test/neovm/vm-compat/cases/internal-make-copy-lisp-face-semantics.expected.tsv`
+    - enabled in `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test font::tests -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/internal-lisp-face-semantics.forms EXPECTED=cases/internal-lisp-face-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/internal-lisp-face-comparators.forms EXPECTED=cases/internal-lisp-face-comparators.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/internal-make-copy-lisp-face-semantics.forms EXPECTED=cases/internal-make-copy-lisp-face-semantics.expected.tsv` (pass, 42/42)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass; expected allowlisted drift only)
 - Kept branch green with targeted Rust tests and vm-compat checks after each slice.
 
 ## Doing
