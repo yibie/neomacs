@@ -119,6 +119,7 @@ cases/directory-files
 cases/directory-files-and-attributes
 cases/file-attributes
 cases/file-modes-semantics
+cases/set-file-modes-semantics
 cases/system-users-groups-semantics
 cases/file-ops-relative
 cases/fileio-relative

@@ -721,6 +721,17 @@ fn expect_temp_prefix(value: &Value) -> Result<String, Flow> {
     }
 }
 
+fn expect_fixnum(value: &Value) -> Result<i64, Flow> {
+    match value {
+        Value::Int(n) => Ok(*n),
+        Value::Char(c) => Ok(*c as i64),
+        other => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("fixnump"), other.clone()],
+        )),
+    }
+}
+
 fn validate_file_truename_counter(counter: &Value) -> Result<(), Flow> {
     if counter.is_nil() {
         return Ok(());
@@ -1226,6 +1237,17 @@ fn signal_directory_files_error(err: DirectoryFilesError, dir: &str) -> Flow {
     }
 }
 
+fn signal_file_action_error(err: std::io::Error, action: &str, path: &str) -> Flow {
+    signal(
+        file_error_symbol(err.kind()),
+        vec![
+            Value::string(action),
+            Value::string(err.to_string()),
+            Value::string(path),
+        ],
+    )
+}
+
 fn delete_file_compat(filename: &str) -> Result<(), Flow> {
     match delete_file(filename) {
         Ok(()) => Ok(()),
@@ -1362,6 +1384,70 @@ pub(crate) fn builtin_file_modes_eval(eval: &Evaluator, args: Vec<Value>) -> Eva
         Some(mode) => Ok(Value::Int(mode as i64)),
         None => Ok(Value::Nil),
     }
+}
+
+/// (set-file-modes FILENAME MODE &optional FLAG) -> nil
+pub(crate) fn builtin_set_file_modes(args: Vec<Value>) -> EvalResult {
+    expect_min_args("set-file-modes", &args, 2)?;
+    if args.len() > 3 {
+        return Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol("set-file-modes"), Value::Int(args.len() as i64)],
+        ));
+    }
+    let filename = expect_string_strict(&args[0])?;
+    let mode = expect_fixnum(&args[1])?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let perms = fs::Permissions::from_mode(mode as u32);
+        fs::set_permissions(&filename, perms)
+            .map_err(|err| signal_file_action_error(err, "Doing chmod", &filename))?;
+    }
+    #[cfg(not(unix))]
+    {
+        let mut perms = fs::metadata(&filename)
+            .map_err(|err| signal_file_action_error(err, "Doing chmod", &filename))?
+            .permissions();
+        let writable = (mode & 0o222) != 0;
+        perms.set_readonly(!writable);
+        fs::set_permissions(&filename, perms)
+            .map_err(|err| signal_file_action_error(err, "Doing chmod", &filename))?;
+    }
+    Ok(Value::Nil)
+}
+
+/// Evaluator-aware variant of `set-file-modes` that resolves relative paths
+/// against dynamic/default `default-directory`.
+pub(crate) fn builtin_set_file_modes_eval(eval: &Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_min_args("set-file-modes", &args, 2)?;
+    if args.len() > 3 {
+        return Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol("set-file-modes"), Value::Int(args.len() as i64)],
+        ));
+    }
+    let filename = expect_string_strict(&args[0])?;
+    let filename = resolve_filename_for_eval(eval, &filename);
+    let mode = expect_fixnum(&args[1])?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let perms = fs::Permissions::from_mode(mode as u32);
+        fs::set_permissions(&filename, perms)
+            .map_err(|err| signal_file_action_error(err, "Doing chmod", &filename))?;
+    }
+    #[cfg(not(unix))]
+    {
+        let mut perms = fs::metadata(&filename)
+            .map_err(|err| signal_file_action_error(err, "Doing chmod", &filename))?
+            .permissions();
+        let writable = (mode & 0o222) != 0;
+        perms.set_readonly(!writable);
+        fs::set_permissions(&filename, perms)
+            .map_err(|err| signal_file_action_error(err, "Doing chmod", &filename))?;
+    }
+    Ok(Value::Nil)
 }
 
 /// (delete-file FILENAME &optional TRASH) -> nil
@@ -2707,6 +2793,56 @@ mod tests {
         );
         let mode = builtin_file_modes_eval(&eval, vec![Value::string("alpha.txt")]).unwrap();
         assert!(matches!(mode, Value::Int(_)));
+
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn test_builtin_set_file_modes_semantics() {
+        let path = builtin_make_temp_file(vec![Value::string("neovm-set-file-modes-")]).unwrap();
+        let path_str = path.as_str().unwrap().to_string();
+
+        assert_eq!(
+            builtin_set_file_modes(vec![Value::string(&path_str), Value::Int(0o600)]).unwrap(),
+            Value::Nil
+        );
+        assert_eq!(
+            builtin_set_file_modes(vec![Value::string(&path_str), Value::Int(0o640), Value::True])
+                .unwrap(),
+            Value::Nil
+        );
+        assert_eq!(
+            builtin_file_modes(vec![Value::string(&path_str)]).unwrap().as_int(),
+            Some(0o640)
+        );
+
+        delete_file(&path_str).unwrap();
+    }
+
+    #[test]
+    fn test_builtin_set_file_modes_eval_respects_default_directory() {
+        let base = std::env::temp_dir().join("neovm-set-file-modes-eval");
+        let _ = fs::remove_dir_all(&base);
+        fs::create_dir_all(&base).unwrap();
+        let file = base.join("alpha.txt");
+        fs::write(&file, b"x").unwrap();
+
+        let mut eval = Evaluator::new();
+        eval.obarray.set_symbol_value(
+            "default-directory",
+            Value::string(format!("{}/", base.to_string_lossy())),
+        );
+        builtin_set_file_modes_eval(
+            &eval,
+            vec![Value::string("alpha.txt"), Value::Int(0o600)],
+        )
+        .unwrap();
+        assert_eq!(
+            builtin_file_modes(vec![Value::string(file.to_string_lossy().to_string())])
+                .unwrap()
+                .as_int(),
+            Some(0o600)
+        );
 
         let _ = fs::remove_dir_all(&base);
     }

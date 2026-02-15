@@ -4,6 +4,29 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Implemented `set-file-modes` compatibility slice:
+  - added pure + evaluator-aware builtins in `rust/neovm-core/src/elisp/fileio.rs`:
+    - `builtin_set_file_modes`
+    - `builtin_set_file_modes_eval`
+  - semantics aligned with oracle subset:
+    - arity `2..3`
+    - strict `stringp` validation for `FILENAME`
+    - strict `fixnump` validation for `MODE`
+    - optional `FLAG` accepted and ignored
+    - success return shape `nil`
+    - evaluator path resolves relative names against dynamic/default `default-directory`
+    - Unix chmod failures map to specific file conditions with Emacs-style `"Doing chmod"` payload prefix
+  - registered and dispatched `set-file-modes` in:
+    - `rust/neovm-core/src/elisp/builtins.rs`
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/set-file-modes-semantics.forms`
+    - `test/neovm/vm-compat/cases/set-file-modes-semantics.expected.tsv`
+    - wired into `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml set_file_modes -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/set-file-modes-semantics.forms EXPECTED=cases/set-file-modes-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Implemented `file-modes` compatibility slice:
   - added pure + evaluator-aware builtins in `rust/neovm-core/src/elisp/fileio.rs`:
     - `builtin_file_modes`

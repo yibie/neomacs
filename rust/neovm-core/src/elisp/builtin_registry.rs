@@ -674,6 +674,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "set-charset-priority",
     "set-coding-system-priority",
     "set-default",
+    "set-file-modes",
     "set-keyboard-coding-system",
     "set-keymap-parent",
     "set-mark",
