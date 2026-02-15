@@ -1694,6 +1694,19 @@ Last updated: 2026-02-15
     - `make -C test/neovm/vm-compat check-neovm FORMS=cases/looking-at-semantics.forms EXPECTED=cases/looking-at-semantics.expected.tsv` (pass, 11/11)
     - `make -C test/neovm/vm-compat --no-print-directory check-neovm FORMS=cases/looking-at-p-semantics.forms EXPECTED=cases/looking-at-p-semantics.expected.tsv` (pass)
     - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+- Aligned `string-match` / `string-match-p` with `case-fold-search` variable semantics:
+  - evaluator dispatch now handles `string-match-p` directly so both string-match variants can read dynamic/global `case-fold-search`
+  - regex string-match helper now exposes explicit case-fold mode for evaluator-controlled behavior
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/string-match-case-fold-variable-semantics.forms`
+    - `test/neovm/vm-compat/cases/string-match-case-fold-variable-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat record FORMS=cases/string-match-case-fold-variable-semantics.forms EXPECTED=cases/string-match-case-fold-variable-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/string-match-case-fold-variable-semantics.forms EXPECTED=cases/string-match-case-fold-variable-semantics.expected.tsv` (pass, 6/6)
+    - `make -C test/neovm/vm-compat --no-print-directory check-neovm FORMS=cases/string-match-case-fold-semantics.forms EXPECTED=cases/string-match-case-fold-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat --no-print-directory check-neovm FORMS=cases/match-data.forms EXPECTED=cases/match-data.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Kept branch green with targeted Rust tests and vm-compat checks after each slice.
 
 ## Doing
