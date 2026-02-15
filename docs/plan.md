@@ -19,6 +19,28 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Implemented syntax-table object state and `with-syntax-table` restoration semantics:
+  - updated:
+    - `rust/neovm-core/src/elisp/syntax.rs`
+      - made `standard-syntax-table` return a stable process-wide syntax-table object.
+      - made evaluator-backed `syntax-table` return per-buffer syntax-table objects (defaulting to standard).
+      - made evaluator-backed `set-syntax-table` update current-buffer syntax-table object state.
+      - added unit tests for standard/current object identity and per-buffer isolation.
+    - `rust/neovm-core/src/elisp/misc.rs`
+      - `with-syntax-table` now installs evaluated TABLE, evaluates BODY, and restores the previous syntax-table object on both success and error.
+      - added focused unit tests for restore-on-success and restore-on-error behavior.
+    - `test/neovm/vm-compat/cases/syntax-table-object-semantics.{forms,expected.tsv}`
+    - `test/neovm/vm-compat/cases/misc-special-forms-semantics.{forms,expected.tsv}`
+    - `test/neovm/vm-compat/cases/default.list`
+      - included `cases/syntax-table-object-semantics` in default compatibility runs.
+  - verified:
+    - `cargo test syntax_table --manifest-path rust/neovm-core/Cargo.toml -- --nocapture` (pass)
+    - `cargo test sf_with_syntax_table --manifest-path rust/neovm-core/Cargo.toml -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/syntax-table-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/syntax-table-object-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/misc-special-forms-semantics` (pass)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Implemented `category-table` object semantics and evaluator wiring:
   - updated:
     - `rust/neovm-core/src/elisp/category.rs`
