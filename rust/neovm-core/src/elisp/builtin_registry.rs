@@ -302,6 +302,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "fixnump",
     "flatten-tree",
     "float-time",
+    "flush-lines",
     "fmakunbound",
     "following-char",
     "font-family-list",
