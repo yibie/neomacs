@@ -354,26 +354,6 @@ pub(crate) fn builtin_buffer_swap_text(eval: &mut Evaluator, args: Vec<Value>) -
     Ok(Value::Nil)
 }
 
-/// (buffer-enable-undo &optional BUFFER) -> nil
-///
-/// Enable undo recording for BUFFER.
-/// Stub: returns nil.
-pub(crate) fn builtin_buffer_enable_undo(eval: &mut Evaluator, args: Vec<Value>) -> EvalResult {
-    expect_max_args("buffer-enable-undo", &args, 1)?;
-    let _ = resolve_buffer_arg(&eval, args.first())?;
-    Ok(Value::Nil)
-}
-
-/// (buffer-disable-undo &optional BUFFER) -> buffer
-///
-/// Disable undo recording for BUFFER.
-/// Stub: returns the buffer.
-pub(crate) fn builtin_buffer_disable_undo(eval: &mut Evaluator, args: Vec<Value>) -> EvalResult {
-    expect_max_args("buffer-disable-undo", &args, 1)?;
-    let id = resolve_buffer_arg(&eval, args.first())?;
-    Ok(Value::Buffer(id))
-}
-
 /// (buffer-size &optional BUFFER) -> integer
 ///
 /// Return the number of characters in BUFFER (default: current buffer).

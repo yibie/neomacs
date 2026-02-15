@@ -845,40 +845,6 @@ fn buffer_swap_text_wrong_args() {
     assert!(result.is_err());
 }
 
-// ----- buffer-enable-undo -----
-
-#[test]
-fn buffer_enable_undo_stub() {
-    let mut eval = new_eval();
-    let result = builtin_buffer_enable_undo(&mut eval, vec![]).unwrap();
-    assert!(result.is_nil());
-}
-
-#[test]
-fn buffer_enable_undo_with_buffer_arg() {
-    let mut eval = new_eval();
-    let id = eval.buffers.create_buffer("test");
-    let result = builtin_buffer_enable_undo(&mut eval, vec![Value::Buffer(id)]).unwrap();
-    assert!(result.is_nil());
-}
-
-// ----- buffer-disable-undo -----
-
-#[test]
-fn buffer_disable_undo_returns_buffer() {
-    let mut eval = new_eval();
-    let result = builtin_buffer_disable_undo(&mut eval, vec![]).unwrap();
-    assert!(matches!(result, Value::Buffer(_)));
-}
-
-#[test]
-fn buffer_disable_undo_with_buffer_arg() {
-    let mut eval = new_eval();
-    let id = eval.buffers.create_buffer("test");
-    let result = builtin_buffer_disable_undo(&mut eval, vec![Value::Buffer(id)]).unwrap();
-    assert!(matches!(result, Value::Buffer(bid) if bid == id));
-}
-
 // ----- buffer-size -----
 
 #[test]
