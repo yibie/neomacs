@@ -187,8 +187,11 @@ impl RenderApp {
                             }
                         }
                         // Buffer switch → crossfade
-                        // Suppress for minibuffer (small windows change buffers on every keystroke)
-                        if self.transitions.crossfade_enabled && info.bounds.height >= 50.0 {
+                        // Suppress for minibuffer: echo area alternates between
+                        // echo_area_buffer[0] and [1] on every message() call,
+                        // causing rapid buffer_id changes.  Crossfading these
+                        // blends old and new text, creating overlapping text.
+                        if self.transitions.crossfade_enabled && !info.is_minibuffer && info.bounds.height >= 50.0 {
                             // Cancel existing transition for this window
                             self.transitions.crossfades.remove(&info.window_id);
                             self.transitions.scroll_slides.remove(&info.window_id);
@@ -198,29 +201,6 @@ impl RenderApp {
                                 self.transitions.crossfades.insert(info.window_id, CrossfadeTransition {
                                     started: now,
                                     duration: self.transitions.crossfade_duration,
-                                    bounds: info.bounds,
-                                    effect: self.transitions.crossfade_effect,
-                                    easing: self.transitions.crossfade_easing,
-                                    old_texture: tex,
-                                    old_view: view,
-                                    old_bind_group: bg,
-                                });
-                            }
-                        }
-                    } else if info.is_minibuffer
-                        && (prev.bounds.height - info.bounds.height).abs() > 2.0
-                    {
-                        // Minibuffer height change → crossfade
-                        if self.transitions.crossfade_enabled {
-                            self.transitions.crossfades.remove(&info.window_id);
-                            self.transitions.scroll_slides.remove(&info.window_id);
-
-                            if let Some((tex, view, bg)) = self.snapshot_prev_texture() {
-                                log::debug!("Starting minibuffer crossfade (height {} → {})",
-                                    prev.bounds.height, info.bounds.height);
-                                self.transitions.crossfades.insert(info.window_id, CrossfadeTransition {
-                                    started: now,
-                                    duration: std::time::Duration::from_millis(150),
                                     bounds: info.bounds,
                                     effect: self.transitions.crossfade_effect,
                                     easing: self.transitions.crossfade_easing,
