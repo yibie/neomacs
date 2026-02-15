@@ -19,6 +19,23 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Aligned additional xdisp stub edges with oracle semantics and locked corpus:
+  - updated:
+    - `rust/neovm-core/src/elisp/xdisp.rs`
+      - `invisible-p` now treats symbol properties as invisible in batch semantics.
+      - `move-point-visually` now enforces fixnum typing and reports oracle-compatible `args-out-of-range` / `wrong-type-argument` payloads.
+      - `move-to-window-line` now reports oracle-compatible unrelated-buffer error in batch context.
+      - updated focused unit tests for these behaviors.
+    - `test/neovm/vm-compat/cases/xdisp-stub-edges-semantics.{forms,expected.tsv}`
+    - `test/neovm/vm-compat/cases/default.list`
+      - included `cases/xdisp-stub-edges-semantics` in default compatibility runs.
+  - verified:
+    - `cargo test xdisp::tests --manifest-path rust/neovm-core/Cargo.toml -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/xdisp-stub-edges-semantics.forms EXPECTED=cases/xdisp-stub-edges-semantics.expected.tsv` (pass, 37/37)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/xdisp-navigation-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/xdisp-pixel-metrics-semantics` (pass)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Implemented syntax-table object state and `with-syntax-table` restoration semantics:
   - updated:
     - `rust/neovm-core/src/elisp/syntax.rs`
