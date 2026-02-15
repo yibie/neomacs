@@ -100,88 +100,64 @@ enum ArrayType {
 fn parse_parse_kwargs(args: &[Value], start_index: usize) -> Result<ParseOpts, Flow> {
     let mut opts = ParseOpts::default();
     let rest = &args[start_index..];
+    if rest.len() % 2 != 0 {
+        return Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("plistp"), Value::list(rest.to_vec())],
+        ));
+    }
+
     let mut i = 0;
-    while i < rest.len() {
+    while i + 1 < rest.len() {
         let key = &rest[i];
+        let value = &rest[i + 1];
         match key {
-            Value::Keyword(k) if k == ":object-type" => {
-                i += 1;
-                if i >= rest.len() {
+            Value::Keyword(k) if k == ":object-type" => match value {
+                Value::Symbol(s) if s == "hash-table" => opts.object_type = ObjectType::HashTable,
+                Value::Symbol(s) if s == "alist" => opts.object_type = ObjectType::Alist,
+                Value::Symbol(s) if s == "plist" => opts.object_type = ObjectType::Plist,
+                _ => {
                     return Err(signal(
-                        "json-error",
-                        vec![Value::string("Missing value for :object-type")],
+                        "error",
+                        vec![
+                            Value::string("One of hash-table, alist or plist should be specified"),
+                            value.clone(),
+                        ],
                     ));
                 }
-                match &rest[i] {
-                    Value::Symbol(s) if s == "hash-table" => {
-                        opts.object_type = ObjectType::HashTable
-                    }
-                    Value::Symbol(s) if s == "alist" => opts.object_type = ObjectType::Alist,
-                    Value::Symbol(s) if s == "plist" => opts.object_type = ObjectType::Plist,
-                    other => {
-                        return Err(signal(
-                            "json-error",
-                            vec![Value::string(format!(
-                                "Invalid :object-type value: {}",
-                                super::print::print_value(other)
-                            ))],
-                        ));
-                    }
-                }
-            }
-            Value::Keyword(k) if k == ":array-type" => {
-                i += 1;
-                if i >= rest.len() {
+            },
+            Value::Keyword(k) if k == ":array-type" => match value {
+                Value::Symbol(s) if s == "array" => opts.array_type = ArrayType::Vector,
+                Value::Symbol(s) if s == "list" => opts.array_type = ArrayType::List,
+                _ => {
                     return Err(signal(
-                        "json-error",
-                        vec![Value::string("Missing value for :array-type")],
+                        "error",
+                        vec![
+                            Value::string("One of array or list should be specified"),
+                            value.clone(),
+                        ],
                     ));
                 }
-                match &rest[i] {
-                    Value::Symbol(s) if s == "array" => opts.array_type = ArrayType::Vector,
-                    Value::Symbol(s) if s == "list" => opts.array_type = ArrayType::List,
-                    other => {
-                        return Err(signal(
-                            "json-error",
-                            vec![Value::string(format!(
-                                "Invalid :array-type value: {}",
-                                super::print::print_value(other)
-                            ))],
-                        ));
-                    }
-                }
-            }
+            },
             Value::Keyword(k) if k == ":null-object" => {
-                i += 1;
-                if i >= rest.len() {
-                    return Err(signal(
-                        "json-error",
-                        vec![Value::string("Missing value for :null-object")],
-                    ));
-                }
-                opts.null_object = rest[i].clone();
+                opts.null_object = value.clone();
             }
             Value::Keyword(k) if k == ":false-object" => {
-                i += 1;
-                if i >= rest.len() {
-                    return Err(signal(
-                        "json-error",
-                        vec![Value::string("Missing value for :false-object")],
-                    ));
-                }
-                opts.false_object = rest[i].clone();
+                opts.false_object = value.clone();
             }
             _ => {
                 return Err(signal(
-                    "json-error",
-                    vec![Value::string(format!(
-                        "Unknown keyword argument: {}",
-                        super::print::print_value(key)
-                    ))],
+                    "error",
+                    vec![
+                        Value::string(
+                            "One of :object-type, :array-type, :null-object or :false-object should be specified",
+                        ),
+                        value.clone(),
+                    ],
                 ));
             }
         }
-        i += 1;
+        i += 2;
     }
     Ok(opts)
 }
@@ -190,41 +166,35 @@ fn parse_parse_kwargs(args: &[Value], start_index: usize) -> Result<ParseOpts, F
 fn parse_serialize_kwargs(args: &[Value], start_index: usize) -> Result<SerializeOpts, Flow> {
     let mut opts = SerializeOpts::default();
     let rest = &args[start_index..];
+    if rest.len() % 2 != 0 {
+        return Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("plistp"), Value::list(rest.to_vec())],
+        ));
+    }
+
     let mut i = 0;
-    while i < rest.len() {
+    while i + 1 < rest.len() {
         let key = &rest[i];
+        let value = &rest[i + 1];
         match key {
             Value::Keyword(k) if k == ":null-object" => {
-                i += 1;
-                if i >= rest.len() {
-                    return Err(signal(
-                        "json-error",
-                        vec![Value::string("Missing value for :null-object")],
-                    ));
-                }
-                opts.null_object = rest[i].clone();
+                opts.null_object = value.clone();
             }
             Value::Keyword(k) if k == ":false-object" => {
-                i += 1;
-                if i >= rest.len() {
-                    return Err(signal(
-                        "json-error",
-                        vec![Value::string("Missing value for :false-object")],
-                    ));
-                }
-                opts.false_object = rest[i].clone();
+                opts.false_object = value.clone();
             }
             _ => {
                 return Err(signal(
-                    "json-error",
-                    vec![Value::string(format!(
-                        "Unknown keyword argument: {}",
-                        super::print::print_value(key)
-                    ))],
+                    "error",
+                    vec![
+                        Value::string("One of :null-object or :false-object should be specified"),
+                        value.clone(),
+                    ],
                 ));
             }
         }
-        i += 1;
+        i += 2;
     }
     Ok(opts)
 }

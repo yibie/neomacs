@@ -86,6 +86,7 @@ cases/features-sync
 cases/pcase
 cases/json-semantics
 cases/json-buffer-semantics
+cases/json-keyword-errors
 cases/seq-position
 cases/split-string-semantics
 cases/make-string-semantics
