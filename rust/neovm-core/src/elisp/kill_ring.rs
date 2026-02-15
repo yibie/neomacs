@@ -2071,7 +2071,17 @@ pub(crate) fn builtin_transpose_lines(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_args("transpose-lines", &args, 1)?;
-    let _n = expect_int(&args[0])?;
+    let n = expect_int(&args[0])?;
+
+    if n < 0 {
+        return Err(signal(
+            "error",
+            vec![Value::string("Don’t have two things to transpose")],
+        ));
+    }
+    if n == 0 {
+        return Ok(Value::Nil);
+    }
 
     let buf = eval
         .buffers
@@ -2107,6 +2117,46 @@ pub(crate) fn builtin_transpose_lines(
     // Emacs special-cases BOB: transpose current line with following line,
     // and with an empty line when there is no following line.
     if cur_line_start == pmin {
+        if n > 1 {
+            let mut segments = Vec::new();
+            let mut cursor = pmin;
+            for _ in 0..=n as usize {
+                if cursor < pmax {
+                    let tail = buf.buffer_substring(cursor, pmax);
+                    if let Some(nl_off) = tail.find('\n') {
+                        let end = cursor + nl_off + 1;
+                        segments.push(buf.buffer_substring(cursor, end));
+                        cursor = end;
+                    } else {
+                        segments.push(buf.buffer_substring(cursor, pmax));
+                        cursor = pmax;
+                    }
+                } else {
+                    segments.push(String::new());
+                }
+            }
+
+            let normalize_line = |line: &str| -> String {
+                let body = line.strip_suffix('\n').unwrap_or(line);
+                format!("{body}\n")
+            };
+
+            let mut replacement = String::new();
+            for seg in segments.iter().skip(1) {
+                replacement.push_str(&normalize_line(seg));
+            }
+            replacement.push_str(&normalize_line(&segments[0]));
+
+            let buf = eval
+                .buffers
+                .current_buffer_mut()
+                .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
+            buf.delete_region(pmin, cursor);
+            buf.goto_char(pmin);
+            buf.insert(&replacement);
+            return Ok(Value::Nil);
+        }
+
         let next_line_start = cur_line_end;
         let next_line_end = if next_line_start < pmax {
             let text_from_next = buf.buffer_substring(next_line_start, pmax);
@@ -3251,6 +3301,17 @@ mod tests {
     }
 
     #[test]
+    fn transpose_lines_arg_two_at_buffer_start() {
+        let results = eval_all(
+            r#"(insert "a\nb\nc\n")
+               (goto-char 1)
+               (transpose-lines 2)
+               (buffer-string)"#,
+        );
+        assert_eq!(results[3], r#"OK "b\nc\na\n""#);
+    }
+
+    #[test]
     fn transpose_lines_last_line_without_trailing_newline() {
         let results = eval_all(
             r#"(insert "line1\nline2")
@@ -3259,6 +3320,17 @@ mod tests {
                (buffer-string)"#,
         );
         assert_eq!(results[3], r#"OK "line2\nline1\n""#);
+    }
+
+    #[test]
+    fn transpose_lines_negative_errors() {
+        let result = eval_one(
+            r#"(with-temp-buffer
+                 (insert "a\nb\n")
+                 (goto-char 3)
+                 (transpose-lines -1))"#,
+        );
+        assert!(result.starts_with("ERR (error"));
     }
 
     // -- transpose-words tests --
