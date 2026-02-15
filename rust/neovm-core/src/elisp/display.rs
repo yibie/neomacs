@@ -71,6 +71,16 @@ fn expect_symbol_name(value: &Value) -> Result<String, Flow> {
     }
 }
 
+fn invalid_get_device_terminal_error(value: &Value) -> Flow {
+    signal(
+        "error",
+        vec![Value::string(format!(
+            "Invalid argument {} in 'get-device-terminal'",
+            super::print::print_value(value)
+        ))],
+    )
+}
+
 fn terminal_designator_p(value: &Value) -> bool {
     value.is_nil() || is_terminal_handle(value)
 }
@@ -112,10 +122,7 @@ fn expect_display_designator(value: &Value) -> Result<(), Flow> {
     if value.is_nil() || terminal_designator_p(value) {
         Ok(())
     } else {
-        Err(signal(
-            "error",
-            vec![Value::string("Invalid argument 1 in 'get-device-terminal'")],
-        ))
+        Err(invalid_get_device_terminal_error(value))
     }
 }
 
@@ -133,10 +140,7 @@ fn expect_display_designator_eval(
     if value.is_nil() || terminal_designator_p(value) || live_frame_designator_p(eval, value) {
         Ok(())
     } else {
-        Err(signal(
-            "error",
-            vec![Value::string("Invalid argument 1 in 'get-device-terminal'")],
-        ))
+        Err(invalid_get_device_terminal_error(value))
     }
 }
 
@@ -613,10 +617,7 @@ pub(crate) fn builtin_x_display_color_p(args: Vec<Value>) -> EvalResult {
             "error",
             vec![Value::string(format!("Display {display} does not exist"))],
         )),
-        Some(_) => Err(signal(
-            "error",
-            vec![Value::string("Invalid argument 1 in 'get-device-terminal'")],
-        )),
+        Some(other) => Err(invalid_get_device_terminal_error(other)),
     }
 }
 
@@ -766,10 +767,7 @@ pub(crate) fn builtin_display_monitor_attributes_list(args: Vec<Value>) -> EvalR
     expect_max_args("display-monitor-attributes-list", &args, 1)?;
     if let Some(display) = args.first() {
         if !display.is_nil() && !terminal_designator_p(display) {
-            return Err(signal(
-                "error",
-                vec![Value::string("Invalid argument 1 in 'get-device-terminal'")],
-            ));
+            return Err(invalid_get_device_terminal_error(display));
         }
     }
     let monitor = make_monitor_alist(Value::Nil);
@@ -800,10 +798,7 @@ pub(crate) fn builtin_frame_monitor_attributes(args: Vec<Value>) -> EvalResult {
     expect_max_args("frame-monitor-attributes", &args, 1)?;
     if let Some(frame) = args.first() {
         if !frame.is_nil() && !terminal_designator_p(frame) {
-            return Err(signal(
-                "error",
-                vec![Value::string("Invalid argument 1 in 'get-device-terminal'")],
-            ));
+            return Err(invalid_get_device_terminal_error(frame));
         }
     }
     Ok(make_monitor_alist(Value::Nil))
@@ -1122,7 +1117,16 @@ mod tests {
         let str_err = builtin_x_display_color_p(vec![Value::string("")]);
         assert!(none.is_nil());
         assert!(nil.is_nil());
-        assert!(int_err.is_err());
+        match int_err {
+            Err(Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "error");
+                assert_eq!(
+                    sig.data,
+                    vec![Value::string("Invalid argument 1 in 'get-device-terminal'")]
+                );
+            }
+            other => panic!("expected error signal, got {other:?}"),
+        }
         assert!(str_err.is_err());
     }
 

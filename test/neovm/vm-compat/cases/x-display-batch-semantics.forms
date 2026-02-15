@@ -89,6 +89,9 @@
     (x-display-color-p 999999)
   (error (car err)))
 (condition-case err
+    (x-display-color-p 999999)
+  (error (not (null (string-match-p "999999" (cadr err))))))
+(condition-case err
     (x-display-color-p "")
   (error (car err)))
 (condition-case err

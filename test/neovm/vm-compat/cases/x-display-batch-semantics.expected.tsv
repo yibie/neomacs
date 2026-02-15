@@ -30,5 +30,6 @@
 30	(condition-case err (x-display-color-p nil) (error (car err)))	OK nil
 31	(condition-case err (x-display-color-p (selected-frame)) (error (car err)))	OK nil
 32	(condition-case err (x-display-color-p 999999) (error (car err)))	OK error
-33	(condition-case err (x-display-color-p "") (error (car err)))	OK error
-34	(condition-case err (x-display-color-p 1 2) (error (car err)))	OK wrong-number-of-arguments
+33	(condition-case err (x-display-color-p 999999) (error (not (null (string-match-p "999999" (cadr err))))))	OK t
+34	(condition-case err (x-display-color-p "") (error (car err)))	OK error
+35	(condition-case err (x-display-color-p 1 2) (error (car err)))	OK wrong-number-of-arguments
