@@ -12,12 +12,28 @@ Last updated: 2026-02-15
 
 ## Next
 
-- Add one focused corpus for `call-interactively` prefix conversion on transpose-family commands with larger/signed counts.
+- Add one focused corpus for transpose-family siblings (`transpose-sexps`/`transpose-sentences`) with signed interactive prefix counts.
 - Continue promoting already-green non-default corpora to `default.list` one-by-one with targeted checks.
 - Keep validating list hygiene and merged-case dedupe as list membership changes.
 
 ## Done
 
+- Aligned `transpose-words` signed-count semantics (direct + interactive paths):
+  - updated:
+    - `rust/neovm-core/src/elisp/kill_ring.rs`
+      - corrected positive stepping and point progression for multi-step transposes
+      - corrected negative-word selection to use words strictly before point
+      - corrected direction-specific point placement after each transpose step
+  - added corpus:
+    - `test/neovm/vm-compat/cases/transpose-words-prefix-arg-semantics.forms`
+    - `test/neovm/vm-compat/cases/transpose-words-prefix-arg-semantics.expected.tsv`
+  - wired into:
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/transpose-words-prefix-arg-semantics` (pass, 6/6)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/transpose-words-semantics` (pass, 5/5)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/command-dispatch-default-arg-semantics` (pass, 46/46)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Fixed line-motion boundary signal parity for prefixed interactive movement:
   - updated:
     - `rust/neovm-core/src/elisp/navigation.rs`
