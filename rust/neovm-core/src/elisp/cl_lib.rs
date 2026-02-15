@@ -359,24 +359,6 @@ pub(crate) fn builtin_cl_third(args: Vec<Value>) -> EvalResult {
 pub(crate) fn builtin_cl_fourth(args: Vec<Value>) -> EvalResult {
     nth_helper("cl-fourth", &args, 3)
 }
-pub(crate) fn builtin_cl_fifth(args: Vec<Value>) -> EvalResult {
-    nth_helper("cl-fifth", &args, 4)
-}
-pub(crate) fn builtin_cl_sixth(args: Vec<Value>) -> EvalResult {
-    nth_helper("cl-sixth", &args, 5)
-}
-pub(crate) fn builtin_cl_seventh(args: Vec<Value>) -> EvalResult {
-    nth_helper("cl-seventh", &args, 6)
-}
-pub(crate) fn builtin_cl_eighth(args: Vec<Value>) -> EvalResult {
-    nth_helper("cl-eighth", &args, 7)
-}
-pub(crate) fn builtin_cl_ninth(args: Vec<Value>) -> EvalResult {
-    nth_helper("cl-ninth", &args, 8)
-}
-pub(crate) fn builtin_cl_tenth(args: Vec<Value>) -> EvalResult {
-    nth_helper("cl-tenth", &args, 9)
-}
 
 /// `(cl-rest LIST)` — alias for cdr.
 pub(crate) fn builtin_cl_rest(args: Vec<Value>) -> EvalResult {
