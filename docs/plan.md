@@ -4,6 +4,18 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Aligned kill-word read-only behavior with oracle variable semantics:
+  - updated `rust/neovm-core/src/elisp/kill_ring.rs`:
+    - `kill-word` now honors dynamic/buffer-local/global `buffer-read-only` for real deletions
+    - `backward-kill-word` now honors dynamic/buffer-local/global `buffer-read-only` for real deletions
+    - both commands now fast-return on zero-width operation (`ARG=0` no-op) without signaling read-only
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/kill-word-read-only-variable-semantics.forms`
+    - `test/neovm/vm-compat/cases/kill-word-read-only-variable-semantics.expected.tsv`
+    - wired into `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/kill-word-read-only-variable-semantics` (pass, 7/7)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/command-dispatch-default-arg-semantics` (pass, 46/46)
 - Aligned whitespace/indent mutator read-only behavior with oracle semantics:
   - updated `rust/neovm-core/src/elisp/kill_ring.rs`:
     - `delete-horizontal-space` now checks read-only only when an actual deletion is needed, and honors dynamic/buffer-local/global `buffer-read-only`
