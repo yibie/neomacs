@@ -4,6 +4,34 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Implemented display query selected-frame designator compatibility slice:
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/display-frame-designator-semantics.forms`
+    - `test/neovm/vm-compat/cases/display-frame-designator-semantics.expected.tsv`
+    - wired into `test/neovm/vm-compat/cases/default.list`
+  - added evaluator-aware dispatch/validation for display query builtins:
+    - `display-graphic-p`
+    - `display-color-p`
+    - `display-pixel-width`
+    - `display-pixel-height`
+    - `display-mm-width`
+    - `display-mm-height`
+    - `display-screens`
+    - `display-color-cells`
+    - `display-planes`
+    - `display-visual-class`
+    - `display-backing-store`
+  - preserved monitor builtin behavior to avoid a real representation conflict:
+    - NeoVM frame objects are currently integer IDs, so accepting live frame IDs in monitor APIs causes oracle drift for integer argument error paths (`display-monitor-semantics`)
+    - monitor APIs remain on existing terminal-designator validation until frame object representation is decoupled from plain integers
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml display::tests -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/display-frame-designator-semantics.forms EXPECTED=cases/display-frame-designator-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/display-query-designator-semantics.forms EXPECTED=cases/display-query-designator-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/display-monitor-semantics.forms EXPECTED=cases/display-monitor-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/display-monitor-frames-semantics.forms EXPECTED=cases/display-monitor-frames-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
 - Implemented display query designator compatibility slice:
   - added and enabled oracle corpus:
     - `test/neovm/vm-compat/cases/display-query-designator-semantics.forms`
