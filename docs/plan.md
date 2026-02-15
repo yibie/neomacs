@@ -1804,6 +1804,8 @@ Last updated: 2026-02-15
     - `make -C test/neovm/vm-compat check-neovm FORMS=cases/search-upper-case-variable-semantics.forms EXPECTED=cases/search-upper-case-variable-semantics.expected.tsv` (pass, 8/8)
     - `make -C test/neovm/vm-compat validate-case-lists` (pass)
     - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+  - expanded variable corpus matrix to include explicit `search-upper-case=t` uppercase-pattern case:
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/replace-regexp-in-string-variable-semantics.forms EXPECTED=cases/replace-regexp-in-string-variable-semantics.expected.tsv` (pass, 4/4)
 - Kept branch green with targeted Rust tests and vm-compat checks after each slice.
 
 ## Doing
