@@ -173,6 +173,13 @@ pub(crate) fn builtin_find_composition_internal(args: Vec<Value>) -> EvalResult 
             vec![Value::symbol("stringp"), args[2].clone()],
         ));
     }
+    let pos = integer_value(&args[0]);
+    if pos <= 0 {
+        return Err(signal(
+            "args-out-of-range",
+            vec![Value::Nil, Value::Int(pos)],
+        ));
+    }
     Ok(Value::Nil)
 }
 
@@ -480,6 +487,25 @@ mod tests {
             Value::Nil,
         ]);
         assert!(bad_string.is_err());
+    }
+
+    #[test]
+    fn find_composition_internal_position_range_checks() {
+        let zero = builtin_find_composition_internal(vec![
+            Value::Int(0),
+            Value::Nil,
+            Value::Nil,
+            Value::Nil,
+        ]);
+        assert!(zero.is_err());
+
+        let negative = builtin_find_composition_internal(vec![
+            Value::Int(-1),
+            Value::Nil,
+            Value::Nil,
+            Value::Nil,
+        ]);
+        assert!(negative.is_err());
     }
 
     #[test]
