@@ -12,6 +12,7 @@ use std::collections::VecDeque;
 
 use super::error::{signal, EvalResult, Flow};
 use super::value::Value;
+use crate::buffer::Buffer;
 
 use regex::Regex;
 
@@ -148,6 +149,26 @@ fn dynamic_or_global_symbol_value(eval: &super::eval::Evaluator, name: &str) -> 
         }
     }
     eval.obarray.symbol_value(name).cloned()
+}
+
+fn buffer_read_only_active(eval: &super::eval::Evaluator, buf: &Buffer) -> bool {
+    if buf.read_only {
+        return true;
+    }
+
+    for frame in eval.dynamic.iter().rev() {
+        if let Some(value) = frame.get("buffer-read-only").cloned() {
+            return value.is_truthy();
+        }
+    }
+
+    if let Some(value) = buf.get_buffer_local("buffer-read-only") {
+        return value.is_truthy();
+    }
+
+    eval.obarray
+        .symbol_value("buffer-read-only")
+        .is_some_and(|value| value.is_truthy())
 }
 
 fn case_fold_for_pattern(eval: &super::eval::Evaluator, pattern: &str) -> bool {
@@ -1409,7 +1430,7 @@ fn replace_string_eval_impl(
             start,
             end,
             buf.buffer_substring(start, end),
-            buf.read_only,
+            buffer_read_only_active(eval, buf),
             buf.name.clone(),
         )
     };
@@ -1628,7 +1649,7 @@ fn replace_regexp_eval_impl(
             start,
             end,
             buf.buffer_substring(start, end),
-            buf.read_only,
+            buffer_read_only_active(eval, buf),
             buf.name.clone(),
         )
     };
