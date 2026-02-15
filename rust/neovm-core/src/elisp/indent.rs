@@ -436,13 +436,30 @@ pub(crate) fn builtin_tab_to_tab_stop(
 
 /// (back-to-indentation) -> nil
 ///
-/// Move point to the first non-whitespace character on this line.
-/// Stub: does nothing, returns nil.
+/// Move point to first non-space/tab on current line.
 pub(crate) fn builtin_back_to_indentation(
-    _eval: &mut super::eval::Evaluator,
+    eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
     expect_args("back-to-indentation", &args, 0)?;
+    let Some(buf) = eval.buffers.current_buffer_mut() else {
+        return Ok(Value::Nil);
+    };
+
+    let text = buf.text.to_string();
+    let pt = buf.pt.clamp(buf.begv, buf.zv);
+    let (bol, eol) = line_bounds(&text, buf.begv, buf.zv, pt);
+    let line = &text[bol..eol];
+
+    let mut dest = eol;
+    for (rel, ch) in line.char_indices() {
+        if ch != ' ' && ch != '\t' {
+            dest = bol + rel;
+            break;
+        }
+    }
+
+    buf.goto_char(dest);
     Ok(Value::Nil)
 }
 
@@ -627,6 +644,48 @@ mod tests {
                 Value::Int(98),
             ]
         );
+    }
+
+    #[test]
+    fn eval_back_to_indentation_subset() {
+        let mut ev = super::super::eval::Evaluator::new();
+        let forms = super::super::parser::parse_forms(
+            r#"
+            (with-temp-buffer
+              (insert "  abc")
+              (goto-char (point-max))
+              (back-to-indentation)
+              (point))
+            (with-temp-buffer
+              (insert "   ")
+              (goto-char (point-max))
+              (back-to-indentation)
+              (point))
+            (with-temp-buffer
+              (insert (string 9 97 98 99))
+              (goto-char (point-max))
+              (back-to-indentation)
+              (point))
+            (with-temp-buffer
+              (insert (string 10 32 32 97 98 99))
+              (goto-char (point-max))
+              (back-to-indentation)
+              (point))
+            "#,
+        )
+        .expect("parse forms");
+
+        let first = ev.eval(&forms[0]).expect("eval nonblank line");
+        assert_eq!(first, Value::Int(3));
+
+        let second = ev.eval(&forms[1]).expect("eval whitespace-only line");
+        assert_eq!(second, Value::Int(4));
+
+        let third = ev.eval(&forms[2]).expect("eval tab-indent line");
+        assert_eq!(third, Value::Int(2));
+
+        let fourth = ev.eval(&forms[3]).expect("eval indented second line");
+        assert_eq!(fourth, Value::Int(4));
     }
 
     #[test]
