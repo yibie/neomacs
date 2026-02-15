@@ -5,7 +5,7 @@
 //!   `clear-font-cache`, `font-family-list`, `font-xlfd-name`
 //!
 //! Face builtins:
-//! - `internal-lisp-face-p`, `internal-copy-lisp-face`,
+//! - `internal-make-lisp-face`, `internal-lisp-face-p`, `internal-copy-lisp-face`,
 //!   `internal-set-lisp-face-attribute`, `internal-get-lisp-face-attribute`,
 //!   `internal-merge-in-global-face`, `face-attribute-relative-p`,
 //!   `merge-face-attribute`, `face-list`, `color-defined-p`, `color-values`,
@@ -13,6 +13,9 @@
 //!   `internal-set-font-selection-order`,
 //!   `internal-set-alternative-font-family-alist`,
 //!   `internal-set-alternative-font-registry-alist`
+
+use std::collections::HashSet;
+use std::sync::{Mutex, OnceLock};
 
 use super::error::{signal, EvalResult, Flow};
 use super::value::*;
@@ -318,12 +321,68 @@ const DISCRETE_BOOLEAN_FACE_ATTRIBUTES: &[&str] = &[
     ":extend",
 ];
 
-fn known_face_name(face: &Value) -> Option<&str> {
+static CREATED_LISP_FACES: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
+
+fn created_lisp_faces() -> &'static Mutex<HashSet<String>> {
+    CREATED_LISP_FACES.get_or_init(|| Mutex::new(HashSet::new()))
+}
+
+fn is_created_lisp_face(name: &str) -> bool {
+    created_lisp_faces()
+        .lock()
+        .expect("poisoned")
+        .contains(name)
+}
+
+fn mark_created_lisp_face(name: &str) {
+    created_lisp_faces()
+        .lock()
+        .expect("poisoned")
+        .insert(name.to_string());
+}
+
+fn symbol_name_for_face_value(face: &Value) -> Option<String> {
     match face {
-        Value::Symbol(name) => KNOWN_FACES.contains(&name.as_str()).then_some(name.as_str()),
-        Value::Str(name) => KNOWN_FACES.contains(&name.as_str()).then_some(name.as_str()),
+        Value::Nil => Some("nil".to_string()),
+        Value::True => Some("t".to_string()),
+        Value::Symbol(name) => Some(name.clone()),
         _ => None,
     }
+}
+
+fn require_symbol_face_name(face: &Value) -> Result<String, Flow> {
+    symbol_name_for_face_value(face).ok_or_else(|| {
+        signal(
+            "wrong-type-argument",
+            vec![Value::symbol("symbolp"), face.clone()],
+        )
+    })
+}
+
+fn known_face_name(face: &Value) -> Option<String> {
+    let name = match face {
+        Value::Str(name) => name.as_str().to_string(),
+        _ => symbol_name_for_face_value(face)?,
+    };
+    if KNOWN_FACES.contains(&name.as_str()) || is_created_lisp_face(&name) {
+        Some(name)
+    } else {
+        None
+    }
+}
+
+fn resolve_copy_source_face_symbol(face: &Value) -> Result<String, Flow> {
+    let name = symbol_name_for_face_value(face).expect("checked symbol before resolve");
+    if KNOWN_FACES.contains(&name.as_str()) || is_created_lisp_face(&name) {
+        return Ok(name);
+    }
+    if face.is_nil() {
+        return Err(signal("error", vec![Value::string("Invalid face")]));
+    }
+    Err(signal(
+        "error",
+        vec![Value::string("Invalid face"), face.clone()],
+    ))
 }
 
 fn make_lisp_face_vector() -> Value {
@@ -481,9 +540,37 @@ pub(crate) fn builtin_internal_lisp_face_p(args: Vec<Value>) -> EvalResult {
     }
 }
 
+/// `(internal-make-lisp-face FACE &optional FRAME)` -- create/reset FACE as a
+/// Lisp face and return its attribute vector.
+pub(crate) fn builtin_internal_make_lisp_face(args: Vec<Value>) -> EvalResult {
+    expect_min_args("internal-make-lisp-face", &args, 1)?;
+    expect_max_args("internal-make-lisp-face", &args, 2)?;
+    let face_name = require_symbol_face_name(&args[0])?;
+    if let Some(frame) = args.get(1) {
+        if !frame.is_nil() {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("frame-live-p"), frame.clone()],
+            ));
+        }
+    }
+    mark_created_lisp_face(&face_name);
+    Ok(make_lisp_face_vector())
+}
+
 /// `(internal-copy-lisp-face FROM TO FRAME NEW-FRAME)` -- stub, return TO.
 pub(crate) fn builtin_internal_copy_lisp_face(args: Vec<Value>) -> EvalResult {
     expect_args("internal-copy-lisp-face", &args, 4)?;
+    let _ = require_symbol_face_name(&args[0])?;
+    let to_name = require_symbol_face_name(&args[1])?;
+    if !matches!(args[2], Value::True) {
+        return Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("frame-live-p"), args[2].clone()],
+        ));
+    }
+    let _ = resolve_copy_source_face_symbol(&args[0])?;
+    mark_created_lisp_face(&to_name);
     Ok(args[1].clone())
 }
 
@@ -1020,15 +1107,52 @@ mod tests {
     }
 
     #[test]
-    fn internal_copy_lisp_face_returns_to() {
+    fn internal_make_lisp_face_creates_symbol_visible_to_internal_lisp_face_p() {
+        let name = Value::symbol("__neovm_make_face_unit_test");
+        let made = builtin_internal_make_lisp_face(vec![name.clone()]).unwrap();
+        assert!(matches!(made, Value::Vector(_)));
+        let exists = builtin_internal_lisp_face_p(vec![name]).unwrap();
+        assert!(matches!(exists, Value::Vector(_)));
+    }
+
+    #[test]
+    fn internal_make_lisp_face_rejects_non_symbol_and_non_nil_frame() {
+        assert!(builtin_internal_make_lisp_face(vec![Value::string("foo")]).is_err());
+        assert!(builtin_internal_make_lisp_face(vec![Value::symbol("foo"), Value::Int(1)]).is_err());
+    }
+
+    #[test]
+    fn internal_copy_lisp_face_returns_to_when_frame_t() {
         let result = builtin_internal_copy_lisp_face(vec![
             Value::symbol("bold"),
             Value::symbol("my-face"),
-            Value::Nil,
+            Value::True,
             Value::Nil,
         ])
         .unwrap();
         assert_eq!(result.as_symbol_name(), Some("my-face"));
+    }
+
+    #[test]
+    fn internal_copy_lisp_face_rejects_non_t_frame_designator() {
+        let result = builtin_internal_copy_lisp_face(vec![
+            Value::symbol("default"),
+            Value::symbol("my-face"),
+            Value::Nil,
+            Value::Nil,
+        ]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn internal_copy_lisp_face_uses_symbol_checks_before_frame_checks() {
+        let result = builtin_internal_copy_lisp_face(vec![
+            Value::Int(1),
+            Value::symbol("my-face"),
+            Value::Nil,
+            Value::Nil,
+        ]);
+        assert!(result.is_err());
     }
 
     #[test]

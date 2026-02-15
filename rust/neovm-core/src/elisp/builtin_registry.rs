@@ -378,6 +378,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "internal-copy-lisp-face",
     "internal-face-x-get-resource",
     "internal-get-lisp-face-attribute",
+    "internal-make-lisp-face",
     "internal-lisp-face-attribute-values",
     "internal-lisp-face-empty-p",
     "internal-lisp-face-equal-p",

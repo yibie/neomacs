@@ -6446,6 +6446,7 @@ pub(crate) fn dispatch_builtin(
         "clear-font-cache" => super::font::builtin_clear_font_cache(args),
         "font-family-list" => super::font::builtin_font_family_list(args),
         "font-xlfd-name" => super::font::builtin_font_xlfd_name(args),
+        "internal-make-lisp-face" => super::font::builtin_internal_make_lisp_face(args),
         "internal-lisp-face-p" => super::font::builtin_internal_lisp_face_p(args),
         "internal-copy-lisp-face" => super::font::builtin_internal_copy_lisp_face(args),
         "internal-set-lisp-face-attribute" => {
