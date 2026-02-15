@@ -35,6 +35,7 @@ cases/case-word-read-only-variable-semantics
 cases/transpose-chars-read-only-variable-semantics
 cases/transpose-words-semantics
 cases/transpose-words-prefix-arg-semantics
+cases/transpose-siblings-prefix-arg-semantics
 cases/transpose-words-read-only-variable-semantics
 cases/transpose-sexps-semantics
 cases/transpose-sexps-read-only-variable-semantics
