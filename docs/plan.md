@@ -4,6 +4,20 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Implemented overlay arity compatibility slice:
+  - added oracle corpus:
+    - `test/neovm/vm-compat/cases/overlay-arity-semantics.forms`
+    - `test/neovm/vm-compat/cases/overlay-arity-semantics.expected.tsv`
+    - enabled in `test/neovm/vm-compat/cases/default.list`
+  - aligned overlay builtins with GNU Emacs arity checks:
+    - `make-overlay` now enforces max 5 args
+    - `overlays-at` now enforces max 2 args
+    - `move-overlay` now enforces max 4 args
+  - added unit tests for over-arity paths in `textprop.rs`
+  - verified:
+    - `cargo test overlay_ -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/overlay-arity-semantics.forms EXPECTED=cases/overlay-arity-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Implemented batch prompt-reader compatibility slice:
   - aligned `read-file-name` / `read-directory-name` with oracle:
     - `end-of-file` now includes payload `"Error reading from stdin"`
