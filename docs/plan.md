@@ -19,6 +19,21 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Fixed cons-initial input car typing for `read-string` / `read-from-minibuffer`:
+  - updated:
+    - `rust/neovm-core/src/elisp/reader.rs`
+      - stringish initial-input validation now enforces that cons initial forms have a string car.
+      - cons initial with non-string car now signals `wrong-type-argument (stringp ...)` before EOF signaling.
+      - added reader unit tests for cons-car rejection paths.
+    - `test/neovm/vm-compat/cases/minibuffer-batch.{forms,expected.tsv}`
+      - added oracle lock-ins:
+        - `'(1 . 1)` for `read-string` / `read-from-minibuffer` => `wrong-type-argument`
+        - `'(\"x\")` remains batch `end-of-file`
+      - refreshed oracle baseline.
+  - verified:
+    - `cargo test reader::tests --manifest-path rust/neovm-core/Cargo.toml -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/minibuffer-batch` (pass, 40/40)
+
 - Aligned `completing-read` cons-style initial-input shape checks:
   - updated:
     - `rust/neovm-core/src/elisp/reader.rs`
