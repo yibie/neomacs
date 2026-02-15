@@ -700,7 +700,7 @@ pub(crate) fn builtin_region_beginning(
     let buf = eval.buffers.current_buffer().ok_or_else(no_buffer)?;
     let mark = buf.mark().ok_or_else(|| {
         signal(
-            "mark-not-set",
+            "error",
             vec![Value::string(
                 "The mark is not set now, so there is no region",
             )],
@@ -719,7 +719,7 @@ pub(crate) fn builtin_region_end(
     let buf = eval.buffers.current_buffer().ok_or_else(no_buffer)?;
     let mark = buf.mark().ok_or_else(|| {
         signal(
-            "mark-not-set",
+            "error",
             vec![Value::string(
                 "The mark is not set now, so there is no region",
             )],
