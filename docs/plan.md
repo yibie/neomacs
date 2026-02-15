@@ -19,6 +19,20 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Enforced `get-load-suffixes` zero-arity semantics:
+  - updated:
+    - `rust/neovm-core/src/elisp/lread.rs`
+      - `get-load-suffixes` now rejects extra args with `wrong-number-of-arguments`.
+      - added unit test coverage for over-arity signaling.
+    - `test/neovm/vm-compat/cases/load-suffixes.forms`
+      - added over-arity probe for `get-load-suffixes`.
+    - `test/neovm/vm-compat/cases/load-suffixes.expected.tsv`
+      - locked `wrong-number-of-arguments` expected outcome.
+  - verified:
+    - `cargo test lread::tests::get_load_suffixes --manifest-path rust/neovm-core/Cargo.toml -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/load-suffixes` (pass, 2/2)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass, full default + neovm-only corpus)
+
 - Enforced `locate-file`/`locate-file-internal` max arity parity:
   - updated:
     - `rust/neovm-core/src/elisp/lread.rs`
