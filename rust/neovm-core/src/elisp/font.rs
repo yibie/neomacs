@@ -1373,15 +1373,39 @@ pub(crate) fn builtin_face_id(args: Vec<Value>) -> EvalResult {
 pub(crate) fn builtin_face_font(args: Vec<Value>) -> EvalResult {
     expect_min_args("face-font", &args, 1)?;
     expect_max_args("face-font", &args, 3)?;
-    if let Value::Symbol(name) = &args[0] {
-        if KNOWN_FACES.contains(&name.as_str()) {
-            return Ok(Value::Nil);
+    match &args[0] {
+        Value::Str(name) => {
+            if KNOWN_FACES.contains(&name.as_str()) {
+                Ok(Value::Nil)
+            } else {
+                let payload = if name.is_empty() {
+                    Value::symbol("##")
+                } else {
+                    Value::symbol(name.as_str())
+                };
+                Err(signal(
+                    "error",
+                    vec![Value::string("Invalid face"), payload],
+                ))
+            }
         }
+        Value::Nil => Err(signal("error", vec![Value::string("Invalid face")])),
+        Value::True | Value::Symbol(_) => {
+            if let Some(name) = symbol_name_for_face_value(&args[0]) {
+                if KNOWN_FACES.contains(&name.as_str()) {
+                    return Ok(Value::Nil);
+                }
+            }
+            Err(signal(
+                "error",
+                vec![Value::string("Invalid face"), args[0].clone()],
+            ))
+        }
+        _ => Err(signal(
+            "error",
+            vec![Value::string("Invalid face"), args[0].clone()],
+        )),
     }
-    Err(signal(
-        "error",
-        vec![Value::string("Invalid face"), args[0].clone()],
-    ))
 }
 
 /// `(internal-face-x-get-resource RESOURCE CLASS FRAME)` -- stub, return nil.
@@ -1971,6 +1995,23 @@ mod tests {
     #[test]
     fn face_font_stub() {
         let result = builtin_face_font(vec![Value::symbol("default")]).unwrap();
+        assert!(result.is_nil());
+    }
+
+    #[test]
+    fn face_font_accepts_known_string_face() {
+        let result = builtin_face_font(vec![Value::string("default")]).unwrap();
+        assert!(result.is_nil());
+    }
+
+    #[test]
+    fn face_font_ignores_optional_arguments_for_known_face() {
+        let result = builtin_face_font(vec![
+            Value::symbol("default"),
+            Value::Nil,
+            Value::True,
+        ])
+        .unwrap();
         assert!(result.is_nil());
     }
 
