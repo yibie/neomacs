@@ -19,6 +19,23 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Added evaluator-backed `format-mode-line` optional designator checks and locked corpus:
+  - updated:
+    - `rust/neovm-core/src/elisp/xdisp.rs`
+      - added evaluator-backed `format-mode-line` path that preserves batch return shape (`""`) while validating optional window and buffer arguments (`windowp` / `bufferp`).
+      - expanded xdisp unit tests for format-mode-line optional designator validation.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - routed `format-mode-line` through evaluator dispatch.
+    - `test/neovm/vm-compat/cases/format-mode-line-batch-semantics.{forms,expected.tsv}`
+      - added oracle-locked batch edge corpus for arity and optional designator type checks.
+    - `test/neovm/vm-compat/cases/default.list`
+      - included `cases/format-mode-line-batch-semantics` in default compatibility runs.
+  - verified:
+    - `cargo test xdisp::tests --manifest-path rust/neovm-core/Cargo.toml -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/format-mode-line-batch-semantics` (pass, 7/7)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/xdisp-stub-edges-semantics` (pass, 43/43)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Aligned xdisp tool/tab bar optional frame argument semantics with oracle:
   - updated:
     - `rust/neovm-core/src/elisp/xdisp.rs`
