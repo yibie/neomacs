@@ -719,6 +719,19 @@ Last updated: 2026-02-15
     - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat record FORMS=cases/get-byte-semantics.forms EXPECTED=cases/get-byte-semantics.expected.tsv` (pass)
     - `make -C test/neovm/vm-compat check-neovm FORMS=cases/get-byte-semantics.forms EXPECTED=cases/get-byte-semantics.expected.tsv` (pass, 21/21)
     - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+- Implemented and locked-in `char-resolve-modifiers` semantics:
+  - replaced passthrough behavior with modifier resolution that matches oracle for shift/control/meta interactions
+  - aligned wrong-type payload to `(wrong-type-argument fixnump <value>)`
+  - fixed `S-A` normalization to clear the shift bit (oracle parity)
+  - added oracle corpus:
+    - `test/neovm/vm-compat/cases/char-resolve-modifiers-semantics.forms`
+    - `test/neovm/vm-compat/cases/char-resolve-modifiers-semantics.expected.tsv`
+    - enabled in `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml char_resolve_modifiers -- --nocapture` (pass)
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat record FORMS=cases/char-resolve-modifiers-semantics.forms EXPECTED=cases/char-resolve-modifiers-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/char-resolve-modifiers-semantics.forms EXPECTED=cases/char-resolve-modifiers-semantics.expected.tsv` (pass, 14/14)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Kept branch green with targeted Rust tests and vm-compat checks after each slice.
 
 ## Doing
