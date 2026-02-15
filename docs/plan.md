@@ -291,6 +291,17 @@ Last updated: 2026-02-15
   - `test/neovm/vm-compat/cases/display-monitor-frames-semantics.forms`
   - `test/neovm/vm-compat/cases/display-monitor-frames-semantics.expected.tsv`
   - wired into `test/neovm/vm-compat/cases/default.list`
+- Aligned internal face introspection builtins with oracle semantics:
+  - `internal-lisp-face-p` now returns face vectors for known faces, `nil` for unknown/non-face inputs, and validates optional frame designators (`frame-live-p` payload)
+  - `internal-get-lisp-face-attribute` now validates optional frame argument (`nil`/`t` or live-frame type check), validates face/attribute error payloads, and returns oracle-compatible values for core faces in batch mode
+  - added oracle corpus:
+    - `test/neovm/vm-compat/cases/internal-lisp-face-semantics.forms`
+    - `test/neovm/vm-compat/cases/internal-lisp-face-semantics.expected.tsv`
+    - enabled in `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test font::tests -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/internal-lisp-face-semantics.forms EXPECTED=cases/internal-lisp-face-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Kept branch green with targeted Rust tests and vm-compat checks after each slice.
 
 ## Doing
