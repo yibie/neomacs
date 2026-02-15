@@ -1,0 +1,11 @@
+(fboundp 'string-chop-newline)
+(condition-case err (string-chop-newline "x") (error err))
+
+(fboundp 'string-pad)
+(condition-case err (string-pad "x" 2) (error err))
+
+(fboundp 'string-fill)
+(condition-case err (string-fill "x" 2) (error err))
+
+(fboundp 'string-limit)
+(condition-case err (string-limit "x" 2) (error err))
