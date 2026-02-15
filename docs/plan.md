@@ -302,6 +302,20 @@ Last updated: 2026-02-15
     - `cargo test font::tests -- --nocapture` (pass)
     - `make -C test/neovm/vm-compat check-neovm FORMS=cases/internal-lisp-face-semantics.forms EXPECTED=cases/internal-lisp-face-semantics.expected.tsv` (pass)
     - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+- Aligned additional internal face builtins with oracle semantics:
+  - implemented and registered `internal-lisp-face-attribute-values`, `internal-lisp-face-empty-p`, and `internal-lisp-face-equal-p`
+  - `internal-lisp-face-attribute-values` now returns `(t nil)` for discrete boolean face attributes and preserves symbol/type/arity error semantics
+  - `internal-lisp-face-empty-p` / `internal-lisp-face-equal-p` now validate frame argument shape first, resolve face designators (symbol/string) with oracle-compatible invalid-face payloads, and honor `FRAME=t` default-face behavior
+  - expanded core built-in face attribute map used by comparisons (`highlight`/`region`/`mode-line` inverse-video, `mode-line-inactive` inherit, `fringe` background, `cursor` background)
+  - added oracle corpus:
+    - `test/neovm/vm-compat/cases/internal-lisp-face-comparators.forms`
+    - `test/neovm/vm-compat/cases/internal-lisp-face-comparators.expected.tsv`
+    - enabled in `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test font::tests -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/internal-lisp-face-comparators.forms EXPECTED=cases/internal-lisp-face-comparators.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass; expected allowlisted drift only)
 - Kept branch green with targeted Rust tests and vm-compat checks after each slice.
 
 ## Doing
