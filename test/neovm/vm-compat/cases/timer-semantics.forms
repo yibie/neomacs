@@ -28,8 +28,24 @@
   (prog1 (timerp tm)
     (cancel-timer tm)))
 
+(let ((tm (run-with-timer 0 nil #'ignore)))
+  (prog1 (timerp tm)
+    (cancel-timer tm)))
+
+(let ((tm (run-with-timer "0 sec" nil #'ignore)))
+  (prog1 (timerp tm)
+    (cancel-timer tm)))
+
+(let ((tm (run-with-timer nil nil #'ignore)))
+  (prog1 (timerp tm)
+    (cancel-timer tm)))
+
 (condition-case err
     (run-with-idle-timer "0 sec" nil #'ignore)
+  (error (car err)))
+
+(condition-case err
+    (run-with-timer t nil #'ignore)
   (error (car err)))
 
 (condition-case err
