@@ -30,11 +30,15 @@
 (tool-bar-height)
 (tool-bar-height nil)
 (tool-bar-height nil t)
+(tool-bar-height (selected-frame))
+(condition-case err (tool-bar-height "x") (error err))
 (condition-case err (tool-bar-height nil nil nil) (error (car err)))
 
 (fboundp 'tab-bar-height)
 (tab-bar-height)
 (tab-bar-height nil t)
+(tab-bar-height (selected-frame))
+(condition-case err (tab-bar-height "x") (error err))
 (condition-case err (tab-bar-height nil nil nil) (error (car err)))
 
 (fboundp 'line-number-display-width)

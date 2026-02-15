@@ -25,15 +25,19 @@
 25	(tool-bar-height)	OK 0
 26	(tool-bar-height nil)	OK 0
 27	(tool-bar-height nil t)	OK 0
-28	(condition-case err (tool-bar-height nil nil nil) (error (car err)))	OK wrong-number-of-arguments
-29	(fboundp 'tab-bar-height)	OK t
-30	(tab-bar-height)	OK 0
-31	(tab-bar-height nil t)	OK 0
-32	(condition-case err (tab-bar-height nil nil nil) (error (car err)))	OK wrong-number-of-arguments
-33	(fboundp 'line-number-display-width)	OK t
-34	(line-number-display-width)	OK 0
-35	(line-number-display-width t)	OK 0
-36	(condition-case err (line-number-display-width nil nil) (error (car err)))	OK wrong-number-of-arguments
-37	(fboundp 'long-line-optimizations-p)	OK t
-38	(long-line-optimizations-p)	OK nil
-39	(condition-case err (long-line-optimizations-p 1) (error (car err)))	OK wrong-number-of-arguments
+28	(tool-bar-height (selected-frame))	OK 0
+29	(condition-case err (tool-bar-height "x") (error err))	OK (wrong-type-argument framep "x")
+30	(condition-case err (tool-bar-height nil nil nil) (error (car err)))	OK wrong-number-of-arguments
+31	(fboundp 'tab-bar-height)	OK t
+32	(tab-bar-height)	OK 0
+33	(tab-bar-height nil t)	OK 0
+34	(tab-bar-height (selected-frame))	OK 0
+35	(condition-case err (tab-bar-height "x") (error err))	OK (wrong-type-argument framep "x")
+36	(condition-case err (tab-bar-height nil nil nil) (error (car err)))	OK wrong-number-of-arguments
+37	(fboundp 'line-number-display-width)	OK t
+38	(line-number-display-width)	OK 0
+39	(line-number-display-width t)	OK 0
+40	(condition-case err (line-number-display-width nil nil) (error (car err)))	OK wrong-number-of-arguments
+41	(fboundp 'long-line-optimizations-p)	OK t
+42	(long-line-optimizations-p)	OK nil
+43	(condition-case err (long-line-optimizations-p 1) (error (car err)))	OK wrong-number-of-arguments
