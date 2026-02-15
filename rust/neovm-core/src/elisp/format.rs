@@ -64,17 +64,6 @@ fn require_string(_name: &str, val: &Value) -> Result<String, Flow> {
     }
 }
 
-fn require_int(_name: &str, val: &Value) -> Result<i64, Flow> {
-    match val {
-        Value::Int(n) => Ok(*n),
-        Value::Char(c) => Ok(*c as i64),
-        other => Err(signal(
-            "wrong-type-argument",
-            vec![Value::symbol("integerp"), other.clone()],
-        )),
-    }
-}
-
 // ---------------------------------------------------------------------------
 // format-spec
 // ---------------------------------------------------------------------------
@@ -773,64 +762,6 @@ pub(crate) fn builtin_format_seconds(args: Vec<Value>) -> EvalResult {
 }
 
 // ---------------------------------------------------------------------------
-// string-pad
-// ---------------------------------------------------------------------------
-
-/// `(string-pad STRING LENGTH &optional PADDING START)` -- pad STRING to
-/// LENGTH characters.
-///
-/// PADDING defaults to space.  If START is non-nil, pad at the start
-/// (right-align); otherwise pad at the end (left-align).
-pub(crate) fn builtin_string_pad(args: Vec<Value>) -> EvalResult {
-    expect_min_max_args("string-pad", &args, 2, 4)?;
-    let s = require_string("string-pad", &args[0])?;
-    let length = require_int("string-pad", &args[1])? as usize;
-
-    let padding = if args.len() >= 3 && !args[2].is_nil() {
-        match &args[2] {
-            Value::Char(c) => *c,
-            Value::Int(n) => char::from_u32(*n as u32).unwrap_or(' '),
-            _ => ' ',
-        }
-    } else {
-        ' '
-    };
-
-    let at_start = args.len() >= 4 && args[3].is_truthy();
-
-    let char_count = s.chars().count();
-    if char_count >= length {
-        // Truncate to length if longer.
-        let truncated: String = s.chars().take(length).collect();
-        Ok(Value::string(truncated))
-    } else {
-        let pad_count = length - char_count;
-        let pad_str: String = std::iter::repeat(padding).take(pad_count).collect();
-        if at_start {
-            Ok(Value::string(format!("{}{}", pad_str, s)))
-        } else {
-            Ok(Value::string(format!("{}{}", s, pad_str)))
-        }
-    }
-}
-
-// ---------------------------------------------------------------------------
-// string-chop-newline
-// ---------------------------------------------------------------------------
-
-/// `(string-chop-newline STRING)` -- remove a single trailing newline, if
-/// present.
-pub(crate) fn builtin_string_chop_newline(args: Vec<Value>) -> EvalResult {
-    expect_args("string-chop-newline", &args, 1)?;
-    let s = require_string("string-chop-newline", &args[0])?;
-    if s.ends_with('\n') {
-        Ok(Value::string(&s[..s.len() - 1]))
-    } else {
-        Ok(Value::string(s))
-    }
-}
-
-// ---------------------------------------------------------------------------
 // string-lines
 // ---------------------------------------------------------------------------
 
@@ -881,84 +812,6 @@ pub(crate) fn builtin_string_clean_whitespace(args: Vec<Value>) -> EvalResult {
     }
 
     Ok(Value::string(result))
-}
-
-// ---------------------------------------------------------------------------
-// string-fill
-// ---------------------------------------------------------------------------
-
-/// `(string-fill STRING LENGTH)` -- fill (word-wrap) STRING at LENGTH columns.
-///
-/// Breaks at word boundaries where possible.  Preserves existing newlines.
-pub(crate) fn builtin_string_fill(args: Vec<Value>) -> EvalResult {
-    expect_args("string-fill", &args, 2)?;
-    let s = require_string("string-fill", &args[0])?;
-    let length = require_int("string-fill", &args[1])? as usize;
-
-    if length == 0 {
-        return Ok(Value::string(s));
-    }
-
-    let mut result = String::new();
-
-    // Process each paragraph (split by existing newlines) separately.
-    for (para_idx, paragraph) in s.split('\n').enumerate() {
-        if para_idx > 0 {
-            result.push('\n');
-        }
-
-        let words: Vec<&str> = paragraph.split_whitespace().collect();
-        if words.is_empty() {
-            continue;
-        }
-
-        let mut line_len: usize = 0;
-        for (word_idx, word) in words.iter().enumerate() {
-            let word_len = word.chars().count();
-            if word_idx == 0 {
-                result.push_str(word);
-                line_len = word_len;
-            } else if line_len + 1 + word_len <= length {
-                result.push(' ');
-                result.push_str(word);
-                line_len += 1 + word_len;
-            } else {
-                result.push('\n');
-                result.push_str(word);
-                line_len = word_len;
-            }
-        }
-    }
-
-    Ok(Value::string(result))
-}
-
-// ---------------------------------------------------------------------------
-// string-limit
-// ---------------------------------------------------------------------------
-
-/// `(string-limit STRING LENGTH &optional END CODING-SYSTEM)` -- truncate
-/// STRING to at most LENGTH characters.
-///
-/// If END is non-nil, take from the end instead of the beginning.
-/// CODING-SYSTEM is accepted but ignored (we always count characters).
-pub(crate) fn builtin_string_limit(args: Vec<Value>) -> EvalResult {
-    expect_min_max_args("string-limit", &args, 2, 4)?;
-    let s = require_string("string-limit", &args[0])?;
-    let length = require_int("string-limit", &args[1])? as usize;
-    let from_end = args.len() >= 3 && args[2].is_truthy();
-
-    let char_count = s.chars().count();
-    if char_count <= length {
-        Ok(Value::string(s))
-    } else if from_end {
-        let skip = char_count - length;
-        let truncated: String = s.chars().skip(skip).collect();
-        Ok(Value::string(truncated))
-    } else {
-        let truncated: String = s.chars().take(length).collect();
-        Ok(Value::string(truncated))
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1205,78 +1058,6 @@ mod tests {
     }
 
     // ===================================================================
-    // string-pad tests
-    // ===================================================================
-
-    #[test]
-    fn string_pad_right() {
-        let result = builtin_string_pad(vec![Value::string("hi"), Value::Int(5)]);
-        assert_eq!(result.unwrap().as_str().unwrap(), "hi   ");
-    }
-
-    #[test]
-    fn string_pad_left() {
-        let result = builtin_string_pad(vec![
-            Value::string("hi"),
-            Value::Int(5),
-            Value::Nil,
-            Value::True,
-        ]);
-        assert_eq!(result.unwrap().as_str().unwrap(), "   hi");
-    }
-
-    #[test]
-    fn string_pad_custom_char() {
-        let result = builtin_string_pad(vec![
-            Value::string("hi"),
-            Value::Int(5),
-            Value::Char('.'),
-            Value::Nil,
-        ]);
-        assert_eq!(result.unwrap().as_str().unwrap(), "hi...");
-    }
-
-    #[test]
-    fn string_pad_truncate() {
-        let result = builtin_string_pad(vec![Value::string("hello world"), Value::Int(5)]);
-        assert_eq!(result.unwrap().as_str().unwrap(), "hello");
-    }
-
-    #[test]
-    fn string_pad_exact_length() {
-        let result = builtin_string_pad(vec![Value::string("hello"), Value::Int(5)]);
-        assert_eq!(result.unwrap().as_str().unwrap(), "hello");
-    }
-
-    // ===================================================================
-    // string-chop-newline tests
-    // ===================================================================
-
-    #[test]
-    fn string_chop_newline_present() {
-        let result = builtin_string_chop_newline(vec![Value::string("hello\n")]);
-        assert_eq!(result.unwrap().as_str().unwrap(), "hello");
-    }
-
-    #[test]
-    fn string_chop_newline_absent() {
-        let result = builtin_string_chop_newline(vec![Value::string("hello")]);
-        assert_eq!(result.unwrap().as_str().unwrap(), "hello");
-    }
-
-    #[test]
-    fn string_chop_newline_only_last() {
-        let result = builtin_string_chop_newline(vec![Value::string("a\nb\n")]);
-        assert_eq!(result.unwrap().as_str().unwrap(), "a\nb");
-    }
-
-    #[test]
-    fn string_chop_newline_empty() {
-        let result = builtin_string_chop_newline(vec![Value::string("")]);
-        assert_eq!(result.unwrap().as_str().unwrap(), "");
-    }
-
-    // ===================================================================
     // string-lines tests
     // ===================================================================
 
@@ -1347,73 +1128,6 @@ mod tests {
     fn string_clean_whitespace_only_spaces() {
         let result = builtin_string_clean_whitespace(vec![Value::string("   ")]);
         assert_eq!(result.unwrap().as_str().unwrap(), "");
-    }
-
-    // ===================================================================
-    // string-fill tests
-    // ===================================================================
-
-    #[test]
-    fn string_fill_basic() {
-        let result =
-            builtin_string_fill(vec![Value::string("hello world foo bar"), Value::Int(10)]);
-        let filled = result.unwrap();
-        let s = filled.as_str().unwrap();
-        // "hello" + " " + "world" = 11 > 10, so "world" goes to next line.
-        assert!(s.contains('\n'));
-        let lines: Vec<&str> = s.split('\n').collect();
-        assert!(lines[0].len() <= 11); // "hello world" fits in 11 but we set 10
-    }
-
-    #[test]
-    fn string_fill_short_text() {
-        let result = builtin_string_fill(vec![Value::string("hi"), Value::Int(80)]);
-        assert_eq!(result.unwrap().as_str().unwrap(), "hi");
-    }
-
-    #[test]
-    fn string_fill_preserves_newlines() {
-        let result = builtin_string_fill(vec![
-            Value::string("paragraph one\nparagraph two"),
-            Value::Int(80),
-        ]);
-        let s = result.unwrap();
-        assert!(s.as_str().unwrap().contains('\n'));
-    }
-
-    // ===================================================================
-    // string-limit tests
-    // ===================================================================
-
-    #[test]
-    fn string_limit_from_start() {
-        let result = builtin_string_limit(vec![Value::string("hello world"), Value::Int(5)]);
-        assert_eq!(result.unwrap().as_str().unwrap(), "hello");
-    }
-
-    #[test]
-    fn string_limit_from_end() {
-        let result = builtin_string_limit(vec![
-            Value::string("hello world"),
-            Value::Int(5),
-            Value::True,
-        ]);
-        assert_eq!(result.unwrap().as_str().unwrap(), "world");
-    }
-
-    #[test]
-    fn string_limit_no_truncation() {
-        let result = builtin_string_limit(vec![Value::string("hi"), Value::Int(10)]);
-        assert_eq!(result.unwrap().as_str().unwrap(), "hi");
-    }
-
-    #[test]
-    fn string_limit_unicode() {
-        // Unicode chars should be counted by character, not byte.
-        let result = builtin_string_limit(vec![Value::string("cafe\u{0301}"), Value::Int(4)]);
-        let s = result.unwrap();
-        // "cafe\u{0301}" has 5 chars (c, a, f, e, combining accent).
-        assert_eq!(s.as_str().unwrap().chars().count(), 4);
     }
 
     // ===================================================================
