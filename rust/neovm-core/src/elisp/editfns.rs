@@ -109,18 +109,6 @@ fn ensure_current_buffer_writable(eval: &super::eval::Evaluator) -> Result<(), F
 // Eval-dependent builtins (need &mut Evaluator for buffer access)
 // ---------------------------------------------------------------------------
 
-/// `(goto-char POSITION)` — set point to POSITION, return POSITION.
-pub(crate) fn builtin_goto_char(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
-    expect_args("goto-char", &args, 1)?;
-    let pos = expect_integer("goto-char", &args[0])?;
-    let position_val = args[0].clone();
-    if let Some(buf) = eval.buffers.current_buffer_mut() {
-        let byte = lisp_pos_to_byte(buf, pos);
-        buf.goto_char(byte);
-    }
-    Ok(position_val)
-}
-
 /// `(char-after &optional POS)` — return character after POS (or point).
 /// Returns nil if POS is at end of accessible region.
 pub(crate) fn builtin_char_after(
@@ -220,28 +208,6 @@ pub(crate) fn builtin_insert_before_markers(
     builtin_insert(eval, args)
 }
 
-/// `(delete-region START END)` — delete text between START and END.
-pub(crate) fn builtin_delete_region(
-    eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
-    expect_args("delete-region", &args, 2)?;
-    let start_pos = expect_integer("delete-region", &args[0])?;
-    let end_pos = expect_integer("delete-region", &args[1])?;
-    ensure_current_buffer_writable(eval)?;
-    if let Some(buf) = eval.buffers.current_buffer_mut() {
-        let start_byte = lisp_pos_to_byte(buf, start_pos);
-        let end_byte = lisp_pos_to_byte(buf, end_pos);
-        let (lo, hi) = if start_byte <= end_byte {
-            (start_byte, end_byte)
-        } else {
-            (end_byte, start_byte)
-        };
-        buf.delete_region(lo, hi);
-    }
-    Ok(Value::Nil)
-}
-
 /// `(delete-char N &optional KILLFLAG)` — delete N characters forward.
 pub(crate) fn builtin_delete_char(
     eval: &mut super::eval::Evaluator,
@@ -313,18 +279,6 @@ pub(crate) fn builtin_buffer_substring_no_properties(
     args: Vec<Value>,
 ) -> EvalResult {
     builtin_buffer_substring(eval, args)
-}
-
-/// `(buffer-string)` — return entire accessible buffer contents.
-pub(crate) fn builtin_buffer_string(
-    eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
-    expect_args("buffer-string", &args, 0)?;
-    match eval.buffers.current_buffer() {
-        Some(buf) => Ok(Value::string(buf.buffer_string())),
-        None => Ok(Value::string("")),
-    }
 }
 
 /// `(region-beginning)` — return start of region.
