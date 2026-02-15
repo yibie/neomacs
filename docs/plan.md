@@ -5,17 +5,30 @@ Last updated: 2026-02-15
 ## Doing
 
 - Continue command-context and read-only variable compatibility sweep in `rust/neovm-core/src/elisp/kill_ring.rs`.
-- Audit remaining kill-ring command-context surfaces for untested malformed pointer permutations.
+- Audit default-suite boundary cases and keep `.elc`-dependent corpora explicitly non-default.
 - Keeping each slice small: runtime patch -> oracle corpus -> docs note -> push.
 
 ## Next
 
+- Keep bytecode-literal reader/exec corpora out of `default.list` while `.elc` compatibility remains disabled.
 - Expand oracle corpus for additional malformed pointer permutations across mutators and command-context commands.
 - Audit `yank`/`yank-pop` behavior with empty kill-ring entries and pointer wrap rules.
 - Run targeted regression checks after each slice (`command-dispatch-default-arg-semantics`, touched command corpus, and focused `yank`/`yank-pop` suites).
 
 ## Done
 
+- Promoted additional passing corpora into the default vm-compat suite:
+  - added to `test/neovm/vm-compat/cases/default.list`:
+    - `cases/load-policy`
+    - `cases/load-suffixes`
+    - `cases/precompile`
+    - `cases/string-concat-error-paths`
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/load-policy` (pass, 12/12)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/load-suffixes` (pass, 1/1)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/precompile` (pass, 18/18)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/string-concat-error-paths` (pass, 13/13)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Added mutator-pointer-normalization oracle corpus and list wiring:
   - added and enabled:
     - `test/neovm/vm-compat/cases/kill-ring-pointer-normalize-mutation-semantics.forms`
