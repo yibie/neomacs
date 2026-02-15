@@ -4,6 +4,12 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Reduced dead search shim surface after evaluator routing:
+  - removed unused `search.rs` eval-stub wrappers (`posix-search-*`, `word-search-*`, `search-forward/backward`, `re-search-forward/backward`, `replace-match`) now superseded by `builtins.rs` evaluator implementations
+  - re-verified search slices after cleanup:
+    - `cargo test search::tests -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/search-buffer.forms EXPECTED=cases/search-buffer.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/search-posix-word-semantics.forms EXPECTED=cases/search-posix-word-semantics.expected.tsv` (pass)
 - Implemented `exit-recursive-edit` compatibility slice:
   - replaced nil stub behavior with GNU-compatible `user-error` in batch when no recursive edit is active
   - added and enabled oracle corpus:
