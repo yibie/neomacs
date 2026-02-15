@@ -4,6 +4,25 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Implemented `buffer-local-variables` compatibility slice (custom/buffer-local system):
+  - aligned evaluator dispatch target in `rust/neovm-core/src/elisp/custom.rs` from loose fallback behavior to explicit argument/arity semantics:
+    - arity `0..1`
+    - non-`nil` non-buffer argument now signals `wrong-type-argument` with `bufferp`
+    - `BUFFER=nil`/omitted uses current buffer
+  - implemented deterministic explicit-local alist return from buffer-local storage:
+    - entries emitted as `(SYMBOL . VALUE)`
+    - sorted by symbol name for stable output
+  - expanded `custom.rs` tests for:
+    - empty-buffer return shape (`nil`)
+    - argument validation payloads (type and arity)
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/buffer-local-variables-semantics.forms`
+    - `test/neovm/vm-compat/cases/buffer-local-variables-semantics.expected.tsv`
+    - wired into `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml buffer_local_variables -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/buffer-local-variables-semantics.forms EXPECTED=cases/buffer-local-variables-semantics.expected.tsv` (pass, 7/7)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Implemented `symbol-file` compatibility slice (stub -> evaluator-backed subset):
   - added evaluator-aware dispatch in `rust/neovm-core/src/elisp/builtins.rs` for `symbol-file`
   - implemented `builtin_symbol_file_eval` in `rust/neovm-core/src/elisp/autoload.rs`:

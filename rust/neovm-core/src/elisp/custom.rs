@@ -133,6 +133,17 @@ fn expect_min_args(name: &str, args: &[Value], min: usize) -> Result<(), Flow> {
     }
 }
 
+fn expect_max_args(name: &str, args: &[Value], max: usize) -> Result<(), Flow> {
+    if args.len() > max {
+        Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol(name), Value::Int(args.len() as i64)],
+        ))
+    } else {
+        Ok(())
+    }
+}
+
 /// `(custom-variable-p SYMBOL)` -- returns t if SYMBOL is a custom variable.
 pub(crate) fn builtin_custom_variable_p(
     eval: &mut super::eval::Evaluator,
@@ -316,25 +327,40 @@ pub(crate) fn builtin_buffer_local_variables(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    let buf = if !args.is_empty() {
-        match &args[0] {
-            Value::Buffer(id) => eval.buffers.get(*id),
-            _ => eval.buffers.current_buffer(),
+    expect_max_args("buffer-local-variables", &args, 1)?;
+
+    let id = match args.first() {
+        None | Some(Value::Nil) => eval
+            .buffers
+            .current_buffer()
+            .map(|b| b.id)
+            .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?,
+        Some(Value::Buffer(id)) => *id,
+        Some(other) => {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("bufferp"), other.clone()],
+            ))
         }
-    } else {
-        eval.buffers.current_buffer()
     };
 
-    match buf {
-        Some(b) => {
-            let mut items = Vec::new();
-            for (k, v) in &b.properties {
-                items.push(Value::cons(Value::symbol(k.clone()), v.clone()));
-            }
-            Ok(Value::list(items))
-        }
-        None => Ok(Value::Nil),
-    }
+    let buf = eval
+        .buffers
+        .get(id)
+        .ok_or_else(|| signal("error", vec![Value::string("No such live buffer")]))?;
+
+    let mut locals: Vec<(String, Value)> = buf
+        .properties
+        .iter()
+        .map(|(name, value)| (name.clone(), value.clone()))
+        .collect();
+    locals.sort_by(|a, b| a.0.cmp(&b.0));
+
+    let entries: Vec<Value> = locals
+        .into_iter()
+        .map(|(name, value)| Value::cons(Value::symbol(name), value))
+        .collect();
+    Ok(Value::list(entries))
 }
 
 /// `(kill-local-variable VARIABLE)` -- remove local binding in current buffer.
@@ -982,9 +1008,22 @@ mod tests {
                (set-buffer "test-buf")
                (buffer-local-variables)"#,
         );
-        // Empty buffer should have nil or empty list for local vars
-        // (buffer may have some default properties, so just check it doesn't error)
-        assert!(results[2].starts_with("OK"));
+        assert_eq!(results[2], "OK nil");
+    }
+
+    #[test]
+    fn buffer_local_variables_argument_validation() {
+        let results = eval_all(
+            r#"(condition-case err (buffer-local-variables 1) (error err))
+               (condition-case err (buffer-local-variables "test-buf") (error err))
+               (condition-case err (buffer-local-variables nil nil) (error err))"#,
+        );
+        assert_eq!(results[0], "OK (wrong-type-argument bufferp 1)");
+        assert_eq!(results[1], "OK (wrong-type-argument bufferp \"test-buf\")");
+        assert_eq!(
+            results[2],
+            "OK (wrong-number-of-arguments buffer-local-variables 2)"
+        );
     }
 
     // -- kill-local-variable builtin ----------------------------------------

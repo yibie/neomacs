@@ -65,6 +65,7 @@ cases/bindings
 cases/specpdl-dynamic-unwind-semantics
 cases/buffer-locals
 cases/buffer-local-value
+cases/buffer-local-variables-semantics
 cases/defvar-local
 cases/setq-local
 cases/undo-basics
