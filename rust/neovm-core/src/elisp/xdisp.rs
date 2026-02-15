@@ -17,7 +17,7 @@
 
 use super::error::{signal, EvalResult, Flow};
 use super::value::*;
-use crate::window::FrameId;
+use crate::window::{FrameId, WindowId};
 
 // ---------------------------------------------------------------------------
 // Argument helpers
@@ -64,6 +64,20 @@ fn expect_integer_or_marker(arg: &Value) -> Result<(), Flow> {
 /// Batch-compatible behavior: accepts 1..4 args and returns an empty string.
 pub(crate) fn builtin_format_mode_line(args: Vec<Value>) -> EvalResult {
     expect_args_range("format-mode-line", &args, 1, 4)?;
+    Ok(Value::string(""))
+}
+
+/// `(format-mode-line &optional FORMAT FACE WINDOW BUFFER)` evaluator-backed variant.
+///
+/// Batch mode still returns the empty string, but validates optional WINDOW and
+/// BUFFER designators like Emacs.
+pub(crate) fn builtin_format_mode_line_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_args_range("format-mode-line", &args, 1, 4)?;
+    validate_optional_window_designator(eval, args.get(2))?;
+    validate_optional_buffer_designator(eval, args.get(3))?;
     Ok(Value::string(""))
 }
 
@@ -259,6 +273,55 @@ fn validate_optional_frame_designator(
     ))
 }
 
+fn validate_optional_window_designator(
+    eval: &super::eval::Evaluator,
+    value: Option<&Value>,
+) -> Result<(), Flow> {
+    let Some(windowish) = value else {
+        return Ok(());
+    };
+    if windowish.is_nil() {
+        return Ok(());
+    }
+    if let Value::Int(id) = windowish {
+        if *id >= 0 {
+            let wid = WindowId(*id as u64);
+            for fid in eval.frames.frame_list() {
+                if let Some(frame) = eval.frames.get(fid) {
+                    if frame.find_window(wid).is_some() {
+                        return Ok(());
+                    }
+                }
+            }
+        }
+    }
+    Err(signal(
+        "wrong-type-argument",
+        vec![Value::symbol("windowp"), windowish.clone()],
+    ))
+}
+
+fn validate_optional_buffer_designator(
+    eval: &super::eval::Evaluator,
+    value: Option<&Value>,
+) -> Result<(), Flow> {
+    let Some(bufferish) = value else {
+        return Ok(());
+    };
+    if bufferish.is_nil() {
+        return Ok(());
+    }
+    if let Value::Buffer(id) = bufferish {
+        if eval.buffers.get(*id).is_some() {
+            return Ok(());
+        }
+    }
+    Err(signal(
+        "wrong-type-argument",
+        vec![Value::symbol("bufferp"), bufferish.clone()],
+    ))
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -275,6 +338,56 @@ mod tests {
         assert_eq!(result, Value::string(""));
 
         assert!(builtin_format_mode_line(vec![]).is_err());
+    }
+
+    #[test]
+    fn test_format_mode_line_eval_optional_designators() {
+        let mut eval = super::super::eval::Evaluator::new();
+        let buffer_id = eval.buffers.current_buffer().expect("current buffer").id;
+        let frame_id = eval.frames.create_frame("xdisp-format", 80, 24, buffer_id);
+        let window_id = eval
+            .frames
+            .get(frame_id)
+            .expect("frame")
+            .selected_window
+            .0 as i64;
+
+        let ok = builtin_format_mode_line_eval(
+            &mut eval,
+            vec![
+                Value::string("%b"),
+                Value::Nil,
+                Value::Int(window_id),
+                Value::Buffer(buffer_id),
+            ],
+        )
+        .unwrap();
+        assert_eq!(ok, Value::string(""));
+
+        let err = builtin_format_mode_line_eval(
+            &mut eval,
+            vec![Value::string("%b"), Value::Nil, Value::string("x")],
+        )
+        .unwrap_err();
+        match err {
+            Flow::Signal(sig) => assert_eq!(sig.symbol, "wrong-type-argument"),
+            other => panic!("expected wrong-type-argument, got {:?}", other),
+        }
+
+        let err = builtin_format_mode_line_eval(
+            &mut eval,
+            vec![
+                Value::string("%b"),
+                Value::Nil,
+                Value::Nil,
+                Value::string("x"),
+            ],
+        )
+        .unwrap_err();
+        match err {
+            Flow::Signal(sig) => assert_eq!(sig.symbol, "wrong-type-argument"),
+            other => panic!("expected wrong-type-argument, got {:?}", other),
+        }
     }
 
     #[test]
