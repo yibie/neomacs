@@ -4,6 +4,25 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Implemented `default-file-modes` / `set-default-file-modes` compatibility slice:
+  - added builtins in `rust/neovm-core/src/elisp/fileio.rs`:
+    - `builtin_default_file_modes`
+    - `builtin_set_default_file_modes`
+  - semantics aligned with oracle subset:
+    - `default-file-modes` arity `0`, return integer mode bits
+    - `set-default-file-modes` arity `1`, strict integer validation, return `nil`
+    - round-trip default mode updates preserved
+  - registered and dispatched both builtins in:
+    - `rust/neovm-core/src/elisp/builtins.rs`
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/default-file-modes-semantics.forms`
+    - `test/neovm/vm-compat/cases/default-file-modes-semantics.expected.tsv`
+    - wired into `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml default_file_modes -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/default-file-modes-semantics.forms EXPECTED=cases/default-file-modes-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Implemented `set-file-times` compatibility slice:
   - added pure + evaluator-aware builtins in `rust/neovm-core/src/elisp/fileio.rs`:
     - `builtin_set_file_times`

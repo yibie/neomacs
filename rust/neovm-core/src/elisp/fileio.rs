@@ -9,7 +9,8 @@ use std::ffi::{CStr, CString};
 use std::fs;
 use std::io::{ErrorKind, Write};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
+use std::sync::Once;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use regex::Regex;
@@ -267,6 +268,19 @@ pub fn directory_name_p(name: &str) -> bool {
 }
 
 static TEMP_FILE_COUNTER: AtomicU64 = AtomicU64::new(0);
+static DEFAULT_FILE_MODE_MASK: AtomicU32 = AtomicU32::new(0o022);
+static DEFAULT_FILE_MODE_MASK_INIT: Once = Once::new();
+
+fn init_default_file_mode_mask() {
+    DEFAULT_FILE_MODE_MASK_INIT.call_once(|| {
+        #[cfg(unix)]
+        unsafe {
+            let old = libc::umask(0);
+            libc::umask(old);
+            DEFAULT_FILE_MODE_MASK.store(old as u32, Ordering::Relaxed);
+        }
+    });
+}
 
 fn env_name_char(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_'
@@ -1703,6 +1717,28 @@ pub(crate) fn builtin_set_file_times_eval(eval: &Evaluator, args: Vec<Value>) ->
     let nofollow = args.get(2).is_some_and(|flag| !flag.is_nil());
     set_file_times_compat(&filename, timestamp, nofollow)?;
     Ok(Value::True)
+}
+
+/// (set-default-file-modes MODE) -> nil
+pub(crate) fn builtin_set_default_file_modes(args: Vec<Value>) -> EvalResult {
+    expect_args("set-default-file-modes", &args, 1)?;
+    init_default_file_mode_mask();
+    let mode = expect_fixnum(&args[0])?;
+    let new_mask = (!mode) & 0o777;
+    #[cfg(unix)]
+    unsafe {
+        libc::umask(new_mask as libc::mode_t);
+    }
+    DEFAULT_FILE_MODE_MASK.store(new_mask as u32, Ordering::Relaxed);
+    Ok(Value::Nil)
+}
+
+/// (default-file-modes) -> integer
+pub(crate) fn builtin_default_file_modes(args: Vec<Value>) -> EvalResult {
+    expect_args("default-file-modes", &args, 0)?;
+    init_default_file_mode_mask();
+    let mask = DEFAULT_FILE_MODE_MASK.load(Ordering::Relaxed) as i64;
+    Ok(Value::Int((!mask) & 0o777))
 }
 
 /// (delete-file FILENAME &optional TRASH) -> nil
@@ -3605,6 +3641,32 @@ mod tests {
         assert_eq!(mtime, 0);
 
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_default_file_modes_round_trip() {
+        let original = builtin_default_file_modes(vec![])
+            .expect("default-file-modes")
+            .as_int()
+            .expect("default-file-modes int");
+        assert_eq!(
+            builtin_set_default_file_modes(vec![Value::Int(0o700)]).expect("set-default-file-modes"),
+            Value::Nil
+        );
+        assert_eq!(
+            builtin_default_file_modes(vec![])
+                .expect("default-file-modes after set")
+                .as_int(),
+            Some(0o700)
+        );
+        let _ = builtin_set_default_file_modes(vec![Value::Int(original)]);
+    }
+
+    #[test]
+    fn test_default_file_modes_argument_errors() {
+        assert!(builtin_set_default_file_modes(vec![]).is_err());
+        assert!(builtin_default_file_modes(vec![Value::Int(1)]).is_err());
+        assert!(builtin_set_default_file_modes(vec![Value::Nil]).is_err());
     }
 
     #[test]
