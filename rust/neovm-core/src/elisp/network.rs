@@ -13,7 +13,9 @@ use std::io::{Read, Write};
 use std::net::{TcpStream, ToSocketAddrs};
 use std::time::Duration;
 
+#[cfg(test)]
 use super::error::{signal, Flow};
+#[cfg(test)]
 use super::value::Value;
 
 // ---------------------------------------------------------------------------
@@ -444,6 +446,7 @@ fn parse_http_url(url: &str) -> Result<(String, u16, String), String> {
 // Helpers
 // ---------------------------------------------------------------------------
 
+#[cfg(test)]
 fn expect_args(name: &str, args: &[Value], n: usize) -> Result<(), Flow> {
     if args.len() != n {
         Err(signal(
@@ -455,6 +458,7 @@ fn expect_args(name: &str, args: &[Value], n: usize) -> Result<(), Flow> {
     }
 }
 
+#[cfg(test)]
 fn expect_min_args(name: &str, args: &[Value], min: usize) -> Result<(), Flow> {
     if args.len() < min {
         Err(signal(
@@ -466,6 +470,7 @@ fn expect_min_args(name: &str, args: &[Value], min: usize) -> Result<(), Flow> {
     }
 }
 
+#[cfg(test)]
 fn expect_string(value: &Value) -> Result<String, Flow> {
     match value {
         Value::Str(s) => Ok((**s).clone()),
@@ -479,6 +484,7 @@ fn expect_string(value: &Value) -> Result<String, Flow> {
     }
 }
 
+#[cfg(test)]
 fn expect_int(value: &Value) -> Result<i64, Flow> {
     match value {
         Value::Int(n) => Ok(*n),
