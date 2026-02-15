@@ -867,12 +867,55 @@ pub(crate) fn builtin_string_to_syntax(args: Vec<Value>) -> EvalResult {
 }
 
 /// `(make-syntax-table &optional PARENT)` — create a new syntax table.
-/// Returns `t` (the table is attached via side effects in Emacs; here we
-/// return a symbol placeholder since we store it on the buffer).
-pub(crate) fn builtin_make_syntax_table(_args: Vec<Value>) -> EvalResult {
-    // In this VM, syntax tables live on buffers.  `make-syntax-table`
-    // is provided for compatibility but returns t.
-    Ok(Value::True)
+pub(crate) fn builtin_make_syntax_table(args: Vec<Value>) -> EvalResult {
+    if args.len() > 1 {
+        return Err(signal(
+            "wrong-number-of-arguments",
+            vec![
+                Value::symbol("make-syntax-table"),
+                Value::Int(args.len() as i64),
+            ],
+        ));
+    }
+
+    let table = super::chartable::builtin_make_char_table(vec![Value::symbol("syntax-table")])?;
+    if let Some(parent) = args.first() {
+        if !parent.is_nil() {
+            super::chartable::builtin_set_char_table_parent(vec![table.clone(), parent.clone()])?;
+        }
+    }
+    Ok(table)
+}
+
+/// `(standard-syntax-table)` — return the standard syntax table.
+pub(crate) fn builtin_standard_syntax_table(args: Vec<Value>) -> EvalResult {
+    if !args.is_empty() {
+        return Err(signal(
+            "wrong-number-of-arguments",
+            vec![
+                Value::symbol("standard-syntax-table"),
+                Value::Int(args.len() as i64),
+            ],
+        ));
+    }
+    builtin_make_syntax_table(vec![])
+}
+
+/// `(syntax-table)` — return the current buffer syntax table.
+///
+/// Current VM representation stores syntax behavior on the buffer internals,
+/// so this returns a compatible syntax-table char-table object.
+pub(crate) fn builtin_syntax_table(
+    _eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    if !args.is_empty() {
+        return Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol("syntax-table"), Value::Int(args.len() as i64)],
+        ));
+    }
+    builtin_make_syntax_table(vec![])
 }
 
 // ===========================================================================
@@ -1681,5 +1724,44 @@ mod tests {
         } else {
             panic!("Expected cons cell");
         }
+    }
+
+    #[test]
+    fn make_syntax_table_returns_syntax_char_table() {
+        let table = builtin_make_syntax_table(vec![]).unwrap();
+        let is_ct = crate::elisp::chartable::builtin_char_table_p(vec![table.clone()]).unwrap();
+        assert_eq!(is_ct, Value::True);
+        let subtype = crate::elisp::chartable::builtin_char_table_subtype(vec![table]).unwrap();
+        assert_eq!(subtype, Value::symbol("syntax-table"));
+    }
+
+    #[test]
+    fn make_syntax_table_parent_must_be_char_table() {
+        match builtin_make_syntax_table(vec![Value::Int(1)]) {
+            Err(crate::elisp::error::Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "wrong-type-argument");
+                assert_eq!(sig.data.first(), Some(&Value::symbol("char-table-p")));
+            }
+            other => panic!("expected wrong-type-argument signal, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn standard_syntax_table_returns_char_table() {
+        let table = builtin_standard_syntax_table(vec![]).unwrap();
+        let is_ct = crate::elisp::chartable::builtin_char_table_p(vec![table.clone()]).unwrap();
+        assert_eq!(is_ct, Value::True);
+        let subtype = crate::elisp::chartable::builtin_char_table_subtype(vec![table]).unwrap();
+        assert_eq!(subtype, Value::symbol("syntax-table"));
+    }
+
+    #[test]
+    fn syntax_table_eval_returns_char_table() {
+        let mut eval = crate::elisp::eval::Evaluator::new();
+        let table = builtin_syntax_table(&mut eval, vec![]).unwrap();
+        let is_ct = crate::elisp::chartable::builtin_char_table_p(vec![table.clone()]).unwrap();
+        assert_eq!(is_ct, Value::True);
+        let subtype = crate::elisp::chartable::builtin_char_table_subtype(vec![table]).unwrap();
+        assert_eq!(subtype, Value::symbol("syntax-table"));
     }
 }

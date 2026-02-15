@@ -6082,6 +6082,7 @@ pub(crate) fn dispatch_builtin(
         "modify-syntax-entry" => {
             return Some(super::syntax::builtin_modify_syntax_entry(eval, args))
         }
+        "syntax-table" => return Some(super::syntax::builtin_syntax_table(eval, args)),
         "char-syntax" => return Some(super::syntax::builtin_char_syntax(eval, args)),
         "forward-word" => return Some(super::syntax::builtin_forward_word(eval, args)),
         "backward-word" => return Some(super::syntax::builtin_backward_word(eval, args)),
@@ -6943,6 +6944,7 @@ pub(crate) fn dispatch_builtin(
         "gensym" => builtin_gensym(args),
         "string-to-syntax" => builtin_string_to_syntax(args),
         "make-syntax-table" => super::syntax::builtin_make_syntax_table(args),
+        "standard-syntax-table" => super::syntax::builtin_standard_syntax_table(args),
         "current-time" => builtin_current_time(args),
         "float-time" => builtin_float_time(args),
 
@@ -7485,6 +7487,7 @@ pub(crate) fn dispatch_builtin_pure(name: &str, args: Vec<Value>) -> Option<Eval
         "gensym" => builtin_gensym(args),
         "string-to-syntax" => builtin_string_to_syntax(args),
         "make-syntax-table" => super::syntax::builtin_make_syntax_table(args),
+        "standard-syntax-table" => super::syntax::builtin_standard_syntax_table(args),
         "current-time" => builtin_current_time(args),
         "float-time" => builtin_float_time(args),
         // File I/O (pure)
