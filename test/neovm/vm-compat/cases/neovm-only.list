@@ -8,3 +8,4 @@ cases/image-flush-semantics
 cases/image-remove-semantics
 cases/image-type-semantics
 cases/create-image-type-resolution
+cases/font-xlfd-arity-semantics

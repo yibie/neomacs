@@ -322,6 +322,7 @@ pub(crate) fn builtin_font_family_list_eval(
 /// `(font-xlfd-name FONT &optional FOLD-WILDCARDS)` -- stub, return "*".
 pub(crate) fn builtin_font_xlfd_name(args: Vec<Value>) -> EvalResult {
     expect_min_args("font-xlfd-name", &args, 1)?;
+    expect_max_args("font-xlfd-name", &args, 3)?;
     if !is_font_spec(&args[0]) {
         return Err(signal(
             "wrong-type-argument",
@@ -1843,6 +1844,20 @@ mod tests {
         )])])
         .unwrap();
         assert_eq!(result.as_str(), Some("-*-*-*-*-*-*-*-*-*-*-*-*-*-*"));
+    }
+
+    #[test]
+    fn font_xlfd_name_too_many_args() {
+        let result = builtin_font_xlfd_name(vec![
+            Value::vector(vec![Value::Keyword(FONT_SPEC_TAG.to_string())]),
+            Value::Nil,
+            Value::Nil,
+            Value::Nil,
+        ]);
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"
+        ));
     }
 
     // -----------------------------------------------------------------------
