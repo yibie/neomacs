@@ -19,6 +19,21 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Aligned `put-image` / `insert-image` optional AREA validation:
+  - updated:
+    - `rust/neovm-core/src/elisp/image.rs`
+      - `put-image` now validates optional AREA (`nil|left-margin|right-margin`) and signals `(error "Invalid area ...")` otherwise.
+      - `insert-image` now validates optional AREA with the same contract.
+      - expanded image unit tests for valid/invalid AREA paths.
+    - added corpus:
+      - `test/neovm/vm-compat/cases/image-area-semantics.{forms,expected.tsv}`
+    - `test/neovm/vm-compat/cases/neovm-only.list`
+      - added `cases/image-area-semantics`.
+  - verified:
+    - `cargo test image::tests --manifest-path rust/neovm-core/Cargo.toml -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/image-area-semantics` (pass, 8/8)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass, full default + neovm-only corpus)
+
 - Aligned `put-image` / `insert-image` error and return semantics for batch mode:
   - updated:
     - `rust/neovm-core/src/elisp/image.rs`
