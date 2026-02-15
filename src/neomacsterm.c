@@ -1873,9 +1873,18 @@ neomacs_layout_get_window_params (void *frame_ptr, int window_index,
 
   /* Character cell dimensions.
      Use the window's own default face font if available (respects
-     text-scale-mode via face-remapping-alist), otherwise fall back
-     to the frame font.  */
+     text-scale-mode / buffer-face-mode via face-remapping-alist),
+     otherwise fall back to the frame font.
+
+     IMPORTANT: face-remapping-alist is buffer-local.  lookup_basic_face
+     reads Vface_remapping_alist which depends on current_buffer.  We must
+     temporarily switch to the window's buffer so each window gets its own
+     remapped default face, not the selected window's.  */
   {
+    struct buffer *old_buf = current_buffer;
+    if (BUFFERP (w->contents))
+      set_buffer_internal_1 (XBUFFER (w->contents));
+
     int def_face_id = lookup_basic_face (w, f, DEFAULT_FACE_ID);
     struct face *wface = FACE_FROM_ID_OR_NULL (f, def_face_id);
     if (wface && wface->font)
@@ -1896,6 +1905,8 @@ neomacs_layout_get_window_params (void *frame_ptr, int window_index,
         params->font_ascent = FRAME_FONT (f)
           ? (float) FONT_BASE (FRAME_FONT (f)) : 12.0f;
       }
+
+    set_buffer_internal_1 (old_buf);
   }
 
   /* Special line heights.
