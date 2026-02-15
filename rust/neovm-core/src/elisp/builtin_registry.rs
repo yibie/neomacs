@@ -283,6 +283,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "file-readable-p",
     "file-regular-p",
     "file-symlink-p",
+    "file-truename",
     "file-writable-p",
     "find-charset-region",
     "find-charset-string",

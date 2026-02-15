@@ -70,6 +70,49 @@ pub fn expand_file_name(name: &str, default_dir: Option<&str>) -> String {
     cleaned
 }
 
+fn canonicalize_with_missing_suffix(path: &Path) -> PathBuf {
+    if let Ok(canon) = fs::canonicalize(path) {
+        return canon;
+    }
+
+    let mut prefix = path.to_path_buf();
+    let mut suffix = VecDeque::new();
+    loop {
+        if let Ok(canon_prefix) = fs::canonicalize(&prefix) {
+            let mut resolved = canon_prefix;
+            for part in suffix {
+                resolved.push(part);
+            }
+            return resolved;
+        }
+
+        let Some(name) = prefix.file_name().map(|s| s.to_os_string()) else {
+            break;
+        };
+        suffix.push_front(name);
+        if !prefix.pop() {
+            break;
+        }
+    }
+
+    path.to_path_buf()
+}
+
+/// Resolve FILENAME to a true name, preserving trailing slash marker semantics.
+pub fn file_truename(filename: &str, default_dir: Option<&str>) -> String {
+    let expanded = expand_file_name(filename, default_dir);
+    let preserve_trailing_slash = expanded.ends_with('/');
+    let mut resolved = canonicalize_with_missing_suffix(Path::new(&expanded))
+        .to_string_lossy()
+        .into_owned();
+
+    if preserve_trailing_slash && resolved != "/" && !resolved.ends_with('/') {
+        resolved.push('/');
+    }
+
+    resolved
+}
+
 /// Clean up a path by resolving `.` and `..` components without touching the
 /// filesystem (no symlink resolution).
 fn clean_path(path: &Path) -> String {
@@ -643,6 +686,28 @@ fn expect_string_strict(value: &Value) -> Result<String, Flow> {
     }
 }
 
+fn validate_file_truename_counter(counter: &Value) -> Result<(), Flow> {
+    if counter.is_nil() {
+        return Ok(());
+    }
+    if !counter.is_list() {
+        return Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("listp"), counter.clone()],
+        ));
+    }
+    if let Value::Cons(cell) = counter {
+        let first = cell.lock().unwrap().car.clone();
+        if !matches!(first, Value::Int(_) | Value::Float(_) | Value::Char(_)) {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("number-or-marker-p"), first],
+            ));
+        }
+    }
+    Ok(())
+}
+
 /// (expand-file-name NAME &optional DEFAULT-DIRECTORY) -> string
 pub(crate) fn builtin_expand_file_name(args: Vec<Value>) -> EvalResult {
     expect_min_args("expand-file-name", &args, 1)?;
@@ -700,6 +765,46 @@ pub(crate) fn builtin_expand_file_name_eval(eval: &Evaluator, args: Vec<Value>) 
     Ok(Value::string(expand_file_name(
         &name,
         default_dir.as_deref(),
+    )))
+}
+
+/// (file-truename FILENAME &optional COUNTER PREV-DIRS) -> string
+pub(crate) fn builtin_file_truename(args: Vec<Value>) -> EvalResult {
+    expect_min_args("file-truename", &args, 1)?;
+    if args.len() > 3 {
+        return Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol("file-truename"), Value::Int(args.len() as i64)],
+        ));
+    }
+
+    let filename = expect_string_strict(&args[0])?;
+    if let Some(counter) = args.get(1) {
+        validate_file_truename_counter(counter)?;
+    }
+
+    Ok(Value::string(file_truename(&filename, None)))
+}
+
+/// Evaluator-aware variant of `file-truename` that resolves relative
+/// filenames against dynamic/default `default-directory`.
+pub(crate) fn builtin_file_truename_eval(eval: &Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_min_args("file-truename", &args, 1)?;
+    if args.len() > 3 {
+        return Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol("file-truename"), Value::Int(args.len() as i64)],
+        ));
+    }
+
+    let filename = expect_string_strict(&args[0])?;
+    if let Some(counter) = args.get(1) {
+        validate_file_truename_counter(counter)?;
+    }
+
+    Ok(Value::string(file_truename(
+        &filename,
+        default_directory_for_eval(eval).as_deref(),
     )))
 }
 
@@ -1374,6 +1479,29 @@ mod tests {
     }
 
     #[test]
+    fn test_file_truename_missing_file_and_trailing_slash() {
+        assert_eq!(
+            file_truename("/tmp/neovm-file-truename-missing", None),
+            "/tmp/neovm-file-truename-missing"
+        );
+        assert_eq!(file_truename("/tmp/../tmp/", None), "/tmp/");
+    }
+
+    #[test]
+    fn test_file_truename_resolves_relative_default_directory() {
+        let dir = std::env::temp_dir().join("neovm-file-truename-rel");
+        let _ = fs::create_dir_all(&dir);
+        let file = dir.join("alpha.txt");
+        fs::write(&file, b"alpha").unwrap();
+
+        let resolved = file_truename("alpha.txt", Some(&dir.to_string_lossy()));
+        assert_eq!(resolved, file.to_string_lossy());
+
+        let _ = fs::remove_file(file);
+        let _ = fs::remove_dir(dir);
+    }
+
+    #[test]
     fn test_file_name_directory() {
         assert_eq!(
             file_name_directory("/home/user/test.txt"),
@@ -1791,6 +1919,47 @@ mod tests {
             with_nil.unwrap().as_str(),
             Some("/tmp/neovm-expand/beta.txt")
         );
+    }
+
+    #[test]
+    fn test_builtin_file_truename_counter_validation() {
+        let value = builtin_file_truename(vec![Value::string("/tmp"), Value::list(vec![])]).unwrap();
+        assert_eq!(value.as_str(), Some("/tmp"));
+
+        let err = builtin_file_truename(vec![Value::string("/tmp"), Value::Int(1)]).unwrap_err();
+        match err {
+            Flow::Signal(sig) => {
+                assert_eq!(sig.symbol, "wrong-type-argument");
+                assert_eq!(sig.data, vec![Value::symbol("listp"), Value::Int(1)]);
+            }
+            other => panic!("expected signal, got {:?}", other),
+        }
+
+        let err = builtin_file_truename(vec![
+            Value::string("/tmp"),
+            Value::list(vec![Value::symbol("visited")]),
+        ])
+        .unwrap_err();
+        match err {
+            Flow::Signal(sig) => {
+                assert_eq!(sig.symbol, "wrong-type-argument");
+                assert_eq!(
+                    sig.data,
+                    vec![Value::symbol("number-or-marker-p"), Value::symbol("visited")]
+                );
+            }
+            other => panic!("expected signal, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_builtin_file_truename_eval_uses_default_directory() {
+        let mut eval = Evaluator::new();
+        eval.obarray
+            .set_symbol_value("default-directory", Value::string("/tmp/neovm-file-truename/"));
+
+        let value = builtin_file_truename_eval(&eval, vec![Value::string("alpha.txt")]).unwrap();
+        assert_eq!(value.as_str(), Some("/tmp/neovm-file-truename/alpha.txt"));
     }
 
     #[test]

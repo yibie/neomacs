@@ -4,6 +4,30 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Implemented `file-truename` compatibility slice:
+  - added path-level `file_truename` resolution in `rust/neovm-core/src/elisp/fileio.rs`:
+    - expands relative paths against default directory
+    - canonicalizes existing path prefixes while preserving missing suffixes
+    - preserves trailing slash directory marker semantics
+  - added pure + evaluator-aware builtins:
+    - `builtin_file_truename`
+    - `builtin_file_truename_eval`
+  - aligned internal argument semantics:
+    - arity `1..3`
+    - `stringp` validation for `FILENAME`
+    - `COUNTER` list-shape validation (`listp`)
+    - first counter element `number-or-marker-p` validation (oracle-compatible error payload)
+  - registered and dispatched `file-truename` in:
+    - `rust/neovm-core/src/elisp/builtins.rs`
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/file-truename-semantics.forms`
+    - `test/neovm/vm-compat/cases/file-truename-semantics.expected.tsv`
+    - wired into `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml file_truename -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/file-truename-semantics.forms EXPECTED=cases/file-truename-semantics.expected.tsv` (pass, 8/8)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Implemented `get-file-buffer` compatibility slice:
   - added evaluator-backed dispatch in `rust/neovm-core/src/elisp/builtins.rs` with Emacs-style semantics:
     - arity `1`

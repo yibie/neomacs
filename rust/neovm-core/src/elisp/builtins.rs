@@ -5565,6 +5565,7 @@ pub(crate) fn dispatch_builtin(
         "replace-match" => return Some(builtin_replace_match(eval, args)),
         // File I/O (evaluator-dependent)
         "expand-file-name" => return Some(super::fileio::builtin_expand_file_name_eval(eval, args)),
+        "file-truename" => return Some(super::fileio::builtin_file_truename_eval(eval, args)),
         "insert-file-contents" => {
             return Some(super::fileio::builtin_insert_file_contents(eval, args))
         }
@@ -6447,6 +6448,7 @@ pub(crate) fn dispatch_builtin(
 
         // File I/O (pure)
         "expand-file-name" => super::fileio::builtin_expand_file_name(args),
+        "file-truename" => super::fileio::builtin_file_truename(args),
         "file-name-directory" => super::fileio::builtin_file_name_directory(args),
         "file-name-nondirectory" => super::fileio::builtin_file_name_nondirectory(args),
         "file-name-extension" => super::fileio::builtin_file_name_extension(args),
@@ -6978,6 +6980,7 @@ pub(crate) fn dispatch_builtin_pure(name: &str, args: Vec<Value>) -> Option<Eval
         "float-time" => builtin_float_time(args),
         // File I/O (pure)
         "expand-file-name" => super::fileio::builtin_expand_file_name(args),
+        "file-truename" => super::fileio::builtin_file_truename(args),
         "file-name-directory" => super::fileio::builtin_file_name_directory(args),
         "file-name-nondirectory" => super::fileio::builtin_file_name_nondirectory(args),
         "file-name-extension" => super::fileio::builtin_file_name_extension(args),
