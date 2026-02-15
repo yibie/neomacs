@@ -6,6 +6,7 @@ Last updated: 2026-02-15
 
 - Added timer compatibility slice (`run-at-time` / `run-with-idle-timer` / `timer-activate`):
   - `run-at-time` now accepts GNU-compatible immediate specs for `nil` and numeric-prefixed strings like `"0 sec"` (while invalid specs signal `error`)
+  - `run-with-timer` compatibility is now lock-in covered for numeric, `nil`, and `"0 sec"` immediate forms
   - `run-with-idle-timer` now accepts `nil` delay and keeps non-numeric delay specs as `error`
   - `timer-activate` now matches error-class behavior on invalid/active timer activation paths
   - added oracle corpus:
