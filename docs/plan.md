@@ -4,6 +4,17 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Implemented evaluator-aware `documentation-property` semantics:
+  - reads symbol plist entries through evaluator obarray state
+  - returns string-valued properties, maps non-string property values to `nil`
+  - preserves `wrong-type-argument` on non-symbol first arg and `nil` on non-symbol property key
+- Added and enabled new oracle corpus:
+  - `test/neovm/vm-compat/cases/documentation-property-semantics.forms`
+  - `test/neovm/vm-compat/cases/documentation-property-semantics.expected.tsv`
+  - wired into `test/neovm/vm-compat/cases/default.list` and `test/neovm/vm-compat/cases/introspection.list`
+- Verified compatibility and list integrity for the slice:
+  - `cd test/neovm/vm-compat && make check-neovm FORMS=cases/documentation-property-semantics.forms EXPECTED=cases/documentation-property-semantics.expected.tsv` (pass)
+  - `cd test/neovm/vm-compat && make validate-case-lists` (pass)
 - Aligned compat/worker result rendering with evaluator-aware opaque handle formatting:
   - added `format_eval_result_with_eval` and `print_value_with_eval` in `neovm-core`
   - switched vm-compat runner output to evaluator-aware formatting path
