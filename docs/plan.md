@@ -4,6 +4,18 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Implemented `internal-set-alternative-font-family-alist` / `internal-set-alternative-font-registry-alist` compatibility slice:
+  - replaced nil stubs with proper-list validation and oracle-compatible payloads (`wrong-type-argument listp ...` on dotted/non-list entries)
+  - `internal-set-alternative-font-family-alist` now converts validated string members to symbols and returns normalized alist shape
+  - `internal-set-alternative-font-registry-alist` now validates list shape and returns the original alist payload
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/alternative-font-alists-semantics.forms`
+    - `test/neovm/vm-compat/cases/alternative-font-alists-semantics.expected.tsv`
+    - wired into `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test font::tests -- --nocapture` (pass)
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat check FORMS=cases/alternative-font-alists-semantics.forms EXPECTED=cases/alternative-font-alists-semantics.expected.tsv` (pass)
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat check-neovm FORMS=cases/alternative-font-alists-semantics.forms EXPECTED=cases/alternative-font-alists-semantics.expected.tsv` (pass)
 - Implemented `internal-set-font-selection-order` compatibility slice:
   - replaced nil stub with oracle-compatible validation: accepts only permutations of `(:width :height :weight :slant)` and reports GNU-style list/type/error payloads for invalid orders
   - preserved batch behavior where valid orders return `nil` without mutating the exposed compatibility surface
