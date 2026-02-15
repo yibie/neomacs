@@ -65,6 +65,18 @@ Last updated: 2026-02-15
     - `make -C test/neovm/vm-compat check-neovm FORMS=cases/font-batch-semantics.forms EXPECTED=cases/font-batch-semantics.expected.tsv` (pass)
     - `make -C test/neovm/vm-compat validate-case-lists` (pass)
     - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+- Added face batch semantics compatibility slice:
+  - `face-id` now signals GNU-compatible invalid-face errors for non-face designators while preserving `default` face baseline id behavior
+  - `face-font` now signals GNU-compatible invalid-face errors for non-face designators and keeps batch `nil` default-face behavior
+  - added oracle corpus:
+    - `test/neovm/vm-compat/cases/face-batch-semantics.forms`
+    - `test/neovm/vm-compat/cases/face-batch-semantics.expected.tsv`
+    - enabled in `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test font::tests -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/face-batch-semantics.forms EXPECTED=cases/face-batch-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
 - Added timer compatibility slice (`run-at-time` / `run-with-idle-timer` / `timer-activate`):
   - `run-at-time` now accepts GNU-compatible immediate specs for `nil` and numeric-prefixed strings like `"0 sec"` (while invalid specs signal `error`)
   - `run-with-timer` compatibility is now lock-in covered for numeric, `nil`, and `"0 sec"` immediate forms
