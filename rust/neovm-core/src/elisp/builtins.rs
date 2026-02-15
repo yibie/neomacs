@@ -6657,6 +6657,13 @@ pub(crate) fn dispatch_builtin(
             return Some(super::category::builtin_modify_category_entry(eval, args))
         }
         "char-category-set" => return Some(super::category::builtin_char_category_set(eval, args)),
+        "category-table" => return Some(super::category::builtin_category_table_eval(eval, args)),
+        "standard-category-table" => {
+            return Some(super::category::builtin_standard_category_table_eval(eval, args))
+        }
+        "set-category-table" => {
+            return Some(super::category::builtin_set_category_table_eval(eval, args))
+        }
 
         // Char-table (evaluator-dependent — applies function)
         "map-char-table" => return Some(super::chartable::builtin_map_char_table(eval, args)),

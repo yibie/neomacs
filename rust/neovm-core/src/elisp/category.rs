@@ -8,7 +8,15 @@
 
 use super::error::{signal, EvalResult, Flow};
 use super::value::*;
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
+
+thread_local! {
+    static STANDARD_CATEGORY_TABLE: RefCell<Option<Value>> = const { RefCell::new(None) };
+}
+
+const CATEGORY_TABLE_PROPERTY: &str = "category-table";
 
 // ===========================================================================
 // CategoryTable
@@ -229,6 +237,79 @@ fn expect_max_args(name: &str, args: &[Value], max: usize) -> Result<(), Flow> {
     }
 }
 
+fn make_category_table_object() -> EvalResult {
+    super::chartable::builtin_make_char_table(vec![Value::symbol("category-table")])
+}
+
+fn is_category_table_value(value: &Value) -> Result<bool, Flow> {
+    let is_char_table = super::chartable::builtin_char_table_p(vec![value.clone()])?;
+    if !is_char_table.is_truthy() {
+        return Ok(false);
+    }
+    let subtype = super::chartable::builtin_char_table_subtype(vec![value.clone()])?;
+    Ok(matches!(subtype, Value::Symbol(name) if name == "category-table"))
+}
+
+fn clone_char_table_object(value: &Value) -> EvalResult {
+    match value {
+        Value::Vector(v) => Ok(Value::vector(v.lock().expect("vector lock poisoned").clone())),
+        other => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("category-table-p"), other.clone()],
+        )),
+    }
+}
+
+fn ensure_standard_category_table() -> EvalResult {
+    STANDARD_CATEGORY_TABLE.with(|slot| {
+        if let Some(table) = slot.borrow().as_ref() {
+            return Ok(table.clone());
+        }
+
+        let table = make_category_table_object()?;
+        *slot.borrow_mut() = Some(table.clone());
+        Ok(table)
+    })
+}
+
+fn category_table_pointer_eq(lhs: &Value, rhs: &Value) -> bool {
+    match (lhs, rhs) {
+        (Value::Vector(a), Value::Vector(b)) => Arc::ptr_eq(a, b),
+        _ => false,
+    }
+}
+
+fn current_buffer_category_table(eval: &mut super::eval::Evaluator) -> Result<Value, Flow> {
+    let fallback = ensure_standard_category_table()?;
+    let buf = eval
+        .buffers
+        .current_buffer_mut()
+        .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
+
+    if let Some(table) = buf.properties.get(CATEGORY_TABLE_PROPERTY) {
+        if is_category_table_value(table)? {
+            return Ok(table.clone());
+        }
+    }
+
+    buf.properties
+        .insert(CATEGORY_TABLE_PROPERTY.to_string(), fallback.clone());
+    Ok(fallback)
+}
+
+fn set_current_buffer_category_table(
+    eval: &mut super::eval::Evaluator,
+    table: Value,
+) -> Result<(), Flow> {
+    let buf = eval
+        .buffers
+        .current_buffer_mut()
+        .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
+    buf.properties
+        .insert(CATEGORY_TABLE_PROPERTY.to_string(), table);
+    Ok(())
+}
+
 // ===========================================================================
 // Pure builtins (no evaluator needed)
 // ===========================================================================
@@ -294,43 +375,50 @@ pub(crate) fn builtin_get_unused_category(args: Vec<Value>) -> EvalResult {
 /// `(category-table-p OBJ)`
 ///
 /// Return t if OBJ is a category table.  In this implementation, category
-/// tables are not first-class values (they live in the CategoryManager),
-/// so this always returns nil for any Lisp value.
+/// tables are represented as char-tables with subtype `category-table`.
 pub(crate) fn builtin_category_table_p(args: Vec<Value>) -> EvalResult {
     expect_args("category-table-p", &args, 1)?;
-    let _ = &args[0];
-    Ok(Value::Nil)
+    Ok(Value::bool(is_category_table_value(&args[0])?))
 }
 
 /// `(category-table)`
 ///
-/// Return the current buffer's category table.  Stub: returns t.
+/// Return the standard category table in pure mode.
 pub(crate) fn builtin_category_table(args: Vec<Value>) -> EvalResult {
     expect_max_args("category-table", &args, 0)?;
-    Ok(Value::True)
+    ensure_standard_category_table()
 }
 
 /// `(standard-category-table)`
 ///
-/// Return the standard category table.  Stub: returns t.
+/// Return the standard category table.
 pub(crate) fn builtin_standard_category_table(args: Vec<Value>) -> EvalResult {
     expect_max_args("standard-category-table", &args, 0)?;
-    Ok(Value::True)
+    ensure_standard_category_table()
 }
 
 /// `(make-category-table)`
 ///
-/// Create a new (empty) category table.  Stub: returns t.
+/// Create a new (empty) category table.
 pub(crate) fn builtin_make_category_table(args: Vec<Value>) -> EvalResult {
     expect_max_args("make-category-table", &args, 0)?;
-    Ok(Value::True)
+    make_category_table_object()
 }
 
 /// `(set-category-table TABLE)`
 ///
-/// Set the current buffer's category table to TABLE.  Stub: returns TABLE.
+/// Pure-mode fallback: validate TABLE and return it.
 pub(crate) fn builtin_set_category_table(args: Vec<Value>) -> EvalResult {
     expect_args("set-category-table", &args, 1)?;
+    if args[0].is_nil() {
+        return ensure_standard_category_table();
+    }
+    if !is_category_table_value(&args[0])? {
+        return Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("category-table-p"), args[0].clone()],
+        ));
+    }
     Ok(args[0].clone())
 }
 
@@ -525,6 +613,59 @@ pub(crate) fn builtin_char_category_set(
     vec.push(Value::Int(128));
     vec.extend(bits);
     Ok(Value::vector(vec))
+}
+
+/// `(category-table)` (evaluator-backed).
+///
+/// Return the current buffer's category table object.
+pub(crate) fn builtin_category_table_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_max_args("category-table", &args, 0)?;
+    current_buffer_category_table(eval)
+}
+
+/// `(standard-category-table)` (evaluator-backed).
+///
+/// Return the process-wide standard category table object.
+pub(crate) fn builtin_standard_category_table_eval(
+    _eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_max_args("standard-category-table", &args, 0)?;
+    ensure_standard_category_table()
+}
+
+/// `(set-category-table TABLE)` (evaluator-backed).
+///
+/// Install TABLE in the current buffer and return the installed table.
+pub(crate) fn builtin_set_category_table_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_args("set-category-table", &args, 1)?;
+
+    let installed = if args[0].is_nil() {
+        let current = current_buffer_category_table(eval)?;
+        let standard = ensure_standard_category_table()?;
+        if category_table_pointer_eq(&current, &standard) {
+            standard
+        } else {
+            clone_char_table_object(&standard)?
+        }
+    } else {
+        if !is_category_table_value(&args[0])? {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("category-table-p"), args[0].clone()],
+            ));
+        }
+        args[0].clone()
+    };
+
+    set_current_buffer_category_table(eval, installed.clone())?;
+    Ok(installed)
 }
 
 // ===========================================================================
@@ -764,9 +905,10 @@ mod tests {
     }
 
     #[test]
-    fn builtin_category_table_p_nil_for_symbol() {
-        let result = builtin_category_table_p(vec![Value::symbol("category-table")]).unwrap();
-        assert!(result.is_nil());
+    fn builtin_category_table_p_true_for_category_char_table() {
+        let table = builtin_make_category_table(vec![]).unwrap();
+        let result = builtin_category_table_p(vec![table]).unwrap();
+        assert!(result.is_truthy());
     }
 
     #[test]
@@ -782,9 +924,9 @@ mod tests {
     }
 
     #[test]
-    fn builtin_category_table_returns_t() {
+    fn builtin_category_table_returns_category_table() {
         let result = builtin_category_table(vec![]).unwrap();
-        assert!(matches!(result, Value::True));
+        assert!(builtin_category_table_p(vec![result]).unwrap().is_truthy());
     }
 
     #[test]
@@ -793,9 +935,9 @@ mod tests {
     }
 
     #[test]
-    fn builtin_standard_category_table_returns_t() {
+    fn builtin_standard_category_table_returns_category_table() {
         let result = builtin_standard_category_table(vec![]).unwrap();
-        assert!(matches!(result, Value::True));
+        assert!(builtin_category_table_p(vec![result]).unwrap().is_truthy());
     }
 
     #[test]
@@ -804,9 +946,9 @@ mod tests {
     }
 
     #[test]
-    fn builtin_make_category_table_returns_t() {
+    fn builtin_make_category_table_returns_category_table() {
         let result = builtin_make_category_table(vec![]).unwrap();
-        assert!(matches!(result, Value::True));
+        assert!(builtin_category_table_p(vec![result]).unwrap().is_truthy());
     }
 
     #[test]
@@ -816,8 +958,16 @@ mod tests {
 
     #[test]
     fn builtin_set_category_table_returns_arg() {
-        let result = builtin_set_category_table(vec![Value::True]).unwrap();
-        assert!(matches!(result, Value::True));
+        let table = builtin_make_category_table(vec![]).unwrap();
+        let result = builtin_set_category_table(vec![table.clone()]).unwrap();
+        assert!(equal_value(&result, &table, 0));
+    }
+
+    #[test]
+    fn builtin_set_category_table_nil_returns_standard() {
+        let result = builtin_set_category_table(vec![Value::Nil]).unwrap();
+        let standard = builtin_standard_category_table(vec![]).unwrap();
+        assert!(equal_value(&result, &standard, 0));
     }
 
     #[test]
@@ -930,6 +1080,46 @@ mod tests {
         .unwrap();
         let second = builtin_get_unused_category_eval(&mut eval, vec![]).unwrap();
         assert!(matches!(second, Value::Char('b')));
+    }
+
+    #[test]
+    fn builtin_category_table_eval_defaults_to_standard() {
+        let mut eval = super::super::eval::Evaluator::new();
+        let current = builtin_category_table_eval(&mut eval, vec![]).unwrap();
+        let standard = builtin_standard_category_table_eval(&mut eval, vec![]).unwrap();
+        assert!(equal_value(&current, &standard, 0));
+    }
+
+    #[test]
+    fn builtin_set_category_table_eval_roundtrip() {
+        let mut eval = super::super::eval::Evaluator::new();
+        let custom = builtin_make_category_table(vec![]).unwrap();
+
+        let out = builtin_set_category_table_eval(&mut eval, vec![custom.clone()]).unwrap();
+        assert!(equal_value(&out, &custom, 0));
+
+        let current = builtin_category_table_eval(&mut eval, vec![]).unwrap();
+        assert!(equal_value(&current, &custom, 0));
+    }
+
+    #[test]
+    fn builtin_set_category_table_eval_nil_after_custom_clones_standard() {
+        let mut eval = super::super::eval::Evaluator::new();
+        let standard = builtin_standard_category_table_eval(&mut eval, vec![]).unwrap();
+        let custom = builtin_make_category_table(vec![]).unwrap();
+
+        builtin_set_category_table_eval(&mut eval, vec![custom]).unwrap();
+        let restored = builtin_set_category_table_eval(&mut eval, vec![Value::Nil]).unwrap();
+
+        assert!(builtin_category_table_p(vec![restored.clone()]).unwrap().is_truthy());
+        assert!(!category_table_pointer_eq(&restored, &standard));
+    }
+
+    #[test]
+    fn builtin_set_category_table_eval_rejects_non_tables() {
+        let mut eval = super::super::eval::Evaluator::new();
+        let result = builtin_set_category_table_eval(&mut eval, vec![Value::Int(1)]);
+        assert!(result.is_err());
     }
 
     // -----------------------------------------------------------------------
