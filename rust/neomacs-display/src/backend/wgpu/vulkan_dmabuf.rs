@@ -337,7 +337,9 @@ mod hal_import {
             Ok(mem) => Some(mem),
             Err(e) => {
                 log::warn!("Failed to import DMA-BUF memory (fd={}): {:?}", fd, e);
-                // fd is consumed by Vulkan even on failure
+                // Per Vulkan spec (VK_KHR_external_memory_fd): on failure the fd
+                // is NOT consumed — the caller must close it to avoid a leak.
+                libc::close(fd_dup);
                 None
             }
         }

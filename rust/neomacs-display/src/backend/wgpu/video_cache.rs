@@ -33,10 +33,13 @@ pub enum VideoState {
     Error,
 }
 
-/// DMA-BUF information for zero-copy path
+/// DMA-BUF information for zero-copy path.
+///
+/// Owns the file descriptor — Drop closes it automatically.
+/// The fd is either dup'd from GStreamer memory or created by vaExportSurfaceHandle().
 #[cfg(target_os = "linux")]
 pub struct DmaBufInfo {
-    /// File descriptor
+    /// File descriptor (owned — will be closed on drop)
     pub fd: RawFd,
     /// Stride (bytes per row)
     pub stride: u32,
@@ -44,6 +47,16 @@ pub struct DmaBufInfo {
     pub fourcc: u32,
     /// DRM modifier
     pub modifier: u64,
+}
+
+#[cfg(target_os = "linux")]
+impl Drop for DmaBufInfo {
+    fn drop(&mut self) {
+        if self.fd >= 0 {
+            unsafe { libc::close(self.fd); }
+            log::trace!("Closed DMA-BUF fd {}", self.fd);
+        }
+    }
 }
 
 /// Decoded video frame ready for rendering
@@ -472,13 +485,27 @@ impl VideoCache {
         };
 
         // Try DmaBufMemory first (explicit DMA-BUF allocator)
+        // IMPORTANT: dup() GStreamer fds so DmaBufInfo owns a copy — the original
+        // fd is owned by GStreamer and becomes invalid when the sample is dropped.
         let fd = if let Some(dmabuf_mem) = memory.downcast_memory_ref::<gst_allocators::DmaBufMemory>() {
             log::debug!("Found DmaBufMemory");
-            dmabuf_mem.fd()
+            let raw_fd = dmabuf_mem.fd();
+            let duped = unsafe { libc::dup(raw_fd) };
+            if duped < 0 {
+                log::warn!("Failed to dup DmaBufMemory fd {}", raw_fd);
+                return None;
+            }
+            duped
         } else if let Some(fd_mem) = memory.downcast_memory_ref::<gst_allocators::FdMemory>() {
             // FdMemory: generic fd-backed memory (VA-API uses this)
             log::debug!("Found FdMemory (VA-API or other fd-backed)");
-            fd_mem.fd()
+            let raw_fd = fd_mem.fd();
+            let duped = unsafe { libc::dup(raw_fd) };
+            if duped < 0 {
+                log::warn!("Failed to dup FdMemory fd {}", raw_fd);
+                return None;
+            }
+            duped
         } else if allocator_type == "GstVaAllocator" {
             // VA-API memory - try to export via vaExportSurfaceHandle
             log::debug!("Attempting VA-API DMA-BUF export...");
@@ -546,6 +573,12 @@ impl VideoCache {
         // Use the first fd and plane info
         if export.num_planes == 0 || export.fds[0] < 0 {
             log::warn!("VA export returned no valid planes");
+            // Close all valid fds since we can't use this export
+            for i in 0..4 {
+                if export.fds[i] >= 0 {
+                    unsafe { libc::close(export.fds[i]); }
+                }
+            }
             return None;
         }
 
@@ -554,6 +587,16 @@ impl VideoCache {
             export.fds[0], export.pitches[0], export.fourcc, export.modifier
         );
 
+        // Close any extra object fds we don't use (we only keep fds[0]).
+        // vaExportSurfaceHandle may return multiple objects for multi-plane formats.
+        for i in 1..4 {
+            if export.fds[i] >= 0 {
+                unsafe { libc::close(export.fds[i]); }
+                log::trace!("Closed unused VA export fd[{}]={}", i, export.fds[i]);
+            }
+        }
+
+        // fds[0] is now owned by DmaBufInfo (its Drop will close it)
         Some(DmaBufInfo {
             fd: export.fds[0],
             stride: export.pitches[0],
