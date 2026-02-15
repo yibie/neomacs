@@ -4,6 +4,19 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Aligned newline insertion paths with `buffer-read-only` variable semantics and locked with oracle corpus:
+  - updated `rust/neovm-core/src/elisp/kill_ring.rs`:
+    - `newline` now honors dynamic/buffer-local/global `buffer-read-only` (not just raw `buf.read_only`)
+    - `open-line` now honors dynamic/buffer-local/global `buffer-read-only`
+    - `newline-and-indent` inherits behavior through `newline`
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/newline-read-only-variable-semantics.forms`
+    - `test/neovm/vm-compat/cases/newline-read-only-variable-semantics.expected.tsv`
+    - wired into `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/newline-read-only-variable-semantics` (pass, 7/7)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/indent-mode-semantics` (pass, 7/7)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/buffer-read-only-default-semantics` (pass, 5/5)
 - Aligned `replace-regexp-in-string` with oracle case/start semantics and locked with corpus:
   - updated `rust/neovm-core/src/elisp/search.rs`:
     - honors `case-fold-search` default behavior for matching in pure path (case-insensitive)
