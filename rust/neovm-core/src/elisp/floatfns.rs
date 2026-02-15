@@ -1,7 +1,6 @@
 //! Float and math builtins for the Elisp interpreter.
 //!
 //! Implements all functions from Emacs `floatfns.c`:
-//! - Trigonometric: `acos`, `asin`, `atan`, `cos`, `sin`, `tan`
 //! - Classification: `isnan`, `copysign`, `frexp`, `ldexp`, `logb`
 //! - Exponential: `exp`, `expt`, `log`, `sqrt`
 //! - Rounding (float result): `fceiling`, `ffloor`, `fround`, `ftruncate`
@@ -61,19 +60,6 @@ fn extract_int(_name: &str, val: &Value) -> Result<i64, Flow> {
     }
 }
 
-/// Check a float result for domain errors (NaN produced by a function that
-/// should not produce NaN, e.g. acos(2)).
-fn check_domain(name: &str, result: f64) -> Result<f64, Flow> {
-    if result.is_nan() {
-        Err(signal(
-            "domain-error",
-            vec![Value::symbol(name), Value::string("NaN")],
-        ))
-    } else {
-        Ok(result)
-    }
-}
-
 /// Check a float result for range errors (infinity).
 fn check_range(name: &str, result: f64) -> Result<f64, Flow> {
     if result.is_infinite() {
@@ -84,63 +70,6 @@ fn check_range(name: &str, result: f64) -> Result<f64, Flow> {
     } else {
         Ok(result)
     }
-}
-
-// ---------------------------------------------------------------------------
-// Trigonometric
-// ---------------------------------------------------------------------------
-
-/// (acos X) -- arc cosine of X
-pub(crate) fn builtin_acos(args: Vec<Value>) -> EvalResult {
-    expect_args("acos", &args, 1)?;
-    let x = extract_float("acos", &args[0])?;
-    let result = x.acos();
-    let result = check_domain("acos", result)?;
-    Ok(Value::Float(result))
-}
-
-/// (asin X) -- arc sine of X
-pub(crate) fn builtin_asin(args: Vec<Value>) -> EvalResult {
-    expect_args("asin", &args, 1)?;
-    let x = extract_float("asin", &args[0])?;
-    let result = x.asin();
-    let result = check_domain("asin", result)?;
-    Ok(Value::Float(result))
-}
-
-/// (atan Y &optional X) -- arc tangent of Y, or atan2(Y, X) if X given
-pub(crate) fn builtin_atan(args: Vec<Value>) -> EvalResult {
-    expect_args_range("atan", &args, 1, 2)?;
-    let y = extract_float("atan", &args[0])?;
-    if args.len() == 2 {
-        let x = extract_float("atan", &args[1])?;
-        Ok(Value::Float(y.atan2(x)))
-    } else {
-        Ok(Value::Float(y.atan()))
-    }
-}
-
-/// (cos X) -- cosine of X
-pub(crate) fn builtin_cos(args: Vec<Value>) -> EvalResult {
-    expect_args("cos", &args, 1)?;
-    let x = extract_float("cos", &args[0])?;
-    Ok(Value::Float(x.cos()))
-}
-
-/// (sin X) -- sine of X
-pub(crate) fn builtin_sin(args: Vec<Value>) -> EvalResult {
-    expect_args("sin", &args, 1)?;
-    let x = extract_float("sin", &args[0])?;
-    Ok(Value::Float(x.sin()))
-}
-
-/// (tan X) -- tangent of X
-pub(crate) fn builtin_tan(args: Vec<Value>) -> EvalResult {
-    expect_args("tan", &args, 1)?;
-    let x = extract_float("tan", &args[0])?;
-    let result = x.tan();
-    let result = check_range("tan", result)?;
-    Ok(Value::Float(result))
 }
 
 // ---------------------------------------------------------------------------
@@ -446,89 +375,6 @@ mod tests {
         }
     }
 
-    // ===== Trigonometric =====
-
-    #[test]
-    fn test_acos() {
-        let result = builtin_acos(vec![Value::Float(1.0)]).unwrap();
-        assert_float_eq(&result, 0.0, 1e-10);
-
-        let result = builtin_acos(vec![Value::Float(0.0)]).unwrap();
-        assert_float_eq(&result, std::f64::consts::FRAC_PI_2, 1e-10);
-
-        // Domain error for |x| > 1
-        assert!(builtin_acos(vec![Value::Float(2.0)]).is_err());
-    }
-
-    #[test]
-    fn test_asin() {
-        let result = builtin_asin(vec![Value::Float(0.0)]).unwrap();
-        assert_float_eq(&result, 0.0, 1e-10);
-
-        let result = builtin_asin(vec![Value::Float(1.0)]).unwrap();
-        assert_float_eq(&result, std::f64::consts::FRAC_PI_2, 1e-10);
-
-        // Domain error for |x| > 1
-        assert!(builtin_asin(vec![Value::Float(2.0)]).is_err());
-    }
-
-    #[test]
-    fn test_atan_one_arg() {
-        let result = builtin_atan(vec![Value::Float(0.0)]).unwrap();
-        assert_float_eq(&result, 0.0, 1e-10);
-
-        let result = builtin_atan(vec![Value::Float(1.0)]).unwrap();
-        assert_float_eq(&result, std::f64::consts::FRAC_PI_4, 1e-10);
-    }
-
-    #[test]
-    fn test_atan_two_args() {
-        // atan2(1, 1) = pi/4
-        let result = builtin_atan(vec![Value::Float(1.0), Value::Float(1.0)]).unwrap();
-        assert_float_eq(&result, std::f64::consts::FRAC_PI_4, 1e-10);
-
-        // atan2(0, -1) = pi
-        let result = builtin_atan(vec![Value::Float(0.0), Value::Float(-1.0)]).unwrap();
-        assert_float_eq(&result, std::f64::consts::PI, 1e-10);
-    }
-
-    #[test]
-    fn test_cos() {
-        let result = builtin_cos(vec![Value::Float(0.0)]).unwrap();
-        assert_float_eq(&result, 1.0, 1e-10);
-
-        let result = builtin_cos(vec![Value::Float(std::f64::consts::PI)]).unwrap();
-        assert_float_eq(&result, -1.0, 1e-10);
-    }
-
-    #[test]
-    fn test_sin() {
-        let result = builtin_sin(vec![Value::Float(0.0)]).unwrap();
-        assert_float_eq(&result, 0.0, 1e-10);
-
-        let result = builtin_sin(vec![Value::Float(std::f64::consts::FRAC_PI_2)]).unwrap();
-        assert_float_eq(&result, 1.0, 1e-10);
-    }
-
-    #[test]
-    fn test_tan() {
-        let result = builtin_tan(vec![Value::Float(0.0)]).unwrap();
-        assert_float_eq(&result, 0.0, 1e-10);
-
-        let result = builtin_tan(vec![Value::Float(std::f64::consts::FRAC_PI_4)]).unwrap();
-        assert_float_eq(&result, 1.0, 1e-10);
-    }
-
-    #[test]
-    fn test_trig_accepts_int() {
-        // Trig functions should accept integers too
-        let result = builtin_cos(vec![Value::Int(0)]).unwrap();
-        assert_float_eq(&result, 1.0, 1e-10);
-
-        let result = builtin_sin(vec![Value::Int(0)]).unwrap();
-        assert_float_eq(&result, 0.0, 1e-10);
-    }
-
     // ===== Classification =====
 
     #[test]
@@ -746,8 +592,8 @@ mod tests {
 
     #[test]
     fn test_wrong_type_errors() {
-        assert!(builtin_cos(vec![Value::string("x")]).is_err());
-        assert!(builtin_sin(vec![Value::Nil]).is_err());
+        assert!(builtin_copysign(vec![Value::string("x"), Value::Float(1.0)]).is_err());
+        assert!(builtin_fceiling(vec![Value::Nil]).is_err());
         assert!(builtin_exp(vec![Value::True]).is_err());
         assert!(builtin_logb(vec![Value::string("y")]).is_err());
     }
@@ -756,8 +602,8 @@ mod tests {
 
     #[test]
     fn test_wrong_arity() {
-        assert!(builtin_cos(vec![]).is_err());
-        assert!(builtin_cos(vec![Value::Float(1.0), Value::Float(2.0)]).is_err());
+        assert!(builtin_logb(vec![]).is_err());
+        assert!(builtin_logb(vec![Value::Float(1.0), Value::Float(2.0)]).is_err());
         assert!(builtin_copysign(vec![Value::Float(1.0)]).is_err());
         assert!(builtin_ldexp(vec![Value::Float(1.0)]).is_err());
         assert!(builtin_frexp(vec![]).is_err());

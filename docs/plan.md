@@ -18,6 +18,16 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Pruned dead duplicate trigonometric wrappers from `floatfns`:
+  - updated:
+    - `rust/neovm-core/src/elisp/floatfns.rs`
+      - removed unreferenced local `acos`/`asin`/`atan`/`cos`/`sin`/`tan` wrapper implementations.
+      - removed now-unused local domain-check helper tied to those wrappers.
+      - removed local wrapper-only trig test coverage and rewired generic wrong-type/arity checks to still exercise active local wrapper paths.
+  - verified:
+    - `cargo test 'elisp::floatfns::tests::' -- --nocapture` (pass, 20 tests)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/core` (pass, 15/15)
+
 - Pruned dead duplicate integer-rounding wrappers from `floatfns`:
   - updated:
     - `rust/neovm-core/src/elisp/floatfns.rs`
