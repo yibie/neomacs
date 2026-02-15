@@ -443,7 +443,9 @@ pub fn looking_at(
     } else {
         format!("\\A(?:{})", re_pattern)
     };
-    let re = Regex::new(&anchored).map_err(|e| format!("Invalid regexp: {}", e))?;
+    // Emacs defaults `case-fold-search` to non-nil for this path.
+    let case_folded = format!("(?i:{})", anchored);
+    let re = Regex::new(&case_folded).map_err(|e| format!("Invalid regexp: {}", e))?;
 
     let start = buf.pt;
     let limit = buf.zv;
@@ -996,6 +998,16 @@ mod tests {
         buf.pt = 6; // "world"
         let mut md = None;
         let result = looking_at(&buf, "world", &mut md);
+        assert!(result.is_ok());
+        assert!(result.unwrap());
+    }
+
+    #[test]
+    fn looking_at_defaults_to_case_fold() {
+        let mut buf = make_test_buffer("A");
+        buf.pt = 0;
+        let mut md = None;
+        let result = looking_at(&buf, "a", &mut md);
         assert!(result.is_ok());
         assert!(result.unwrap());
     }

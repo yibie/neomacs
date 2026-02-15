@@ -19,5 +19,13 @@
   (set-match-data nil)
   (looking-at "h\\(e\\)l")
   (match-beginning 1))
+(with-temp-buffer
+  (insert "A")
+  (goto-char (point-min))
+  (looking-at-p "a"))
+(with-temp-buffer
+  (insert "A")
+  (goto-char (point-min))
+  (looking-at "a"))
 (condition-case err (looking-at-p "[") (invalid-regexp (car err)))
 (condition-case err (looking-at-p "x" nil) (wrong-number-of-arguments (car err)))
