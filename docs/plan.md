@@ -5,17 +5,25 @@ Last updated: 2026-02-15
 ## Doing
 
 - Continue command-context and read-only variable compatibility sweep in `rust/neovm-core/src/elisp/kill_ring.rs`.
-- Audit `kill-ring`/`kill-ring-yank-pointer` variable interaction coverage beyond `let` + core kill builtins.
+- Audit `kill-ring-yank-pointer` and cross-command rotation state interactions (`current-kill` <-> `yank`/`yank-pop`).
 - Keeping each slice small: runtime patch -> oracle corpus -> docs note -> push.
 
 ## Next
 
-- Expand oracle corpus for `setq`/global mutation of `kill-ring` and pointer-sensitive flows (`current-kill`, `yank`, `yank-pop`).
+- Expand oracle corpus for explicit `kill-ring-yank-pointer` mutation and validation paths.
 - Audit `yank`/`yank-pop` behavior with empty kill-ring entries and pointer wrap rules.
 - Run targeted regression checks after each slice (`command-dispatch-default-arg-semantics`, touched command corpus, and focused `yank`/`yank-pop` suites).
 
 ## Done
 
+- Added `setq`/pointer-oriented kill-ring oracle corpus coverage:
+  - added and enabled:
+    - `test/neovm/vm-compat/cases/kill-ring-setq-pointer-semantics.forms`
+    - `test/neovm/vm-compat/cases/kill-ring-setq-pointer-semantics.expected.tsv`
+    - wired into `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/kill-ring-setq-pointer-semantics` (pass, 14/14)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Aligned dynamic `kill-ring` binding behavior and added related corpus lock-in:
   - updated `rust/neovm-core/src/elisp/kill_ring.rs`:
     - added sync bridge between dynamic/global `kill-ring` bindings and internal `KillRing` state
