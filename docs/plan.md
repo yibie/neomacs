@@ -66,6 +66,7 @@ Last updated: 2026-02-15
   - run oracle/parity checks after each behavior-affecting change
   - remove dead helper code that is not part of exposed compatibility surface
 - Reduce vm-compat operator friction for large case sets (small Makefile UX improvements).
+  - added list-driven targets: `record-list`, `check-list`, `check-neovm-list` with `LIST=cases/<name>.list`
 
 ## Next
 
