@@ -18,6 +18,14 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Removed dead `misc` regex wrapper surface:
+  - updated:
+    - `rust/neovm-core/src/elisp/misc.rs`
+      - deleted unreferenced `builtin_replace_regexp_in_string` / `builtin_string_match_p` wrappers and stale local tests
+      - aligned module header comments with remaining `misc` responsibility surface
+  - verified:
+    - `cargo test 'elisp::misc::tests::' -- --nocapture` (pass, 47 tests)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/replace-regexp-in-string-semantics` (pass, 9/9)
 - Removed dead `misc` decode/encode-char delegate wrappers:
   - updated:
     - `rust/neovm-core/src/elisp/misc.rs`
