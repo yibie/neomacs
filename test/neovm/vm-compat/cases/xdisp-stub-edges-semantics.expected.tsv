@@ -14,24 +14,26 @@
 14	(fboundp 'current-bidi-paragraph-direction)	OK t
 15	(current-bidi-paragraph-direction)	OK left-to-right
 16	(current-bidi-paragraph-direction nil)	OK left-to-right
-17	(condition-case err (current-bidi-paragraph-direction nil nil) (error (car err)))	OK wrong-number-of-arguments
-18	(fboundp 'move-to-window-line)	OK t
-19	(move-to-window-line 1)	ERR (error ("move-to-window-line called from unrelated buffer"))
-20	(move-to-window-line nil)	ERR (error ("move-to-window-line called from unrelated buffer"))
-21	(condition-case err (move-to-window-line) (error (car err)))	OK wrong-number-of-arguments
-22	(fboundp 'tool-bar-height)	OK t
-23	(tool-bar-height)	OK 0
-24	(tool-bar-height nil)	OK 0
-25	(tool-bar-height nil t)	OK 0
-26	(condition-case err (tool-bar-height nil nil nil) (error (car err)))	OK wrong-number-of-arguments
-27	(fboundp 'tab-bar-height)	OK t
-28	(tab-bar-height)	OK 0
-29	(tab-bar-height nil t)	OK 0
-30	(condition-case err (tab-bar-height nil nil nil) (error (car err)))	OK wrong-number-of-arguments
-31	(fboundp 'line-number-display-width)	OK t
-32	(line-number-display-width)	OK 0
-33	(line-number-display-width t)	OK 0
-34	(condition-case err (line-number-display-width nil nil) (error (car err)))	OK wrong-number-of-arguments
-35	(fboundp 'long-line-optimizations-p)	OK t
-36	(long-line-optimizations-p)	OK nil
-37	(condition-case err (long-line-optimizations-p 1) (error (car err)))	OK wrong-number-of-arguments
+17	(condition-case err (current-bidi-paragraph-direction 1) (error err))	OK (wrong-type-argument bufferp 1)
+18	(condition-case err (current-bidi-paragraph-direction "x") (error err))	OK (wrong-type-argument bufferp "x")
+19	(condition-case err (current-bidi-paragraph-direction nil nil) (error (car err)))	OK wrong-number-of-arguments
+20	(fboundp 'move-to-window-line)	OK t
+21	(move-to-window-line 1)	ERR (error ("move-to-window-line called from unrelated buffer"))
+22	(move-to-window-line nil)	ERR (error ("move-to-window-line called from unrelated buffer"))
+23	(condition-case err (move-to-window-line) (error (car err)))	OK wrong-number-of-arguments
+24	(fboundp 'tool-bar-height)	OK t
+25	(tool-bar-height)	OK 0
+26	(tool-bar-height nil)	OK 0
+27	(tool-bar-height nil t)	OK 0
+28	(condition-case err (tool-bar-height nil nil nil) (error (car err)))	OK wrong-number-of-arguments
+29	(fboundp 'tab-bar-height)	OK t
+30	(tab-bar-height)	OK 0
+31	(tab-bar-height nil t)	OK 0
+32	(condition-case err (tab-bar-height nil nil nil) (error (car err)))	OK wrong-number-of-arguments
+33	(fboundp 'line-number-display-width)	OK t
+34	(line-number-display-width)	OK 0
+35	(line-number-display-width t)	OK 0
+36	(condition-case err (line-number-display-width nil nil) (error (car err)))	OK wrong-number-of-arguments
+37	(fboundp 'long-line-optimizations-p)	OK t
+38	(long-line-optimizations-p)	OK nil
+39	(condition-case err (long-line-optimizations-p 1) (error (car err)))	OK wrong-number-of-arguments

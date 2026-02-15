@@ -17,6 +17,8 @@
 (fboundp 'current-bidi-paragraph-direction)
 (current-bidi-paragraph-direction)
 (current-bidi-paragraph-direction nil)
+(condition-case err (current-bidi-paragraph-direction 1) (error err))
+(condition-case err (current-bidi-paragraph-direction "x") (error err))
 (condition-case err (current-bidi-paragraph-direction nil nil) (error (car err)))
 
 (fboundp 'move-to-window-line)
