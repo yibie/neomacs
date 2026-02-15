@@ -9,69 +9,6 @@ fn new_eval() -> super::super::eval::Evaluator {
 }
 
 // =======================================================================
-// Pure builtins
-// =======================================================================
-
-// ----- make-indirect-buffer -----
-
-#[test]
-fn make_indirect_buffer_stub() {
-    let result =
-        builtin_make_indirect_buffer(vec![Value::string("base"), Value::string("indirect")]);
-    assert!(result.is_ok());
-    assert!(result.unwrap().is_nil());
-}
-
-#[test]
-fn make_indirect_buffer_with_clone() {
-    let result = builtin_make_indirect_buffer(vec![
-        Value::string("base"),
-        Value::string("indirect"),
-        Value::True,
-    ]);
-    assert!(result.is_ok());
-}
-
-#[test]
-fn make_indirect_buffer_too_few_args() {
-    let result = builtin_make_indirect_buffer(vec![Value::string("base")]);
-    assert!(result.is_err());
-}
-
-#[test]
-fn make_indirect_buffer_too_many_args() {
-    let result = builtin_make_indirect_buffer(vec![
-        Value::string("base"),
-        Value::string("name"),
-        Value::True,
-        Value::Int(1),
-    ]);
-    assert!(result.is_err());
-}
-
-// ----- buffer-base-buffer -----
-
-#[test]
-fn buffer_base_buffer_nil() {
-    let result = builtin_buffer_base_buffer(vec![]);
-    assert!(result.is_ok());
-    assert!(result.unwrap().is_nil());
-}
-
-#[test]
-fn buffer_base_buffer_with_arg() {
-    let result = builtin_buffer_base_buffer(vec![Value::Nil]);
-    assert!(result.is_ok());
-    assert!(result.unwrap().is_nil());
-}
-
-#[test]
-fn buffer_base_buffer_too_many_args() {
-    let result = builtin_buffer_base_buffer(vec![Value::Nil, Value::Nil]);
-    assert!(result.is_err());
-}
-
-// =======================================================================
 // Eval-dependent builtins
 // =======================================================================
 

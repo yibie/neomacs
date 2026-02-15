@@ -23,8 +23,6 @@
 //! - `buffer-enable-undo` -- enable undo recording (stub)
 //! - `buffer-disable-undo` -- disable undo recording (stub)
 //! - `buffer-size` -- return content length
-//! - `make-indirect-buffer` -- create indirect buffer (stub)
-//! - `buffer-base-buffer` -- return base buffer of indirect (stub)
 
 use super::error::{signal, EvalResult, Flow};
 use super::value::*;
@@ -33,12 +31,9 @@ use crate::buffer::BufferId;
 
 #[path = "buffer/args.rs"]
 mod args;
-#[path = "buffer/pure.rs"]
-mod pure;
 #[path = "buffer/stateful.rs"]
 mod stateful;
 
-pub(crate) use pure::*;
 pub(crate) use stateful::*;
 
 #[cfg(test)]
