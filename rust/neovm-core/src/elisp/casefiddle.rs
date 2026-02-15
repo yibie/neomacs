@@ -1,7 +1,6 @@
 //! Case conversion and character builtins.
 //!
-//! Implements `upcase`, `downcase`, `capitalize`, `upcase-initials`,
-//! `characterp`, and `char-resolve-modifiers`.
+//! Implements `capitalize`, `upcase-initials`, and `char-resolve-modifiers`.
 
 use super::error::{signal, EvalResult, Flow};
 use super::value::*;
@@ -21,23 +20,9 @@ fn expect_args(name: &str, args: &[Value], n: usize) -> Result<(), Flow> {
     }
 }
 
-fn expect_min_max_args(name: &str, args: &[Value], min: usize, max: usize) -> Result<(), Flow> {
-    if args.len() < min || args.len() > max {
-        Err(signal(
-            "wrong-number-of-arguments",
-            vec![Value::symbol(name), Value::Int(args.len() as i64)],
-        ))
-    } else {
-        Ok(())
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Character helpers
 // ---------------------------------------------------------------------------
-
-/// Maximum Unicode code point.
-const MAX_UNICODE: i64 = 0x10FFFF;
 
 const CHAR_META: i64 = 0x8000000;
 const CHAR_CTL: i64 = 0x4000000;
@@ -74,62 +59,9 @@ fn upcase_char(code: i64) -> i64 {
     }
 }
 
-/// Lowercase a single character code, returning the new code.
-fn downcase_char(code: i64) -> i64 {
-    match code_to_char(code) {
-        Some(c) => {
-            let mut lower = c.to_lowercase();
-            lower.next().map(|l| l as i64).unwrap_or(code)
-        }
-        None => code,
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Pure builtins
 // ---------------------------------------------------------------------------
-
-/// `(upcase OBJ)` -- if OBJ is a string, return uppercased copy.
-/// If OBJ is a character (Int or Char), return uppercased character code.
-pub(crate) fn builtin_upcase(args: Vec<Value>) -> EvalResult {
-    expect_args("upcase", &args, 1)?;
-    match &args[0] {
-        Value::Str(s) => {
-            let upper: String = s.to_uppercase();
-            Ok(Value::string(upper))
-        }
-        Value::Char(c) => {
-            let code = *c as i64;
-            Ok(Value::Int(upcase_char(code)))
-        }
-        Value::Int(n) => Ok(Value::Int(upcase_char(*n))),
-        other => Err(signal(
-            "wrong-type-argument",
-            vec![Value::symbol("char-or-string-p"), other.clone()],
-        )),
-    }
-}
-
-/// `(downcase OBJ)` -- if OBJ is a string, return lowercased copy.
-/// If OBJ is a character (Int or Char), return lowercased character code.
-pub(crate) fn builtin_downcase(args: Vec<Value>) -> EvalResult {
-    expect_args("downcase", &args, 1)?;
-    match &args[0] {
-        Value::Str(s) => {
-            let lower: String = s.to_lowercase();
-            Ok(Value::string(lower))
-        }
-        Value::Char(c) => {
-            let code = *c as i64;
-            Ok(Value::Int(downcase_char(code)))
-        }
-        Value::Int(n) => Ok(Value::Int(downcase_char(*n))),
-        other => Err(signal(
-            "wrong-type-argument",
-            vec![Value::symbol("char-or-string-p"), other.clone()],
-        )),
-    }
-}
 
 /// `(capitalize OBJ)` -- if OBJ is a string, capitalize the first letter
 /// (uppercase first, lowercase rest).  If OBJ is a character, uppercase it.
@@ -220,18 +152,6 @@ fn upcase_initials_string(s: &str) -> String {
     result
 }
 
-/// `(characterp OBJECT &optional IGNORE)` -- return t if OBJECT is a character.
-/// A character is a `Value::Char` or a `Value::Int` in the range 0..=0x10FFFF.
-pub(crate) fn builtin_characterp(args: Vec<Value>) -> EvalResult {
-    expect_min_max_args("characterp", &args, 1, 2)?;
-    let is_char = match &args[0] {
-        Value::Char(_) => true,
-        Value::Int(n) => (0..=MAX_UNICODE).contains(n),
-        _ => false,
-    };
-    Ok(Value::bool(is_char))
-}
-
 /// `(char-resolve-modifiers CHAR)` -- resolve modifier bits in character.
 /// Resolve shift/control modifiers into the base character where possible.
 pub(crate) fn builtin_char_resolve_modifiers(args: Vec<Value>) -> EvalResult {
@@ -286,62 +206,6 @@ mod tests {
     use super::*;
 
     // =======================================================================
-    // upcase
-    // =======================================================================
-
-    #[test]
-    fn upcase_string() {
-        let result = builtin_upcase(vec![Value::string("hello")]).unwrap();
-        assert_eq!(result.as_str(), Some("HELLO"));
-    }
-
-    #[test]
-    fn upcase_string_mixed() {
-        let result = builtin_upcase(vec![Value::string("Hello World 123")]).unwrap();
-        assert_eq!(result.as_str(), Some("HELLO WORLD 123"));
-    }
-
-    #[test]
-    fn upcase_char() {
-        let result = builtin_upcase(vec![Value::Char('a')]).unwrap();
-        assert_eq!(result.as_int(), Some('A' as i64));
-    }
-
-    #[test]
-    fn upcase_int() {
-        let result = builtin_upcase(vec![Value::Int('z' as i64)]).unwrap();
-        assert_eq!(result.as_int(), Some('Z' as i64));
-    }
-
-    #[test]
-    fn upcase_wrong_type() {
-        let result = builtin_upcase(vec![Value::Float(1.0)]);
-        assert!(result.is_err());
-    }
-
-    // =======================================================================
-    // downcase
-    // =======================================================================
-
-    #[test]
-    fn downcase_string() {
-        let result = builtin_downcase(vec![Value::string("HELLO")]).unwrap();
-        assert_eq!(result.as_str(), Some("hello"));
-    }
-
-    #[test]
-    fn downcase_char() {
-        let result = builtin_downcase(vec![Value::Char('A')]).unwrap();
-        assert_eq!(result.as_int(), Some('a' as i64));
-    }
-
-    #[test]
-    fn downcase_int() {
-        let result = builtin_downcase(vec![Value::Int('Z' as i64)]).unwrap();
-        assert_eq!(result.as_int(), Some('z' as i64));
-    }
-
-    // =======================================================================
     // capitalize
     // =======================================================================
 
@@ -393,52 +257,6 @@ mod tests {
     }
 
     // =======================================================================
-    // characterp
-    // =======================================================================
-
-    #[test]
-    fn characterp_char() {
-        let result = builtin_characterp(vec![Value::Char('a')]).unwrap();
-        assert!(result.is_truthy());
-    }
-
-    #[test]
-    fn characterp_int_valid() {
-        let result = builtin_characterp(vec![Value::Int(65)]).unwrap();
-        assert!(result.is_truthy());
-    }
-
-    #[test]
-    fn characterp_int_max_unicode() {
-        let result = builtin_characterp(vec![Value::Int(0x10FFFF)]).unwrap();
-        assert!(result.is_truthy());
-    }
-
-    #[test]
-    fn characterp_int_too_large() {
-        let result = builtin_characterp(vec![Value::Int(0x110000)]).unwrap();
-        assert!(result.is_nil());
-    }
-
-    #[test]
-    fn characterp_int_negative() {
-        let result = builtin_characterp(vec![Value::Int(-1)]).unwrap();
-        assert!(result.is_nil());
-    }
-
-    #[test]
-    fn characterp_string() {
-        let result = builtin_characterp(vec![Value::string("a")]).unwrap();
-        assert!(result.is_nil());
-    }
-
-    #[test]
-    fn characterp_with_ignore() {
-        let result = builtin_characterp(vec![Value::Char('a'), Value::Nil]).unwrap();
-        assert!(result.is_truthy());
-    }
-
-    // =======================================================================
     // char-resolve-modifiers
     // =======================================================================
 
@@ -473,33 +291,9 @@ mod tests {
     // =======================================================================
 
     #[test]
-    fn upcase_unicode() {
-        let result = builtin_upcase(vec![Value::string("\u{00E9}")]).unwrap(); // e-acute
-        assert_eq!(result.as_str(), Some("\u{00C9}")); // E-acute
-    }
-
-    #[test]
-    fn downcase_unicode() {
-        let result = builtin_downcase(vec![Value::string("\u{00C9}")]).unwrap(); // E-acute
-        assert_eq!(result.as_str(), Some("\u{00E9}")); // e-acute
-    }
-
-    #[test]
     fn capitalize_with_punctuation() {
         let result = builtin_capitalize(vec![Value::string("it's a test")]).unwrap();
         assert_eq!(result.as_str(), Some("It'S A Test"));
-    }
-
-    #[test]
-    fn wrong_arity_upcase() {
-        let result = builtin_upcase(vec![]);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn wrong_arity_downcase() {
-        let result = builtin_downcase(vec![Value::string("a"), Value::string("b")]);
-        assert!(result.is_err());
     }
 
 }
