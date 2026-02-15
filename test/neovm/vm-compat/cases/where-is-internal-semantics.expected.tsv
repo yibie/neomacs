@@ -1,0 +1,6 @@
+1	(condition-case err (where-is-internal 'ignore 'not-a-map) (error err))	OK (wrong-type-argument keymapp not-a-map)
+2	(where-is-internal 1)	OK nil
+3	(let ((m (make-sparse-keymap))) (define-key m "a" 'ignore) (equal (car (where-is-internal 'ignore m)) [97]))	OK t
+4	(let ((m (make-sparse-keymap))) (define-key m "a" 'ignore) (equal (where-is-internal 'ignore m t) [97]))	OK t
+5	(let ((m (make-sparse-keymap))) (define-key m "a" 'ignore) (not (null (member [97] (where-is-internal 'ignore m)))))	OK t
+6	(let ((m (make-sparse-keymap))) (define-key m "a" 'ignore) (vectorp (where-is-internal 'ignore m t)))	OK t
