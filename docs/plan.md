@@ -13,11 +13,45 @@ Last updated: 2026-02-15
 ## Next
 
 1. Keep `check-all-neovm` as a recurring post-slice gate to catch regressions early.
-2. Continue landing evaluator-backed display/terminal builtins that still use pure stub dispatch (`redraw-frame`, related frame designator paths).
+2. Continue landing evaluator-backed display builtins that still use pure stub dispatch (`internal-show-cursor*` live-window designator paths).
 3. Expand focused oracle corpora for remaining high-risk stub areas (search/input/minibuffer/display edges).
 4. Keep Rust backend behind compile-time switch and preserve Emacs C core as default backend.
 
 ## Done
+
+- Expanded evaluator-backed terminal/tty designator compatibility for live frame ids:
+  - updated:
+    - `rust/neovm-core/src/elisp/display.rs`
+      - added evaluator variants for:
+        - `terminal-name`
+        - `terminal-live-p`
+        - `terminal-parameter`
+        - `set-terminal-parameter`
+        - `send-string-to-terminal`
+        - `tty-type`
+        - `tty-top-frame`
+        - `controlling-tty-p`
+        - `suspend-tty`
+        - `resume-tty`
+      - added display unit tests covering live-frame acceptance for each new evaluator path.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - routed the above builtins through evaluator dispatch.
+    - `test/neovm/vm-compat/cases/terminal-parameter-semantics.{forms,expected.tsv}`
+      - added selected-frame lock-ins for terminal-name/live/parameter flows.
+      - switched stale-probe IDs to `999999` where needed.
+      - refreshed oracle baseline.
+    - `test/neovm/vm-compat/cases/display-stub-semantics.{forms,expected.tsv}`
+      - locked `send-string-to-terminal` selected-frame success and stale-id rejection.
+      - refreshed oracle baseline.
+    - `test/neovm/vm-compat/cases/tty-batch-semantics.{forms,expected.tsv}`
+      - added selected-frame lock-ins for tty query/suspend/resume flows.
+      - switched stale-probe IDs to `999999` to avoid live-id collisions.
+      - refreshed oracle baseline.
+  - verified:
+    - `cargo test display::tests --manifest-path rust/neovm-core/Cargo.toml -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/terminal-parameter-semantics` (pass, 24/24)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/display-stub-semantics` (pass, 32/32)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/tty-batch-semantics` (pass, 29/29)
 
 - Added evaluator-backed `frame-terminal` live-frame designator support:
   - updated:
