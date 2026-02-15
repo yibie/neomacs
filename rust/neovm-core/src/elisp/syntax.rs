@@ -853,6 +853,9 @@ pub(crate) fn builtin_string_to_syntax(args: Vec<Value>) -> EvalResult {
         }
     };
     let entry = string_to_syntax(&s).map_err(|msg| signal("error", vec![Value::string(&msg)]))?;
+    if matches!(entry.class, SyntaxClass::InheritStandard) {
+        return Ok(Value::Nil);
+    }
     Ok(syntax_entry_to_value(&entry))
 }
 
@@ -1029,8 +1032,13 @@ pub(crate) fn builtin_modify_syntax_entry(
             ));
         }
     };
-    let entry =
+    let mut entry =
         string_to_syntax(&descriptor).map_err(|msg| signal("error", vec![Value::string(&msg)]))?;
+    if matches!(entry.class, SyntaxClass::InheritStandard) {
+        // Emacs effectively treats "@" modifier entries as inherited/default
+        // whitespace semantics in baseline syntax tables.
+        entry = SyntaxEntry::simple(SyntaxClass::Whitespace);
+    }
 
     let buf = eval
         .buffers
@@ -1885,6 +1893,12 @@ mod tests {
     }
 
     #[test]
+    fn builtin_string_to_syntax_at_returns_nil() {
+        let out = builtin_string_to_syntax(vec![Value::string("@")]).unwrap();
+        assert_eq!(out, Value::Nil);
+    }
+
+    #[test]
     fn string_to_syntax_with_flags() {
         let entry = string_to_syntax(". 12").unwrap();
         assert_eq!(entry.class, SyntaxClass::Punctuation);
@@ -2444,6 +2458,19 @@ mod tests {
             }
             other => panic!("expected wrong-number-of-arguments signal, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn modify_syntax_entry_at_descriptor_yields_whitespace() {
+        let mut eval = crate::elisp::eval::Evaluator::new();
+        builtin_modify_syntax_entry(
+            &mut eval,
+            vec![Value::Int('x' as i64), Value::string("@")],
+        )
+        .unwrap();
+
+        let out = builtin_char_syntax(&mut eval, vec![Value::Int('x' as i64)]).unwrap();
+        assert_eq!(out, Value::Char(' '));
     }
 
     #[test]
