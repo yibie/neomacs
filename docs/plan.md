@@ -18,6 +18,28 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Implemented baseline `parse-partial-sexp`/`syntax-ppss` and locked corpus:
+  - updated:
+    - `rust/neovm-core/src/elisp/syntax.rs`
+      - added baseline parser-state engine over current syntax table/accessible buffer range.
+      - added evaluator-backed `parse-partial-sexp` and `syntax-ppss` with arity/type checks.
+      - added unit tests for baseline state shapes on plain text and simple list context.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - wired `parse-partial-sexp` and `syntax-ppss` in eval dispatch.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - registered `parse-partial-sexp` and `syntax-ppss` for `fboundp`/introspection parity.
+    - `test/neovm/vm-compat/cases/parse-partial-sexp-syntax-ppss-semantics.forms`
+      - added baseline behavior checks and core arity/type error paths.
+    - `test/neovm/vm-compat/cases/parse-partial-sexp-syntax-ppss-semantics.expected.tsv`
+      - recorded with `NEOVM_ORACLE_EMACS=/nix/store/2lzapcylxkad2r63h144mp9nnin4vb5n-user-environment/bin/emacs`.
+    - `test/neovm/vm-compat/cases/default.list`
+      - included `cases/parse-partial-sexp-syntax-ppss-semantics` in default corpus runs.
+  - verified:
+    - `cargo test 'elisp::syntax::tests::parse_partial_sexp_baseline_shapes' -- --nocapture` (pass)
+    - `cargo test 'elisp::syntax::tests::syntax_ppss_baseline_shape' -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/parse-partial-sexp-syntax-ppss-semantics` (pass, 9/9)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Implemented `scan-sexps` baseline and added oracle-locked corpus:
   - updated:
     - `rust/neovm-core/src/elisp/syntax.rs`
