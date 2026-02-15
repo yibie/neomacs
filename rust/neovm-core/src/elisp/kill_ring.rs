@@ -919,13 +919,6 @@ pub(crate) fn builtin_kill_word(eval: &mut super::eval::Evaluator, args: Vec<Val
         .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
-    if buf.read_only {
-        return Err(signal(
-            "buffer-read-only",
-            vec![Value::string(buf.name.clone())],
-        ));
-    }
-
     let table = buf.syntax_table.clone();
     let pt = buf.point();
     let target = forward_word(buf, &table, n);
@@ -935,6 +928,15 @@ pub(crate) fn builtin_kill_word(eval: &mut super::eval::Evaluator, args: Vec<Val
     } else {
         (target, pt)
     };
+    if beg == end {
+        return Ok(Value::Nil);
+    }
+    if region_case_read_only(eval, buf) {
+        return Err(signal(
+            "buffer-read-only",
+            vec![Value::string(buf.name.clone())],
+        ));
+    }
     let killed_text = buf.buffer_substring(beg, end);
 
     eval.kill_ring.push(killed_text);
@@ -962,13 +964,6 @@ pub(crate) fn builtin_backward_kill_word(
         .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
-    if buf.read_only {
-        return Err(signal(
-            "buffer-read-only",
-            vec![Value::string(buf.name.clone())],
-        ));
-    }
-
     let table = buf.syntax_table.clone();
     let pt = buf.point();
     let target = backward_word(buf, &table, n);
@@ -978,6 +973,15 @@ pub(crate) fn builtin_backward_kill_word(
     } else {
         (pt, target)
     };
+    if beg == end {
+        return Ok(Value::Nil);
+    }
+    if region_case_read_only(eval, buf) {
+        return Err(signal(
+            "buffer-read-only",
+            vec![Value::string(buf.name.clone())],
+        ));
+    }
     let killed_text = buf.buffer_substring(beg, end);
 
     eval.kill_ring.push(killed_text);
