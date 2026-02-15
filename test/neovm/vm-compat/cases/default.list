@@ -98,6 +98,7 @@ cases/edit-read-only-variable-semantics
 cases/kill-word-read-only-variable-semantics
 cases/newline-read-only-variable-semantics
 cases/whitespace-read-only-variable-semantics
+cases/kill-ring-command-context-semantics
 cases/yank-read-only-variable-semantics
 cases/yank-pop-semantics
 cases/buffer-local-value
