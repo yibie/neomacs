@@ -158,6 +158,7 @@ pub struct MinibufferState {
 }
 
 impl MinibufferState {
+    #[cfg(test)]
     fn new(prompt: String, initial: String, depth: usize) -> Self {
         let cursor_pos = initial.len();
         Self {
@@ -232,6 +233,7 @@ pub struct MinibufferManager {
     history: MinibufferHistory,
     completion_style: CompletionStyle,
     enable_recursive: bool,
+    #[cfg(test)]
     max_depth: usize,
 }
 
@@ -242,6 +244,7 @@ impl MinibufferManager {
             history: MinibufferHistory::new(),
             completion_style: CompletionStyle::Prefix,
             enable_recursive: true,
+            #[cfg(test)]
             max_depth: 10,
         }
     }
@@ -250,6 +253,7 @@ impl MinibufferManager {
     ///
     /// Returns a fresh `MinibufferState` that has been pushed onto the stack.
     /// The caller can further configure it (completion table, require-match, default).
+    #[cfg(test)]
     pub(crate) fn read_from_minibuffer(
         &mut self,
         prompt: &str,

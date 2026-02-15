@@ -18,6 +18,15 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Test-gated minibuffer stack-entry internals that are not in production dispatch:
+  - updated:
+    - `rust/neovm-core/src/elisp/minibuffer.rs`
+      - marked `MinibufferState::new`, `MinibufferManager::read_from_minibuffer`, and `MinibufferManager::max_depth` as test-only.
+      - preserved full minibuffer unit-test behavior while removing dead production symbols.
+  - verified:
+    - `cargo test 'elisp::minibuffer::tests::' -- --nocapture` (pass, 70 tests)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/minibuffer-contents-no-properties-semantics` (pass, 4/4)
+
 - Removed dead duplicate `propertize` wrapper from `textprop`:
   - updated:
     - `rust/neovm-core/src/elisp/textprop.rs`
