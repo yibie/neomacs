@@ -40,7 +40,8 @@ Last updated: 2026-02-15
   - removed unexposed `find-coding-system` helper
   - removed unexposed `word-at-point` helper
   - removed stale, unreferenced `elisp/terminal` shim module files
-  - removed stale, unreferenced pure-JSON buffer stub helpers from `elisp/json.rs` (`json-insert`/`json-parse-buffer`; active dispatch already uses evaluator-backed `cl_lib` versions)
+  - removed stale, unreferenced pure-JSON buffer stub helpers from `elisp/json.rs` (`json-insert`/`json-parse-buffer`; replaced by active evaluator-backed implementations in the JSON module)
+  - removed duplicate legacy JSON parser/serializer + tests from `elisp/cl_lib.rs` so `elisp/json.rs` is the single JSON implementation path
 - Implemented `terminal-parameter` / `set-terminal-parameter` compatibility semantics:
   - persisted terminal parameter values for symbol keys
   - `terminal-parameter` enforces `symbolp` for PARAMETER
@@ -79,6 +80,14 @@ Last updated: 2026-02-15
 - Added and enabled new oracle corpus:
   - `test/neovm/vm-compat/cases/json-semantics.forms`
   - `test/neovm/vm-compat/cases/json-semantics.expected.tsv`
+  - wired into `test/neovm/vm-compat/cases/default.list`
+- Aligned evaluator-backed buffer JSON builtins with Emacs behavior:
+  - `json-parse-buffer` now parses from current point, allows trailing content, and advances point to the end of parsed value
+  - `json-insert` now uses `json-serialize` keyword semantics (`:null-object`, `:false-object`)
+  - dispatch for `json-parse-buffer` / `json-insert` now routes to `elisp/json.rs` implementations
+- Added and enabled new oracle corpus:
+  - `test/neovm/vm-compat/cases/json-buffer-semantics.forms`
+  - `test/neovm/vm-compat/cases/json-buffer-semantics.expected.tsv`
   - wired into `test/neovm/vm-compat/cases/default.list`
 - Kept branch green with targeted Rust tests and vm-compat checks after each slice.
 
