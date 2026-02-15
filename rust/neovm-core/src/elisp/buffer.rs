@@ -11,9 +11,6 @@
 //! - `buffer-file-name` -- return associated file name or nil
 //! - `buffer-modified-p` -- check modified flag
 //! - `set-buffer-modified-p` -- set modified flag
-//! - `buffer-live-p` -- check if buffer is live
-//! - `rename-buffer` -- rename a buffer
-//! - `other-buffer` -- return another buffer
 //! - `kill-buffer` -- remove a buffer
 //! - `erase-buffer` -- clear buffer content
 //! - `buffer-enable-undo` -- enable undo recording (stub)
