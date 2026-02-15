@@ -3128,6 +3128,36 @@ mod tests {
         assert!(result.starts_with("ERR"));
     }
 
+    #[test]
+    fn current_kill_improper_pointer_errors() {
+        let results = eval_all(
+            r#"(setq kill-ring (list "a" "b" "c"))
+               (setq kill-ring-yank-pointer '("b" . "c"))
+               (condition-case err (current-kill 0 t) (error (car err)))
+               (condition-case err (current-kill 0 nil) (error (car err)))"#,
+        );
+        assert_eq!(results[2], "OK wrong-type-argument");
+        assert_eq!(results[3], "OK wrong-type-argument");
+    }
+
+    #[test]
+    fn current_kill_non_string_pointer_cycles_by_length() {
+        let results = eval_all(
+            r#"(setq kill-ring (list "a" "b" "c"))
+               (setq kill-ring-yank-pointer '(1))
+               (current-kill 0 t)
+               (setq kill-ring (list "a" "b" "c"))
+               (setq kill-ring-yank-pointer '(1 2 3))
+               (current-kill 0 t)
+               (setq kill-ring (list "a" "b" "c"))
+               (setq kill-ring-yank-pointer '(1 2 3 4))
+               (current-kill 0 t)"#,
+        );
+        assert_eq!(results[2], r#"OK "c""#);
+        assert_eq!(results[5], r#"OK "a""#);
+        assert_eq!(results[8], r#"OK "c""#);
+    }
+
     // -- kill-region tests --
 
     #[test]
