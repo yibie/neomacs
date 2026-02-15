@@ -19,6 +19,22 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Refined evaluator X-display error payload parity for live frame designators:
+  - updated:
+    - `rust/neovm-core/src/elisp/display.rs`
+      - added evaluator-backed `x-close-connection` handling for live frame designators.
+      - aligned `x-display-pixel-width` / `x-display-pixel-height` live-frame error payload to `"Window system frame should be used"`.
+      - added unit coverage for evaluator `x-close-connection` live-frame path.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - routed `x-close-connection` through evaluator dispatch.
+    - `test/neovm/vm-compat/cases/x-display-batch-semantics.{forms,expected.tsv}`
+      - added selected-frame message lock-ins using `(cadr err)` checks.
+      - switched invalid numeric probe to `999999` for frame-designator disambiguation.
+      - refreshed oracle baseline.
+  - verified:
+    - `cargo test display::tests --manifest-path rust/neovm-core/Cargo.toml -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/x-display-batch-semantics` (pass, 34/34)
+
 - Aligned evaluator-backed X-display query behavior for live frame designators:
   - updated:
     - `rust/neovm-core/src/elisp/display.rs`
