@@ -12,12 +12,24 @@ Last updated: 2026-02-15
 
 ## Next
 
-- Add one focused corpus for `region-beginning`/`region-end` when mark is unset vs set (error payload parity).
+- Add one focused corpus for `region-active-p` / `use-region-p` behavior around `mark-active` and transient-mark mode.
 - Continue promoting already-green non-default corpora to `default.list` one-by-one with targeted checks.
 - Keep validating list hygiene and merged-case dedupe as list membership changes.
 
 ## Done
 
+- Aligned `region-beginning`/`region-end` unset-mark error symbol behavior:
+  - updated `rust/neovm-core/src/elisp/navigation.rs`:
+    - unset-mark paths now signal `error` (matching oracle), not `mark-not-set`
+  - added corpus:
+    - `test/neovm/vm-compat/cases/region-beginning-end-semantics.forms`
+    - `test/neovm/vm-compat/cases/region-beginning-end-semantics.expected.tsv`
+  - wired into:
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/region-beginning-end-semantics.forms EXPECTED=cases/region-beginning-end-semantics.expected.tsv` (pass, 7/7)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/region-beginning-end-semantics` (pass, 7/7)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Aligned `mark` return-value semantics with oracle behavior:
   - updated `rust/neovm-core/src/elisp/navigation.rs`:
     - `mark` now returns `nil` when unset (instead of signaling `mark-not-set`)
