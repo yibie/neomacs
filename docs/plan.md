@@ -1841,6 +1841,19 @@ Last updated: 2026-02-15
     - `make -C test/neovm/vm-compat check-neovm FORMS=cases/replace-query-case-fold-variable-semantics.forms EXPECTED=cases/replace-query-case-fold-variable-semantics.expected.tsv` (pass, 10/10)
     - `make -C test/neovm/vm-compat check-neovm FORMS=cases/case-replace-semantics.forms EXPECTED=cases/case-replace-semantics.expected.tsv` (pass, 14/14)
     - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+- Extended `replace-lax-whitespace` to honor `search-whitespace-regexp` in evaluator paths:
+  - when `replace-lax-whitespace=t`, whitespace runs in the search pattern are now expanded using dynamic/global `search-whitespace-regexp`
+  - non-string `search-whitespace-regexp` now disables lax-regexp expansion for this path (oracle parity)
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/replace-lax-search-whitespace-semantics.forms`
+    - `test/neovm/vm-compat/cases/replace-lax-search-whitespace-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/replace-lax-search-whitespace-semantics.forms EXPECTED=cases/replace-lax-search-whitespace-semantics.expected.tsv` (pass, 4/4)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/replace-lax-whitespace-semantics.forms EXPECTED=cases/replace-lax-whitespace-semantics.expected.tsv` (pass, 4/4)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/query-replace-batch-semantics.forms EXPECTED=cases/query-replace-batch-semantics.expected.tsv` (pass, 10/10)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/replace-query-case-fold-variable-semantics.forms EXPECTED=cases/replace-query-case-fold-variable-semantics.expected.tsv` (pass, 10/10)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
 - Kept branch green with targeted Rust tests and vm-compat checks after each slice.
 
 ## Doing
