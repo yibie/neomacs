@@ -65,6 +65,7 @@ cases/setq-local
 cases/undo-basics
 cases/undo-buffer-arg
 cases/minibuffer-batch
+cases/minibufferp-semantics
 cases/exit-recursive-edit-semantics
 cases/minibuffer-contents-no-properties-semantics
 cases/input-batch-readers
