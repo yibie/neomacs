@@ -470,6 +470,7 @@ fn default_command_execute_args(eval: &Evaluator, name: &str) -> Result<Vec<Valu
         "kill-region" => interactive_region_args(eval, "user-error"),
         "kill-ring-save" => interactive_region_args(eval, "error"),
         "copy-region-as-kill" => interactive_region_args(eval, "error"),
+        "set-mark-command" => Ok(vec![Value::Nil]),
         "capitalize-region" => interactive_region_args(eval, "error"),
         "upcase-initials-region" => interactive_region_args(eval, "error"),
         "upcase-region" | "downcase-region" => {
@@ -603,11 +604,29 @@ pub(crate) fn builtin_save_buffer_command(_eval: &mut Evaluator, args: Vec<Value
 
 /// `(set-mark-command ARG)` -- set mark and activate region.
 pub(crate) fn builtin_set_mark_command(eval: &mut Evaluator, args: Vec<Value>) -> EvalResult {
-    let mut push_args = vec![Value::Nil, Value::Nil, Value::True];
-    if let Some(arg) = args.first() {
-        push_args[0] = arg.clone();
+    expect_args("set-mark-command", &args, 1)?;
+
+    if args[0].is_nil() {
+        // Nil argument sets mark at point and activates the region.
+        return super::navigation::builtin_push_mark(
+            eval,
+            vec![Value::Nil, Value::Nil, Value::True],
+        );
     }
-    super::navigation::builtin_push_mark(eval, push_args)
+
+    // Non-nil argument moves point to mark and preserves mark-active state.
+    let buf = eval
+        .buffers
+        .current_buffer_mut()
+        .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
+    let mark = buf.mark().ok_or_else(|| {
+        signal(
+            "user-error",
+            vec![Value::string("No mark set in this buffer")],
+        )
+    })?;
+    buf.pt = mark;
+    Ok(Value::Nil)
 }
 
 /// `(quoted-insert &optional ARG)` -- read a character and insert it.

@@ -770,6 +770,25 @@ pub(crate) fn builtin_deactivate_mark(
     Ok(Value::Nil)
 }
 
+/// (activate-mark &optional FORCE)
+pub(crate) fn builtin_activate_mark(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    if args.len() > 1 {
+        return Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol("activate-mark"), Value::Int(args.len() as i64)],
+        ));
+    }
+    let buf = eval.buffers.current_buffer_mut().ok_or_else(no_buffer)?;
+    if buf.mark().is_some() {
+        buf.properties
+            .insert("mark-active".to_string(), Value::True);
+    }
+    Ok(Value::Nil)
+}
+
 /// (exchange-point-and-mark &optional ARG)
 pub(crate) fn builtin_exchange_point_and_mark(
     eval: &mut super::eval::Evaluator,

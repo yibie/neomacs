@@ -24,6 +24,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "abbrev-table-p",
     "abort-recursive-edit",
     "abs",
+    "activate-mark",
     "add-hook",
     "add-name-to-file",
     "add-text-properties",
