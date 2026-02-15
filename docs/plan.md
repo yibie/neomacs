@@ -13,11 +13,26 @@ Last updated: 2026-02-15
 ## Next
 
 1. Keep `check-all-neovm` as a recurring post-slice gate to catch regressions early.
-2. Land one evaluator-backed builtin currently stubbed in the batch compatibility surface, with oracle corpus lock-in.
+2. Continue landing evaluator-backed display/terminal builtins that still use pure stub dispatch (`redraw-frame`, related frame designator paths).
 3. Expand focused oracle corpora for remaining high-risk stub areas (search/input/minibuffer/display edges).
 4. Keep Rust backend behind compile-time switch and preserve Emacs C core as default backend.
 
 ## Done
+
+- Added evaluator-backed `frame-terminal` live-frame designator support:
+  - updated:
+    - `rust/neovm-core/src/elisp/display.rs`
+      - added `builtin_frame_terminal_eval` accepting `nil` or live frame designators.
+      - kept pure `builtin_frame_terminal` strict (`nil`-only) and added evaluator unit coverage.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - routed `frame-terminal` through evaluator dispatch to unlock live frame designators from `selected-frame`.
+    - `test/neovm/vm-compat/cases/terminal-parameter-semantics.{forms,expected.tsv}`
+      - added selected-frame lock-in: `(terminal-live-p (frame-terminal (selected-frame)))`.
+      - switched invalid frame probe `1` -> `999999` to avoid live-id collisions.
+      - refreshed oracle baseline.
+  - verified:
+    - `cargo test display::tests --manifest-path rust/neovm-core/Cargo.toml -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/terminal-parameter-semantics` (pass, 20/20)
 
 - Fixed cons-initial input car typing for `read-string` / `read-from-minibuffer`:
   - updated:
