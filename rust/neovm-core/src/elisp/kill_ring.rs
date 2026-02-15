@@ -521,6 +521,15 @@ impl KillRing {
         self.entries.len()
     }
 
+    /// Replace kill-ring entries from an external representation.
+    pub fn set_entries(&mut self, mut entries: Vec<String>) {
+        if entries.len() > self.max_size {
+            entries.truncate(self.max_size);
+        }
+        self.entries = entries;
+        self.yank_pointer = 0;
+    }
+
     /// Whether the kill ring is empty.
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
@@ -587,6 +596,38 @@ fn resolve_case_region(
     Ok(resolve_region(buf, beg, end))
 }
 
+fn kill_ring_entries_from_value(value: &Value) -> Option<Vec<String>> {
+    let mut out = Vec::new();
+    let mut cursor = value.clone();
+    loop {
+        match cursor {
+            Value::Nil => return Some(out),
+            Value::Cons(cell) => {
+                let pair = cell.lock().ok()?;
+                let car = pair.car.clone();
+                let cdr = pair.cdr.clone();
+                out.push(car.as_str()?.to_string());
+                cursor = cdr;
+            }
+            _ => return None,
+        }
+    }
+}
+
+fn sync_kill_ring_from_binding(eval: &mut super::eval::Evaluator) {
+    if let Some(value) = dynamic_or_global_symbol_value(eval, "kill-ring") {
+        if let Some(entries) = kill_ring_entries_from_value(&value) {
+            if eval.kill_ring.entries != entries {
+                eval.kill_ring.set_entries(entries);
+            }
+        }
+    }
+}
+
+fn sync_kill_ring_binding(eval: &mut super::eval::Evaluator) {
+    eval.assign("kill-ring", eval.kill_ring.to_lisp_list());
+}
+
 // ===========================================================================
 // Kill ring builtins
 // ===========================================================================
@@ -595,6 +636,7 @@ fn resolve_case_region(
 /// If REPLACE is non-nil, replace the most recent entry instead.
 pub(crate) fn builtin_kill_new(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_min_args("kill-new", &args, 1)?;
+    sync_kill_ring_from_binding(eval);
     let text = expect_string(&args[0])?;
     let replace = args.get(1).map_or(false, |v| v.is_truthy());
 
@@ -603,6 +645,7 @@ pub(crate) fn builtin_kill_new(eval: &mut super::eval::Evaluator, args: Vec<Valu
     } else {
         eval.kill_ring.push_allow_empty(text);
     }
+    sync_kill_ring_binding(eval);
     Ok(Value::Nil)
 }
 
@@ -613,9 +656,11 @@ pub(crate) fn builtin_kill_append(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_args("kill-append", &args, 2)?;
+    sync_kill_ring_from_binding(eval);
     let text = expect_string(&args[0])?;
     let before = args[1].is_truthy();
     eval.kill_ring.append(&text, before);
+    sync_kill_ring_binding(eval);
     Ok(Value::Nil)
 }
 
@@ -626,6 +671,7 @@ pub(crate) fn builtin_current_kill(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("current-kill", &args, 1)?;
+    sync_kill_ring_from_binding(eval);
     let n = expect_int(&args[0])?;
     let do_not_move = args.get(1).map_or(false, |v| v.is_truthy());
 
@@ -648,6 +694,7 @@ pub(crate) fn builtin_kill_region(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("kill-region", &args, 2)?;
+    sync_kill_ring_from_binding(eval);
     let beg_val = expect_int(&args[0])?;
     let end_val = expect_int(&args[1])?;
 
@@ -668,6 +715,7 @@ pub(crate) fn builtin_kill_region(
 
     eval.kill_ring.push(text);
     eval.kill_ring.last_was_yank = false;
+    sync_kill_ring_binding(eval);
 
     let buf = eval
         .buffers
@@ -684,6 +732,7 @@ pub(crate) fn builtin_kill_ring_save(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("kill-ring-save", &args, 2)?;
+    sync_kill_ring_from_binding(eval);
     let beg_val = expect_int(&args[0])?;
     let end_val = expect_int(&args[1])?;
 
@@ -697,6 +746,7 @@ pub(crate) fn builtin_kill_ring_save(
 
     eval.kill_ring.push(text);
     eval.kill_ring.last_was_yank = false;
+    sync_kill_ring_binding(eval);
     Ok(Value::Nil)
 }
 
@@ -711,6 +761,7 @@ pub(crate) fn builtin_copy_region_as_kill(
 
 /// `(kill-line &optional ARG)` — kill to end of line (or ARG lines forward).
 pub(crate) fn builtin_kill_line(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    sync_kill_ring_from_binding(eval);
     let buf = eval
         .buffers
         .current_buffer()
@@ -816,6 +867,7 @@ pub(crate) fn builtin_kill_line(eval: &mut super::eval::Evaluator, args: Vec<Val
 
     eval.kill_ring.push(killed_text);
     eval.kill_ring.last_was_yank = false;
+    sync_kill_ring_binding(eval);
 
     let buf = eval
         .buffers
@@ -831,6 +883,7 @@ pub(crate) fn builtin_kill_whole_line(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
+    sync_kill_ring_from_binding(eval);
     let buf = eval
         .buffers
         .current_buffer()
@@ -911,6 +964,7 @@ pub(crate) fn builtin_kill_whole_line(
         let killed_text = buf.buffer_substring(kill_start, kill_end);
         eval.kill_ring.push(killed_text);
         eval.kill_ring.last_was_yank = false;
+        sync_kill_ring_binding(eval);
 
         let buf = eval
             .buffers
@@ -925,6 +979,7 @@ pub(crate) fn builtin_kill_whole_line(
     let killed_text = buf.buffer_substring(line_start, kill_end);
     eval.kill_ring.push(killed_text);
     eval.kill_ring.last_was_yank = false;
+    sync_kill_ring_binding(eval);
 
     let buf = eval
         .buffers
@@ -937,6 +992,7 @@ pub(crate) fn builtin_kill_whole_line(
 
 /// `(kill-word ARG)` — kill characters forward until encountering the end of a word.
 pub(crate) fn builtin_kill_word(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    sync_kill_ring_from_binding(eval);
     expect_args("kill-word", &args, 1)?;
     let n = expect_int(&args[0])?;
 
@@ -967,6 +1023,7 @@ pub(crate) fn builtin_kill_word(eval: &mut super::eval::Evaluator, args: Vec<Val
 
     eval.kill_ring.push(killed_text);
     eval.kill_ring.last_was_yank = false;
+    sync_kill_ring_binding(eval);
 
     let buf = eval
         .buffers
@@ -982,6 +1039,7 @@ pub(crate) fn builtin_backward_kill_word(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
+    sync_kill_ring_from_binding(eval);
     expect_args("backward-kill-word", &args, 1)?;
     let n = expect_int(&args[0])?;
 
@@ -1012,6 +1070,7 @@ pub(crate) fn builtin_backward_kill_word(
 
     eval.kill_ring.push(killed_text);
     eval.kill_ring.last_was_yank = false;
+    sync_kill_ring_binding(eval);
 
     let buf = eval
         .buffers
@@ -1024,6 +1083,7 @@ pub(crate) fn builtin_backward_kill_word(
 
 /// `(yank &optional ARG)` — reinsert the last stretch of killed text.
 pub(crate) fn builtin_yank(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    sync_kill_ring_from_binding(eval);
     // If ARG is given, rotate kill ring first.
     if !args.is_empty() && args[0].is_truthy() {
         let n = expect_int(&args[0])?;
@@ -1070,6 +1130,7 @@ pub(crate) fn builtin_yank(eval: &mut super::eval::Evaluator, args: Vec<Value>) 
 
 /// `(yank-pop &optional ARG)` — replace yanked text with an older kill.
 pub(crate) fn builtin_yank_pop(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    sync_kill_ring_from_binding(eval);
     let yank_command_in_progress = matches!(
         dynamic_or_global_symbol_value(eval, "last-command"),
         Some(Value::Symbol(ref name)) if name == "yank"
