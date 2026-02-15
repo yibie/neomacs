@@ -1039,4 +1039,127 @@ mod tests {
             );
         }
     }
+
+    // ---------------------------------------------------------------
+    // Mixed :height faces within a single line
+    //
+    // Simulates a line like:  normal(14px) LARGE(28px) small(10px) bold(14px)
+    // Each character has a different face with different font_size/weight.
+    // The layout engine calls char_advance() per-character, switching
+    // face_data between calls. Verify that rapid switching between
+    // sizes/weights/families produces identical results in both systems.
+    // ---------------------------------------------------------------
+
+    /// Simulate a line with mixed face attributes, as the layout engine
+    /// would call char_width() while iterating through characters.
+    #[test]
+    fn two_fontsystems_identical_mixed_heights_in_line() {
+        let mut svc = make_svc();
+        let mut render_fs = FontSystem::new();
+
+        // Each tuple: (char, family, weight, italic, font_size)
+        // Simulates a real line: "Hello WORLD tiny Bold"
+        // where each word has a different :height face
+        let line: &[(char, &str, u16, bool, f32)] = &[
+            // "Hello" — normal face, 14px
+            ('H', "JetBrains Mono", 400, false, 14.0),
+            ('e', "JetBrains Mono", 400, false, 14.0),
+            ('l', "JetBrains Mono", 400, false, 14.0),
+            ('l', "JetBrains Mono", 400, false, 14.0),
+            ('o', "JetBrains Mono", 400, false, 14.0),
+            (' ', "JetBrains Mono", 400, false, 14.0),
+            // "WORLD" — heading face, :height 2.0 → 28px
+            ('W', "JetBrains Mono", 700, false, 28.0),
+            ('O', "JetBrains Mono", 700, false, 28.0),
+            ('R', "JetBrains Mono", 700, false, 28.0),
+            ('L', "JetBrains Mono", 700, false, 28.0),
+            ('D', "JetBrains Mono", 700, false, 28.0),
+            (' ', "JetBrains Mono", 700, false, 28.0),
+            // "tiny" — small face, :height 0.8 → 11.2px
+            ('t', "JetBrains Mono", 400, false, 11.2),
+            ('i', "JetBrains Mono", 400, false, 11.2),
+            ('n', "JetBrains Mono", 400, false, 11.2),
+            ('y', "JetBrains Mono", 400, false, 11.2),
+            (' ', "JetBrains Mono", 400, false, 14.0),
+            // "Bold" — bold italic, same size
+            ('B', "JetBrains Mono", 700, true, 14.0),
+            ('o', "JetBrains Mono", 700, true, 14.0),
+            ('l', "JetBrains Mono", 700, true, 14.0),
+            ('d', "JetBrains Mono", 700, true, 14.0),
+            // Switch to proportional mid-line
+            (' ', "DejaVu Sans", 400, false, 14.0),
+            ('v', "DejaVu Sans", 400, false, 14.0),
+            ('a', "DejaVu Sans", 400, false, 14.0),
+            ('r', "DejaVu Sans", 400, false, 14.0),
+            // Back to monospace, different size
+            (' ', "JetBrains Mono", 400, false, 18.0),
+            ('e', "JetBrains Mono", 400, false, 18.0),
+            ('n', "JetBrains Mono", 400, false, 18.0),
+            ('d', "JetBrains Mono", 400, false, 18.0),
+        ];
+
+        let mut layout_total = 0.0f32;
+        let mut render_total = 0.0f32;
+
+        for (i, &(ch, family, weight, italic, font_size)) in line.iter().enumerate() {
+            let family_cosmic = match family {
+                "DejaVu Sans" => Family::Name("DejaVu Sans"),
+                _ => Family::Name("JetBrains Mono"),
+            };
+
+            let layout_w = svc.char_width(ch, family, weight, italic, font_size);
+            let render_w = measure_with_raw_fontsystem(
+                &mut render_fs, ch, family_cosmic, Weight(weight), italic, font_size,
+            );
+
+            assert_eq!(
+                layout_w, render_w,
+                "MIXED LINE MISMATCH at pos {}: '{}' ({} w{} {} {}px): layout={} render={}",
+                i, ch, family, weight, if italic { "italic" } else { "normal" },
+                font_size, layout_w, render_w
+            );
+
+            layout_total += layout_w;
+            render_total += render_w;
+        }
+
+        // Total line width must also match exactly
+        assert_eq!(layout_total, render_total,
+            "MIXED LINE TOTAL WIDTH MISMATCH: layout={} render={}", layout_total, render_total);
+    }
+
+    /// Same test but with org-mode-like headings: *, **, *** at :height 3.0, 2.0, 1.5
+    #[test]
+    fn two_fontsystems_identical_org_heading_sizes() {
+        let mut svc = make_svc();
+        let mut render_fs = FontSystem::new();
+
+        // Simulates org-mode: "* H1  ** H2  *** H3  body"
+        // with decreasing :height per heading level
+        let segments: &[(&str, &str, u16, f32)] = &[
+            ("* ",      "JetBrains Mono", 700, 42.0),  // :height 3.0 → 42px
+            ("H1 ",     "JetBrains Mono", 700, 42.0),
+            ("** ",     "JetBrains Mono", 700, 28.0),  // :height 2.0 → 28px
+            ("H2 ",     "JetBrains Mono", 700, 28.0),
+            ("*** ",    "JetBrains Mono", 700, 21.0),  // :height 1.5 → 21px
+            ("H3 ",     "JetBrains Mono", 700, 21.0),
+            ("body ",   "JetBrains Mono", 400, 14.0),  // normal
+            ("code",    "DejaVu Sans Mono", 400, 14.0), // inline code, different font
+        ];
+
+        for (seg_text, family, weight, font_size) in segments {
+            let family_cosmic = Family::Name(family);
+            for ch in seg_text.chars() {
+                let layout_w = svc.char_width(ch, family, *weight, false, *font_size);
+                let render_w = measure_with_raw_fontsystem(
+                    &mut render_fs, ch, family_cosmic, Weight(*weight), false, *font_size,
+                );
+                assert_eq!(
+                    layout_w, render_w,
+                    "ORG HEADING MISMATCH: '{}' in {} w{} {}px: layout={} render={}",
+                    ch, family, weight, font_size, layout_w, render_w
+                );
+            }
+        }
+    }
 }
