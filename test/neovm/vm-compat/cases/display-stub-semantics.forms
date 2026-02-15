@@ -8,7 +8,10 @@
     (redraw-frame)
   (error (car err)))
 (condition-case err
-    (redraw-frame 1)
+    (redraw-frame (selected-frame))
+  (error (car err)))
+(condition-case err
+    (redraw-frame 999999)
   (error (car err)))
 (condition-case err
     (redraw-frame nil nil)

@@ -201,6 +201,25 @@ pub(crate) fn builtin_redraw_frame(args: Vec<Value>) -> EvalResult {
     Ok(Value::Nil)
 }
 
+/// Evaluator-aware variant of `redraw-frame`.
+///
+/// Accepts live frame designators in addition to nil.
+pub(crate) fn builtin_redraw_frame_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_range_args("redraw-frame", &args, 0, 1)?;
+    if let Some(frame) = args.first() {
+        if !frame.is_nil() && !live_frame_designator_p(eval, frame) {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("frame-live-p"), frame.clone()],
+            ));
+        }
+    }
+    Ok(Value::Nil)
+}
+
 /// (redraw-display) -> nil
 pub(crate) fn builtin_redraw_display(args: Vec<Value>) -> EvalResult {
     expect_args("redraw-display", &args, 0)?;
@@ -998,6 +1017,14 @@ mod tests {
     fn redraw_frame_rejects_non_frame_designator() {
         let result = builtin_redraw_frame(vec![Value::Int(1)]);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn eval_redraw_frame_accepts_live_frame_designator() {
+        let mut eval = crate::elisp::Evaluator::new();
+        let frame_id = crate::elisp::window_cmds::ensure_selected_frame_id(&mut eval).0 as i64;
+        let result = builtin_redraw_frame_eval(&mut eval, vec![Value::Int(frame_id)]).unwrap();
+        assert!(result.is_nil());
     }
 
     #[test]
