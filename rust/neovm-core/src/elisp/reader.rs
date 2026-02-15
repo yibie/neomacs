@@ -774,7 +774,10 @@ pub(crate) fn builtin_read_from_minibuffer(
     expect_min_args("read-from-minibuffer", &args, 1)?;
     expect_max_args("read-from-minibuffer", &args, 7)?;
     let _prompt = expect_string(&args[0])?;
-    Err(signal("end-of-file", vec![]))
+    Err(signal(
+        "end-of-file",
+        vec![Value::string("Error reading from stdin")],
+    ))
 }
 
 // ---------------------------------------------------------------------------
@@ -791,7 +794,10 @@ pub(crate) fn builtin_read_string(
     expect_min_args("read-string", &args, 1)?;
     expect_max_args("read-string", &args, 5)?;
     let _prompt = expect_string(&args[0])?;
-    Err(signal("end-of-file", vec![]))
+    Err(signal(
+        "end-of-file",
+        vec![Value::string("Error reading from stdin")],
+    ))
 }
 
 // ---------------------------------------------------------------------------
@@ -808,7 +814,10 @@ pub(crate) fn builtin_read_number(
     expect_min_args("read-number", &args, 1)?;
     expect_max_args("read-number", &args, 3)?;
     let _prompt = expect_string(&args[0])?;
-    Err(signal("end-of-file", vec![]))
+    Err(signal(
+        "end-of-file",
+        vec![Value::string("Error reading from stdin")],
+    ))
 }
 
 // ---------------------------------------------------------------------------
@@ -825,7 +834,10 @@ pub(crate) fn builtin_completing_read(
     expect_min_args("completing-read", &args, 2)?;
     expect_max_args("completing-read", &args, 8)?;
     let _prompt = expect_string(&args[0])?;
-    Err(signal("end-of-file", vec![]))
+    Err(signal(
+        "end-of-file",
+        vec![Value::string("Error reading from stdin")],
+    ))
 }
 
 fn pop_unread_command_event(eval: &mut super::eval::Evaluator) -> Option<Value> {
@@ -895,7 +907,10 @@ pub(crate) fn builtin_y_or_n_p(args: Vec<Value>) -> EvalResult {
             ))
         }
     }
-    Err(signal("end-of-file", vec![]))
+    Err(signal(
+        "end-of-file",
+        vec![Value::string("Error reading from stdin")],
+    ))
 }
 
 // ---------------------------------------------------------------------------
@@ -908,7 +923,10 @@ pub(crate) fn builtin_y_or_n_p(args: Vec<Value>) -> EvalResult {
 pub(crate) fn builtin_yes_or_no_p(args: Vec<Value>) -> EvalResult {
     expect_args("yes-or-no-p", &args, 1)?;
     let _prompt = expect_string(&args[0])?;
-    Err(signal("end-of-file", vec![]))
+    Err(signal(
+        "end-of-file",
+        vec![Value::string("Error reading from stdin")],
+    ))
 }
 
 // ---------------------------------------------------------------------------
