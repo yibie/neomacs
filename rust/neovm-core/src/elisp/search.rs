@@ -319,8 +319,11 @@ pub(crate) fn builtin_set_match_data(args: Vec<Value>) -> EvalResult {
 /// Stub: returns nil (needs buffer context).
 pub(crate) fn builtin_looking_at(args: Vec<Value>) -> EvalResult {
     expect_args("looking-at", &args, 1)?;
-    let _pattern = expect_string(&args[0])?;
-    // Stub: proper implementation requires buffer context.
+    let pattern = expect_string(&args[0])?;
+    let rust_pattern = super::regex::translate_emacs_regex(&pattern);
+    let _ = regex::Regex::new(&rust_pattern)
+        .map_err(|e| signal("invalid-regexp", vec![Value::string(e.to_string())]))?;
+    // Pure path has no buffer/point context; keep nil return for valid regex.
     Ok(Value::Nil)
 }
 
@@ -560,6 +563,12 @@ mod tests {
     fn looking_at_stub() {
         let result = builtin_looking_at(vec![Value::string("foo")]);
         assert_nil(result.unwrap());
+    }
+
+    #[test]
+    fn looking_at_invalid_regexp_signals() {
+        let result = builtin_looking_at(vec![Value::string("[")]);
+        assert!(result.is_err());
     }
 
     #[test]
