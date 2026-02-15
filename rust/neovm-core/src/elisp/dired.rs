@@ -1010,25 +1010,61 @@ fn extract_car_string(_name: &str, val: &Value) -> Result<String, Flow> {
 /// (system-users)
 ///
 /// Return a list of user names on the system.
-/// Stub implementation: returns a list containing the current user from
-/// the USER environment variable, or "unknown" if not set.
+/// Reads `/etc/passwd` and returns account names in oracle-compatible order.
 pub(crate) fn builtin_system_users(args: Vec<Value>) -> EvalResult {
     expect_range_args("system-users", &args, 0, 0)?;
 
-    let user = std::env::var("USER")
-        .or_else(|_| std::env::var("LOGNAME"))
-        .unwrap_or_else(|_| "unknown".to_string());
+    let mut users = read_colon_file_names("/etc/passwd");
+    if users.is_empty() {
+        let fallback_user = std::env::var("USER")
+            .or_else(|_| std::env::var("LOGNAME"))
+            .unwrap_or_else(|_| "unknown".to_string());
+        users.push(fallback_user);
+    }
 
-    Ok(Value::list(vec![Value::string(user)]))
+    Ok(Value::list(
+        users.into_iter().map(Value::string).collect::<Vec<_>>(),
+    ))
 }
 
 /// (system-groups)
 ///
 /// Return a list of group names on the system.
-/// Stub: returns nil.
+/// Reads `/etc/group` and returns group names in oracle-compatible order.
 pub(crate) fn builtin_system_groups(args: Vec<Value>) -> EvalResult {
     expect_range_args("system-groups", &args, 0, 0)?;
-    Ok(Value::Nil)
+    let groups = read_colon_file_names("/etc/group");
+    if groups.is_empty() {
+        return Ok(Value::Nil);
+    }
+    Ok(Value::list(
+        groups.into_iter().map(Value::string).collect::<Vec<_>>(),
+    ))
+}
+
+fn parse_colon_file_names(contents: &str) -> Vec<String> {
+    let mut names = Vec::new();
+    for line in contents.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+        if let Some((name, _rest)) = trimmed.split_once(':') {
+            if !name.is_empty() {
+                names.push(name.to_string());
+            }
+        }
+    }
+    // Emacs' output order matches reverse file order.
+    names.reverse();
+    names
+}
+
+fn read_colon_file_names(path: &str) -> Vec<String> {
+    match fs::read_to_string(path) {
+        Ok(contents) => parse_colon_file_names(&contents),
+        Err(_) => Vec::new(),
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1774,7 +1810,15 @@ mod tests {
     #[test]
     fn test_system_groups() {
         let result = builtin_system_groups(vec![]).unwrap();
-        assert!(result.is_nil());
+        let items = list_to_vec(&result).unwrap();
+        assert!(!items.is_empty());
+        assert!(items[0].is_string());
+    }
+
+    #[test]
+    fn test_parse_colon_file_names_reverses_order() {
+        let parsed = parse_colon_file_names("root:x:0:0:root:/root:/bin/sh\nexec:x:1000:1000::/home/exec:/bin/sh\n");
+        assert_eq!(parsed, vec!["exec".to_string(), "root".to_string()]);
     }
 
     // -----------------------------------------------------------------------
