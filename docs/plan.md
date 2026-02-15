@@ -19,6 +19,27 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Hardened display query corpus against live frame-id collisions:
+  - updated:
+    - `test/neovm/vm-compat/cases/display-query-designator-semantics.{forms,expected.tsv}`
+      - replaced invalid display probes `1` -> `999999` across optional display argument checks.
+      - refreshed oracle baseline.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/display-query-designator-semantics` (pass, 12/12)
+
+- Aligned keymap constructor argument semantics with oracle behavior:
+  - updated:
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - `make-keymap` now enforces max arity of 1 (`wrong-number-of-arguments` for 2+ args).
+      - `make-sparse-keymap` now enforces max arity of 1 and accepts non-string NAME objects without type errors.
+    - `test/neovm/vm-compat/cases/where-is-internal-semantics.{forms,expected.tsv}`
+      - added constructor lock-ins for:
+        - `make-keymap` (`0/1` args accepted, `2` args rejected)
+        - `make-sparse-keymap` (`0/1` args accepted including non-string name, `2` args rejected)
+      - refreshed oracle baseline.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/where-is-internal-semantics` (pass, 12/12)
+
 - Tightened `isearch` stub arity parity with oracle behavior:
   - updated:
     - `rust/neovm-core/src/elisp/isearch.rs`
