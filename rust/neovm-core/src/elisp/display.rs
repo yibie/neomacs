@@ -107,6 +107,17 @@ fn expect_window_designator(value: &Value) -> Result<(), Flow> {
     }
 }
 
+fn expect_display_designator(value: &Value) -> Result<(), Flow> {
+    if value.is_nil() || terminal_designator_p(value) {
+        Ok(())
+    } else {
+        Err(signal(
+            "error",
+            vec![Value::string("Invalid argument 1 in 'get-device-terminal'")],
+        ))
+    }
+}
+
 fn terminal_handle_value() -> Value {
     TERMINAL_HANDLE.with(|handle| Value::Vector(handle.clone()))
 }
@@ -212,66 +223,99 @@ pub(crate) fn builtin_internal_show_cursor_p(args: Vec<Value>) -> EvalResult {
 /// (display-graphic-p &optional DISPLAY) -> nil in batch-style vm context.
 pub(crate) fn builtin_display_graphic_p(args: Vec<Value>) -> EvalResult {
     expect_max_args("display-graphic-p", &args, 1)?;
+    if let Some(display) = args.first() {
+        expect_display_designator(display)?;
+    }
     Ok(Value::Nil)
 }
 
 /// (display-color-p &optional DISPLAY) -> nil in batch-style vm context.
 pub(crate) fn builtin_display_color_p(args: Vec<Value>) -> EvalResult {
     expect_max_args("display-color-p", &args, 1)?;
+    if let Some(display) = args.first() {
+        expect_display_designator(display)?;
+    }
     Ok(Value::Nil)
 }
 
 /// (display-pixel-width &optional DISPLAY) -> 80 (terminal columns in batch).
 pub(crate) fn builtin_display_pixel_width(args: Vec<Value>) -> EvalResult {
     expect_max_args("display-pixel-width", &args, 1)?;
+    if let Some(display) = args.first() {
+        expect_display_designator(display)?;
+    }
     Ok(Value::Int(80))
 }
 
 /// (display-pixel-height &optional DISPLAY) -> 25 (terminal rows in batch).
 pub(crate) fn builtin_display_pixel_height(args: Vec<Value>) -> EvalResult {
     expect_max_args("display-pixel-height", &args, 1)?;
+    if let Some(display) = args.first() {
+        expect_display_designator(display)?;
+    }
     Ok(Value::Int(25))
 }
 
 /// (display-mm-width &optional DISPLAY) -> nil in batch-style vm context.
 pub(crate) fn builtin_display_mm_width(args: Vec<Value>) -> EvalResult {
     expect_max_args("display-mm-width", &args, 1)?;
+    if let Some(display) = args.first() {
+        expect_display_designator(display)?;
+    }
     Ok(Value::Nil)
 }
 
 /// (display-mm-height &optional DISPLAY) -> nil in batch-style vm context.
 pub(crate) fn builtin_display_mm_height(args: Vec<Value>) -> EvalResult {
     expect_max_args("display-mm-height", &args, 1)?;
+    if let Some(display) = args.first() {
+        expect_display_designator(display)?;
+    }
     Ok(Value::Nil)
 }
 
 /// (display-screens &optional DISPLAY) -> 1
 pub(crate) fn builtin_display_screens(args: Vec<Value>) -> EvalResult {
     expect_max_args("display-screens", &args, 1)?;
+    if let Some(display) = args.first() {
+        expect_display_designator(display)?;
+    }
     Ok(Value::Int(1))
 }
 
 /// (display-color-cells &optional DISPLAY) -> 0 in batch-style vm context.
 pub(crate) fn builtin_display_color_cells(args: Vec<Value>) -> EvalResult {
     expect_max_args("display-color-cells", &args, 1)?;
+    if let Some(display) = args.first() {
+        expect_display_designator(display)?;
+    }
     Ok(Value::Int(0))
 }
 
 /// (display-planes &optional DISPLAY) -> 3 in batch-style vm context.
 pub(crate) fn builtin_display_planes(args: Vec<Value>) -> EvalResult {
     expect_max_args("display-planes", &args, 1)?;
+    if let Some(display) = args.first() {
+        expect_display_designator(display)?;
+    }
     Ok(Value::Int(3))
 }
 
 /// (display-visual-class &optional DISPLAY) -> 'static-gray in batch-style vm context.
 pub(crate) fn builtin_display_visual_class(args: Vec<Value>) -> EvalResult {
     expect_max_args("display-visual-class", &args, 1)?;
+    if let Some(display) = args.first() {
+        expect_display_designator(display)?;
+    }
     Ok(Value::symbol("static-gray"))
 }
 
 /// (display-backing-store &optional DISPLAY) -> 'not-useful in batch-style vm context.
 pub(crate) fn builtin_display_backing_store(args: Vec<Value>) -> EvalResult {
     expect_max_args("display-backing-store", &args, 1)?;
+    if let Some(display) = args.first() {
+        expect_display_designator(display)?;
+    }
     Ok(Value::symbol("not-useful"))
 }
 
