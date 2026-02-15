@@ -19,6 +19,20 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Enforced `locate-file`/`locate-file-internal` max arity parity:
+  - updated:
+    - `rust/neovm-core/src/elisp/lread.rs`
+      - both builtins now enforce max arity `4` (signal `wrong-number-of-arguments` on 5+ args).
+      - added unit tests for over-arity signaling on both variants.
+    - `test/neovm/vm-compat/cases/locate-file.forms`
+      - added over-arity probes for `locate-file` and `locate-file-internal`.
+    - `test/neovm/vm-compat/cases/locate-file.expected.tsv`
+      - locked `wrong-number-of-arguments` expected outcomes for the new probes.
+  - verified:
+    - `cargo test lread::tests::locate_file_ --manifest-path rust/neovm-core/Cargo.toml -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/locate-file` (pass, 11/11)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass, full default + neovm-only corpus)
+
 - Tightened `ccl-execute-on-string` arity contract:
   - updated:
     - `rust/neovm-core/src/elisp/ccl.rs`
