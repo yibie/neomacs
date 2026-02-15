@@ -17,6 +17,14 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Added length-cycle fallback oracle corpus for proper-list pointer seeds:
+  - added and enabled:
+    - `test/neovm/vm-compat/cases/kill-ring-pointer-length-cycle-semantics.forms`
+    - `test/neovm/vm-compat/cases/kill-ring-pointer-length-cycle-semantics.expected.tsv`
+    - wired into `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/kill-ring-pointer-length-cycle-semantics` (pass, 19/19)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Aligned proper vs improper pointer fallback semantics and locked with corpus:
   - updated `rust/neovm-core/src/elisp/kill_ring.rs`:
     - strict pointer sync now treats improper cons pointers as `wrong-type-argument`
