@@ -5,17 +5,25 @@ Last updated: 2026-02-15
 ## Doing
 
 - Continue command-context and read-only variable compatibility sweep in `rust/neovm-core/src/elisp/kill_ring.rs`.
-- Audit pointer wrap behavior across `current-kill`, `yank`, and `yank-pop`.
+- Audit remaining `yank`/`yank-pop` command-context edge paths on empty-entry rings.
 - Keeping each slice small: runtime patch -> oracle corpus -> docs note -> push.
 
 ## Next
 
-- Expand oracle corpus for pointer wrap and empty-entry ring behavior.
+- Expand oracle corpus for `yank-pop` command-context transitions with empty and wrapped entries.
 - Audit `yank`/`yank-pop` behavior with empty kill-ring entries and pointer wrap rules.
 - Run targeted regression checks after each slice (`command-dispatch-default-arg-semantics`, touched command corpus, and focused `yank`/`yank-pop` suites).
 
 ## Done
 
+- Added pointer-wrap/empty-entry kill-ring oracle coverage and list wiring:
+  - added and enabled:
+    - `test/neovm/vm-compat/cases/kill-ring-pointer-wrap-semantics.forms`
+    - `test/neovm/vm-compat/cases/kill-ring-pointer-wrap-semantics.expected.tsv`
+    - wired into `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/kill-ring-pointer-wrap-semantics` (pass, 14/14)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Fixed pointer-tail matching deadlock and locked duplicate-entry semantics:
   - updated `rust/neovm-core/src/elisp/kill_ring.rs`:
     - replaced recursive structural cons comparison in pointer-tail matching with string-suffix matching over decoded ring entries
