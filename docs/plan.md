@@ -19,6 +19,20 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Expanded composite type/error parity for `find-composition-internal` and `composition-get-gstring`:
+  - updated:
+    - `rust/neovm-core/src/elisp/composite.rs`
+      - `find-composition-internal` now validates POS/LIMIT (`integer-or-marker-p`) and optional STRING argument type (`stringp`) with Emacs-compatible nil handling for LIMIT.
+      - `composition-get-gstring` now validates FROM/TO (`integerp`) and STRING (`stringp`) argument types.
+      - expanded composite unit tests for new type-check paths.
+    - `test/neovm/vm-compat/cases/composite-basic-semantics.{forms,expected.tsv}`
+      - added availability + error-path checks for `composition-get-gstring`.
+      - added additional `find-composition-internal` type-check coverage.
+      - refreshed oracle baseline.
+  - verified:
+    - `cargo test composite::tests --manifest-path rust/neovm-core/Cargo.toml -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/composite-basic-semantics` (pass, 32/32)
+
 - Tightened composite compose builtin argument validation and expanded oracle corpus:
   - updated:
     - `rust/neovm-core/src/elisp/composite.rs`
