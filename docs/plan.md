@@ -5,17 +5,25 @@ Last updated: 2026-02-15
 ## Doing
 
 - Continue command-context and read-only variable compatibility sweep in `rust/neovm-core/src/elisp/kill_ring.rs`.
-- Audit remaining kill-ring command-context surfaces for untested pointer seed permutations.
+- Audit remaining kill-ring command-context surfaces for untested malformed pointer permutations.
 - Keeping each slice small: runtime patch -> oracle corpus -> docs note -> push.
 
 ## Next
 
-- Expand oracle corpus for additional command-context + pointer seed permutations (including non-tail seeds and wrap re-entry).
+- Expand oracle corpus for additional malformed pointer permutations across mutators and command-context commands.
 - Audit `yank`/`yank-pop` behavior with empty kill-ring entries and pointer wrap rules.
 - Run targeted regression checks after each slice (`command-dispatch-default-arg-semantics`, touched command corpus, and focused `yank`/`yank-pop` suites).
 
 ## Done
 
+- Added mutator-pointer-normalization oracle corpus and list wiring:
+  - added and enabled:
+    - `test/neovm/vm-compat/cases/kill-ring-pointer-normalize-mutation-semantics.forms`
+    - `test/neovm/vm-compat/cases/kill-ring-pointer-normalize-mutation-semantics.expected.tsv`
+    - wired into `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/kill-ring-pointer-normalize-mutation-semantics` (pass, 19/19)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Added `yank-pop` mixed pointer-seed oracle corpus and list wiring:
   - added and enabled:
     - `test/neovm/vm-compat/cases/yank-pop-pointer-seed-semantics.forms`
