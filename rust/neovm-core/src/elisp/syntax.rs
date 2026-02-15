@@ -1298,6 +1298,53 @@ pub(crate) fn builtin_scan_lists(
     }
 }
 
+/// `(scan-sexps FROM COUNT)` — scan over COUNT sexps from FROM.
+pub(crate) fn builtin_scan_sexps(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    if args.len() != 2 {
+        return Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol("scan-sexps"), Value::Int(args.len() as i64)],
+        ));
+    }
+
+    let from = match &args[0] {
+        Value::Int(n) => *n,
+        other => {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("number-or-marker-p"), other.clone()],
+            ));
+        }
+    };
+    let count = match &args[1] {
+        Value::Int(n) => *n,
+        other => {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("integerp"), other.clone()],
+            ));
+        }
+    };
+
+    let buf = eval
+        .buffers
+        .current_buffer()
+        .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
+    let table = buf.syntax_table.clone();
+
+    let from_char = if from > 0 { from as usize - 1 } else { 0 };
+    let from_byte = buf.text.char_to_byte(from_char.min(buf.text.char_count()));
+
+    match scan_sexps(buf, &table, from_byte, count) {
+        Ok(new_byte) => Ok(Value::Int(buf.text.byte_to_char(new_byte) as i64 + 1)),
+        Err(_) if count < 0 => Ok(Value::Nil),
+        Err(msg) => Err(signal("scan-error", vec![Value::string(&msg)])),
+    }
+}
+
 /// `(skip-syntax-forward SYNTAX &optional LIMIT)` — skip forward over chars
 /// matching the given syntax classes.
 pub(crate) fn builtin_skip_syntax_forward(
@@ -1990,5 +2037,21 @@ mod tests {
 
         let oob = builtin_syntax_after(&mut eval, vec![Value::Int(3)]).unwrap();
         assert_eq!(oob, Value::Nil);
+    }
+
+    #[test]
+    fn scan_sexps_basic_and_backward_nil() {
+        let mut eval = crate::elisp::eval::Evaluator::new();
+        {
+            let buf = eval.buffers.current_buffer_mut().expect("current buffer");
+            buf.delete_region(buf.point_min(), buf.point_max());
+            buf.insert("(a b)");
+        }
+
+        let forward = builtin_scan_sexps(&mut eval, vec![Value::Int(1), Value::Int(1)]).unwrap();
+        assert_eq!(forward, Value::Int(6));
+
+        let backward = builtin_scan_sexps(&mut eval, vec![Value::Int(1), Value::Int(-1)]).unwrap();
+        assert_eq!(backward, Value::Nil);
     }
 }

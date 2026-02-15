@@ -745,6 +745,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "setcdr",
     "setenv",
     "scan-lists",
+    "scan-sexps",
     "self-insert-command",
     "shell-command-to-string",
     "signal",
