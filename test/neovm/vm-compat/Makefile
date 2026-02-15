@@ -3,13 +3,14 @@ EXPECTED ?= cases/core.expected.tsv
 NEOVM_OUT ?= cases/core.neovm.tsv
 
 read_case_list = $(strip $(shell awk 'NF && $$1 !~ /^#/' $(1) | tr '\n' ' '))
+dedupe_case_list = $(strip $(shell printf '%s\n' $(1) | awk 'NF && !seen[$$0]++'))
 
 CASES_LIST ?= cases/default.list
 CASES ?= $(call read_case_list,$(CASES_LIST))
 LIST ?= $(CASES_LIST)
 NEOVM_ONLY_CASES_LIST ?= cases/neovm-only.list
 NEOVM_ONLY_CASES ?= $(call read_case_list,$(NEOVM_ONLY_CASES_LIST))
-ALL_NEOVM_CASES ?= $(CASES) $(NEOVM_ONLY_CASES)
+ALL_NEOVM_CASES ?= $(call dedupe_case_list,$(CASES) $(NEOVM_ONLY_CASES))
 LEGACY_ELC_CASES_LIST ?= cases/legacy-elc-literal.list
 LEGACY_ELC_CASES ?= $(call read_case_list,$(LEGACY_ELC_CASES_LIST))
 INTROSPECTION_CASES_LIST ?= cases/introspection.list
