@@ -40,6 +40,17 @@ fn expect_min_args(name: &str, args: &[Value], min: usize) -> Result<(), Flow> {
     }
 }
 
+fn expect_max_args(name: &str, args: &[Value], max: usize) -> Result<(), Flow> {
+    if args.len() > max {
+        Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol(name), Value::Int(args.len() as i64)],
+        ))
+    } else {
+        Ok(())
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Pure builtins
 // ---------------------------------------------------------------------------
@@ -66,6 +77,7 @@ pub(crate) fn builtin_ccl_execute(args: Vec<Value>) -> EvalResult {
 /// Stub: returns STRING unchanged without processing.
 pub(crate) fn builtin_ccl_execute_on_string(args: Vec<Value>) -> EvalResult {
     expect_min_args("ccl-execute-on-string", &args, 3)?;
+    expect_max_args("ccl-execute-on-string", &args, 5)?;
     // Arguments:
     //   0: CCL-PROGRAM (we don't use)
     //   1: STATUS vector (we don't use)
@@ -107,4 +119,54 @@ pub(crate) fn builtin_register_code_conversion_map(args: Vec<Value>) -> EvalResu
     //   1: MAP (the conversion map definition, typically a char-table)
     // We accept both but don't store anything since we don't support CCL
     Ok(Value::Nil)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ccl_execute_on_string_returns_string_payload() {
+        let out = builtin_ccl_execute_on_string(vec![
+            Value::Nil,
+            Value::Nil,
+            Value::string("abc"),
+        ])
+        .expect("string payload should be returned");
+        assert_eq!(out, Value::string("abc"));
+    }
+
+    #[test]
+    fn ccl_execute_on_string_accepts_nil_payload() {
+        let out = builtin_ccl_execute_on_string(vec![Value::Nil, Value::Nil, Value::Nil])
+            .expect("nil payload should be accepted");
+        assert_eq!(out, Value::Nil);
+    }
+
+    #[test]
+    fn ccl_execute_on_string_rejects_non_string_payload() {
+        let err = builtin_ccl_execute_on_string(vec![Value::Nil, Value::Nil, Value::Int(1)])
+            .expect_err("non-string payload must be rejected");
+        match err {
+            Flow::Signal(sig) => assert_eq!(sig.symbol, "wrong-type-argument"),
+            other => panic!("expected wrong-type-argument signal, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn ccl_execute_on_string_rejects_over_arity() {
+        let err = builtin_ccl_execute_on_string(vec![
+            Value::Nil,
+            Value::Nil,
+            Value::string("abc"),
+            Value::Nil,
+            Value::Nil,
+            Value::Nil,
+        ])
+        .expect_err("over-arity should signal");
+        match err {
+            Flow::Signal(sig) => assert_eq!(sig.symbol, "wrong-number-of-arguments"),
+            other => panic!("expected wrong-number-of-arguments signal, got {other:?}"),
+        }
+    }
 }
