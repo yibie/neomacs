@@ -1910,6 +1910,17 @@ Last updated: 2026-02-15
     - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/indent-read-only-variable-semantics` (pass, 6/6)
     - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/indent-mode-semantics` (pass, 7/7)
     - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/move-to-column-force-semantics` (pass, 6/6)
+- Aligned replace mutation paths with `buffer-read-only` variable semantics:
+  - `replace-string` and `replace-regexp` now evaluate dynamic/buffer-local/global `buffer-read-only` instead of only internal buffer read-only state
+  - preserved no-op behavior when no replacements occur under read-only variable state
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/replace-read-only-variable-semantics.forms`
+    - `test/neovm/vm-compat/cases/replace-read-only-variable-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/replace-read-only-variable-semantics` (pass, 5/5)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/replace-string-semantics` (pass, 6/6)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/replace-regexp-semantics` (pass, 8/8)
 - Kept branch green with targeted Rust tests and vm-compat checks after each slice.
 
 ## Doing
