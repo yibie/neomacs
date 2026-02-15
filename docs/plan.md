@@ -1682,6 +1682,18 @@ Last updated: 2026-02-15
     - `make -C test/neovm/vm-compat --no-print-directory check-neovm FORMS=cases/flush-lines-semantics.forms EXPECTED=cases/flush-lines-semantics.expected.tsv` (pass)
     - `make -C test/neovm/vm-compat --no-print-directory check-neovm FORMS=cases/keep-lines-semantics.forms EXPECTED=cases/keep-lines-semantics.expected.tsv` (pass)
     - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+- Aligned `looking-at` / `looking-at-p` case-fold semantics:
+  - fixed evaluator dispatch to honor dynamic/global `case-fold-search` for both builtins (defaulting to case-fold enabled when unset)
+  - updated core regex helper signature to accept explicit case-fold behavior
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/looking-at-semantics.forms`
+    - `test/neovm/vm-compat/cases/looking-at-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat record FORMS=cases/looking-at-semantics.forms EXPECTED=cases/looking-at-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/looking-at-semantics.forms EXPECTED=cases/looking-at-semantics.expected.tsv` (pass, 11/11)
+    - `make -C test/neovm/vm-compat --no-print-directory check-neovm FORMS=cases/looking-at-p-semantics.forms EXPECTED=cases/looking-at-p-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Kept branch green with targeted Rust tests and vm-compat checks after each slice.
 
 ## Doing
