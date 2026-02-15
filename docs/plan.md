@@ -19,6 +19,21 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Tightened `remove-images` argument validation semantics:
+  - updated:
+    - `rust/neovm-core/src/elisp/image.rs`
+      - `START`/`END` now validate against `integer-or-marker-p`.
+      - optional BUFFER now validates against `bufferp` (when non-`nil`).
+      - expanded image unit tests for char positions, bad buffer, and error predicate contracts.
+    - added corpus:
+      - `test/neovm/vm-compat/cases/image-remove-semantics.{forms,expected.tsv}`
+    - `test/neovm/vm-compat/cases/neovm-only.list`
+      - added `cases/image-remove-semantics`.
+  - verified:
+    - `cargo test image::tests --manifest-path rust/neovm-core/Cargo.toml -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/image-remove-semantics` (pass, 8/8)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass, full default + neovm-only corpus)
+
 - Aligned `image-flush` batch semantics and error split:
   - updated:
     - `rust/neovm-core/src/elisp/image.rs`
