@@ -332,8 +332,14 @@ impl RenderApp {
                             self.transitions.scroll_slides.remove(&info.window_id);
 
                             // Use full-frame crossfade (window_id 0) since
-                            // all windows resize together during balance
-                            let full_bounds = Rect::new(0.0, 0.0, frame.width, frame.height);
+                            // all windows resize together during balance.
+                            // Exclude minibuffer area: during rapid echo area
+                            // updates (e.g. package loading), old echo text
+                            // from the snapshot would overlap with current text.
+                            let full_h = frame.window_infos.iter()
+                                .find(|w| w.is_minibuffer)
+                                .map_or(frame.height, |w| w.bounds.y);
+                            let full_bounds = Rect::new(0.0, 0.0, frame.width, full_h);
                             if !self.transitions.crossfades.contains_key(&0) {
                                 if let Some((tex, view, bg)) = self.snapshot_prev_texture() {
                                     log::debug!("Starting window-resize crossfade (bounds changed)");
@@ -368,8 +374,12 @@ impl RenderApp {
 
             if prev_non_mini != curr_ids && prev_non_mini.len() > 0 && curr_ids.len() > 0 {
                 // Window layout changed — full-frame crossfade
-                // Use a synthetic window_id (0) for the full-frame transition
-                let full_bounds = Rect::new(0.0, 0.0, frame.width, frame.height);
+                // Use a synthetic window_id (0) for the full-frame transition.
+                // Exclude minibuffer to prevent echo area text overlap.
+                let full_h = frame.window_infos.iter()
+                    .find(|w| w.is_minibuffer)
+                    .map_or(frame.height, |w| w.bounds.y);
+                let full_bounds = Rect::new(0.0, 0.0, frame.width, full_h);
                 if let Some((tex, view, bg)) = self.snapshot_prev_texture() {
                     log::debug!("Starting window split/delete crossfade ({} → {} windows)",
                         prev_non_mini.len(), curr_ids.len());
