@@ -19,6 +19,18 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Tightened xdisp bidi buffer-argument validation and expanded oracle lock-in:
+  - updated:
+    - `rust/neovm-core/src/elisp/xdisp.rs`
+      - `current-bidi-paragraph-direction` now accepts only nil or a buffer object and signals `wrong-type-argument (bufferp ...)` for invalid optional argument types.
+      - expanded unit tests for valid buffer handles and invalid non-buffer types.
+    - `test/neovm/vm-compat/cases/xdisp-stub-edges-semantics.{forms,expected.tsv}`
+      - added invalid optional buffer argument checks for `current-bidi-paragraph-direction`.
+      - re-recorded oracle baseline.
+  - verified:
+    - `cargo test xdisp::tests --manifest-path rust/neovm-core/Cargo.toml -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/xdisp-stub-edges-semantics` (pass, 39/39)
+
 - Implemented evaluator-backed case-table object semantics and locked oracle corpus:
   - updated:
     - `rust/neovm-core/src/elisp/casetab.rs`
