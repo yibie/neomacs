@@ -18,6 +18,22 @@ Last updated: 2026-02-15
     - `cargo test --manifest-path rust/neovm-core/Cargo.toml search::tests::replace_regexp_ -- --nocapture` (pass)
     - `make -C test/neovm/vm-compat check-neovm FORMS=cases/replace-regexp-in-string-semantics.forms EXPECTED=cases/replace-regexp-in-string-semantics.expected.tsv` (pass)
     - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+- Implemented evaluator-backed `query-replace` / `query-replace-regexp` batch-safe subset and oracle lock-in:
+  - updated `rust/neovm-core/src/elisp/isearch.rs`:
+    - added evaluator entrypoints `builtin_query_replace_eval` and `builtin_query_replace_regexp_eval`
+    - aligned arity to `(2 . 7)` for both builtins
+    - batch-safe subset currently routes to unconditional replace behavior (`replace-string` / `replace-regexp` evaluator paths)
+  - wired dispatch/registry:
+    - `rust/neovm-core/src/elisp/builtins.rs`
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/query-replace-batch-semantics.forms`
+    - `test/neovm/vm-compat/cases/query-replace-batch-semantics.expected.tsv`
+    - wired into `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/query-replace-batch-semantics.forms EXPECTED=cases/query-replace-batch-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass; expected allowlisted drift only)
 
 - Implemented and locked search-stack evaluator subsets with oracle corpus:
   - `replace-regexp`:
