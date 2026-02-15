@@ -5,17 +5,25 @@ Last updated: 2026-02-15
 ## Doing
 
 - Continue command-context and read-only variable compatibility sweep in `rust/neovm-core/src/elisp/kill_ring.rs`.
-- Audit remaining `yank`/`yank-pop` command-context edge paths on empty-entry rings.
+- Audit additional `yank-pop` command-context transitions after repeated wrap rotations.
 - Keeping each slice small: runtime patch -> oracle corpus -> docs note -> push.
 
 ## Next
 
-- Expand oracle corpus for `yank-pop` command-context transitions with empty and wrapped entries.
+- Expand oracle corpus for `yank-pop` command-context transitions after repeated wraps and mixed pointer seeds.
 - Audit `yank`/`yank-pop` behavior with empty kill-ring entries and pointer wrap rules.
 - Run targeted regression checks after each slice (`command-dispatch-default-arg-semantics`, touched command corpus, and focused `yank`/`yank-pop` suites).
 
 ## Done
 
+- Added `yank-pop` wrap/empty-entry oracle corpus and default wiring:
+  - added and enabled:
+    - `test/neovm/vm-compat/cases/yank-pop-wrap-empty-entry-semantics.forms`
+    - `test/neovm/vm-compat/cases/yank-pop-wrap-empty-entry-semantics.expected.tsv`
+    - wired into `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/yank-pop-wrap-empty-entry-semantics` (pass, 3/3)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Added pointer-wrap/empty-entry kill-ring oracle coverage and list wiring:
   - added and enabled:
     - `test/neovm/vm-compat/cases/kill-ring-pointer-wrap-semantics.forms`
