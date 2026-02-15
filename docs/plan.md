@@ -19,6 +19,23 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Extended `image-type` compatibility for source/type call patterns:
+  - updated:
+    - `rust/neovm-core/src/elisp/image.rs`
+      - `image-type` now accepts `(SOURCE &optional TYPE DATA-P)` in addition to descriptor mode.
+      - added filename-extension inference (`jpg->jpeg`, etc.) and `image/*` DATA-P hint parsing.
+      - added `neomacs` fallback type resolution when concrete type cannot be inferred.
+      - `image-type-available-p` now recognizes `neomacs`.
+      - expanded image unit tests for filename/type-hint/fallback paths.
+    - added corpus:
+      - `test/neovm/vm-compat/cases/image-type-semantics.{forms,expected.tsv}`
+    - `test/neovm/vm-compat/cases/neovm-only.list`
+      - added `cases/image-type-semantics`.
+  - verified:
+    - `cargo test image::tests --manifest-path rust/neovm-core/Cargo.toml -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/image-type-semantics` (pass, 11/11)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass, full default + neovm-only corpus)
+
 - Tightened `remove-images` argument validation semantics:
   - updated:
     - `rust/neovm-core/src/elisp/image.rs`
