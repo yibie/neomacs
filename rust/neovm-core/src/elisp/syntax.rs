@@ -306,6 +306,8 @@ impl SyntaxTable {
         for ch in '0'..='9' {
             entries.insert(ch, SyntaxEntry::simple(SyntaxClass::Word));
         }
+        // Emacs default treats '%' as a word constituent.
+        entries.insert('%', SyntaxEntry::simple(SyntaxClass::Word));
 
         // Parentheses (with matching chars)
         entries.insert('(', SyntaxEntry::with_match(SyntaxClass::Open, ')'));
@@ -322,7 +324,7 @@ impl SyntaxTable {
         entries.insert('\\', SyntaxEntry::simple(SyntaxClass::Escape));
 
         // Symbol constituents (common Emacs defaults for Lisp)
-        for ch in ['_', '-'] {
+        for ch in ['_', '-', '&', '*', '+', '/', '<', '=', '>', '|'] {
             entries.insert(ch, SyntaxEntry::simple(SyntaxClass::Symbol));
         }
 
@@ -330,8 +332,7 @@ impl SyntaxTable {
         // covered.  In Emacs the standard table marks most punctuation as
         // punctuation; we enumerate the important ones.
         for ch in [
-            '!', '#', '%', '&', '*', '+', ',', '.', '/', ':', ';', '<', '=', '>', '?', '@', '^',
-            '|', '~',
+            '!', '#', ',', '.', ':', ';', '?', '@', '^', '~',
         ] {
             entries.insert(ch, SyntaxEntry::simple(SyntaxClass::Punctuation));
         }
@@ -1941,6 +1942,7 @@ mod tests {
         assert_eq!(table.char_syntax('Z'), SyntaxClass::Word);
         assert_eq!(table.char_syntax('5'), SyntaxClass::Word);
         assert_eq!(table.char_syntax('$'), SyntaxClass::Word);
+        assert_eq!(table.char_syntax('%'), SyntaxClass::Word);
     }
 
     #[test]
@@ -1975,8 +1977,8 @@ mod tests {
     #[test]
     fn standard_table_punctuation() {
         let table = SyntaxTable::new_standard();
-        assert_eq!(table.char_syntax('+'), SyntaxClass::Punctuation);
-        assert_eq!(table.char_syntax('='), SyntaxClass::Punctuation);
+        assert_eq!(table.char_syntax(';'), SyntaxClass::Punctuation);
+        assert_eq!(table.char_syntax('?'), SyntaxClass::Punctuation);
     }
 
     #[test]
@@ -1984,6 +1986,9 @@ mod tests {
         let table = SyntaxTable::new_standard();
         assert_eq!(table.char_syntax('_'), SyntaxClass::Symbol);
         assert_eq!(table.char_syntax('-'), SyntaxClass::Symbol);
+        assert_eq!(table.char_syntax('+'), SyntaxClass::Symbol);
+        assert_eq!(table.char_syntax('/'), SyntaxClass::Symbol);
+        assert_eq!(table.char_syntax('='), SyntaxClass::Symbol);
     }
 
     #[test]

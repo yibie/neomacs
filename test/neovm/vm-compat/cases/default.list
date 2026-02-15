@@ -76,6 +76,7 @@ cases/backward-prefix-chars-semantics
 cases/syntax-ppss-flush-cache-semantics
 cases/string-to-syntax-class-codes-semantics
 cases/syntax-descriptor-at-semantics
+cases/char-syntax-ascii-map-semantics
 cases/syntax-after-semantics
 cases/parse-partial-sexp-syntax-ppss-semantics
 cases/category-semantics
