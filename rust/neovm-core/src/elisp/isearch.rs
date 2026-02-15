@@ -174,6 +174,44 @@ fn case_replace_enabled(eval: &super::eval::Evaluator) -> bool {
         .unwrap_or(true)
 }
 
+fn replace_lax_whitespace_enabled(eval: &super::eval::Evaluator) -> bool {
+    dynamic_or_global_symbol_value(eval, "replace-lax-whitespace")
+        .map(|value| !value.is_nil())
+        .unwrap_or(false)
+}
+
+fn build_lax_whitespace_pattern(pattern: &str, case_fold: bool) -> String {
+    let mut raw = String::new();
+    let mut literal = String::new();
+    let mut in_space_run = false;
+
+    for ch in pattern.chars() {
+        if ch == ' ' {
+            if !literal.is_empty() {
+                raw.push_str(&regex::escape(&literal));
+                literal.clear();
+            }
+            if !in_space_run {
+                raw.push_str("[ \t\n\r]+");
+                in_space_run = true;
+            }
+        } else {
+            in_space_run = false;
+            literal.push(ch);
+        }
+    }
+
+    if !literal.is_empty() {
+        raw.push_str(&regex::escape(&literal));
+    }
+
+    if case_fold {
+        format!("(?i:{raw})")
+    } else {
+        raw
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Search direction
 // ---------------------------------------------------------------------------
@@ -1413,32 +1451,68 @@ fn replace_string_eval_impl(
 
     let case_fold = case_fold_for_pattern(eval, &from);
     let preserve_match_case = case_fold && case_replace_enabled(eval);
+    let lax_whitespace = replace_lax_whitespace_enabled(eval) && from.contains(' ');
     let mut out = String::with_capacity(source.len());
-    let mut cursor = 0usize;
     let mut replaced = 0usize;
     let mut backward_point = None;
     let mut query_forward_point = None;
-    while let Some((m_start, m_end)) = find_match(&source, &from, cursor, true, false, case_fold) {
-        if delimited && !is_delimited_match(&source, m_start, m_end) {
-            out.push_str(&source[cursor..m_end]);
+
+    if lax_whitespace {
+        let pattern = build_lax_whitespace_pattern(&from, case_fold);
+        let re = Regex::new(&pattern).map_err(|e| {
+            signal(
+                "invalid-regexp",
+                vec![Value::string(format!("Invalid regexp: {e}"))],
+            )
+        })?;
+        let mut last = 0usize;
+        for m in re.find_iter(&source) {
+            let m_start = m.start();
+            let m_end = m.end();
+            if delimited && !is_delimited_match(&source, m_start, m_end) {
+                continue;
+            }
+            out.push_str(&source[last..m_start]);
+            let matched = &source[m_start..m_end];
+            if preserve_match_case {
+                out.push_str(&preserve_case(&to, matched));
+            } else {
+                out.push_str(&to);
+            }
+            query_forward_point = Some(out.len());
+            if backward && backward_point.is_none() {
+                backward_point = Some(m_start);
+            }
+            replaced += 1;
+            last = m_end;
+        }
+        out.push_str(&source[last..]);
+    } else {
+        let mut cursor = 0usize;
+        while let Some((m_start, m_end)) =
+            find_match(&source, &from, cursor, true, false, case_fold)
+        {
+            if delimited && !is_delimited_match(&source, m_start, m_end) {
+                out.push_str(&source[cursor..m_end]);
+                cursor = m_end;
+                continue;
+            }
+            out.push_str(&source[cursor..m_start]);
+            let matched = &source[m_start..m_end];
+            if preserve_match_case {
+                out.push_str(&preserve_case(&to, matched));
+            } else {
+                out.push_str(&to);
+            }
+            query_forward_point = Some(out.len());
+            if backward && backward_point.is_none() {
+                backward_point = Some(m_start);
+            }
+            replaced += 1;
             cursor = m_end;
-            continue;
         }
-        out.push_str(&source[cursor..m_start]);
-        let matched = &source[m_start..m_end];
-        if preserve_match_case {
-            out.push_str(&preserve_case(&to, matched));
-        } else {
-            out.push_str(&to);
-        }
-        query_forward_point = Some(out.len());
-        if backward && backward_point.is_none() {
-            backward_point = Some(m_start);
-        }
-        replaced += 1;
-        cursor = m_end;
+        out.push_str(&source[cursor..]);
     }
-    out.push_str(&source[cursor..]);
 
     if replaced == 0 {
         return Ok(Value::Nil);

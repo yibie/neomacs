@@ -252,6 +252,7 @@ cases/replace-regexp-in-string-semantics
 cases/replace-regexp-in-string-variable-semantics
 cases/replace-string-semantics
 cases/case-replace-semantics
+cases/replace-lax-whitespace-semantics
 cases/replace-query-case-fold-variable-semantics
 cases/replace-delimited-semantics
 cases/replace-backward-semantics
