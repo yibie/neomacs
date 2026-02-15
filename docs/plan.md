@@ -19,6 +19,35 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Closed syntax/buffer introspection callable gaps and locked new corpora:
+  - updated:
+    - `rust/neovm-core/src/elisp/syntax.rs`
+      - added `copy-syntax-table` (fresh syntax-table clone with arity/type checks).
+      - added baseline `forward-comment` (whitespace skip in direction of COUNT).
+      - added `backward-prefix-chars` (moves over prefix-flag chars) and aligned default syntax table quote/backtick entries with Emacs punctuation defaults.
+      - added no-op `syntax-ppss-flush-cache` with Emacs-compatible `(1 . many)` arity/type contract.
+      - added focused unit tests for each new builtin.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - wired `copy-syntax-table`, `forward-comment`, `backward-prefix-chars`, and `syntax-ppss-flush-cache` dispatch entries.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - registered the same names for `fboundp`/introspection parity.
+    - `test/neovm/vm-compat/cases/copy-syntax-table-semantics.{forms,expected.tsv}`
+    - `test/neovm/vm-compat/cases/forward-comment-semantics.{forms,expected.tsv}`
+    - `test/neovm/vm-compat/cases/backward-prefix-chars-semantics.{forms,expected.tsv}`
+    - `test/neovm/vm-compat/cases/syntax-ppss-flush-cache-semantics.{forms,expected.tsv}`
+    - `test/neovm/vm-compat/cases/default.list`
+      - added all four new corpora to the default compatibility run.
+  - verified:
+    - targeted `cargo test` slices:
+      - `copy_syntax_table`, `forward_comment`, `backward_prefix_chars`, `syntax_ppss_flush_cache_contract` (all pass)
+    - targeted vm-compat checks:
+      - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/copy-syntax-table-semantics` (pass)
+      - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/forward-comment-semantics` (pass)
+      - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/backward-prefix-chars-semantics` (pass)
+      - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/syntax-ppss-flush-cache-semantics` (pass)
+      - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass; only intentional `neovm-precompile-file` drift remains allowlisted)
+      - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Re-ran full NeoVM compatibility gate after syntax parser batch:
   - verified:
     - `make -C test/neovm/vm-compat check-all-neovm` (pass, full default + neovm-only corpus)
