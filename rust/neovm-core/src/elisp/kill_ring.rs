@@ -2118,6 +2118,8 @@ pub(crate) fn builtin_transpose_sentences(
 
     let steps = n.unsigned_abs() as usize;
     let backward = n < 0;
+    let two_sentence_error =
+        || signal("error", vec![Value::string("Don\u{2019}t have two things to transpose")]);
 
     for _ in 0..steps {
         let (s1, e1, s2, e2) = {
@@ -2144,7 +2146,7 @@ pub(crate) fn builtin_transpose_sentences(
 
             let (first_idx, second_idx) = if backward {
                 if pivot_idx == 0 {
-                    return Err(signal("beginning-of-buffer", vec![]));
+                    return Err(two_sentence_error());
                 }
                 (pivot_idx - 1, pivot_idx)
             } else if pivot_idx > 0 {
