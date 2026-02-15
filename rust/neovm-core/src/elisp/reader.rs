@@ -64,7 +64,17 @@ fn expect_number(value: &Value) -> Result<(), Flow> {
 
 fn expect_initial_input_stringish(value: &Value) -> Result<(), Flow> {
     match value {
-        Value::Nil | Value::Str(_) | Value::Cons(_) => Ok(()),
+        Value::Nil | Value::Str(_) => Ok(()),
+        Value::Cons(cell) => {
+            let pair = cell.lock().expect("poisoned");
+            if !matches!(pair.car, Value::Str(_)) {
+                return Err(signal(
+                    "wrong-type-argument",
+                    vec![Value::symbol("stringp"), pair.car.clone()],
+                ));
+            }
+            Ok(())
+        }
         other => Err(signal(
             "wrong-type-argument",
             vec![Value::symbol("stringp"), other.clone()],
@@ -1325,6 +1335,18 @@ mod tests {
     }
 
     #[test]
+    fn read_from_minibuffer_rejects_cons_initial_with_non_string_car() {
+        let mut ev = Evaluator::new();
+        let cons_initial = Value::cons(Value::Int(1), Value::Int(1));
+        let result =
+            builtin_read_from_minibuffer(&mut ev, vec![Value::string("Prompt: "), cons_initial]);
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "wrong-type-argument"
+        ));
+    }
+
+    #[test]
     fn read_from_minibuffer_rejects_more_than_seven_args() {
         let mut ev = Evaluator::new();
         let result = builtin_read_from_minibuffer(
@@ -1367,6 +1389,17 @@ mod tests {
     fn read_string_rejects_non_stringish_initial_input() {
         let mut ev = Evaluator::new();
         let result = builtin_read_string(&mut ev, vec![Value::string("Prompt: "), Value::Int(1)]);
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "wrong-type-argument"
+        ));
+    }
+
+    #[test]
+    fn read_string_rejects_cons_initial_with_non_string_car() {
+        let mut ev = Evaluator::new();
+        let cons_initial = Value::cons(Value::Int(1), Value::Int(1));
+        let result = builtin_read_string(&mut ev, vec![Value::string("Prompt: "), cons_initial]);
         assert!(matches!(
             result,
             Err(Flow::Signal(sig)) if sig.symbol == "wrong-type-argument"
