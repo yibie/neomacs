@@ -18,6 +18,16 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Feature-gated legacy `.elc` literal decode helpers to active feature scope:
+  - updated:
+    - `rust/neovm-core/src/elisp/compiled_literal.rs`
+      - gated internal decode helpers (`compiled_literal_vector_to_bytecode`, opcode decode/parser helpers) behind `legacy-elc-literal`.
+      - gated related imports to match feature-scoped helper usage.
+  - verified:
+    - `cargo test 'elisp::compiled_literal::tests::' -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/bytecode-literal-default-policy` (pass, 5/5)
+    - `NEOVM_WORKER_CARGO_FEATURES=legacy-elc-literal make -C test/neovm/vm-compat check-one-neovm CASE=cases/bytecode-literal-reader-semantics` (pass, 9/9)
+
 - Removed dead duplicate `seq-into` wrapper from `cl_lib`:
   - updated:
     - `rust/neovm-core/src/elisp/cl_lib.rs`

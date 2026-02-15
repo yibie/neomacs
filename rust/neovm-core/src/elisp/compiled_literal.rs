@@ -1,10 +1,13 @@
 //! Compatibility helpers for Emacs compiled-function reader literals (`#[...]`, `#(...)`).
 
-use std::collections::HashMap;
-
-use super::bytecode::{ByteCodeFunction, Op};
 use super::error::{signal, Flow};
-use super::value::{list_to_vec, LambdaParams, Value};
+use super::value::Value;
+#[cfg(feature = "legacy-elc-literal")]
+use super::bytecode::{ByteCodeFunction, Op};
+#[cfg(feature = "legacy-elc-literal")]
+use super::value::{list_to_vec, LambdaParams};
+#[cfg(feature = "legacy-elc-literal")]
+use std::collections::HashMap;
 
 /// Convert parsed Emacs compiled-function literal vectors into typed
 /// `Value::ByteCode` functions when legacy `.elc` compatibility is enabled.
@@ -106,6 +109,7 @@ pub(crate) fn placeholder_from_byte_code_form(_args: &[Value]) -> Result<Value, 
     ))
 }
 
+#[cfg(feature = "legacy-elc-literal")]
 fn compiled_literal_vector_to_bytecode(
     items_ref: &std::sync::Arc<std::sync::Mutex<Vec<Value>>>,
 ) -> Option<ByteCodeFunction> {
@@ -144,6 +148,7 @@ fn compiled_literal_vector_to_bytecode(
     Some(bytecode)
 }
 
+#[cfg(feature = "legacy-elc-literal")]
 fn decode_opcode_subset(byte_stream: &str, const_len: usize) -> Option<Vec<Op>> {
     enum Pending {
         Op(Op),
@@ -697,6 +702,7 @@ fn decode_opcode_subset(byte_stream: &str, const_len: usize) -> Option<Vec<Op>> 
     Some(ops)
 }
 
+#[cfg(feature = "legacy-elc-literal")]
 fn read_u16_operand(bytes: &[u8], operand_start: usize) -> Option<u16> {
     if operand_start + 1 >= bytes.len() {
         return None;
@@ -706,6 +712,7 @@ fn read_u16_operand(bytes: &[u8], operand_start: usize) -> Option<u16> {
     Some(lo | (hi << 8))
 }
 
+#[cfg(feature = "legacy-elc-literal")]
 fn decode_unibyte_stream(byte_stream: &str) -> Option<Vec<u8>> {
     let mut out = Vec::with_capacity(byte_stream.len());
     for ch in byte_stream.chars() {
@@ -718,6 +725,7 @@ fn decode_unibyte_stream(byte_stream: &str) -> Option<Vec<u8>> {
     Some(out)
 }
 
+#[cfg(feature = "legacy-elc-literal")]
 fn parse_compiled_literal_params(value: &Value) -> Option<LambdaParams> {
     if value.is_nil() {
         return Some(LambdaParams::simple(vec![]));
