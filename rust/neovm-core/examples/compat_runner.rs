@@ -1,4 +1,4 @@
-use neovm_core::elisp::{format_eval_result, parse_forms, print_expr, Evaluator};
+use neovm_core::elisp::{format_eval_result_with_eval, parse_forms, print_expr, Evaluator};
 use std::fs;
 
 fn main() {
@@ -26,6 +26,11 @@ fn main() {
     let mut evaluator = Evaluator::new();
     for (index, form) in forms.iter().enumerate() {
         let result = evaluator.eval_expr(form);
-        println!("{}\t{}\t{}", index + 1, print_expr(form), format_eval_result(&result));
+        println!(
+            "{}\t{}\t{}",
+            index + 1,
+            print_expr(form),
+            format_eval_result_with_eval(&evaluator, &result)
+        );
     }
 }

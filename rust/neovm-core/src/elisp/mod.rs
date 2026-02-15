@@ -86,7 +86,7 @@ pub mod xml;
 
 // Re-export the main public API
 pub use bytecode::{ByteCodeFunction, Compiler as ByteCompiler, Vm as ByteVm};
-pub use error::{format_eval_result, EvalError};
+pub use error::{format_eval_result, format_eval_result_with_eval, print_value_with_eval, EvalError};
 pub use eval::Evaluator;
 pub use expr::{print_expr, Expr, ParseError};
 pub use parser::parse_forms;

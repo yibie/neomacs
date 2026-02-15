@@ -126,3 +126,54 @@ pub fn format_eval_result(result: &Result<Value, EvalError>) -> String {
         }
     }
 }
+
+/// Render a value with evaluator-context-aware opaque handle formatting.
+pub fn print_value_with_eval(eval: &super::eval::Evaluator, value: &Value) -> String {
+    if let Some(handle) = super::display::print_terminal_handle(value) {
+        return handle;
+    }
+    if let Some(id) = eval.threads.thread_id_from_handle(value) {
+        return format!("#<thread {id}>");
+    }
+    if let Some(id) = eval.threads.mutex_id_from_handle(value) {
+        return format!("#<mutex {id}>");
+    }
+    if let Some(id) = eval.threads.condition_variable_id_from_handle(value) {
+        return format!("#<condvar {id}>");
+    }
+    super::print::print_value(value)
+}
+
+fn print_data_payload_with_eval(eval: &super::eval::Evaluator, data: &[Value]) -> String {
+    if data.is_empty() {
+        "nil".to_string()
+    } else {
+        let parts = data
+            .iter()
+            .map(|v| print_value_with_eval(eval, v))
+            .collect::<Vec<_>>();
+        format!("({})", parts.join(" "))
+    }
+}
+
+/// Format an eval result for harnesses that have evaluator context and need
+/// opaque handle rendering for thread/mutex/condvar/terminal values.
+pub fn format_eval_result_with_eval(
+    eval: &super::eval::Evaluator,
+    result: &Result<Value, EvalError>,
+) -> String {
+    match result {
+        Ok(value) => format!("OK {}", print_value_with_eval(eval, value)),
+        Err(EvalError::Signal { symbol, data }) => {
+            let payload = print_data_payload_with_eval(eval, data);
+            format!("ERR ({} {})", symbol, payload)
+        }
+        Err(EvalError::UncaughtThrow { tag, value }) => {
+            format!(
+                "ERR (no-catch ({} {}))",
+                print_value_with_eval(eval, tag),
+                print_value_with_eval(eval, value),
+            )
+        }
+    }
+}
