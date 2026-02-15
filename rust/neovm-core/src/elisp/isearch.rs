@@ -2041,73 +2041,6 @@ pub(crate) fn builtin_isearch_backward(args: Vec<Value>) -> EvalResult {
     ))
 }
 
-/// `(query-replace FROM TO &optional DELIMITED START END BACKWARD REGION-NONCONTIGUOUS)` — stub.
-pub(crate) fn builtin_query_replace(args: Vec<Value>) -> EvalResult {
-    expect_min_args("query-replace", &args, 2)?;
-    // Interactive; return nil as a stub.
-    Ok(Value::Nil)
-}
-
-/// `(query-replace-regexp FROM TO &optional DELIMITED START END BACKWARD)` — stub.
-pub(crate) fn builtin_query_replace_regexp(args: Vec<Value>) -> EvalResult {
-    expect_min_args("query-replace-regexp", &args, 2)?;
-    Ok(Value::Nil)
-}
-
-/// `(replace-string FROM-STRING TO-STRING &optional DELIMITED START END BACKWARD)` —
-/// non-interactive unconditional replace.
-///
-/// Operates on a notional "buffer text" supplied as the first arg (our
-/// simplified version takes two string args and returns the result string).
-pub(crate) fn builtin_replace_string(args: Vec<Value>) -> EvalResult {
-    expect_min_args("replace-string", &args, 2)?;
-    let from = expect_string(&args[0])?;
-    let to = expect_string(&args[1])?;
-    if from.is_empty() {
-        return Err(signal(
-            "error",
-            vec![Value::string("replace-string: empty search string")],
-        ));
-    }
-    // In a full implementation this would modify the current buffer.
-    // For now, return the number of replacements that *would* be made (as int 0).
-    let _ = to;
-    Ok(Value::Int(0))
-}
-
-/// `(replace-regexp REGEXP TO-STRING &optional DELIMITED START END BACKWARD)` —
-/// non-interactive regexp replace (stub).
-pub(crate) fn builtin_replace_regexp(args: Vec<Value>) -> EvalResult {
-    expect_min_args("replace-regexp", &args, 2)?;
-    let _from = expect_string(&args[0])?;
-    let _to = expect_string(&args[1])?;
-    Ok(Value::Int(0))
-}
-
-/// `(how-many REGEXP &optional RSTART REND INTERACTIVE)` — count matches.
-///
-/// Simplified version: counts occurrences of REGEXP in string arg (or returns 0).
-pub(crate) fn builtin_how_many(args: Vec<Value>) -> EvalResult {
-    expect_min_args("how-many", &args, 1)?;
-    let _pattern = expect_string(&args[0])?;
-    // In a full implementation this would search the current buffer.
-    Ok(Value::Int(0))
-}
-
-/// `(keep-lines REGEXP &optional RSTART REND INTERACTIVE)` — delete non-matching lines (stub).
-pub(crate) fn builtin_keep_lines(args: Vec<Value>) -> EvalResult {
-    expect_min_args("keep-lines", &args, 1)?;
-    let _pattern = expect_string(&args[0])?;
-    Ok(Value::Int(0))
-}
-
-/// `(flush-lines REGEXP &optional RSTART REND INTERACTIVE)` — delete matching lines (stub).
-pub(crate) fn builtin_flush_lines(args: Vec<Value>) -> EvalResult {
-    expect_min_args("flush-lines", &args, 1)?;
-    let _pattern = expect_string(&args[0])?;
-    Ok(Value::Int(0))
-}
-
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -3000,87 +2933,25 @@ mod tests {
     // -----------------------------------------------------------------------
 
     #[test]
-    fn builtin_isearch_forward_returns_nil() {
+    fn builtin_isearch_forward_signals_batch_stub_error() {
         let result = builtin_isearch_forward(vec![]);
-        assert!(matches!(result, Ok(Value::Nil)));
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig))
+                if sig.symbol == "error"
+                    && sig.data == vec![Value::string("move-to-window-line called from unrelated buffer")]
+        ));
     }
 
     #[test]
-    fn builtin_isearch_backward_returns_nil() {
+    fn builtin_isearch_backward_signals_batch_stub_error() {
         let result = builtin_isearch_backward(vec![]);
-        assert!(matches!(result, Ok(Value::Nil)));
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig))
+                if sig.symbol == "error"
+                    && sig.data == vec![Value::string("move-to-window-line called from unrelated buffer")]
+        ));
     }
 
-    #[test]
-    fn builtin_query_replace_needs_two_args() {
-        let result = builtin_query_replace(vec![]);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn builtin_query_replace_with_args() {
-        let result = builtin_query_replace(vec![Value::string("foo"), Value::string("bar")]);
-        assert!(matches!(result, Ok(Value::Nil)));
-    }
-
-    #[test]
-    fn builtin_replace_string_needs_two_args() {
-        let result = builtin_replace_string(vec![Value::string("a")]);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn builtin_replace_string_empty_from() {
-        let result = builtin_replace_string(vec![Value::string(""), Value::string("bar")]);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn builtin_replace_string_ok() {
-        let result = builtin_replace_string(vec![Value::string("foo"), Value::string("bar")]);
-        assert!(matches!(result, Ok(Value::Int(0))));
-    }
-
-    #[test]
-    fn builtin_how_many_needs_one_arg() {
-        let result = builtin_how_many(vec![]);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn builtin_how_many_ok() {
-        let result = builtin_how_many(vec![Value::string("pattern")]);
-        assert!(matches!(result, Ok(Value::Int(0))));
-    }
-
-    #[test]
-    fn builtin_keep_lines_ok() {
-        let result = builtin_keep_lines(vec![Value::string("pat")]);
-        assert!(matches!(result, Ok(Value::Int(0))));
-    }
-
-    #[test]
-    fn builtin_flush_lines_ok() {
-        let result = builtin_flush_lines(vec![Value::string("pat")]);
-        assert!(matches!(result, Ok(Value::Int(0))));
-    }
-
-    #[test]
-    fn builtin_replace_regexp_ok() {
-        let result = builtin_replace_regexp(vec![Value::string("[0-9]+"), Value::string("NUM")]);
-        assert!(matches!(result, Ok(Value::Int(0))));
-    }
-
-    #[test]
-    fn builtin_query_replace_regexp_needs_two_args() {
-        let result = builtin_query_replace_regexp(vec![Value::string("a")]);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn builtin_query_replace_regexp_ok() {
-        let result =
-            builtin_query_replace_regexp(vec![Value::string("[0-9]+"), Value::string("NUM")]);
-        assert!(matches!(result, Ok(Value::Nil)));
-    }
 }
