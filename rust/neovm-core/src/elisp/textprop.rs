@@ -434,42 +434,6 @@ pub(crate) fn builtin_next_property_change(
     }
 }
 
-/// (propertize STRING &rest PROPS)
-pub(crate) fn builtin_propertize(
-    _eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
-    expect_min_args("propertize", &args, 1)?;
-    let s = match &args[0] {
-        Value::Str(s) => (**s).clone(),
-        other => {
-            return Err(signal(
-                "wrong-type-argument",
-                vec![Value::symbol("stringp"), other.clone()],
-            ));
-        }
-    };
-
-    // Propertize in our VM simply returns the string unchanged.
-    // String text properties are not yet tracked on Value::Str.
-    // We validate the plist pairs but otherwise return the string.
-    let rest = &args[1..];
-    if rest.len() % 2 != 0 {
-        return Err(signal(
-            "error",
-            vec![Value::string(
-                "Odd number of property arguments to propertize",
-            )],
-        ));
-    }
-    // Validate that property names are symbols.
-    for chunk in rest.chunks(2) {
-        let _name = expect_symbol_name(&chunk[0])?;
-    }
-
-    Ok(Value::string(s))
-}
-
 /// (text-property-any BEG END PROP VAL &optional OBJECT)
 pub(crate) fn builtin_text_property_any(
     eval: &mut super::eval::Evaluator,
@@ -1145,42 +1109,6 @@ mod tests {
         )
         .unwrap();
         assert!(matches!(result, Value::Int(6)));
-    }
-
-    // -----------------------------------------------------------------------
-    // propertize
-    // -----------------------------------------------------------------------
-
-    #[test]
-    fn propertize_returns_string() {
-        let mut eval = Evaluator::new();
-        let result = builtin_propertize(
-            &mut eval,
-            vec![
-                Value::string("hello"),
-                Value::symbol("face"),
-                Value::symbol("bold"),
-            ],
-        )
-        .unwrap();
-        assert!(matches!(result, Value::Str(s) if s.as_str() == "hello"));
-    }
-
-    #[test]
-    fn propertize_odd_props_signals() {
-        let mut eval = Evaluator::new();
-        let result = builtin_propertize(
-            &mut eval,
-            vec![Value::string("hello"), Value::symbol("face")],
-        );
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn propertize_no_props() {
-        let mut eval = Evaluator::new();
-        let result = builtin_propertize(&mut eval, vec![Value::string("hello")]).unwrap();
-        assert!(matches!(result, Value::Str(s) if s.as_str() == "hello"));
     }
 
     // -----------------------------------------------------------------------

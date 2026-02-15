@@ -18,6 +18,15 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Removed dead duplicate `propertize` wrapper from `textprop`:
+  - updated:
+    - `rust/neovm-core/src/elisp/textprop.rs`
+      - deleted unreferenced local `builtin_propertize` wrapper (active `propertize` dispatch remains in `builtins.rs`).
+      - removed wrapper-only local `propertize` tests.
+  - verified:
+    - `cargo test 'elisp::textprop::tests::' -- --nocapture` (pass, 53 tests)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/propertize-semantics` (pass, 6/6)
+
 - Test-gated dead duplicate `current-time`/`float-time` wrappers in `timefns`:
   - updated:
     - `rust/neovm-core/src/elisp/timefns.rs`
