@@ -1234,6 +1234,9 @@ pub(crate) fn builtin_yank(eval: &mut super::eval::Evaluator, args: Vec<Value>) 
 /// `(yank-pop &optional ARG)` — replace yanked text with an older kill.
 pub(crate) fn builtin_yank_pop(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     sync_kill_ring_from_binding_strict(eval)?;
+    // Emacs normalizes/publishes `kill-ring-yank-pointer` before command-context
+    // gating, including paths that later signal `end-of-file`.
+    sync_kill_ring_binding(eval);
     let yank_command_in_progress = matches!(
         dynamic_or_global_symbol_value(eval, "last-command"),
         Some(Value::Symbol(ref name)) if name == "yank"
