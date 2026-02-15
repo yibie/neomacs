@@ -59,6 +59,17 @@ Last updated: 2026-02-15
     - `cargo test --manifest-path rust/neovm-core/Cargo.toml search::tests::string_match_ -- --nocapture` (pass)
     - `make -C test/neovm/vm-compat check-neovm FORMS=cases/string-match-case-fold-semantics.forms EXPECTED=cases/string-match-case-fold-semantics.expected.tsv` (pass)
     - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+- Aligned `looking-at` / `looking-at-p` default case-fold semantics and oracle lock-in:
+  - updated `rust/neovm-core/src/elisp/regex.rs`:
+    - `looking_at` now compiles anchored regex with default case-fold behavior
+    - added unit coverage: `looking_at_defaults_to_case_fold`
+  - expanded oracle corpus:
+    - `test/neovm/vm-compat/cases/looking-at-p-semantics.forms`
+    - `test/neovm/vm-compat/cases/looking-at-p-semantics.expected.tsv`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml regex::tests::looking_at_ -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/looking-at-p-semantics.forms EXPECTED=cases/looking-at-p-semantics.expected.tsv` (pass, 9/9)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 
 - Implemented and locked search-stack evaluator subsets with oracle corpus:
   - `replace-regexp`:
