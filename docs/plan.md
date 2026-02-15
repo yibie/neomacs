@@ -18,6 +18,16 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Removed dead duplicate pure `get-file-buffer` stub surface:
+  - updated:
+    - `rust/neovm-core/src/elisp/buffer/pure.rs`
+      - deleted unused `get-file-buffer` stub wrapper shadowed by active evaluator implementation in `builtins.rs`
+    - `rust/neovm-core/src/elisp/buffer/tests.rs`
+      - removed stale local tests bound only to deleted dead wrapper
+    - `rust/neovm-core/src/elisp/buffer.rs`
+      - removed stale module comment entry for deleted wrapper
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/get-file-buffer-semantics` (pass, 4/4)
 - Removed dead duplicate casefiddle region/word stub wrappers:
   - updated:
     - `rust/neovm-core/src/elisp/casefiddle.rs`
