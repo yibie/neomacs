@@ -1756,6 +1756,39 @@ Last updated: 2026-02-15
     - `make -C test/neovm/vm-compat --no-print-directory check-neovm FORMS=cases/query-replace-batch-semantics.forms EXPECTED=cases/query-replace-batch-semantics.expected.tsv` (pass)
     - `make -C test/neovm/vm-compat --no-print-directory check-neovm FORMS=cases/query-replace-edge-semantics.forms EXPECTED=cases/query-replace-edge-semantics.expected.tsv` (pass)
     - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+- Aligned `search-upper-case` variable semantics in replacement/counting/line-filter regex paths:
+  - evaluator regex case-fold helper now honors dynamic/global `search-upper-case`
+  - when `case-fold-search` is non-`nil` and `search-upper-case=nil`, uppercase patterns no longer force exact matching (oracle parity)
+  - affected builtins:
+    - `replace-string`, `replace-regexp`
+    - `query-replace`, `query-replace-regexp`
+    - `keep-lines`, `flush-lines`
+    - `count-matches`, `how-many`
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/search-upper-case-variable-semantics.forms`
+    - `test/neovm/vm-compat/cases/search-upper-case-variable-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/search-upper-case-variable-semantics.forms EXPECTED=cases/search-upper-case-variable-semantics.expected.tsv` (pass, 8/8)
+    - `make -C test/neovm/vm-compat --no-print-directory check-neovm FORMS=cases/replace-query-case-fold-variable-semantics.forms EXPECTED=cases/replace-query-case-fold-variable-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat --no-print-directory check-neovm FORMS=cases/count-how-many-case-fold-variable-semantics.forms EXPECTED=cases/count-how-many-case-fold-variable-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat --no-print-directory check-neovm FORMS=cases/line-filter-case-fold-variable-semantics.forms EXPECTED=cases/line-filter-case-fold-variable-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat --no-print-directory check-neovm FORMS=cases/query-replace-edge-semantics.forms EXPECTED=cases/query-replace-edge-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+- Expanded case-fold oracle matrices:
+  - `string-match` / `string-match-p` variable corpus now covers uppercase-pattern matching under `case-fold-search=t`
+  - `search-forward` / `search-backward` / `re-search-forward` / `re-search-backward` variable corpus now includes uppercase-pattern checks under `case-fold-search=t`
+  - `looking-at` corpus now includes uppercase-pattern checks under `case-fold-search=t`
+  - added line-filter-specific variable corpus:
+    - `test/neovm/vm-compat/cases/line-filter-case-fold-variable-semantics.forms`
+    - `test/neovm/vm-compat/cases/line-filter-case-fold-variable-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/string-match-case-fold-variable-semantics.forms EXPECTED=cases/string-match-case-fold-variable-semantics.expected.tsv` (pass, 8/8)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/search-case-fold-variable-semantics.forms EXPECTED=cases/search-case-fold-variable-semantics.expected.tsv` (pass, 12/12)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/looking-at-semantics.forms EXPECTED=cases/looking-at-semantics.expected.tsv` (pass, 13/13)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/line-filter-case-fold-variable-semantics.forms EXPECTED=cases/line-filter-case-fold-variable-semantics.expected.tsv` (pass, 6/6)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
 - Kept branch green with targeted Rust tests and vm-compat checks after each slice.
 
 ## Doing
