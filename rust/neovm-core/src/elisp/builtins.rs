@@ -6099,6 +6099,7 @@ pub(crate) fn dispatch_builtin(
         "set-syntax-table" => return Some(super::syntax::builtin_set_syntax_table(eval, args)),
         "char-syntax" => return Some(super::syntax::builtin_char_syntax(eval, args)),
         "syntax-after" => return Some(super::syntax::builtin_syntax_after(eval, args)),
+        "forward-comment" => return Some(super::syntax::builtin_forward_comment(eval, args)),
         "forward-word" => return Some(super::syntax::builtin_forward_word(eval, args)),
         "backward-word" => return Some(super::syntax::builtin_backward_word(eval, args)),
         "forward-sexp" => return Some(super::syntax::builtin_forward_sexp(eval, args)),

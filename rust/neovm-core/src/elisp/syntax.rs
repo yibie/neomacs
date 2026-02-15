@@ -1129,6 +1129,83 @@ pub(crate) fn builtin_syntax_after(
     Ok(syntax_entry_to_value(&entry))
 }
 
+/// `(forward-comment COUNT)` — move point over comment/whitespace constructs.
+///
+/// Baseline behavior currently skips contiguous whitespace in the direction
+/// indicated by COUNT and returns nil.
+pub(crate) fn builtin_forward_comment(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    if args.len() != 1 {
+        return Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol("forward-comment"), Value::Int(args.len() as i64)],
+        ));
+    }
+
+    let count = match &args[0] {
+        Value::Int(n) => *n,
+        other => {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("integerp"), other.clone()],
+            ));
+        }
+    };
+
+    let buf = eval
+        .buffers
+        .current_buffer_mut()
+        .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
+
+    let mut remaining = count.unsigned_abs();
+    if count > 0 {
+        while remaining > 0 {
+            let mut moved = false;
+            loop {
+                let pt = buf.point();
+                let Some(ch) = buf.char_after(pt) else {
+                    break;
+                };
+                if !ch.is_whitespace() {
+                    break;
+                }
+                buf.goto_char(pt + ch.len_utf8());
+                moved = true;
+            }
+            if !moved {
+                break;
+            }
+            remaining -= 1;
+        }
+    } else if count < 0 {
+        while remaining > 0 {
+            let mut moved = false;
+            loop {
+                let pt = buf.point();
+                if pt <= buf.point_min() {
+                    break;
+                }
+                let Some(ch) = buf.char_before(pt) else {
+                    break;
+                };
+                if !ch.is_whitespace() {
+                    break;
+                }
+                buf.goto_char(pt.saturating_sub(ch.len_utf8()));
+                moved = true;
+            }
+            if !moved {
+                break;
+            }
+            remaining -= 1;
+        }
+    }
+
+    Ok(Value::Nil)
+}
+
 /// `(forward-word &optional COUNT)` — move point forward COUNT words.
 pub(crate) fn builtin_forward_word(
     eval: &mut super::eval::Evaluator,
@@ -2196,6 +2273,48 @@ mod tests {
             Err(crate::elisp::error::Flow::Signal(sig)) => {
                 assert_eq!(sig.symbol, "wrong-type-argument");
                 assert_eq!(sig.data.first(), Some(&Value::symbol("syntax-table-p")));
+            }
+            other => panic!("expected wrong-type-argument signal, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn forward_comment_skips_whitespace_and_returns_nil() {
+        let mut eval = crate::elisp::eval::Evaluator::new();
+        {
+            let buf = eval.buffers.current_buffer_mut().expect("current buffer");
+            buf.delete_region(buf.point_min(), buf.point_max());
+            buf.insert("  foo");
+            buf.goto_char(buf.point_min());
+        }
+
+        let out = builtin_forward_comment(&mut eval, vec![Value::Int(1)]).unwrap();
+        assert_eq!(out, Value::Nil);
+        let point_1 = eval
+            .buffers
+            .current_buffer()
+            .expect("current buffer")
+            .point_char() as i64
+            + 1;
+        assert_eq!(point_1, 3);
+    }
+
+    #[test]
+    fn forward_comment_validates_arity_and_type() {
+        let mut eval = crate::elisp::eval::Evaluator::new();
+
+        match builtin_forward_comment(&mut eval, vec![]) {
+            Err(crate::elisp::error::Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "wrong-number-of-arguments");
+                assert_eq!(sig.data.first(), Some(&Value::symbol("forward-comment")));
+            }
+            other => panic!("expected wrong-number-of-arguments signal, got {other:?}"),
+        }
+
+        match builtin_forward_comment(&mut eval, vec![Value::symbol("x")]) {
+            Err(crate::elisp::error::Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "wrong-type-argument");
+                assert_eq!(sig.data.first(), Some(&Value::symbol("integerp")));
             }
             other => panic!("expected wrong-type-argument signal, got {other:?}"),
         }

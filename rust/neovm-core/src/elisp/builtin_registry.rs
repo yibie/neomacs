@@ -348,6 +348,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "format-spec",
     "format-time-string",
     "forward-char",
+    "forward-comment",
     "forward-line",
     "forward-sexp",
     "forward-word",
