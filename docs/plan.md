@@ -18,6 +18,25 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Implemented evaluator-backed `buffer-live-p` and locked behavior with corpus:
+  - updated:
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - added `builtin_buffer_live_p` and eval dispatch wiring.
+      - added unit tests covering live/killed buffer objects and non-buffer objects.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - registered `buffer-live-p` for `fboundp`/introspection parity.
+    - `test/neovm/vm-compat/cases/buffer-live-p-semantics.forms`
+      - added runtime checks for live/killed buffer objects, non-buffer args, and arity error shape.
+    - `test/neovm/vm-compat/cases/buffer-live-p-semantics.expected.tsv`
+      - recorded with `NEOVM_ORACLE_EMACS=/nix/store/2lzapcylxkad2r63h144mp9nnin4vb5n-user-environment/bin/emacs`.
+    - `test/neovm/vm-compat/cases/default.list`
+      - included `cases/buffer-live-p-semantics` in default corpus runs.
+  - verified:
+    - `cargo test 'elisp::builtins::tests::eval_buffer_live_p_tracks_killed_buffers' -- --nocapture` (pass)
+    - `cargo test 'elisp::builtins::tests::eval_buffer_live_p_non_buffer_objects_return_nil' -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/buffer-live-p-semantics` (pass, 6/6)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Implemented syntax-table family builtins for compatibility:
   - updated:
     - `rust/neovm-core/src/elisp/syntax.rs`
