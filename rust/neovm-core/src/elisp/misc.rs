@@ -618,49 +618,6 @@ pub(crate) fn builtin_encode_char(args: Vec<Value>) -> EvalResult {
     super::charset::builtin_encode_char(args)
 }
 
-/// Improved `nconc` that properly handles nil arguments and non-list tails.
-/// `(nconc &rest LISTS)` -- destructively concatenate lists.
-pub(crate) fn builtin_nconc_improved(args: Vec<Value>) -> EvalResult {
-    if args.is_empty() {
-        return Ok(Value::Nil);
-    }
-    let mut all_items: Vec<Value> = Vec::new();
-    for (i, arg) in args.iter().enumerate() {
-        match arg {
-            Value::Nil => {}
-            Value::Cons(_) => {
-                let items = list_to_vec(arg).ok_or_else(|| {
-                    signal(
-                        "wrong-type-argument",
-                        vec![Value::symbol("listp"), arg.clone()],
-                    )
-                })?;
-                all_items.extend(items);
-            }
-            _ => {
-                // Last argument can be a non-list (dotted tail)
-                if i == args.len() - 1 {
-                    if all_items.is_empty() {
-                        return Ok(arg.clone());
-                    }
-                    // Build a dotted list: (a b c . last)
-                    let tail = arg.clone();
-                    return Ok(all_items
-                        .into_iter()
-                        .rev()
-                        .fold(tail, |acc, item| Value::cons(item, acc)));
-                } else {
-                    return Err(signal(
-                        "wrong-type-argument",
-                        vec![Value::symbol("listp"), arg.clone()],
-                    ));
-                }
-            }
-        }
-    }
-    Ok(Value::list(all_items))
-}
-
 /// `(locale-info ITEM)` -- minimal locale info.
 /// Returns "UTF-8" for symbol ITEM `codeset`; nil otherwise.
 pub(crate) fn builtin_locale_info(args: Vec<Value>) -> EvalResult {
@@ -1116,48 +1073,6 @@ mod tests {
     fn encode_char_basic() {
         let result = builtin_encode_char(vec![Value::Char('A'), Value::symbol("unicode")]).unwrap();
         assert!(eq_value(&result, &Value::Int(65)));
-    }
-
-    // ----- nconc_improved -----
-
-    #[test]
-    fn nconc_improved_basic() {
-        let a = Value::list(vec![Value::Int(1), Value::Int(2)]);
-        let b = Value::list(vec![Value::Int(3), Value::Int(4)]);
-        let result = builtin_nconc_improved(vec![a, b]).unwrap();
-        let items = list_to_vec(&result).unwrap();
-        assert_eq!(items.len(), 4);
-    }
-
-    #[test]
-    fn nconc_improved_with_nils() {
-        let a = Value::Nil;
-        let b = Value::list(vec![Value::Int(1)]);
-        let c = Value::Nil;
-        let result = builtin_nconc_improved(vec![a, b, c]).unwrap();
-        let items = list_to_vec(&result).unwrap();
-        assert_eq!(items.len(), 1);
-    }
-
-    #[test]
-    fn nconc_improved_empty() {
-        let result = builtin_nconc_improved(vec![]).unwrap();
-        assert!(result.is_nil());
-    }
-
-    #[test]
-    fn nconc_improved_dotted_tail() {
-        let a = Value::list(vec![Value::Int(1)]);
-        let b = Value::Int(99);
-        let result = builtin_nconc_improved(vec![a, b]).unwrap();
-        // Should be (1 . 99) - a dotted pair
-        if let Value::Cons(cell) = &result {
-            let pair = cell.lock().unwrap();
-            assert!(eq_value(&pair.car, &Value::Int(1)));
-            assert!(eq_value(&pair.cdr, &Value::Int(99)));
-        } else {
-            panic!("expected cons");
-        }
     }
 
     // ----- locale-info -----
