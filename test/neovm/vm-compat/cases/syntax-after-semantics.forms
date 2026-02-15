@@ -15,6 +15,14 @@
   (syntax-after 2))
 
 (with-temp-buffer
+  (insert "$")
+  (syntax-after 1))
+
+(with-temp-buffer
+  (insert "'")
+  (syntax-after 1))
+
+(with-temp-buffer
   (insert "a")
   (syntax-after 0))
 

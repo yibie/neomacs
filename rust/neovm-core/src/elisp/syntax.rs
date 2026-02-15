@@ -339,8 +339,8 @@ impl SyntaxTable {
         // Quote/backtick are punctuation by default in Emacs standard syntax.
         entries.insert('\'', SyntaxEntry::simple(SyntaxClass::Punctuation));
         entries.insert('`', SyntaxEntry::simple(SyntaxClass::Punctuation));
-        // Dollar for TeX math
-        entries.insert('$', SyntaxEntry::simple(SyntaxClass::MathDelim));
+        // Dollar defaults to word syntax in Emacs standard syntax table.
+        entries.insert('$', SyntaxEntry::simple(SyntaxClass::Word));
 
         Self {
             entries,
@@ -1940,6 +1940,7 @@ mod tests {
         assert_eq!(table.char_syntax('a'), SyntaxClass::Word);
         assert_eq!(table.char_syntax('Z'), SyntaxClass::Word);
         assert_eq!(table.char_syntax('5'), SyntaxClass::Word);
+        assert_eq!(table.char_syntax('$'), SyntaxClass::Word);
     }
 
     #[test]
