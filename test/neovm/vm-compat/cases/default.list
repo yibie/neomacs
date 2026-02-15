@@ -69,6 +69,7 @@ cases/misc-special-forms-semantics
 cases/printing
 cases/prin1-to-string-noescape
 cases/chars
+cases/syntax-table-semantics
 cases/category-semantics
 cases/char-resolve-modifiers-semantics
 cases/char-byte-conversion-semantics
