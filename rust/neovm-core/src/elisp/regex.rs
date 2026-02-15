@@ -434,6 +434,7 @@ pub fn re_search_backward(
 pub fn looking_at(
     buf: &Buffer,
     pattern: &str,
+    case_fold: bool,
     match_data: &mut Option<MatchData>,
 ) -> Result<bool, String> {
     let re_pattern = translate_emacs_regex(pattern);
@@ -443,9 +444,12 @@ pub fn looking_at(
     } else {
         format!("\\A(?:{})", re_pattern)
     };
-    // Emacs defaults `case-fold-search` to non-nil for this path.
-    let case_folded = format!("(?i:{})", anchored);
-    let re = Regex::new(&case_folded).map_err(|e| format!("Invalid regexp: {}", e))?;
+    let pattern = if case_fold {
+        format!("(?i:{anchored})")
+    } else {
+        anchored
+    };
+    let re = Regex::new(&pattern).map_err(|e| format!("Invalid regexp: {}", e))?;
 
     let start = buf.pt;
     let limit = buf.zv;
@@ -976,7 +980,7 @@ mod tests {
         let mut buf = make_test_buffer("hello world");
         buf.pt = 0;
         let mut md = None;
-        let result = looking_at(&buf, "hello", &mut md);
+        let result = looking_at(&buf, "hello", true, &mut md);
         assert!(result.is_ok());
         assert!(result.unwrap());
         assert!(md.is_some());
@@ -987,7 +991,7 @@ mod tests {
         let mut buf = make_test_buffer("hello world");
         buf.pt = 0;
         let mut md = None;
-        let result = looking_at(&buf, "world", &mut md);
+        let result = looking_at(&buf, "world", true, &mut md);
         assert!(result.is_ok());
         assert!(!result.unwrap());
     }
@@ -997,7 +1001,7 @@ mod tests {
         let mut buf = make_test_buffer("hello world");
         buf.pt = 6; // "world"
         let mut md = None;
-        let result = looking_at(&buf, "world", &mut md);
+        let result = looking_at(&buf, "world", true, &mut md);
         assert!(result.is_ok());
         assert!(result.unwrap());
     }
@@ -1007,9 +1011,19 @@ mod tests {
         let mut buf = make_test_buffer("A");
         buf.pt = 0;
         let mut md = None;
-        let result = looking_at(&buf, "a", &mut md);
+        let result = looking_at(&buf, "a", true, &mut md);
         assert!(result.is_ok());
         assert!(result.unwrap());
+    }
+
+    #[test]
+    fn looking_at_respects_case_fold_false() {
+        let mut buf = make_test_buffer("A");
+        buf.pt = 0;
+        let mut md = None;
+        let result = looking_at(&buf, "a", false, &mut md);
+        assert!(result.is_ok());
+        assert!(!result.unwrap());
     }
 
     #[test]
@@ -1018,7 +1032,7 @@ mod tests {
         buf.pt = 0;
         let mut md = None;
         // Emacs: \(\w+\)\([0-9]+\)
-        let result = looking_at(&buf, "\\(\\w+\\)\\([0-9]+\\)", &mut md);
+        let result = looking_at(&buf, "\\(\\w+\\)\\([0-9]+\\)", true, &mut md);
         assert!(result.is_ok());
         assert!(result.unwrap());
         let md = md.unwrap();

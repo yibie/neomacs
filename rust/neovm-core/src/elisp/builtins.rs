@@ -7567,8 +7567,11 @@ pub(crate) fn builtin_looking_at(
         .buffers
         .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
+    let case_fold = dynamic_or_global_symbol_value(eval, "case-fold-search")
+        .map(|v| !v.is_nil())
+        .unwrap_or(true);
 
-    match super::regex::looking_at(buf, &pattern, &mut eval.match_data) {
+    match super::regex::looking_at(buf, &pattern, case_fold, &mut eval.match_data) {
         Ok(matched) => Ok(Value::bool(matched)),
         Err(msg) => Err(signal("invalid-regexp", vec![Value::string(msg)])),
     }
@@ -7585,9 +7588,12 @@ pub(crate) fn builtin_looking_at_p(
         .buffers
         .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
+    let case_fold = dynamic_or_global_symbol_value(eval, "case-fold-search")
+        .map(|v| !v.is_nil())
+        .unwrap_or(true);
 
     let mut throwaway_match_data = None;
-    match super::regex::looking_at(buf, &pattern, &mut throwaway_match_data) {
+    match super::regex::looking_at(buf, &pattern, case_fold, &mut throwaway_match_data) {
         Ok(matched) => Ok(Value::bool(matched)),
         Err(msg) => Err(signal("invalid-regexp", vec![Value::string(msg)])),
     }

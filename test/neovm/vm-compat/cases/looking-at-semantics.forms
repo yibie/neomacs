@@ -1,0 +1,45 @@
+(fboundp 'looking-at)
+
+(with-temp-buffer
+  (insert "hello")
+  (goto-char (point-min))
+  (looking-at "hel"))
+
+(with-temp-buffer
+  (insert "hello")
+  (goto-char (point-min))
+  (looking-at "world"))
+
+(with-temp-buffer
+  (insert "hello")
+  (goto-char (point-min))
+  (looking-at "h\\(el\\)")
+  (list (match-beginning 0) (match-end 0) (match-beginning 1) (match-end 1)))
+
+(with-temp-buffer
+  (insert "hello")
+  (goto-char (point-min))
+  (set-match-data (list 7 8))
+  (looking-at "world")
+  (match-data))
+
+(with-temp-buffer
+  (insert "A")
+  (goto-char (point-min))
+  (let ((case-fold-search nil))
+    (looking-at "a")))
+
+(with-temp-buffer
+  (insert "A")
+  (goto-char (point-min))
+  (let ((case-fold-search nil))
+    (looking-at-p "a")))
+
+(with-temp-buffer
+  (insert "A")
+  (goto-char (point-min))
+  (looking-at-p "a"))
+
+(condition-case err (looking-at "[") (invalid-regexp (car err)))
+(condition-case err (looking-at) (wrong-number-of-arguments (car err)))
+(condition-case err (looking-at 1) (error err))
