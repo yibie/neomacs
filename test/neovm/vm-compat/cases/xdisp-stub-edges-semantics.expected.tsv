@@ -1,0 +1,37 @@
+1	(fboundp 'invisible-p)	OK t
+2	(invisible-p 1)	OK nil
+3	(invisible-p 'foo)	OK t
+4	(condition-case err (invisible-p) (error (car err)))	OK wrong-number-of-arguments
+5	(condition-case err (invisible-p 1 2) (error (car err)))	OK wrong-number-of-arguments
+6	(fboundp 'move-point-visually)	OK t
+7	(move-point-visually 1)	ERR (args-out-of-range (224 224))
+8	(move-point-visually 'left)	ERR (wrong-type-argument (fixnump left))
+9	(condition-case err (move-point-visually) (error (car err)))	OK wrong-number-of-arguments
+10	(fboundp 'lookup-image-map)	OK t
+11	(lookup-image-map nil 1 2)	OK nil
+12	(lookup-image-map '(map) 10 20)	OK nil
+13	(condition-case err (lookup-image-map 1 2) (error (car err)))	OK wrong-number-of-arguments
+14	(fboundp 'current-bidi-paragraph-direction)	OK t
+15	(current-bidi-paragraph-direction)	OK left-to-right
+16	(current-bidi-paragraph-direction nil)	OK left-to-right
+17	(condition-case err (current-bidi-paragraph-direction nil nil) (error (car err)))	OK wrong-number-of-arguments
+18	(fboundp 'move-to-window-line)	OK t
+19	(move-to-window-line 1)	ERR (error ("move-to-window-line called from unrelated buffer"))
+20	(move-to-window-line nil)	ERR (error ("move-to-window-line called from unrelated buffer"))
+21	(condition-case err (move-to-window-line) (error (car err)))	OK wrong-number-of-arguments
+22	(fboundp 'tool-bar-height)	OK t
+23	(tool-bar-height)	OK 0
+24	(tool-bar-height nil)	OK 0
+25	(tool-bar-height nil t)	OK 0
+26	(condition-case err (tool-bar-height nil nil nil) (error (car err)))	OK wrong-number-of-arguments
+27	(fboundp 'tab-bar-height)	OK t
+28	(tab-bar-height)	OK 0
+29	(tab-bar-height nil t)	OK 0
+30	(condition-case err (tab-bar-height nil nil nil) (error (car err)))	OK wrong-number-of-arguments
+31	(fboundp 'line-number-display-width)	OK t
+32	(line-number-display-width)	OK 0
+33	(line-number-display-width t)	OK 0
+34	(condition-case err (line-number-display-width nil nil) (error (car err)))	OK wrong-number-of-arguments
+35	(fboundp 'long-line-optimizations-p)	OK t
+36	(long-line-optimizations-p)	OK nil
+37	(condition-case err (long-line-optimizations-p 1) (error (car err)))	OK wrong-number-of-arguments

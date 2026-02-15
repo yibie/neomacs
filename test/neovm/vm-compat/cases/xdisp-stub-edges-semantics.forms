@@ -1,0 +1,45 @@
+(fboundp 'invisible-p)
+(invisible-p 1)
+(invisible-p 'foo)
+(condition-case err (invisible-p) (error (car err)))
+(condition-case err (invisible-p 1 2) (error (car err)))
+
+(fboundp 'move-point-visually)
+(move-point-visually 1)
+(move-point-visually 'left)
+(condition-case err (move-point-visually) (error (car err)))
+
+(fboundp 'lookup-image-map)
+(lookup-image-map nil 1 2)
+(lookup-image-map '(map) 10 20)
+(condition-case err (lookup-image-map 1 2) (error (car err)))
+
+(fboundp 'current-bidi-paragraph-direction)
+(current-bidi-paragraph-direction)
+(current-bidi-paragraph-direction nil)
+(condition-case err (current-bidi-paragraph-direction nil nil) (error (car err)))
+
+(fboundp 'move-to-window-line)
+(move-to-window-line 1)
+(move-to-window-line nil)
+(condition-case err (move-to-window-line) (error (car err)))
+
+(fboundp 'tool-bar-height)
+(tool-bar-height)
+(tool-bar-height nil)
+(tool-bar-height nil t)
+(condition-case err (tool-bar-height nil nil nil) (error (car err)))
+
+(fboundp 'tab-bar-height)
+(tab-bar-height)
+(tab-bar-height nil t)
+(condition-case err (tab-bar-height nil nil nil) (error (car err)))
+
+(fboundp 'line-number-display-width)
+(line-number-display-width)
+(line-number-display-width t)
+(condition-case err (line-number-display-width nil nil) (error (car err)))
+
+(fboundp 'long-line-optimizations-p)
+(long-line-optimizations-p)
+(condition-case err (long-line-optimizations-p 1) (error (car err)))

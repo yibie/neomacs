@@ -172,6 +172,7 @@ cases/timer-semantics
 cases/display-stub-semantics
 cases/xdisp-pixel-metrics-semantics
 cases/xdisp-navigation-semantics
+cases/xdisp-stub-edges-semantics
 cases/display-batch-semantics
 cases/display-query-designator-semantics
 cases/display-frame-designator-semantics
