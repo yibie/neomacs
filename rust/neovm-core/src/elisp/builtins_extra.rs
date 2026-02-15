@@ -530,12 +530,6 @@ pub(crate) fn builtin_proper_list_p(args: Vec<Value>) -> EvalResult {
     Ok(Value::bool(super::value::list_to_vec(&args[0]).is_some()))
 }
 
-/// `(bool-vector-p OBJ)` -> nil (not implemented).
-pub(crate) fn builtin_bool_vector_p(args: Vec<Value>) -> EvalResult {
-    expect_args("bool-vector-p", &args, 1)?;
-    Ok(Value::Nil)
-}
-
 /// `(subrp OBJ)` -> t if OBJ is a built-in function.
 pub(crate) fn builtin_subrp(args: Vec<Value>) -> EvalResult {
     expect_args("subrp", &args, 1)?;

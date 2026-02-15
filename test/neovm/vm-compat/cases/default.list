@@ -212,6 +212,7 @@ cases/alist-get-semantics
 cases/plist-semantics
 cases/seq-misc
 cases/seq-uniq
+cases/bool-vector-p-semantics
 cases/seq-slice
 cases/seq-more
 cases/seq-concat
