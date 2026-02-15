@@ -794,16 +794,31 @@ pub(crate) fn builtin_exchange_point_and_mark(
     Ok(Value::Nil)
 }
 
-/// (transient-mark-mode ARG) — stub
+/// (transient-mark-mode &optional ARG) — toggle/query mode flag.
 pub(crate) fn builtin_transient_mark_mode(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    let val = if args.is_empty() || args[0].is_nil() {
-        Value::Nil
-    } else {
-        Value::True
+    if args.len() > 1 {
+        return Err(signal(
+            "wrong-number-of-arguments",
+            vec![
+                Value::symbol("transient-mark-mode"),
+                Value::Int(args.len() as i64),
+            ],
+        ));
+    }
+
+    let arg = args.first().unwrap_or(&Value::Nil);
+    let numeric = match arg {
+        Value::Nil => 1,
+        Value::Int(n) => *n,
+        Value::Float(f) => *f as i64,
+        Value::Char(c) => *c as i64,
+        _ => 1,
     };
+
+    let val = if numeric > 0 { Value::True } else { Value::Nil };
     eval.obarray
         .set_symbol_value("transient-mark-mode", val.clone());
     Ok(val)
@@ -1225,8 +1240,33 @@ mod tests {
     #[test]
     fn test_transient_mark_mode() {
         let mut ev = eval_with_text("hello");
-        eval_str(&mut ev, "(transient-mark-mode 1)");
-        // Just verifying it doesn't error
+        let enabled = eval_str(&mut ev, "(transient-mark-mode)");
+        assert!(enabled.is_truthy());
+
+        let disabled = eval_str(&mut ev, "(transient-mark-mode -1)");
+        assert!(disabled.is_nil());
+
+        let reenabled_nil = eval_str(&mut ev, "(transient-mark-mode nil)");
+        assert!(reenabled_nil.is_truthy());
+
+        let zero = eval_str(&mut ev, "(transient-mark-mode 0)");
+        assert!(zero.is_nil());
+
+        let positive_float = eval_str(&mut ev, "(transient-mark-mode 1.5)");
+        assert!(positive_float.is_truthy());
+
+        let small_float = eval_str(&mut ev, "(transient-mark-mode 0.5)");
+        assert!(small_float.is_nil());
+    }
+
+    #[test]
+    fn test_transient_mark_mode_over_arity() {
+        let mut ev = eval_with_text("hello");
+        let result = eval_str(
+            &mut ev,
+            "(condition-case err (transient-mark-mode nil nil) (error (car err)))",
+        );
+        assert_eq!(result, Value::symbol("wrong-number-of-arguments"));
     }
 
     #[test]
