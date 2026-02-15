@@ -62,6 +62,16 @@ fn expect_number(value: &Value) -> Result<(), Flow> {
     }
 }
 
+fn expect_initial_input_stringish(value: &Value) -> Result<(), Flow> {
+    match value {
+        Value::Nil | Value::Str(_) | Value::Cons(_) => Ok(()),
+        other => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("stringp"), other.clone()],
+        )),
+    }
+}
+
 // ---------------------------------------------------------------------------
 // 1. read-from-string
 // ---------------------------------------------------------------------------
@@ -670,6 +680,9 @@ pub(crate) fn builtin_read_from_minibuffer(
     expect_min_args("read-from-minibuffer", &args, 1)?;
     expect_max_args("read-from-minibuffer", &args, 7)?;
     let _prompt = expect_string(&args[0])?;
+    if let Some(initial) = args.get(1) {
+        expect_initial_input_stringish(initial)?;
+    }
     Err(signal(
         "end-of-file",
         vec![Value::string("Error reading from stdin")],
@@ -690,6 +703,9 @@ pub(crate) fn builtin_read_string(
     expect_min_args("read-string", &args, 1)?;
     expect_max_args("read-string", &args, 5)?;
     let _prompt = expect_string(&args[0])?;
+    if let Some(initial) = args.get(1) {
+        expect_initial_input_stringish(initial)?;
+    }
     Err(signal(
         "end-of-file",
         vec![Value::string("Error reading from stdin")],
@@ -1269,6 +1285,17 @@ mod tests {
     }
 
     #[test]
+    fn read_from_minibuffer_rejects_non_stringish_initial_input() {
+        let mut ev = Evaluator::new();
+        let result =
+            builtin_read_from_minibuffer(&mut ev, vec![Value::string("Prompt: "), Value::Int(1)]);
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "wrong-type-argument"
+        ));
+    }
+
+    #[test]
     fn read_from_minibuffer_rejects_more_than_seven_args() {
         let mut ev = Evaluator::new();
         let result = builtin_read_from_minibuffer(
@@ -1305,6 +1332,16 @@ mod tests {
             vec![Value::string("Prompt: "), Value::string("initial")],
         );
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn read_string_rejects_non_stringish_initial_input() {
+        let mut ev = Evaluator::new();
+        let result = builtin_read_string(&mut ev, vec![Value::string("Prompt: "), Value::Int(1)]);
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "wrong-type-argument"
+        ));
     }
 
     #[test]
