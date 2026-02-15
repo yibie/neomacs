@@ -4,6 +4,8 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Full suite re-verified after JSON keyword-error and display batch-semantics slices:
+  - `cd test/neovm/vm-compat && make check-all-neovm` (pass)
 - Full suite re-verified after JSON buffer builtin routing + cl_lib JSON cleanup:
   - `cd test/neovm/vm-compat && make check-all-neovm` (pass)
 - Full suite baseline verified after JSON compatibility slice:
