@@ -168,6 +168,12 @@ fn case_fold_for_pattern(eval: &super::eval::Evaluator, pattern: &str) -> bool {
     resolve_case_fold(None, pattern)
 }
 
+fn case_replace_enabled(eval: &super::eval::Evaluator) -> bool {
+    dynamic_or_global_symbol_value(eval, "case-replace")
+        .map(|value| !value.is_nil())
+        .unwrap_or(true)
+}
+
 // ---------------------------------------------------------------------------
 // Search direction
 // ---------------------------------------------------------------------------
@@ -1224,7 +1230,7 @@ fn is_delimited_match(text: &str, start: usize, end: usize) -> bool {
 /// Rules (matching Emacs `replace-match` behavior):
 /// - If `matched` is all-uppercase, upcase the entire replacement.
 /// - If `matched` starts with an uppercase letter and the rest is lowercase
-///   (capitalized), capitalize the replacement.
+///   (capitalized), uppercase the first char of replacement and keep the rest.
 /// - Otherwise return `replacement` unmodified.
 fn preserve_case(replacement: &str, matched: &str) -> String {
     if matched.is_empty() || replacement.is_empty() {
@@ -1246,7 +1252,7 @@ fn preserve_case(replacement: &str, matched: &str) -> String {
     let rest_lower = chars.all(|c| !c.is_alphabetic() || c.is_lowercase());
 
     if first_upper && rest_lower {
-        // Capitalize: uppercase first char of replacement, lowercase rest.
+        // Capitalize first char of replacement; keep remaining chars unchanged.
         let mut result = String::with_capacity(replacement.len());
         let mut rchars = replacement.chars();
         if let Some(rc) = rchars.next() {
@@ -1406,6 +1412,7 @@ fn replace_string_eval_impl(
     }
 
     let case_fold = case_fold_for_pattern(eval, &from);
+    let preserve_match_case = case_fold && case_replace_enabled(eval);
     let mut out = String::with_capacity(source.len());
     let mut cursor = 0usize;
     let mut replaced = 0usize;
@@ -1419,7 +1426,11 @@ fn replace_string_eval_impl(
         }
         out.push_str(&source[cursor..m_start]);
         let matched = &source[m_start..m_end];
-        out.push_str(&preserve_case(&to, matched));
+        if preserve_match_case {
+            out.push_str(&preserve_case(&to, matched));
+        } else {
+            out.push_str(&to);
+        }
         query_forward_point = Some(out.len());
         if backward && backward_point.is_none() {
             backward_point = Some(m_start);
@@ -1529,6 +1540,7 @@ fn replace_regexp_eval_impl(
     };
 
     let case_fold = case_fold_for_pattern(eval, &from);
+    let preserve_match_case = case_fold && case_replace_enabled(eval);
     let pattern = build_regex_pattern(&from, case_fold);
     let re = Regex::new(&pattern)
         .map_err(|e| signal("invalid-regexp", vec![Value::string(format!("Invalid regexp: {e}"))]))?;
@@ -1559,7 +1571,11 @@ fn replace_regexp_eval_impl(
             }
             out.push_str(&source[last..m.start()]);
             let expanded = expand_emacs_replacement(&to, &caps);
-            out.push_str(&preserve_case(&expanded, m.as_str()));
+            if preserve_match_case {
+                out.push_str(&preserve_case(&expanded, m.as_str()));
+            } else {
+                out.push_str(&expanded);
+            }
             query_forward_point = Some(out.len());
             last = m.start();
             if backward && backward_point.is_none() {
@@ -1571,7 +1587,11 @@ fn replace_regexp_eval_impl(
 
         out.push_str(&source[last..m.start()]);
         let expanded = expand_emacs_replacement(&to, &caps);
-        out.push_str(&preserve_case(&expanded, m.as_str()));
+        if preserve_match_case {
+            out.push_str(&preserve_case(&expanded, m.as_str()));
+        } else {
+            out.push_str(&expanded);
+        }
         query_forward_point = Some(out.len());
         last = m.end();
         if backward && backward_point.is_none() {
