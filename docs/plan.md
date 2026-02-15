@@ -19,6 +19,24 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Aligned `completing-read` cons-style initial-input shape checks:
+  - updated:
+    - `rust/neovm-core/src/elisp/reader.rs`
+      - `completing-read` INITIAL-INPUT now accepts `nil`, string, or cons `(STRING . POSITION)`.
+      - cons validation now enforces:
+        - car must be string (`wrong-type-argument stringp` otherwise)
+        - cdr must be number-or-marker (`wrong-type-argument number-or-marker-p` otherwise)
+      - added unit tests for accepted and rejected cons-shape variants.
+    - `test/neovm/vm-compat/cases/minibuffer-batch.{forms,expected.tsv}`
+      - added oracle lock-ins for cons initial-input paths:
+        - `'( \"x\" . 1)` => `end-of-file`
+        - `'( \"x\")` => `wrong-type-argument`
+        - `'(1 . 1)` => `wrong-type-argument`
+      - refreshed oracle baseline.
+  - verified:
+    - `cargo test reader::tests --manifest-path rust/neovm-core/Cargo.toml -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/minibuffer-batch` (pass, 36/36)
+
 - Fixed `completing-read` initial-input type validation in batch reader stubs:
   - updated:
     - `rust/neovm-core/src/elisp/reader.rs`
