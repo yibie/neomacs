@@ -18,6 +18,23 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Implemented `set-syntax-table` and expanded syntax-table corpus coverage:
+  - updated:
+    - `rust/neovm-core/src/elisp/syntax.rs`
+      - added evaluator-backed `set-syntax-table` with Emacs-compatible arity/type signaling and table echo return shape.
+      - added unit test covering valid table return and wrong-type signaling.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - wired `set-syntax-table` in eval dispatch.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - registered `set-syntax-table` for `fboundp`/introspection parity.
+    - `test/neovm/vm-compat/cases/syntax-table-semantics.forms`
+      - expanded with `set-syntax-table` availability/value/arity/type checks.
+    - `test/neovm/vm-compat/cases/syntax-table-semantics.expected.tsv`
+      - re-recorded with `NEOVM_ORACLE_EMACS=/nix/store/2lzapcylxkad2r63h144mp9nnin4vb5n-user-environment/bin/emacs`.
+  - verified:
+    - `cargo test 'elisp::syntax::tests::set_syntax_table_validates_and_returns_table' -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/syntax-table-semantics` (pass, 23/23)
+
 - Implemented `syntax-table-p` and expanded syntax-table corpus coverage:
   - updated:
     - `rust/neovm-core/src/elisp/syntax.rs`
