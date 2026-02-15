@@ -1,2 +1,3 @@
 cases/bytecode-literal-reader-semantics
 cases/bytecode-literal-exec-semantics
+cases/bytecode-literal-edge-opcodes-semantics
