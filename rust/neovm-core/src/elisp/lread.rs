@@ -274,6 +274,7 @@ pub(crate) fn builtin_get_load_suffixes(args: Vec<Value>) -> EvalResult {
 /// Search PATH for FILENAME with each suffix in SUFFIXES.
 pub(crate) fn builtin_locate_file(args: Vec<Value>) -> EvalResult {
     expect_min_args("locate-file", &args, 3)?;
+    expect_max_args("locate-file", &args, 4)?;
     let filename = expect_string(&args[0])?;
     let path = parse_path_argument(&args[1])?;
     let suffixes = parse_suffixes_argument(&args[2])?;
@@ -288,6 +289,7 @@ pub(crate) fn builtin_locate_file(args: Vec<Value>) -> EvalResult {
 /// Internal variant of `locate-file`; currently uses the same lookup behavior.
 pub(crate) fn builtin_locate_file_internal(args: Vec<Value>) -> EvalResult {
     expect_min_args("locate-file-internal", &args, 3)?;
+    expect_max_args("locate-file-internal", &args, 4)?;
     let filename = expect_string(&args[0])?;
     let path = parse_path_argument(&args[1])?;
     let suffixes = parse_suffixes_argument(&args[2])?;
@@ -912,6 +914,36 @@ mod tests {
         );
 
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn locate_file_rejects_over_arity() {
+        let result = builtin_locate_file(vec![
+            Value::string("probe"),
+            Value::list(vec![Value::string(".")]),
+            Value::list(vec![Value::string(".el")]),
+            Value::Nil,
+            Value::Nil,
+        ]);
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"
+        ));
+    }
+
+    #[test]
+    fn locate_file_internal_rejects_over_arity() {
+        let result = builtin_locate_file_internal(vec![
+            Value::string("probe"),
+            Value::list(vec![Value::string(".")]),
+            Value::list(vec![Value::string(".el")]),
+            Value::Nil,
+            Value::Nil,
+        ]);
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"
+        ));
     }
 
     #[test]

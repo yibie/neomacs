@@ -15,3 +15,9 @@
 (condition-case err
     (locate-file "vm-locate-probe" (list vm-locate-dir) '(".el") 'definitely-not-a-real-predicate)
   (error (car err)))
+(condition-case err
+    (locate-file "vm-locate-probe" (list vm-locate-dir) '(".el") nil nil)
+  (error (car err)))
+(condition-case err
+    (locate-file-internal "vm-locate-probe" (list vm-locate-dir) '(".el") nil nil)
+  (error (car err)))

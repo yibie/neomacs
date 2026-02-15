@@ -7,3 +7,5 @@
 7	(file-name-nondirectory (locate-file "vm-locate-probe" (list vm-locate-dir) '(".el") 'file-regular-p))	OK "vm-locate-probe.el"
 8	(locate-file "vm-locate-probe" (list vm-locate-dir) '(".el") 'file-directory-p)	OK nil
 9	(condition-case err (locate-file "vm-locate-probe" (list vm-locate-dir) '(".el") 'definitely-not-a-real-predicate) (error (car err)))	OK "/home/exec/Projects/github.com/eval-exec/neomacs/test/neovm/vm-compat/cases/locate-file-fixtures/vm-locate-probe.el"
+10	(condition-case err (locate-file "vm-locate-probe" (list vm-locate-dir) '(".el") nil nil) (error (car err)))	OK wrong-number-of-arguments
+11	(condition-case err (locate-file-internal "vm-locate-probe" (list vm-locate-dir) '(".el") nil nil) (error (car err)))	OK wrong-number-of-arguments
