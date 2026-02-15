@@ -6563,6 +6563,13 @@ pub(crate) fn dispatch_builtin(
         "point-max-marker" => return Some(super::marker::builtin_point_max_marker(eval, args)),
 
         // Category (evaluator-dependent)
+        "define-category" => return Some(super::category::builtin_define_category_eval(eval, args)),
+        "category-docstring" => {
+            return Some(super::category::builtin_category_docstring_eval(eval, args))
+        }
+        "get-unused-category" => {
+            return Some(super::category::builtin_get_unused_category_eval(eval, args))
+        }
         "modify-category-entry" => {
             return Some(super::category::builtin_modify_category_entry(eval, args))
         }

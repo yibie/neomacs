@@ -18,6 +18,18 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Implemented evaluator-backed category docstring path (replacing pure-stub behavior in active dispatch):
+  - updated:
+    - `rust/neovm-core/src/elisp/category.rs`
+      - added evaluator-backed `define-category`, `category-docstring`, and `get-unused-category` implementations against `CategoryManager`.
+      - added focused unit tests for evaluator-backed category docstring/state semantics.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - routed `define-category`, `category-docstring`, and `get-unused-category` through evaluator-dependent dispatch.
+  - verified:
+    - `cargo test 'elisp::category::tests::' -- --nocapture` (pass, 51 tests)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/core` (pass, 15/15)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/chars` (pass, 11/11)
+
 - Removed additional dead duplicate wrapper surface across `dired`, `mode`, `network`, `reader`, and `subr_info`:
   - updated:
     - `rust/neovm-core/src/elisp/dired.rs`

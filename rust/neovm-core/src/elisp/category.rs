@@ -422,6 +422,84 @@ pub(crate) fn builtin_modify_category_entry(
     Ok(Value::Nil)
 }
 
+/// `(define-category CHAR DOCSTRING &optional TABLE)` (evaluator-backed).
+///
+/// Stores the category docstring in the active category manager table and
+/// returns DOCSTRING.
+pub(crate) fn builtin_define_category_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_min_args("define-category", &args, 2)?;
+    expect_max_args("define-category", &args, 3)?;
+
+    let cat = extract_char(&args[0], "define-category")?;
+    let docstring = match &args[1] {
+        Value::Str(s) => (**s).clone(),
+        other => {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("stringp"), other.clone()],
+            ));
+        }
+    };
+
+    if !is_category_letter(cat) {
+        return Err(signal(
+            "error",
+            vec![Value::string(&format!(
+                "Invalid category character '{}': must be a-z or A-Z",
+                cat
+            ))],
+        ));
+    }
+
+    // TABLE (arg 2) is currently ignored; category tables are not first-class.
+    eval.category_manager
+        .current_mut()
+        .define_category(cat, &docstring)
+        .map_err(|msg| signal("error", vec![Value::string(&msg)]))?;
+
+    Ok(Value::string(docstring))
+}
+
+/// `(category-docstring CATEGORY &optional TABLE)` (evaluator-backed).
+///
+/// Returns the category docstring from the active table, or nil when absent.
+pub(crate) fn builtin_category_docstring_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_min_args("category-docstring", &args, 1)?;
+    expect_max_args("category-docstring", &args, 2)?;
+
+    let cat = extract_char(&args[0], "category-docstring")?;
+    // TABLE (arg 1) is currently ignored; category tables are not first-class.
+    let _ = args.get(1);
+
+    match eval.category_manager.current().category_docstring(cat) {
+        Some(doc) => Ok(Value::string(doc)),
+        None => Ok(Value::Nil),
+    }
+}
+
+/// `(get-unused-category &optional TABLE)` (evaluator-backed).
+///
+/// Returns the first unused category letter in the active table, or nil.
+pub(crate) fn builtin_get_unused_category_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_max_args("get-unused-category", &args, 1)?;
+    // TABLE (arg 0) is currently ignored; category tables are not first-class.
+    let _ = args.first();
+
+    match eval.category_manager.current().get_unused_category() {
+        Some(cat) => Ok(Value::Char(cat)),
+        None => Ok(Value::Nil),
+    }
+}
+
 /// `(char-category-set CHAR)`
 ///
 /// Return a bool-vector of 128 elements indicating which categories CHAR
@@ -828,6 +906,35 @@ mod tests {
     fn builtin_make_category_set_wrong_args() {
         assert!(builtin_make_category_set(vec![]).is_err());
         assert!(builtin_make_category_set(vec![Value::string("a"), Value::string("b"),]).is_err());
+    }
+
+    #[test]
+    fn builtin_define_category_eval_sets_docstring() {
+        let mut eval = super::super::eval::Evaluator::new();
+        let result = builtin_define_category_eval(
+            &mut eval,
+            vec![Value::Char('Z'), Value::string("neovm-category-doc")],
+        )
+        .unwrap();
+        assert_eq!(result.as_str(), Some("neovm-category-doc"));
+
+        let doc = builtin_category_docstring_eval(&mut eval, vec![Value::Char('Z')]).unwrap();
+        assert_eq!(doc.as_str(), Some("neovm-category-doc"));
+    }
+
+    #[test]
+    fn builtin_get_unused_category_eval_tracks_defined_values() {
+        let mut eval = super::super::eval::Evaluator::new();
+        let first = builtin_get_unused_category_eval(&mut eval, vec![]).unwrap();
+        assert!(matches!(first, Value::Char('a')));
+
+        builtin_define_category_eval(
+            &mut eval,
+            vec![Value::Char('a'), Value::string("used")],
+        )
+        .unwrap();
+        let second = builtin_get_unused_category_eval(&mut eval, vec![]).unwrap();
+        assert!(matches!(second, Value::Char('b')));
     }
 
     // -----------------------------------------------------------------------
