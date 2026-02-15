@@ -210,6 +210,7 @@ cases/vconcat-mixed-sequence-semantics
 cases/string-trim-semantics
 cases/string-prefix-suffix-semantics
 cases/string-join-semantics
+cases/string-concat-error-paths
 cases/string-to-number-semantics
 cases/md5-semantics
 cases/md5-coding-semantics
@@ -308,6 +309,9 @@ cases/load-history
 cases/load-file-name
 cases/load-path-nil
 cases/load-path-order
+cases/load-policy
+cases/load-suffixes
+cases/precompile
 cases/reader-hash
 cases/read-from-string-edges
 cases/read-stream-semantics
