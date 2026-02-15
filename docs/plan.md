@@ -4,6 +4,22 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Implemented evaluator-backed `back-to-indentation` compatibility semantics and oracle lock-in:
+  - updated `rust/neovm-core/src/elisp/indent.rs`:
+    - added arity validation (`0` args)
+    - moves point to first non-space/tab character on current line
+    - moves point to end-of-line for whitespace-only lines
+    - returns `nil` with oracle-compatible behavior
+    - added evaluator unit coverage for tab/space/newline line variants
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/back-to-indentation-semantics.forms`
+    - `test/neovm/vm-compat/cases/back-to-indentation-semantics.expected.tsv`
+    - wired into `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml indent::tests::eval_back_to_indentation_subset -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/back-to-indentation-semantics.forms EXPECTED=cases/back-to-indentation-semantics.expected.tsv` (pass, 7/7)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
 - Implemented `move-to-column` FORCE padding compatibility and oracle lock-in:
   - updated `rust/neovm-core/src/elisp/indent.rs`:
     - added force-path tab split behavior (insert spaces before tab when target lands inside tab width)
