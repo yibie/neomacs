@@ -262,21 +262,6 @@ pub(crate) fn builtin_preceding_char(
 // Pure builtins (no evaluator needed)
 // ---------------------------------------------------------------------------
 
-/// `(user-login-name &optional UID)` — return login name.
-pub(crate) fn builtin_user_login_name(args: Vec<Value>) -> EvalResult {
-    expect_max_args("user-login-name", &args, 1)?;
-    let name = std::env::var("USER")
-        .or_else(|_| std::env::var("LOGNAME"))
-        .unwrap_or_else(|_| "unknown".to_string());
-    Ok(Value::string(name))
-}
-
-/// `(user-real-login-name)` — return real login name (same as user-login-name).
-pub(crate) fn builtin_user_real_login_name(args: Vec<Value>) -> EvalResult {
-    expect_args("user-real-login-name", &args, 0)?;
-    builtin_user_login_name(vec![])
-}
-
 /// `(user-uid)` — return effective user ID.
 /// Uses the `id -u` command on Unix; falls back to 1000.
 pub(crate) fn builtin_user_uid(args: Vec<Value>) -> EvalResult {
@@ -288,31 +273,6 @@ pub(crate) fn builtin_user_uid(args: Vec<Value>) -> EvalResult {
 pub(crate) fn builtin_user_real_uid(args: Vec<Value>) -> EvalResult {
     expect_args("user-real-uid", &args, 0)?;
     Ok(Value::Int(get_uid()))
-}
-
-/// `(user-full-name &optional UID)` — return the user's full name.
-/// Falls back to the USER environment variable.
-pub(crate) fn builtin_user_full_name(args: Vec<Value>) -> EvalResult {
-    expect_max_args("user-full-name", &args, 1)?;
-    let name = std::env::var("USER")
-        .or_else(|_| std::env::var("LOGNAME"))
-        .unwrap_or_else(|_| "Unknown".to_string());
-    Ok(Value::string(name))
-}
-
-/// `(system-name)` — return the host name of the machine.
-pub(crate) fn builtin_system_name(args: Vec<Value>) -> EvalResult {
-    expect_args("system-name", &args, 0)?;
-    let hostname = std::env::var("HOSTNAME")
-        .or_else(|_| std::env::var("HOST"))
-        .unwrap_or_else(|_| "localhost".to_string());
-    Ok(Value::string(hostname))
-}
-
-/// `(emacs-pid)` — return the process ID of this Emacs process.
-pub(crate) fn builtin_emacs_pid(args: Vec<Value>) -> EvalResult {
-    expect_args("emacs-pid", &args, 0)?;
-    Ok(Value::Int(std::process::id() as i64))
 }
 
 /// `(group-gid)` — return the effective group ID.
