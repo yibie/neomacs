@@ -146,6 +146,7 @@ pub(crate) fn builtin_put_text_property(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("put-text-property", &args, 4)?;
+    expect_max_args("put-text-property", &args, 5)?;
     let beg = expect_int(&args[0])?;
     let end = expect_int(&args[1])?;
     let prop = expect_symbol_name(&args[2])?;
@@ -169,6 +170,7 @@ pub(crate) fn builtin_get_text_property(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("get-text-property", &args, 2)?;
+    expect_max_args("get-text-property", &args, 3)?;
     let pos = expect_int(&args[0])?;
     let prop = expect_symbol_name(&args[1])?;
     let buf_id = resolve_buffer_id(eval, args.get(2))?;
@@ -194,6 +196,8 @@ pub(crate) fn builtin_get_char_property(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
+    expect_min_args("get-char-property", &args, 2)?;
+    expect_max_args("get-char-property", &args, 3)?;
     // Delegate to get-text-property for now.
     builtin_get_text_property(eval, args)
 }
@@ -204,6 +208,7 @@ pub(crate) fn builtin_add_text_properties(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("add-text-properties", &args, 3)?;
+    expect_max_args("add-text-properties", &args, 4)?;
     let beg = expect_int(&args[0])?;
     let end = expect_int(&args[1])?;
     let pairs = plist_pairs(&args[2])?;
@@ -229,6 +234,7 @@ pub(crate) fn builtin_remove_text_properties(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("remove-text-properties", &args, 3)?;
+    expect_max_args("remove-text-properties", &args, 4)?;
     let beg = expect_int(&args[0])?;
     let end = expect_int(&args[1])?;
     let pairs = plist_pairs(&args[2])?;
@@ -253,6 +259,7 @@ pub(crate) fn builtin_text_properties_at(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("text-properties-at", &args, 1)?;
+    expect_max_args("text-properties-at", &args, 2)?;
     let pos = expect_int(&args[0])?;
     let buf_id = resolve_buffer_id(eval, args.get(1))?;
 
@@ -272,6 +279,7 @@ pub(crate) fn builtin_next_single_property_change(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("next-single-property-change", &args, 2)?;
+    expect_max_args("next-single-property-change", &args, 4)?;
     let pos = expect_int(&args[0])?;
     let prop = expect_symbol_name(&args[1])?;
     let buf_id = resolve_buffer_id(eval, args.get(2))?;
@@ -333,6 +341,7 @@ pub(crate) fn builtin_previous_single_property_change(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("previous-single-property-change", &args, 2)?;
+    expect_max_args("previous-single-property-change", &args, 4)?;
     let pos = expect_int(&args[0])?;
     let prop = expect_symbol_name(&args[1])?;
     let buf_id = resolve_buffer_id(eval, args.get(2))?;
@@ -393,6 +402,7 @@ pub(crate) fn builtin_next_property_change(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("next-property-change", &args, 1)?;
+    expect_max_args("next-property-change", &args, 3)?;
     let pos = expect_int(&args[0])?;
     let buf_id = resolve_buffer_id(eval, args.get(1))?;
     let limit = args.get(2);
@@ -466,6 +476,7 @@ pub(crate) fn builtin_text_property_any(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("text-property-any", &args, 4)?;
+    expect_max_args("text-property-any", &args, 5)?;
     let beg = expect_int(&args[0])?;
     let end = expect_int(&args[1])?;
     let prop = expect_symbol_name(&args[2])?;
@@ -1463,6 +1474,23 @@ mod tests {
     }
 
     #[test]
+    fn put_text_property_rejects_too_many_args() {
+        let mut eval = eval_with_text("hello");
+        let result = builtin_put_text_property(
+            &mut eval,
+            vec![
+                Value::Int(1),
+                Value::Int(2),
+                Value::symbol("face"),
+                Value::symbol("bold"),
+                Value::Nil,
+                Value::Nil,
+            ],
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
     fn get_text_property_wrong_args() {
         let mut eval = eval_with_text("hello");
         let result = builtin_get_text_property(&mut eval, vec![]);
@@ -1470,9 +1498,53 @@ mod tests {
     }
 
     #[test]
+    fn get_text_property_rejects_too_many_args() {
+        let mut eval = eval_with_text("hello");
+        let result = builtin_get_text_property(
+            &mut eval,
+            vec![Value::Int(1), Value::symbol("face"), Value::Nil, Value::Nil],
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn get_char_property_rejects_too_many_args() {
+        let mut eval = eval_with_text("hello");
+        let result = builtin_get_char_property(
+            &mut eval,
+            vec![Value::Int(1), Value::symbol("face"), Value::Nil, Value::Nil],
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
     fn overlay_put_wrong_args() {
         let mut eval = eval_with_text("hello");
         let result = builtin_overlay_put(&mut eval, vec![Value::Int(42), Value::symbol("face")]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn text_properties_at_rejects_too_many_args() {
+        let mut eval = eval_with_text("hello");
+        let result = builtin_text_properties_at(&mut eval, vec![Value::Int(1), Value::Nil, Value::Nil]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn text_property_any_rejects_too_many_args() {
+        let mut eval = eval_with_text("hello");
+        let result = builtin_text_property_any(
+            &mut eval,
+            vec![
+                Value::Int(1),
+                Value::Int(2),
+                Value::symbol("face"),
+                Value::symbol("bold"),
+                Value::Nil,
+                Value::Nil,
+            ],
+        );
         assert!(result.is_err());
     }
 
@@ -1504,6 +1576,48 @@ mod tests {
     fn overlays_at_rejects_too_many_args() {
         let mut eval = eval_with_text("hello");
         let result = builtin_overlays_at(&mut eval, vec![Value::Int(1), Value::Nil, Value::Nil]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn next_property_change_rejects_too_many_args() {
+        let mut eval = eval_with_text("hello");
+        let result = builtin_next_property_change(
+            &mut eval,
+            vec![Value::Int(1), Value::Nil, Value::Nil, Value::Nil],
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn next_single_property_change_rejects_too_many_args() {
+        let mut eval = eval_with_text("hello");
+        let result = builtin_next_single_property_change(
+            &mut eval,
+            vec![
+                Value::Int(1),
+                Value::symbol("face"),
+                Value::Nil,
+                Value::Nil,
+                Value::Nil,
+            ],
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn previous_single_property_change_rejects_too_many_args() {
+        let mut eval = eval_with_text("hello");
+        let result = builtin_previous_single_property_change(
+            &mut eval,
+            vec![
+                Value::Int(1),
+                Value::symbol("face"),
+                Value::Nil,
+                Value::Nil,
+                Value::Nil,
+            ],
+        );
         assert!(result.is_err());
     }
 
