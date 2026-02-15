@@ -41,6 +41,8 @@
 (condition-case err (find-composition-internal 'x nil nil nil) (error err))
 (condition-case err (find-composition-internal 1 'y nil nil) (error err))
 (condition-case err (find-composition-internal 1 nil 1 nil) (error err))
+(condition-case err (find-composition-internal 0 nil nil nil) (error (car err)))
+(condition-case err (find-composition-internal -1 nil nil nil) (error (car err)))
 (condition-case err (find-composition-internal 1) (error (car err)))
 
 (condition-case err (composition-get-gstring 'x 1 nil "ab") (error err))
