@@ -53,6 +53,18 @@ Last updated: 2026-02-15
     - `make -C test/neovm/vm-compat check-neovm FORMS=cases/x-display-batch-semantics.forms EXPECTED=cases/x-display-batch-semantics.expected.tsv` (pass)
     - `make -C test/neovm/vm-compat validate-case-lists` (pass)
     - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+- Added font batch semantics compatibility slice:
+  - `list-fonts` and `find-font` now enforce `font-spec` argument typing and preserve batch-mode nil results for valid specs
+  - `font-family-list` now matches batch defaults (`nil`) and rejects non-nil frame designators with `frame-live-p` type predicate payload
+  - added oracle corpus:
+    - `test/neovm/vm-compat/cases/font-batch-semantics.forms`
+    - `test/neovm/vm-compat/cases/font-batch-semantics.expected.tsv`
+    - enabled in `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test font::tests -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/font-batch-semantics.forms EXPECTED=cases/font-batch-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
 - Added timer compatibility slice (`run-at-time` / `run-with-idle-timer` / `timer-activate`):
   - `run-at-time` now accepts GNU-compatible immediate specs for `nil` and numeric-prefixed strings like `"0 sec"` (while invalid specs signal `error`)
   - `run-with-timer` compatibility is now lock-in covered for numeric, `nil`, and `"0 sec"` immediate forms
