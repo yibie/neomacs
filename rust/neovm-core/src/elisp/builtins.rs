@@ -7182,6 +7182,9 @@ pub(crate) fn builtin_search_forward(
 ) -> EvalResult {
     expect_min_args("search-forward", &args, 1)?;
     let pattern = expect_string(&args[0])?;
+    let case_fold = dynamic_or_global_symbol_value(eval, "case-fold-search")
+        .map(|v| !v.is_nil())
+        .unwrap_or(true);
     let buf = eval
         .buffers
         .current_buffer_mut()
@@ -7197,13 +7200,21 @@ pub(crate) fn builtin_search_forward(
     for _ in 0..opts.steps {
         let result = match opts.direction {
             SearchDirection::Forward => {
-                super::regex::search_forward(buf, &pattern, opts.bound, false, &mut eval.match_data)
+                super::regex::search_forward(
+                    buf,
+                    &pattern,
+                    opts.bound,
+                    false,
+                    case_fold,
+                    &mut eval.match_data,
+                )
             }
             SearchDirection::Backward => super::regex::search_backward(
                 buf,
                 &pattern,
                 opts.bound,
                 false,
+                case_fold,
                 &mut eval.match_data,
             ),
         };
@@ -7389,6 +7400,9 @@ pub(crate) fn builtin_search_backward(
 ) -> EvalResult {
     expect_min_args("search-backward", &args, 1)?;
     let pattern = expect_string(&args[0])?;
+    let case_fold = dynamic_or_global_symbol_value(eval, "case-fold-search")
+        .map(|v| !v.is_nil())
+        .unwrap_or(true);
     let buf = eval
         .buffers
         .current_buffer_mut()
@@ -7404,13 +7418,21 @@ pub(crate) fn builtin_search_backward(
     for _ in 0..opts.steps {
         let result = match opts.direction {
             SearchDirection::Forward => {
-                super::regex::search_forward(buf, &pattern, opts.bound, false, &mut eval.match_data)
+                super::regex::search_forward(
+                    buf,
+                    &pattern,
+                    opts.bound,
+                    false,
+                    case_fold,
+                    &mut eval.match_data,
+                )
             }
             SearchDirection::Backward => super::regex::search_backward(
                 buf,
                 &pattern,
                 opts.bound,
                 false,
+                case_fold,
                 &mut eval.match_data,
             ),
         };
@@ -7441,6 +7463,9 @@ pub(crate) fn builtin_re_search_forward(
 ) -> EvalResult {
     expect_min_args("re-search-forward", &args, 1)?;
     let pattern = expect_string(&args[0])?;
+    let case_fold = dynamic_or_global_symbol_value(eval, "case-fold-search")
+        .map(|v| !v.is_nil())
+        .unwrap_or(true);
     let buf = eval
         .buffers
         .current_buffer_mut()
@@ -7460,6 +7485,7 @@ pub(crate) fn builtin_re_search_forward(
                 &pattern,
                 opts.bound,
                 false,
+                case_fold,
                 &mut eval.match_data,
             ),
             SearchDirection::Backward => super::regex::re_search_backward(
@@ -7467,6 +7493,7 @@ pub(crate) fn builtin_re_search_forward(
                 &pattern,
                 opts.bound,
                 false,
+                case_fold,
                 &mut eval.match_data,
             ),
         };
@@ -7502,6 +7529,9 @@ pub(crate) fn builtin_re_search_backward(
 ) -> EvalResult {
     expect_min_args("re-search-backward", &args, 1)?;
     let pattern = expect_string(&args[0])?;
+    let case_fold = dynamic_or_global_symbol_value(eval, "case-fold-search")
+        .map(|v| !v.is_nil())
+        .unwrap_or(true);
     let buf = eval
         .buffers
         .current_buffer_mut()
@@ -7521,6 +7551,7 @@ pub(crate) fn builtin_re_search_backward(
                 &pattern,
                 opts.bound,
                 false,
+                case_fold,
                 &mut eval.match_data,
             ),
             SearchDirection::Backward => super::regex::re_search_backward(
@@ -7528,6 +7559,7 @@ pub(crate) fn builtin_re_search_backward(
                 &pattern,
                 opts.bound,
                 false,
+                case_fold,
                 &mut eval.match_data,
             ),
         };

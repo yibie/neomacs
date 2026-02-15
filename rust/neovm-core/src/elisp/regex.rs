@@ -269,6 +269,7 @@ pub fn search_forward(
     pattern: &str,
     bound: Option<usize>,
     noerror: bool,
+    case_fold: bool,
     match_data: &mut Option<MatchData>,
 ) -> Result<Option<usize>, String> {
     let start = buf.pt;
@@ -283,21 +284,29 @@ pub fn search_forward(
 
     let text = buf.text.text_range(start, limit);
 
-    if let Some(pos) = text.find(pattern) {
-        let match_start = start + pos;
-        let match_end = match_start + pattern.len();
+    let found = if case_fold {
+        let escaped = regex::escape(pattern);
+        let re =
+            Regex::new(&format!("(?i:{escaped})")).map_err(|e| format!("Invalid regexp: {}", e))?;
+        re.find(&text).map(|m| (m.start(), m.end()))
+    } else {
+        text.find(pattern).map(|pos| (pos, pos + pattern.len()))
+    };
+
+    if let Some((rel_start, rel_end)) = found {
+        let match_start = start + rel_start;
+        let match_end = start + rel_end;
         buf.pt = match_end;
         *match_data = Some(MatchData {
             groups: vec![Some((match_start, match_end))],
             searched_string: None,
         });
         Ok(Some(match_end))
+    } else if noerror {
+        // When noerror is t, don't move point.
+        // When noerror is a value, move point to bound.
+        Ok(None)
     } else {
-        if noerror {
-            // When noerror is t, don't move point.
-            // When noerror is a value, move point to bound.
-            return Ok(None);
-        }
         Err(format!("Search failed: \"{}\"", pattern))
     }
 }
@@ -311,6 +320,7 @@ pub fn search_backward(
     pattern: &str,
     bound: Option<usize>,
     noerror: bool,
+    case_fold: bool,
     match_data: &mut Option<MatchData>,
 ) -> Result<Option<usize>, String> {
     let end = buf.pt;
@@ -325,20 +335,27 @@ pub fn search_backward(
 
     let text = buf.text.text_range(limit, end);
 
-    // Find the *last* occurrence within the range
-    if let Some(pos) = text.rfind(pattern) {
-        let match_start = limit + pos;
-        let match_end = match_start + pattern.len();
+    let found = if case_fold {
+        let escaped = regex::escape(pattern);
+        let re =
+            Regex::new(&format!("(?i:{escaped})")).map_err(|e| format!("Invalid regexp: {}", e))?;
+        re.find_iter(&text).last().map(|m| (m.start(), m.end()))
+    } else {
+        text.rfind(pattern).map(|pos| (pos, pos + pattern.len()))
+    };
+
+    if let Some((rel_start, rel_end)) = found {
+        let match_start = limit + rel_start;
+        let match_end = limit + rel_end;
         buf.pt = match_start;
         *match_data = Some(MatchData {
             groups: vec![Some((match_start, match_end))],
             searched_string: None,
         });
         Ok(Some(match_start))
+    } else if noerror {
+        Ok(None)
     } else {
-        if noerror {
-            return Ok(None);
-        }
         Err(format!("Search failed: \"{}\"", pattern))
     }
 }
@@ -352,9 +369,10 @@ pub fn re_search_forward(
     pattern: &str,
     bound: Option<usize>,
     noerror: bool,
+    case_fold: bool,
     match_data: &mut Option<MatchData>,
 ) -> Result<Option<usize>, String> {
-    let re = compile_emacs_regex(pattern)?;
+    let re = compile_emacs_regex_case_fold(pattern, case_fold)?;
     let start = buf.pt;
     let limit = bound.unwrap_or(buf.zv).min(buf.zv);
 
@@ -391,9 +409,10 @@ pub fn re_search_backward(
     pattern: &str,
     bound: Option<usize>,
     noerror: bool,
+    case_fold: bool,
     match_data: &mut Option<MatchData>,
 ) -> Result<Option<usize>, String> {
-    let re = compile_emacs_regex(pattern)?;
+    let re = compile_emacs_regex_case_fold(pattern, case_fold)?;
     let end = buf.pt;
     let limit = bound.unwrap_or(buf.begv).max(buf.begv);
 
@@ -853,7 +872,7 @@ mod tests {
     fn search_forward_basic() {
         let mut buf = make_test_buffer("hello world");
         let mut md = None;
-        let result = search_forward(&mut buf, "world", None, false, &mut md);
+        let result = search_forward(&mut buf, "world", None, false, false, &mut md);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), Some(11)); // end of "world"
         assert_eq!(buf.pt, 11);
@@ -865,7 +884,7 @@ mod tests {
     fn search_forward_not_found_noerror() {
         let mut buf = make_test_buffer("hello world");
         let mut md = None;
-        let result = search_forward(&mut buf, "xyz", None, true, &mut md);
+        let result = search_forward(&mut buf, "xyz", None, true, false, &mut md);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), None);
         assert_eq!(buf.pt, 0); // point unchanged
@@ -875,8 +894,17 @@ mod tests {
     fn search_forward_not_found_error() {
         let mut buf = make_test_buffer("hello world");
         let mut md = None;
-        let result = search_forward(&mut buf, "xyz", None, false, &mut md);
+        let result = search_forward(&mut buf, "xyz", None, false, false, &mut md);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn search_forward_case_fold_true() {
+        let mut buf = make_test_buffer("A");
+        let mut md = None;
+        let result = search_forward(&mut buf, "a", None, false, true, &mut md);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), Some(1));
     }
 
     #[test]
@@ -884,7 +912,7 @@ mod tests {
         let mut buf = make_test_buffer("hello world");
         let mut md = None;
         // Search only within first 5 bytes — "world" starts at 6 so should not be found
-        let result = search_forward(&mut buf, "world", Some(5), true, &mut md);
+        let result = search_forward(&mut buf, "world", Some(5), true, false, &mut md);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), None);
     }
@@ -894,7 +922,7 @@ mod tests {
         let mut buf = make_test_buffer("aaa bbb aaa");
         buf.pt = 4; // after "aaa "
         let mut md = None;
-        let result = search_forward(&mut buf, "aaa", None, false, &mut md);
+        let result = search_forward(&mut buf, "aaa", None, false, false, &mut md);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), Some(11)); // second "aaa" at end
     }
@@ -908,7 +936,7 @@ mod tests {
         let mut buf = make_test_buffer("hello world");
         buf.pt = 11; // end of buffer
         let mut md = None;
-        let result = search_backward(&mut buf, "hello", None, false, &mut md);
+        let result = search_backward(&mut buf, "hello", None, false, false, &mut md);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), Some(0)); // beginning of "hello"
         assert_eq!(buf.pt, 0);
@@ -919,7 +947,7 @@ mod tests {
         let mut buf = make_test_buffer("hello world");
         buf.pt = 11;
         let mut md = None;
-        let result = search_backward(&mut buf, "xyz", None, true, &mut md);
+        let result = search_backward(&mut buf, "xyz", None, true, false, &mut md);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), None);
     }
@@ -929,7 +957,7 @@ mod tests {
         let mut buf = make_test_buffer("aaa bbb aaa");
         buf.pt = 11; // end
         let mut md = None;
-        let result = search_backward(&mut buf, "aaa", None, false, &mut md);
+        let result = search_backward(&mut buf, "aaa", None, false, false, &mut md);
         assert!(result.is_ok());
         // Should find the LAST "aaa" (at position 8)
         assert_eq!(result.unwrap(), Some(8));
@@ -944,7 +972,7 @@ mod tests {
     fn re_search_forward_basic() {
         let mut buf = make_test_buffer("foo 123 bar");
         let mut md = None;
-        let result = re_search_forward(&mut buf, "[0-9]+", None, false, &mut md);
+        let result = re_search_forward(&mut buf, "[0-9]+", None, false, false, &mut md);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), Some(7)); // end of "123"
         assert_eq!(buf.pt, 7);
@@ -957,7 +985,14 @@ mod tests {
         let mut buf = make_test_buffer("name: John");
         let mut md = None;
         // Emacs regex: \(\w+\): \(\w+\)
-        let result = re_search_forward(&mut buf, "\\(\\w+\\): \\(\\w+\\)", None, false, &mut md);
+        let result = re_search_forward(
+            &mut buf,
+            "\\(\\w+\\): \\(\\w+\\)",
+            None,
+            false,
+            false,
+            &mut md,
+        );
         assert!(result.is_ok());
         let md = md.unwrap();
         assert_eq!(md.groups.len(), 3);
@@ -974,7 +1009,7 @@ mod tests {
         let mut buf = make_test_buffer("abc 123 def 456");
         buf.pt = 15; // end
         let mut md = None;
-        let result = re_search_backward(&mut buf, "[0-9]+", None, false, &mut md);
+        let result = re_search_backward(&mut buf, "[0-9]+", None, false, false, &mut md);
         assert!(result.is_ok());
         // Should find "456" (the last match)
         assert_eq!(result.unwrap(), Some(12));
@@ -1060,7 +1095,7 @@ mod tests {
     fn replace_match_literal() {
         let mut buf = make_test_buffer("hello world");
         let mut md = None;
-        let _ = re_search_forward(&mut buf, "world", None, false, &mut md);
+        let _ = re_search_forward(&mut buf, "world", None, false, false, &mut md);
         let result = replace_match_buffer(&mut buf, "rust", false, true, 0, &md);
         assert!(result.is_ok());
         let content = buf.text.text_range(0, buf.text.len());
@@ -1073,7 +1108,7 @@ mod tests {
         buf.pt = 0;
         let mut md = None;
         // Match "hello" with a group
-        let _ = re_search_forward(&mut buf, "\\(hello\\)", None, false, &mut md);
+        let _ = re_search_forward(&mut buf, "\\(hello\\)", None, false, false, &mut md);
         let result = replace_match_buffer(&mut buf, "\\1 there", false, false, 0, &md);
         assert!(result.is_ok());
         let content = buf.text.text_range(0, buf.text.len());
@@ -1116,7 +1151,14 @@ mod tests {
     fn search_forward_then_match_string() {
         let mut buf = make_test_buffer("The quick brown fox");
         let mut md = None;
-        let _ = re_search_forward(&mut buf, "\\(quick\\) \\(brown\\)", None, false, &mut md);
+        let _ = re_search_forward(
+            &mut buf,
+            "\\(quick\\) \\(brown\\)",
+            None,
+            false,
+            false,
+            &mut md,
+        );
         let md = md.as_ref().unwrap();
 
         // match-string 0 = "quick brown"
