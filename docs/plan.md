@@ -40,6 +40,8 @@ Last updated: 2026-02-14
   - invalid terminal designators now signal `wrong-type-argument` with `terminal-live-p`
   - `terminal-live-p` now returns `nil` for invalid designator shapes
   - `terminal-name` now rejects invalid terminal designators
+  - switched terminal designators to an opaque internal terminal handle
+  - `frame-terminal` now rejects invalid frame designators (`wrong-type-argument` on non-nil non-frame)
 - Added and enabled new oracle corpus:
   - `test/neovm/vm-compat/cases/terminal-parameter-semantics.forms`
   - `test/neovm/vm-compat/cases/terminal-parameter-semantics.expected.tsv`
