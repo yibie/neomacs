@@ -8,9 +8,12 @@ use super::error::{signal, EvalResult, Flow};
 use super::value::*;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 thread_local! {
     static TERMINAL_PARAMS: RefCell<HashMap<HashKey, Value>> = RefCell::new(HashMap::new());
+    static TERMINAL_HANDLE: Arc<Mutex<Vec<Value>>> =
+        Arc::new(Mutex::new(vec![Value::symbol("--neovm-terminal--")]));
 }
 
 // ---------------------------------------------------------------------------
@@ -63,7 +66,7 @@ fn expect_symbol_name(value: &Value) -> Result<String, Flow> {
 }
 
 fn terminal_designator_p(value: &Value) -> bool {
-    matches!(value, Value::Nil | Value::Str(_))
+    value.is_nil() || is_terminal_handle(value)
 }
 
 fn expect_terminal_designator(value: &Value) -> Result<(), Flow> {
@@ -74,6 +77,28 @@ fn expect_terminal_designator(value: &Value) -> Result<(), Flow> {
             "wrong-type-argument",
             vec![Value::symbol("terminal-live-p"), value.clone()],
         ))
+    }
+}
+
+fn expect_frame_designator(value: &Value) -> Result<(), Flow> {
+    if value.is_nil() {
+        Ok(())
+    } else {
+        Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("frame-live-p"), value.clone()],
+        ))
+    }
+}
+
+fn terminal_handle_value() -> Value {
+    TERMINAL_HANDLE.with(|handle| Value::Vector(handle.clone()))
+}
+
+fn is_terminal_handle(value: &Value) -> bool {
+    match value {
+        Value::Vector(v) => TERMINAL_HANDLE.with(|handle| Arc::ptr_eq(v, handle)),
+        _ => false,
     }
 }
 
@@ -214,16 +239,19 @@ pub(crate) fn builtin_terminal_name(args: Vec<Value>) -> EvalResult {
     Ok(Value::string("neomacs"))
 }
 
-/// (terminal-list) -> ("neomacs")
+/// (terminal-list) -> list containing one opaque terminal handle.
 pub(crate) fn builtin_terminal_list(args: Vec<Value>) -> EvalResult {
     expect_max_args("terminal-list", &args, 0)?;
-    Ok(Value::list(vec![Value::string("neomacs")]))
+    Ok(Value::list(vec![terminal_handle_value()]))
 }
 
-/// (frame-terminal &optional FRAME) -> "neomacs"
+/// (frame-terminal &optional FRAME) -> opaque terminal handle.
 pub(crate) fn builtin_frame_terminal(args: Vec<Value>) -> EvalResult {
     expect_max_args("frame-terminal", &args, 1)?;
-    Ok(Value::string("neomacs"))
+    if let Some(frame) = args.first() {
+        expect_frame_designator(frame)?;
+    }
+    Ok(terminal_handle_value())
 }
 
 /// (terminal-live-p TERMINAL) -> t
@@ -429,10 +457,12 @@ mod tests {
     #[test]
     fn terminal_live_p_reflects_designator_shape() {
         let live_nil = builtin_terminal_live_p(vec![Value::Nil]).unwrap();
+        let live_handle = builtin_terminal_live_p(vec![terminal_handle_value()]).unwrap();
         let live_string = builtin_terminal_live_p(vec![Value::string("neomacs")]).unwrap();
         let live_int = builtin_terminal_live_p(vec![Value::Int(1)]).unwrap();
         assert_eq!(live_nil, Value::True);
-        assert_eq!(live_string, Value::True);
+        assert_eq!(live_handle, Value::True);
+        assert!(live_string.is_nil());
         assert!(live_int.is_nil());
     }
 
@@ -440,5 +470,18 @@ mod tests {
     fn terminal_name_rejects_invalid_designator() {
         let result = builtin_terminal_name(vec![Value::Int(1)]);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn frame_terminal_rejects_non_frame_designator() {
+        let result = builtin_frame_terminal(vec![Value::Int(1)]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn frame_terminal_returns_live_terminal_handle() {
+        let handle = builtin_frame_terminal(vec![Value::Nil]).unwrap();
+        let live = builtin_terminal_live_p(vec![handle]).unwrap();
+        assert_eq!(live, Value::True);
     }
 }

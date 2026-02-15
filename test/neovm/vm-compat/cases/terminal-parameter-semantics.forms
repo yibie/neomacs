@@ -3,6 +3,7 @@
 (stringp (terminal-name (frame-terminal nil)))
 (let ((term (frame-terminal nil))) (terminal-live-p term))
 (let ((lst (terminal-list))) (and (consp lst) (terminal-live-p (car lst))))
+(terminal-live-p "initial_terminal")
 (condition-case err (terminal-live-p 1) (error (car err)))
 (let* ((term (frame-terminal nil))
        (_ (set-terminal-parameter term 'neovm-vmcompat-terminal-param 42)))
@@ -28,6 +29,8 @@
 (condition-case err
     (set-terminal-parameter 1 'neovm-vmcompat-terminal-param 1)
   (wrong-type-argument (car err)))
+(condition-case err (frame-terminal 1) (wrong-type-argument (car err)))
 (condition-case err (terminal-name 1) (wrong-type-argument (car err)))
+(condition-case err (terminal-name "initial_terminal") (wrong-type-argument (car err)))
 (condition-case err (terminal-parameter nil) (wrong-number-of-arguments (car err)))
 (condition-case err (set-terminal-parameter nil 'x) (wrong-number-of-arguments (car err)))
