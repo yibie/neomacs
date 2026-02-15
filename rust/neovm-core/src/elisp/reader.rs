@@ -681,86 +681,6 @@ pub(crate) fn builtin_prin1_to_string_full(args: Vec<Value>) -> EvalResult {
 }
 
 // ---------------------------------------------------------------------------
-// 4. format-spec
-// ---------------------------------------------------------------------------
-
-/// `(format-spec FORMAT SPECIFICATION)`
-///
-/// Format a string using an alist of (CHAR . REPLACEMENT) pairs.
-/// Each `%X` in FORMAT is replaced by the value associated with character X
-/// in SPECIFICATION. `%%` produces a literal `%`.
-pub(crate) fn builtin_format_spec(args: Vec<Value>) -> EvalResult {
-    expect_args("format-spec", &args, 2)?;
-
-    let fmt_str = expect_string(&args[0])?;
-
-    // Build lookup from the alist
-    let spec_list = list_to_vec(&args[1]).ok_or_else(|| {
-        signal(
-            "wrong-type-argument",
-            vec![Value::symbol("listp"), args[1].clone()],
-        )
-    })?;
-
-    let mut lookup = std::collections::HashMap::new();
-    for entry in &spec_list {
-        match entry {
-            Value::Cons(cell) => {
-                let pair = cell.lock().expect("poisoned");
-                let ch = match &pair.car {
-                    Value::Char(c) => *c,
-                    Value::Int(n) => char::from_u32(*n as u32).unwrap_or('?'),
-                    _ => continue,
-                };
-                let replacement = match &pair.cdr {
-                    Value::Str(s) => (**s).clone(),
-                    Value::Int(n) => n.to_string(),
-                    Value::Float(f) => format!("{}", f),
-                    Value::Nil => "nil".to_string(),
-                    Value::True => "t".to_string(),
-                    Value::Symbol(s) => s.clone(),
-                    other => super::print::print_value(other),
-                };
-                lookup.insert(ch, replacement);
-            }
-            _ => continue,
-        }
-    }
-
-    let mut result = String::new();
-    let mut chars = fmt_str.chars().peekable();
-
-    while let Some(ch) = chars.next() {
-        if ch == '%' {
-            match chars.peek() {
-                Some(&'%') => {
-                    chars.next();
-                    result.push('%');
-                }
-                Some(&spec_ch) => {
-                    chars.next();
-                    if let Some(replacement) = lookup.get(&spec_ch) {
-                        result.push_str(replacement);
-                    } else {
-                        // Unknown spec — keep as-is (Emacs signals error, but we are lenient)
-                        result.push('%');
-                        result.push(spec_ch);
-                    }
-                }
-                None => {
-                    // Trailing % at end of string
-                    result.push('%');
-                }
-            }
-        } else {
-            result.push(ch);
-        }
-    }
-
-    Ok(Value::string(result))
-}
-
-// ---------------------------------------------------------------------------
 // 5. read-from-minibuffer (stub)
 // ---------------------------------------------------------------------------
 
@@ -1391,63 +1311,6 @@ mod tests {
     }
 
     // ===================================================================
-    // format-spec tests
-    // ===================================================================
-
-    #[test]
-    fn format_spec_basic() {
-        let spec = Value::list(vec![Value::cons(Value::Char('a'), Value::string("world"))]);
-        let result = builtin_format_spec(vec![Value::string("hello %a"), spec]).unwrap();
-        assert_eq!(result.as_str(), Some("hello world"));
-    }
-
-    #[test]
-    fn format_spec_multiple() {
-        let spec = Value::list(vec![
-            Value::cons(Value::Char('n'), Value::string("Alice")),
-            Value::cons(Value::Char('a'), Value::Int(30)),
-        ]);
-        let result = builtin_format_spec(vec![Value::string("%n is %a years old"), spec]).unwrap();
-        assert_eq!(result.as_str(), Some("Alice is 30 years old"));
-    }
-
-    #[test]
-    fn format_spec_percent_escape() {
-        let spec = Value::list(vec![Value::cons(Value::Char('x'), Value::string("100"))]);
-        let result = builtin_format_spec(vec![Value::string("%x%%"), spec]).unwrap();
-        assert_eq!(result.as_str(), Some("100%"));
-    }
-
-    #[test]
-    fn format_spec_empty_spec() {
-        let spec = Value::Nil;
-        let result = builtin_format_spec(vec![Value::string("no specs here"), spec]).unwrap();
-        assert_eq!(result.as_str(), Some("no specs here"));
-    }
-
-    #[test]
-    fn format_spec_unknown_spec_kept() {
-        let spec = Value::Nil;
-        let result = builtin_format_spec(vec![Value::string("keep %z"), spec]).unwrap();
-        assert_eq!(result.as_str(), Some("keep %z"));
-    }
-
-    #[test]
-    fn format_spec_integer_char_key() {
-        // Use integer ?a = 97 as key instead of Char
-        let spec = Value::list(vec![Value::cons(Value::Int(97), Value::string("hello"))]);
-        let result = builtin_format_spec(vec![Value::string("%a"), spec]).unwrap();
-        assert_eq!(result.as_str(), Some("hello"));
-    }
-
-    #[test]
-    fn format_spec_trailing_percent() {
-        let spec = Value::Nil;
-        let result = builtin_format_spec(vec![Value::string("end%"), spec]).unwrap();
-        assert_eq!(result.as_str(), Some("end%"));
-    }
-
-    // ===================================================================
     // Stub function tests
     // ===================================================================
 
@@ -1969,20 +1832,6 @@ mod tests {
     }
 
     #[test]
-    fn format_spec_symbol_replacement() {
-        let spec = Value::list(vec![Value::cons(Value::Char('s'), Value::symbol("foo"))]);
-        let result = builtin_format_spec(vec![Value::string("sym: %s"), spec]).unwrap();
-        assert_eq!(result.as_str(), Some("sym: foo"));
-    }
-
-    #[test]
-    fn format_spec_nil_replacement() {
-        let spec = Value::list(vec![Value::cons(Value::Char('v'), Value::Nil)]);
-        let result = builtin_format_spec(vec![Value::string("val: %v"), spec]).unwrap();
-        assert_eq!(result.as_str(), Some("val: nil"));
-    }
-
-    #[test]
     fn read_from_string_wrong_type() {
         let mut ev = Evaluator::new();
         let result = builtin_read_from_string(&mut ev, vec![Value::Int(42)]);
@@ -1994,12 +1843,6 @@ mod tests {
         let mut ev = Evaluator::new();
         let result = builtin_read_from_string(&mut ev, vec![]);
         assert!(result.is_err());
-    }
-
-    #[test]
-    fn format_spec_wrong_args() {
-        let result = builtin_format_spec(vec![Value::string("hello")]);
-        assert!(result.is_err()); // needs 2 args
     }
 
     #[test]
@@ -2130,10 +1973,4 @@ mod tests {
         assert_eq!(result.as_str(), Some("x"));
     }
 
-    #[test]
-    fn format_spec_float_replacement() {
-        let spec = Value::list(vec![Value::cons(Value::Char('f'), Value::Float(3.14))]);
-        let result = builtin_format_spec(vec![Value::string("pi=%f"), spec]).unwrap();
-        assert_eq!(result.as_str(), Some("pi=3.14"));
-    }
 }
