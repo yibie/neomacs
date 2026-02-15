@@ -562,21 +562,6 @@ pub(crate) fn builtin_memory_use_counts(args: Vec<Value>) -> EvalResult {
     Ok(Value::list(vec![Value::Int(0); 7]))
 }
 
-/// `(symbol-name SYM)` — already exists but let's provide compat.
-pub(crate) fn builtin_symbol_name(args: Vec<Value>) -> EvalResult {
-    expect_args("symbol-name", &args, 1)?;
-    match &args[0] {
-        Value::Symbol(s) => Ok(Value::string(s.clone())),
-        Value::Nil => Ok(Value::string("nil")),
-        Value::True => Ok(Value::string("t")),
-        Value::Keyword(k) => Ok(Value::string(format!(":{}", k))),
-        other => Err(signal(
-            "wrong-type-argument",
-            vec![Value::symbol("symbolp"), other.clone()],
-        )),
-    }
-}
-
 // ===========================================================================
 // Tests
 // ===========================================================================
