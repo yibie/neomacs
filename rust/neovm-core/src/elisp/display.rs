@@ -286,35 +286,102 @@ pub(crate) fn builtin_x_display_list(args: Vec<Value>) -> EvalResult {
 }
 
 /// (x-open-connection DISPLAY &optional XRM-STRING MUST-SUCCEED) -> nil
-/// Stub: we don't actually open X connections.
+/// In batch/no-X context this reports a display-open failure.
 pub(crate) fn builtin_x_open_connection(args: Vec<Value>) -> EvalResult {
     expect_range_args("x-open-connection", &args, 1, 3)?;
-    Ok(Value::Nil)
+    match &args[0] {
+        Value::Str(display) => Err(signal(
+            "error",
+            vec![Value::string(format!("Display {display} can't be opened"))],
+        )),
+        other => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("stringp"), other.clone()],
+        )),
+    }
 }
 
 /// (x-close-connection DISPLAY) -> nil
-/// Stub: we don't actually close X connections.
+/// In batch/no-X context this signals display/X availability errors.
 pub(crate) fn builtin_x_close_connection(args: Vec<Value>) -> EvalResult {
     expect_args("x-close-connection", &args, 1)?;
-    Ok(Value::Nil)
+    match &args[0] {
+        Value::Nil => Err(signal(
+            "error",
+            vec![Value::string("X windows are not in use or not initialized")],
+        )),
+        Value::Str(display) => Err(signal(
+            "error",
+            vec![Value::string(format!("Display {display} can't be opened"))],
+        )),
+        other => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("frame-live-p"), other.clone()],
+        )),
+    }
 }
 
-/// (x-display-pixel-width &optional TERMINAL) -> 1920
+/// (x-display-pixel-width &optional TERMINAL)
+///
+/// Batch/no-X semantics: signal X-not-in-use, invalid frame designator, or
+/// display-open failure depending on argument shape.
 pub(crate) fn builtin_x_display_pixel_width(args: Vec<Value>) -> EvalResult {
     expect_max_args("x-display-pixel-width", &args, 1)?;
-    Ok(Value::Int(1920))
+    match args.first() {
+        None | Some(Value::Nil) => Err(signal(
+            "error",
+            vec![Value::string("X windows are not in use or not initialized")],
+        )),
+        Some(Value::Str(display)) => Err(signal(
+            "error",
+            vec![Value::string(format!("Display {display} can't be opened"))],
+        )),
+        Some(other) => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("frame-live-p"), other.clone()],
+        )),
+    }
 }
 
-/// (x-display-pixel-height &optional TERMINAL) -> 1080
+/// (x-display-pixel-height &optional TERMINAL)
+///
+/// Batch/no-X semantics: signal X-not-in-use, invalid frame designator, or
+/// display-open failure depending on argument shape.
 pub(crate) fn builtin_x_display_pixel_height(args: Vec<Value>) -> EvalResult {
     expect_max_args("x-display-pixel-height", &args, 1)?;
-    Ok(Value::Int(1080))
+    match args.first() {
+        None | Some(Value::Nil) => Err(signal(
+            "error",
+            vec![Value::string("X windows are not in use or not initialized")],
+        )),
+        Some(Value::Str(display)) => Err(signal(
+            "error",
+            vec![Value::string(format!("Display {display} can't be opened"))],
+        )),
+        Some(other) => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("frame-live-p"), other.clone()],
+        )),
+    }
 }
 
-/// (x-display-color-p &optional TERMINAL) -> t
+/// (x-display-color-p &optional TERMINAL)
+///
+/// Batch/no-X semantics: nil for current display, otherwise argument-shape
+/// specific errors.
 pub(crate) fn builtin_x_display_color_p(args: Vec<Value>) -> EvalResult {
     expect_max_args("x-display-color-p", &args, 1)?;
-    Ok(Value::True)
+    match args.first() {
+        None | Some(Value::Nil) => Ok(Value::Nil),
+        Some(Value::Str(display)) => Err(signal(
+            "error",
+            vec![Value::string(format!("Display {display} does not exist"))],
+        )),
+        Some(_) => Err(signal(
+            "error",
+            vec![Value::string("Invalid argument 1 in 'get-device-terminal'")],
+        )),
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -762,6 +829,50 @@ mod tests {
                 other => panic!("expected error signal, got {other:?}"),
             }
         }
+    }
+
+    #[test]
+    fn x_open_connection_requires_string_display_arg() {
+        let bad = builtin_x_open_connection(vec![Value::Nil]);
+        assert!(bad.is_err());
+    }
+
+    #[test]
+    fn x_close_connection_argument_shape_errors() {
+        let x_nil = builtin_x_close_connection(vec![Value::Nil]);
+        let x_int = builtin_x_close_connection(vec![Value::Int(1)]);
+        let x_str = builtin_x_close_connection(vec![Value::string("")]);
+        assert!(x_nil.is_err());
+        assert!(x_int.is_err());
+        assert!(x_str.is_err());
+    }
+
+    #[test]
+    fn x_display_pixel_size_errors_match_batch_shapes() {
+        let width_none = builtin_x_display_pixel_width(vec![]);
+        let width_int = builtin_x_display_pixel_width(vec![Value::Int(1)]);
+        let width_str = builtin_x_display_pixel_width(vec![Value::string("")]);
+        let height_none = builtin_x_display_pixel_height(vec![]);
+        let height_int = builtin_x_display_pixel_height(vec![Value::Int(1)]);
+        let height_str = builtin_x_display_pixel_height(vec![Value::string("")]);
+        assert!(width_none.is_err());
+        assert!(width_int.is_err());
+        assert!(width_str.is_err());
+        assert!(height_none.is_err());
+        assert!(height_int.is_err());
+        assert!(height_str.is_err());
+    }
+
+    #[test]
+    fn x_display_color_p_batch_and_arg_errors() {
+        let none = builtin_x_display_color_p(vec![]).unwrap();
+        let nil = builtin_x_display_color_p(vec![Value::Nil]).unwrap();
+        let int_err = builtin_x_display_color_p(vec![Value::Int(1)]);
+        let str_err = builtin_x_display_color_p(vec![Value::string("")]);
+        assert!(none.is_nil());
+        assert!(nil.is_nil());
+        assert!(int_err.is_err());
+        assert!(str_err.is_err());
     }
 
     #[test]
