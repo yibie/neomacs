@@ -4,19 +4,30 @@ Last updated: 2026-02-15
 
 ## Doing
 
-- Continue command-context and read-only variable compatibility sweep in `rust/neovm-core/src/elisp/kill_ring.rs`.
-- Audit default-suite boundary cases and keep `.elc`-dependent corpora explicitly non-default.
-- Keeping each slice small: runtime patch -> oracle corpus -> docs note -> push.
+- Expand kill-ring/yank pointer corpus around normalization and command-context edges.
+- Keep default-suite case lists authoritative and append passing corpora in small slices.
+- Keep `.elc` reader/exec compatibility corpora explicitly non-default while `.elc` binary compatibility remains disabled.
 
 ## Next
 
-- Keep bytecode-literal reader/exec corpora out of `default.list` while `.elc` compatibility remains disabled; retain default-policy corpus in default.
-- Expand oracle corpus for remaining malformed pointer permutations across mutators and command-context commands.
-- Audit `yank`/`yank-pop` behavior with empty kill-ring entries and pointer wrap rules.
-- Run targeted regression checks after each slice (`command-dispatch-default-arg-semantics`, touched command corpus, and focused `yank`/`yank-pop` suites).
+- Add another focused `yank-pop` corpus for malformed pointer + rotation combinations not yet locked.
+- Continue promoting already-green non-default corpora to `default.list` one-by-one with targeted checks.
+- Run `check-all-neovm` after next 3-5 corpus/list promotions to catch integration regressions early.
 
 ## Done
 
+- Aligned `yank` pointer publication semantics with oracle behavior:
+  - updated `rust/neovm-core/src/elisp/kill_ring.rs` so `yank` always syncs/publishes `kill-ring-yank-pointer` during command setup, even when insertion later errors (e.g. read-only paths)
+  - added corpus:
+    - `test/neovm/vm-compat/cases/yank-improper-pointer-semantics.forms`
+    - `test/neovm/vm-compat/cases/yank-improper-pointer-semantics.expected.tsv`
+  - wired into:
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/yank-improper-pointer-semantics.forms EXPECTED=cases/yank-improper-pointer-semantics.expected.tsv` (pass, 5/5)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/yank-improper-pointer-semantics` (pass, 5/5)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/yank-read-only-variable-semantics` (pass, 4/4)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/kill-ring-pointer-improper-semantics` (pass, 14/14)
 - Ran full NeoVM compatibility sweep after pointer-semantics updates:
   - verified:
     - `make -C test/neovm/vm-compat check-all-neovm` (pass across default + neovm-only suites)
