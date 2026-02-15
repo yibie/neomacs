@@ -256,6 +256,7 @@ cases/replace-regexp-backref-semantics
 cases/replace-regexp-in-string-semantics
 cases/replace-regexp-in-string-variable-semantics
 cases/replace-string-semantics
+cases/replace-read-only-variable-semantics
 cases/case-replace-semantics
 cases/replace-lax-whitespace-semantics
 cases/replace-lax-search-whitespace-semantics
