@@ -19,6 +19,22 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Aligned `image-flush` batch semantics and error split:
+  - updated:
+    - `rust/neovm-core/src/elisp/image.rs`
+      - invalid spec now signals `(error "Invalid image specification")`.
+      - `FRAME=t` returns `nil` (all-frames path).
+      - omitted/`nil`/non-`t` frame now signals `(error "Window system frame should be used")`.
+      - expanded image unit coverage for all-frame and non-`t` frame paths.
+    - added corpus:
+      - `test/neovm/vm-compat/cases/image-flush-semantics.{forms,expected.tsv}`
+    - `test/neovm/vm-compat/cases/neovm-only.list`
+      - added `cases/image-flush-semantics`.
+  - verified:
+    - `cargo test image::tests --manifest-path rust/neovm-core/Cargo.toml -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/image-flush-semantics` (pass, 7/7)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass, full default + neovm-only corpus)
+
 - Aligned `put-image` / `insert-image` optional AREA validation:
   - updated:
     - `rust/neovm-core/src/elisp/image.rs`
