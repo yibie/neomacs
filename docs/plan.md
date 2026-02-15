@@ -18,6 +18,16 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Pruned dead duplicate exponential/log wrappers from `floatfns`:
+  - updated:
+    - `rust/neovm-core/src/elisp/floatfns.rs`
+      - removed unreferenced local `exp`/`expt`/`log`/`sqrt` wrapper implementations (active dispatch remains in `builtins.rs`).
+      - removed now-unused helper code tied only to that dead path.
+      - removed local wrapper-only tests for those wrappers.
+  - verified:
+    - `cargo test 'elisp::floatfns::tests::' -- --nocapture` (pass, 11 tests)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/core` (pass, 15/15)
+
 - Pruned dead duplicate `isnan` wrapper from `floatfns`:
   - updated:
     - `rust/neovm-core/src/elisp/floatfns.rs`

@@ -2,7 +2,6 @@
 //!
 //! Implements all functions from Emacs `floatfns.c`:
 //! - Classification: `copysign`, `frexp`, `ldexp`, `logb`
-//! - Exponential: `exp`, `expt`, `log`, `sqrt`
 //! - Rounding (float result): `fceiling`, `ffloor`, `fround`, `ftruncate`
 
 use super::error::{signal, EvalResult, Flow};
@@ -14,17 +13,6 @@ use super::value::*;
 
 fn expect_args(name: &str, args: &[Value], n: usize) -> Result<(), Flow> {
     if args.len() != n {
-        Err(signal(
-            "wrong-number-of-arguments",
-            vec![Value::symbol(name), Value::Int(args.len() as i64)],
-        ))
-    } else {
-        Ok(())
-    }
-}
-
-fn expect_args_range(name: &str, args: &[Value], min: usize, max: usize) -> Result<(), Flow> {
-    if args.len() < min || args.len() > max {
         Err(signal(
             "wrong-number-of-arguments",
             vec![Value::symbol(name), Value::Int(args.len() as i64)],
@@ -57,18 +45,6 @@ fn extract_int(_name: &str, val: &Value) -> Result<i64, Flow> {
             "wrong-type-argument",
             vec![Value::symbol("integerp"), other.clone()],
         )),
-    }
-}
-
-/// Check a float result for range errors (infinity).
-fn check_range(name: &str, result: f64) -> Result<f64, Flow> {
-    if result.is_infinite() {
-        Err(signal(
-            "range-error",
-            vec![Value::symbol(name), Value::string("infinity")],
-        ))
-    } else {
-        Ok(result)
     }
 }
 
@@ -154,105 +130,6 @@ pub(crate) fn builtin_ldexp(args: Vec<Value>) -> EvalResult {
     };
 
     Ok(Value::Float(result))
-}
-
-// ---------------------------------------------------------------------------
-// Exponential / power / logarithm
-// ---------------------------------------------------------------------------
-
-/// (exp X) -- e^X
-pub(crate) fn builtin_exp(args: Vec<Value>) -> EvalResult {
-    expect_args("exp", &args, 1)?;
-    let x = extract_float("exp", &args[0])?;
-    let result = x.exp();
-    let result = check_range("exp", result)?;
-    Ok(Value::Float(result))
-}
-
-/// (expt X Y) -- X raised to the power Y
-///
-/// When both X and Y are integers and Y >= 0, returns an integer result.
-/// Otherwise returns a float.
-pub(crate) fn builtin_expt(args: Vec<Value>) -> EvalResult {
-    expect_args("expt", &args, 2)?;
-
-    // Integer fast-path: both args are Int and Y >= 0
-    if let (Value::Int(base), Value::Int(exp)) = (&args[0], &args[1]) {
-        if *exp >= 0 {
-            return int_pow(*base, *exp as u64);
-        }
-    }
-
-    let x = extract_float("expt", &args[0])?;
-    let y = extract_float("expt", &args[1])?;
-    Ok(Value::Float(x.powf(y)))
-}
-
-/// Integer exponentiation with overflow check.
-fn int_pow(base: i64, exp: u64) -> EvalResult {
-    let mut result: i64 = 1;
-    let mut b = base;
-    let mut e = exp;
-    while e > 0 {
-        if e & 1 == 1 {
-            result = match result.checked_mul(b) {
-                Some(v) => v,
-                None => {
-                    // Overflow: fall back to float
-                    return Ok(Value::Float((base as f64).powf(exp as f64)));
-                }
-            };
-        }
-        e >>= 1;
-        if e > 0 {
-            b = match b.checked_mul(b) {
-                Some(v) => v,
-                None => {
-                    return Ok(Value::Float((base as f64).powf(exp as f64)));
-                }
-            };
-        }
-    }
-    Ok(Value::Int(result))
-}
-
-/// (log X &optional BASE) -- natural log of X, or log base BASE
-pub(crate) fn builtin_log(args: Vec<Value>) -> EvalResult {
-    expect_args_range("log", &args, 1, 2)?;
-    let x = extract_float("log", &args[0])?;
-
-    if x <= 0.0 {
-        return Err(signal(
-            "domain-error",
-            vec![Value::symbol("log"), Value::Float(x)],
-        ));
-    }
-
-    if args.len() == 2 {
-        let base = extract_float("log", &args[1])?;
-        if base <= 0.0 || base == 1.0 {
-            return Err(signal(
-                "domain-error",
-                vec![Value::symbol("log"), Value::Float(base)],
-            ));
-        }
-        Ok(Value::Float(x.ln() / base.ln()))
-    } else {
-        Ok(Value::Float(x.ln()))
-    }
-}
-
-/// (sqrt X) -- square root of X
-pub(crate) fn builtin_sqrt(args: Vec<Value>) -> EvalResult {
-    expect_args("sqrt", &args, 1)?;
-    let x = extract_float("sqrt", &args[0])?;
-    if x < 0.0 {
-        return Err(signal(
-            "domain-error",
-            vec![Value::symbol("sqrt"), Value::Float(x)],
-        ));
-    }
-    Ok(Value::Float(x.sqrt()))
 }
 
 /// (logb X) -- integer part of base-2 logarithm of |X|
@@ -426,84 +303,6 @@ mod tests {
         assert_float_eq(&result, 1024.0, 1e-10);
     }
 
-    // ===== Exponential / power =====
-
-    #[test]
-    fn test_exp() {
-        let result = builtin_exp(vec![Value::Float(0.0)]).unwrap();
-        assert_float_eq(&result, 1.0, 1e-10);
-
-        let result = builtin_exp(vec![Value::Float(1.0)]).unwrap();
-        assert_float_eq(&result, std::f64::consts::E, 1e-10);
-    }
-
-    #[test]
-    fn test_expt_float() {
-        let result = builtin_expt(vec![Value::Float(2.0), Value::Float(10.0)]).unwrap();
-        assert_float_eq(&result, 1024.0, 1e-10);
-    }
-
-    #[test]
-    fn test_expt_int() {
-        // Integer result when both args are int and exp >= 0
-        let result = builtin_expt(vec![Value::Int(2), Value::Int(10)]).unwrap();
-        assert_int_eq(&result, 1024);
-
-        let result = builtin_expt(vec![Value::Int(3), Value::Int(0)]).unwrap();
-        assert_int_eq(&result, 1);
-
-        let result = builtin_expt(vec![Value::Int(-2), Value::Int(3)]).unwrap();
-        assert_int_eq(&result, -8);
-    }
-
-    #[test]
-    fn test_expt_negative_exp() {
-        // Negative integer exponent forces float result
-        let result = builtin_expt(vec![Value::Int(2), Value::Int(-1)]).unwrap();
-        assert_float_eq(&result, 0.5, 1e-10);
-    }
-
-    #[test]
-    fn test_log() {
-        let result = builtin_log(vec![Value::Float(1.0)]).unwrap();
-        assert_float_eq(&result, 0.0, 1e-10);
-
-        let result = builtin_log(vec![Value::Float(std::f64::consts::E)]).unwrap();
-        assert_float_eq(&result, 1.0, 1e-10);
-    }
-
-    #[test]
-    fn test_log_with_base() {
-        // log(8, 2) = 3
-        let result = builtin_log(vec![Value::Float(8.0), Value::Float(2.0)]).unwrap();
-        assert_float_eq(&result, 3.0, 1e-10);
-
-        // log(100, 10) = 2
-        let result = builtin_log(vec![Value::Float(100.0), Value::Float(10.0)]).unwrap();
-        assert_float_eq(&result, 2.0, 1e-10);
-    }
-
-    #[test]
-    fn test_log_domain_error() {
-        assert!(builtin_log(vec![Value::Float(0.0)]).is_err());
-        assert!(builtin_log(vec![Value::Float(-1.0)]).is_err());
-    }
-
-    #[test]
-    fn test_sqrt() {
-        let result = builtin_sqrt(vec![Value::Float(4.0)]).unwrap();
-        assert_float_eq(&result, 2.0, 1e-10);
-
-        let result = builtin_sqrt(vec![Value::Float(0.0)]).unwrap();
-        assert_float_eq(&result, 0.0, 1e-10);
-
-        let result = builtin_sqrt(vec![Value::Int(9)]).unwrap();
-        assert_float_eq(&result, 3.0, 1e-10);
-
-        // Domain error for negative
-        assert!(builtin_sqrt(vec![Value::Float(-1.0)]).is_err());
-    }
-
     // ===== logb =====
 
     #[test]
@@ -575,7 +374,7 @@ mod tests {
     fn test_wrong_type_errors() {
         assert!(builtin_copysign(vec![Value::string("x"), Value::Float(1.0)]).is_err());
         assert!(builtin_fceiling(vec![Value::Nil]).is_err());
-        assert!(builtin_exp(vec![Value::True]).is_err());
+        assert!(builtin_logb(vec![Value::True]).is_err());
         assert!(builtin_logb(vec![Value::string("y")]).is_err());
     }
 
