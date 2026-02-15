@@ -778,7 +778,7 @@ pub(crate) fn builtin_exchange_point_and_mark(
     let buf = eval.buffers.current_buffer_mut().ok_or_else(no_buffer)?;
     let mark = buf.mark().ok_or_else(|| {
         signal(
-            "mark-not-set",
+            "user-error",
             vec![Value::string("No mark set in this buffer")],
         )
     })?;
