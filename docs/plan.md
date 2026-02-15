@@ -18,6 +18,26 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Added oracle-locked `category` compatibility corpus and aligned behavior:
+  - updated:
+    - `test/neovm/vm-compat/cases/category-semantics.forms`
+    - `test/neovm/vm-compat/cases/category-semantics.expected.tsv` (recorded with `NEOVM_ORACLE_EMACS=/nix/store/ha7zx1gahhj7lrx223m9rpwh89vbqq9z-emacs-git-with-packages-20240702.0/bin/emacs`)
+    - `test/neovm/vm-compat/cases/default.list`
+    - `rust/neovm-core/src/elisp/category.rs`
+      - aligned `define-category` return shape (nil) and duplicate-category error behavior.
+      - broadened category character validity to ASCII graphic codes and seeded default digit-category presence needed by oracle behavior.
+      - aligned `category-table-p` fallback semantics and category error messaging.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - implemented bool-vector-aware `aref/aset` logical indexing (`[--bool-vector-- SIZE ...BITS...]`), returning `t/nil` for reads and normalizing writes to `0/1`.
+      - added regression test for bool-vector `aref/aset` behavior.
+  - verified:
+    - `cargo test 'elisp::builtins::tests::pure_dispatch_typed_aref_bool_vector_returns_boolean_bits' -- --nocapture` (pass)
+    - `cargo test 'elisp::category::tests::' -- --nocapture` (pass, 51 tests)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/category-semantics` (pass, 12/12)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/aref-aset-index-semantics` (pass, 11/11)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/core` (pass, 15/15)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Tightened `builtins_extra` sequence docs/tests for `seq-length`:
   - updated:
     - `rust/neovm-core/src/elisp/builtins_extra.rs`

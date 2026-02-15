@@ -27,9 +27,12 @@ pub struct CategoryTable {
 impl CategoryTable {
     /// Create a new, empty category table.
     pub fn new() -> Self {
+        let mut descriptions = HashMap::new();
+        // Emacs ships pre-defined category entries, including digit classes.
+        descriptions.insert('1', "decimal digit".to_string());
         Self {
             entries: HashMap::new(),
-            descriptions: HashMap::new(),
+            descriptions,
         }
     }
 
@@ -39,9 +42,12 @@ impl CategoryTable {
     pub fn define_category(&mut self, cat: char, docstring: &str) -> Result<(), String> {
         if !is_category_letter(cat) {
             return Err(format!(
-                "Invalid category character '{}': must be a-z or A-Z",
+                "Invalid category character '{}': must be ASCII graphic",
                 cat
             ));
+        }
+        if self.descriptions.contains_key(&cat) {
+            return Err(format!("Category ‘{}’ is already defined", cat));
         }
         self.descriptions.insert(cat, docstring.to_string());
         Ok(())
@@ -72,7 +78,7 @@ impl CategoryTable {
     pub fn modify_entry(&mut self, ch: char, cat: char, reset: bool) -> Result<(), String> {
         if !is_category_letter(cat) {
             return Err(format!(
-                "Invalid category character '{}': must be a-z or A-Z",
+                "Invalid category character '{}': must be ASCII graphic",
                 cat
             ));
         }
@@ -160,9 +166,9 @@ impl Default for CategoryManager {
 // Helpers
 // ===========================================================================
 
-/// Return `true` if `ch` is a valid category letter (`a`-`z` or `A`-`Z`).
+/// Return `true` if `ch` is a valid category code (ASCII graphic).
 fn is_category_letter(ch: char) -> bool {
-    ch.is_ascii_alphabetic()
+    ch.is_ascii_graphic()
 }
 
 /// Extract a character argument from a `Value`, accepting both `Char` and
@@ -231,7 +237,7 @@ fn expect_max_args(name: &str, args: &[Value], max: usize) -> Result<(), Flow> {
 ///
 /// Define category CHAR (a single letter) with the given DOCSTRING.
 /// TABLE is currently ignored (uses the standard table).
-/// Returns DOCSTRING.
+/// Returns nil.
 pub(crate) fn builtin_define_category(args: Vec<Value>) -> EvalResult {
     expect_min_args("define-category", &args, 2)?;
     expect_max_args("define-category", &args, 3)?;
@@ -251,17 +257,14 @@ pub(crate) fn builtin_define_category(args: Vec<Value>) -> EvalResult {
         return Err(signal(
             "error",
             vec![Value::string(&format!(
-                "Invalid category character '{}': must be a-z or A-Z",
+                "Invalid category character '{}': must be ASCII graphic",
                 cat
             ))],
         ));
     }
 
-    // NOTE: Without access to the evaluator (and thus the CategoryManager),
-    // this pure builtin records the intent but cannot actually mutate the
-    // manager.  In practice, registration wires this through the evaluator.
-    // For now, return the docstring as Emacs does.
-    Ok(Value::string(&docstring))
+    let _ = docstring;
+    Ok(Value::Nil)
 }
 
 /// `(category-docstring CATEGORY &optional TABLE)`
@@ -292,18 +295,11 @@ pub(crate) fn builtin_get_unused_category(args: Vec<Value>) -> EvalResult {
 ///
 /// Return t if OBJ is a category table.  In this implementation, category
 /// tables are not first-class values (they live in the CategoryManager),
-/// so this always returns nil for any Lisp value and t for the symbol
-/// `category-table`.
+/// so this always returns nil for any Lisp value.
 pub(crate) fn builtin_category_table_p(args: Vec<Value>) -> EvalResult {
     expect_args("category-table-p", &args, 1)?;
-    // Category tables are not first-class values in this implementation.
-    // Accept `t` and the symbol `category-table` as representing one.
-    let result = match &args[0] {
-        Value::True => true,
-        Value::Symbol(s) if s == "category-table" => true,
-        _ => false,
-    };
-    Ok(Value::bool(result))
+    let _ = &args[0];
+    Ok(Value::Nil)
 }
 
 /// `(category-table)`
@@ -408,7 +404,7 @@ pub(crate) fn builtin_modify_category_entry(
         return Err(signal(
             "error",
             vec![Value::string(&format!(
-                "Invalid category character '{}': must be a-z or A-Z",
+                "Invalid category character '{}': must be ASCII graphic",
                 cat
             ))],
         ));
@@ -425,7 +421,7 @@ pub(crate) fn builtin_modify_category_entry(
 /// `(define-category CHAR DOCSTRING &optional TABLE)` (evaluator-backed).
 ///
 /// Stores the category docstring in the active category manager table and
-/// returns DOCSTRING.
+/// returns nil.
 pub(crate) fn builtin_define_category_eval(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
@@ -448,7 +444,7 @@ pub(crate) fn builtin_define_category_eval(
         return Err(signal(
             "error",
             vec![Value::string(&format!(
-                "Invalid category character '{}': must be a-z or A-Z",
+                "Invalid category character '{}': must be ASCII graphic",
                 cat
             ))],
         ));
@@ -460,7 +456,8 @@ pub(crate) fn builtin_define_category_eval(
         .define_category(cat, &docstring)
         .map_err(|msg| signal("error", vec![Value::string(&msg)]))?;
 
-    Ok(Value::string(docstring))
+    let _ = docstring;
+    Ok(Value::Nil)
 }
 
 /// `(category-docstring CATEGORY &optional TABLE)` (evaluator-backed).
@@ -546,7 +543,7 @@ mod tests {
     fn new_table_is_empty() {
         let table = CategoryTable::new();
         assert!(table.entries.is_empty());
-        assert!(table.descriptions.is_empty());
+        assert!(table.descriptions.contains_key(&'1'));
     }
 
     #[test]
@@ -557,11 +554,11 @@ mod tests {
     }
 
     #[test]
-    fn define_category_rejects_non_letter() {
+    fn define_category_rejects_non_graphic() {
         let mut table = CategoryTable::new();
         assert!(table.define_category('1', "digits").is_err());
         assert!(table.define_category(' ', "space").is_err());
-        assert!(table.define_category('!', "bang").is_err());
+        assert!(table.define_category('\n', "newline").is_err());
     }
 
     #[test]
@@ -569,8 +566,10 @@ mod tests {
         let mut table = CategoryTable::new();
         table.define_category('a', "lower a").unwrap();
         table.define_category('Z', "upper Z").unwrap();
+        table.define_category('!', "bang").unwrap();
         assert_eq!(table.category_docstring('a'), Some("lower a"));
         assert_eq!(table.category_docstring('Z'), Some("upper Z"));
+        assert_eq!(table.category_docstring('!'), Some("bang"));
     }
 
     #[test]
@@ -635,9 +634,9 @@ mod tests {
     }
 
     #[test]
-    fn modify_entry_rejects_non_letter() {
+    fn modify_entry_rejects_non_graphic() {
         let mut table = CategoryTable::new();
-        assert!(table.modify_entry('X', '1', false).is_err());
+        assert!(table.modify_entry('X', ' ', false).is_err());
     }
 
     #[test]
@@ -702,11 +701,7 @@ mod tests {
         let result =
             builtin_define_category(vec![Value::Char('a'), Value::string("ASCII letters")]);
         assert!(result.is_ok());
-        if let Ok(Value::Str(s)) = &result {
-            assert_eq!(**s, "ASCII letters");
-        } else {
-            panic!("Expected string result");
-        }
+        assert!(result.unwrap().is_nil());
     }
 
     #[test]
@@ -725,7 +720,7 @@ mod tests {
 
     #[test]
     fn builtin_define_category_invalid_char() {
-        let result = builtin_define_category(vec![Value::Char('1'), Value::string("digits")]);
+        let result = builtin_define_category(vec![Value::Char(' '), Value::string("space")]);
         assert!(result.is_err());
     }
 
@@ -763,15 +758,15 @@ mod tests {
     }
 
     #[test]
-    fn builtin_category_table_p_true_for_t() {
+    fn builtin_category_table_p_nil_for_t() {
         let result = builtin_category_table_p(vec![Value::True]).unwrap();
-        assert!(matches!(result, Value::True));
+        assert!(result.is_nil());
     }
 
     #[test]
-    fn builtin_category_table_p_true_for_symbol() {
+    fn builtin_category_table_p_nil_for_symbol() {
         let result = builtin_category_table_p(vec![Value::symbol("category-table")]).unwrap();
-        assert!(matches!(result, Value::True));
+        assert!(result.is_nil());
     }
 
     #[test]
@@ -882,16 +877,16 @@ mod tests {
     }
 
     #[test]
-    fn builtin_make_category_set_ignores_non_letters() {
+    fn builtin_make_category_set_includes_ascii_graphic_symbols() {
         let result = builtin_make_category_set(vec![Value::string("a1b!c")]).unwrap();
         if let Value::Vector(arc) = &result {
             let vec = arc.lock().unwrap();
-            // 'a', 'b', 'c' set; '1' and '!' not set.
+            // 'a', '1', 'b', '!', 'c' all set.
             assert!(matches!(&vec[2 + 97], Value::Int(1))); // 'a'
             assert!(matches!(&vec[2 + 98], Value::Int(1))); // 'b'
             assert!(matches!(&vec[2 + 99], Value::Int(1))); // 'c'
-            assert!(matches!(&vec[2 + 49], Value::Int(0))); // '1'
-            assert!(matches!(&vec[2 + 33], Value::Int(0))); // '!'
+            assert!(matches!(&vec[2 + 49], Value::Int(1))); // '1'
+            assert!(matches!(&vec[2 + 33], Value::Int(1))); // '!'
         } else {
             panic!("Expected vector result");
         }
@@ -916,7 +911,7 @@ mod tests {
             vec![Value::Char('Z'), Value::string("neovm-category-doc")],
         )
         .unwrap();
-        assert_eq!(result.as_str(), Some("neovm-category-doc"));
+        assert!(result.is_nil());
 
         let doc = builtin_category_docstring_eval(&mut eval, vec![Value::Char('Z')]).unwrap();
         assert_eq!(doc.as_str(), Some("neovm-category-doc"));
@@ -949,15 +944,16 @@ mod tests {
         assert!(is_category_letter('Z'));
         assert!(is_category_letter('m'));
         assert!(is_category_letter('M'));
+        assert!(is_category_letter('0'));
+        assert!(is_category_letter('9'));
+        assert!(is_category_letter('!'));
     }
 
     #[test]
     fn is_category_letter_invalid() {
-        assert!(!is_category_letter('0'));
-        assert!(!is_category_letter('9'));
         assert!(!is_category_letter(' '));
-        assert!(!is_category_letter('!'));
         assert!(!is_category_letter('\n'));
+        assert!(!is_category_letter('é'));
     }
 
     #[test]

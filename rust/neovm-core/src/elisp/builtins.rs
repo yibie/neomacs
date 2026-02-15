@@ -1711,6 +1711,34 @@ pub(crate) fn builtin_aref(args: Vec<Value>) -> EvalResult {
     match &args[0] {
         Value::Vector(v) => {
             let items = v.lock().expect("poisoned");
+            let is_bool_vector =
+                items.len() >= 2 && matches!(&items[0], Value::Symbol(s) if s == "--bool-vector--");
+            if is_bool_vector {
+                let len = match items.get(1) {
+                    Some(Value::Int(n)) if *n >= 0 => *n as usize,
+                    _ => {
+                        return Err(signal(
+                            "wrong-type-argument",
+                            vec![Value::symbol("bool-vector-p"), args[0].clone()],
+                        ));
+                    }
+                };
+                if idx >= len {
+                    return Err(signal(
+                        "args-out-of-range",
+                        vec![args[0].clone(), args[1].clone()],
+                    ));
+                }
+                let bit = items.get(idx + 2).cloned().ok_or_else(|| {
+                    signal("args-out-of-range", vec![args[0].clone(), args[1].clone()])
+                })?;
+                let truthy = match bit {
+                    Value::Int(n) => n != 0,
+                    Value::Nil => false,
+                    other => other.is_truthy(),
+                };
+                return Ok(Value::bool(truthy));
+            }
             items
                 .get(idx)
                 .cloned()
@@ -1736,6 +1764,34 @@ pub(crate) fn builtin_aset(args: Vec<Value>) -> EvalResult {
     match &args[0] {
         Value::Vector(v) => {
             let mut items = v.lock().expect("poisoned");
+            let is_bool_vector =
+                items.len() >= 2 && matches!(&items[0], Value::Symbol(s) if s == "--bool-vector--");
+            if is_bool_vector {
+                let len = match items.get(1) {
+                    Some(Value::Int(n)) if *n >= 0 => *n as usize,
+                    _ => {
+                        return Err(signal(
+                            "wrong-type-argument",
+                            vec![Value::symbol("bool-vector-p"), args[0].clone()],
+                        ));
+                    }
+                };
+                if idx >= len {
+                    return Err(signal(
+                        "args-out-of-range",
+                        vec![args[0].clone(), args[1].clone()],
+                    ));
+                }
+                let store_idx = idx + 2;
+                if store_idx >= items.len() {
+                    return Err(signal(
+                        "args-out-of-range",
+                        vec![args[0].clone(), args[1].clone()],
+                    ));
+                }
+                items[store_idx] = Value::Int(if args[2].is_truthy() { 1 } else { 0 });
+                return Ok(args[2].clone());
+            }
             if idx >= items.len() {
                 return Err(signal(
                     "args-out-of-range",
@@ -8548,6 +8604,32 @@ mod tests {
             .expect("builtin vector should resolve")
             .expect("builtin vector should evaluate");
         assert_eq!(result, Value::vector(vec![Value::Int(7), Value::Int(9)]));
+    }
+
+    #[test]
+    fn pure_dispatch_typed_aref_bool_vector_returns_boolean_bits() {
+        let bv = Value::vector(vec![
+            Value::symbol("--bool-vector--"),
+            Value::Int(4),
+            Value::Int(0),
+            Value::Int(0),
+            Value::Int(0),
+            Value::Int(0),
+        ]);
+
+        let initial = dispatch_builtin_pure("aref", vec![bv.clone(), Value::Int(2)])
+            .expect("builtin aref should resolve")
+            .expect("builtin aref should evaluate");
+        assert!(initial.is_nil());
+
+        let _ = dispatch_builtin_pure("aset", vec![bv.clone(), Value::Int(2), Value::True])
+            .expect("builtin aset should resolve")
+            .expect("builtin aset should evaluate");
+
+        let updated = dispatch_builtin_pure("aref", vec![bv, Value::Int(2)])
+            .expect("builtin aref should resolve")
+            .expect("builtin aref should evaluate");
+        assert!(updated.is_truthy());
     }
 
     #[test]
