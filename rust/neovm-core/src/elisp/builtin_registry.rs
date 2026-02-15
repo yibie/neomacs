@@ -796,6 +796,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "suspend-tty",
     "switch-to-buffer",
     "syntax-table",
+    "syntax-table-p",
     "symbol-at-point",
     "symbol-file",
     "symbol-function",

@@ -901,6 +901,27 @@ pub(crate) fn builtin_standard_syntax_table(args: Vec<Value>) -> EvalResult {
     builtin_make_syntax_table(vec![])
 }
 
+/// `(syntax-table-p OBJECT)` — return t if OBJECT is a syntax table.
+pub(crate) fn builtin_syntax_table_p(args: Vec<Value>) -> EvalResult {
+    if args.len() != 1 {
+        return Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol("syntax-table-p"), Value::Int(args.len() as i64)],
+        ));
+    }
+
+    let is_char_table = super::chartable::builtin_char_table_p(vec![args[0].clone()])?;
+    if !is_char_table.is_truthy() {
+        return Ok(Value::Nil);
+    }
+
+    let subtype = super::chartable::builtin_char_table_subtype(vec![args[0].clone()])?;
+    match subtype {
+        Value::Symbol(name) if name == "syntax-table" => Ok(Value::True),
+        _ => Ok(Value::Nil),
+    }
+}
+
 /// `(syntax-table)` — return the current buffer syntax table.
 ///
 /// Current VM representation stores syntax behavior on the buffer internals,
@@ -1763,5 +1784,20 @@ mod tests {
         assert_eq!(is_ct, Value::True);
         let subtype = crate::elisp::chartable::builtin_char_table_subtype(vec![table]).unwrap();
         assert_eq!(subtype, Value::symbol("syntax-table"));
+    }
+
+    #[test]
+    fn syntax_table_p_recognizes_syntax_tables() {
+        let syntax_table = builtin_make_syntax_table(vec![]).unwrap();
+        let is_syntax = builtin_syntax_table_p(vec![syntax_table]).unwrap();
+        assert_eq!(is_syntax, Value::True);
+
+        let char_table = crate::elisp::chartable::builtin_make_char_table(vec![Value::symbol("foo")])
+            .unwrap();
+        let not_syntax = builtin_syntax_table_p(vec![char_table]).unwrap();
+        assert_eq!(not_syntax, Value::Nil);
+
+        let atom = builtin_syntax_table_p(vec![Value::Int(1)]).unwrap();
+        assert_eq!(atom, Value::Nil);
     }
 }
