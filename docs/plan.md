@@ -7,17 +7,29 @@ Last updated: 2026-02-15
 - Expand kill-ring/yank pointer corpus around normalization and command-context edges.
 - Keep default-suite case lists authoritative and append passing corpora in small slices.
 - Continue `yank-pop` parity lock-in for command-context error ordering and mark-marker interactions.
-- Run a full `check-all-neovm` sweep after the recent default-list promotions.
+- Continue navigation/mark behavior parity around mark activity and region introspection helpers.
 - Keep `.elc` reader/exec compatibility corpora explicitly non-default while `.elc` binary compatibility remains disabled.
 
 ## Next
 
-- Add one focused corpus for `yank-pop` with explicitly empty `kill-ring` + pointer seeds (error payload parity).
+- Add one focused corpus for `region-beginning`/`region-end` when mark is unset vs set (error payload parity).
 - Continue promoting already-green non-default corpora to `default.list` one-by-one with targeted checks.
 - Keep validating list hygiene and merged-case dedupe as list membership changes.
 
 ## Done
 
+- Aligned `mark` return-value semantics with oracle behavior:
+  - updated `rust/neovm-core/src/elisp/navigation.rs`:
+    - `mark` now returns `nil` when unset (instead of signaling `mark-not-set`)
+  - added corpus:
+    - `test/neovm/vm-compat/cases/mark-semantics.forms`
+    - `test/neovm/vm-compat/cases/mark-semantics.expected.tsv`
+  - wired into:
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/mark-semantics.forms EXPECTED=cases/mark-semantics.expected.tsv` (pass, 6/6)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/mark-semantics` (pass, 6/6)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Aligned `yank-pop` command-context and mark-marker semantics with oracle behavior:
   - updated `rust/neovm-core/src/elisp/kill_ring.rs`:
     - `yank-pop` now rotates/publishes pointer state after mark-bounds resolution, preserving no-rotation behavior when mark is unset
