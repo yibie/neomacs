@@ -3,6 +3,23 @@
 (fboundp 'cancel-timer)
 (fboundp 'timer-activate)
 (timerp nil)
+
+(condition-case err
+    (timerp)
+  (error (car err)))
+
+(condition-case err
+    (timerp nil nil)
+  (error (car err)))
+
+(condition-case err
+    (cancel-timer)
+  (error (car err)))
+
+(condition-case err
+    (timer-activate)
+  (error (car err)))
+
 (sit-for 0)
 (sit-for 0 t)
 
