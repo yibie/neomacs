@@ -291,6 +291,21 @@ pub(crate) fn builtin_put_image(args: Vec<Value>) -> EvalResult {
         ));
     }
 
+    // Optional AREA must be nil, left-margin, or right-margin.
+    if args.len() > 3 && !args[3].is_nil() {
+        let valid = matches!(
+            args[3].as_symbol_name(),
+            Some("left-margin") | Some("right-margin")
+        );
+        if !valid {
+            let rendered = super::print::print_value(&args[3]);
+            return Err(signal(
+                "error",
+                vec![Value::string(format!("Invalid area {rendered}"))],
+            ));
+        }
+    }
+
     // Stub: no-op.
     Ok(Value::Nil)
 }
@@ -309,6 +324,21 @@ pub(crate) fn builtin_insert_image(args: Vec<Value>) -> EvalResult {
             "error",
             vec![Value::string(format!("Not an image: {rendered}"))],
         ));
+    }
+
+    // Optional AREA must be nil, left-margin, or right-margin.
+    if args.len() > 2 && !args[2].is_nil() {
+        let valid = matches!(
+            args[2].as_symbol_name(),
+            Some("left-margin") | Some("right-margin")
+        );
+        if !valid {
+            let rendered = super::print::print_value(&args[2]);
+            return Err(signal(
+                "error",
+                vec![Value::string(format!("Invalid area {rendered}"))],
+            ));
+        }
     }
 
     Ok(Value::True)
@@ -655,6 +685,24 @@ mod tests {
     }
 
     #[test]
+    fn put_image_invalid_area() {
+        let spec =
+            builtin_create_image(vec![Value::string("test.png"), Value::symbol("png")]).unwrap();
+        let result = builtin_put_image(vec![
+            spec,
+            Value::Int(1),
+            Value::Nil,
+            Value::symbol("center"),
+        ]);
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig))
+                if sig.symbol == "error"
+                && sig.data.first() == Some(&Value::string("Invalid area center"))
+        ));
+    }
+
+    #[test]
     fn put_image_not_image() {
         let result = builtin_put_image(vec![Value::Int(1), Value::Int(1)]);
         assert!(matches!(
@@ -687,6 +735,19 @@ mod tests {
             Err(Flow::Signal(sig))
                 if sig.symbol == "error"
                 && sig.data.first() == Some(&Value::string("Not an image: 42"))
+        ));
+    }
+
+    #[test]
+    fn insert_image_invalid_area() {
+        let spec =
+            builtin_create_image(vec![Value::string("test.png"), Value::symbol("png")]).unwrap();
+        let result = builtin_insert_image(vec![spec, Value::Nil, Value::symbol("center")]);
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig))
+                if sig.symbol == "error"
+                && sig.data.first() == Some(&Value::string("Invalid area center"))
         ));
     }
 

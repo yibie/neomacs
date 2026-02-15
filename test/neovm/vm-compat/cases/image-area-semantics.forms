@@ -1,0 +1,14 @@
+(condition-case err
+    (put-image (create-image "x" 'pbm t) 1 nil 'center)
+  (error err))
+(condition-case err
+    (insert-image (create-image "x" 'pbm t) nil 'center)
+  (error err))
+
+(put-image (create-image "x" 'pbm t) 1 nil nil)
+(put-image (create-image "x" 'pbm t) 1 nil 'left-margin)
+(put-image (create-image "x" 'pbm t) 1 nil 'right-margin)
+
+(insert-image (create-image "x" 'pbm t) nil nil)
+(insert-image (create-image "x" 'pbm t) nil 'left-margin)
+(insert-image (create-image "x" 'pbm t) nil 'right-margin)
