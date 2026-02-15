@@ -1634,6 +1634,24 @@ Last updated: 2026-02-15
     - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat record FORMS=cases/char-resolve-modifiers-semantics.forms EXPECTED=cases/char-resolve-modifiers-semantics.expected.tsv` (pass)
     - `make -C test/neovm/vm-compat check-neovm FORMS=cases/char-resolve-modifiers-semantics.forms EXPECTED=cases/char-resolve-modifiers-semantics.expected.tsv` (pass, 14/14)
     - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+- Expanded and aligned `query-replace*` edge compatibility in batch subset:
+  - added oracle corpus:
+    - `test/neovm/vm-compat/cases/query-replace-edge-semantics.forms`
+    - `test/neovm/vm-compat/cases/query-replace-edge-semantics.expected.tsv`
+    - enabled in `test/neovm/vm-compat/cases/default.list`
+  - covered additional edge paths:
+    - `DELIMITED` semantics for `query-replace` and `query-replace-regexp`
+    - backward replacement point semantics
+    - regexp backreference replacement expansion
+    - case-fold toggle behavior under `case-fold-search=nil`
+    - region-noncontiguous forwarding for `query-replace*`
+    - invalid regexp behavior for `query-replace-regexp` in batch mode
+  - fixed evaluator behavior:
+    - `query-replace-regexp` now swallows `invalid-regexp` and returns `nil` in batch-safe subset (oracle parity)
+  - verified:
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat record FORMS=cases/query-replace-edge-semantics.forms EXPECTED=cases/query-replace-edge-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/query-replace-edge-semantics.forms EXPECTED=cases/query-replace-edge-semantics.expected.tsv` (pass, 9/9)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Kept branch green with targeted Rust tests and vm-compat checks after each slice.
 
 ## Doing
