@@ -708,15 +708,7 @@ pub(crate) fn builtin_display_monitor_attributes_list_eval(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    expect_max_args("display-monitor-attributes-list", &args, 1)?;
-    if let Some(display) = args.first() {
-        if !display.is_nil() && !terminal_designator_p(display) {
-            return Err(signal(
-                "error",
-                vec![Value::string("Invalid argument 1 in 'get-device-terminal'")],
-            ));
-        }
-    }
+    expect_optional_display_designator_eval(eval, "display-monitor-attributes-list", &args)?;
 
     let _ = super::window_cmds::ensure_selected_frame_id(eval);
     let frames = eval
@@ -749,15 +741,7 @@ pub(crate) fn builtin_frame_monitor_attributes_eval(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    expect_max_args("frame-monitor-attributes", &args, 1)?;
-    if let Some(frame) = args.first() {
-        if !frame.is_nil() && !terminal_designator_p(frame) {
-            return Err(signal(
-                "error",
-                vec![Value::string("Invalid argument 1 in 'get-device-terminal'")],
-            ));
-        }
-    }
+    expect_optional_display_designator_eval(eval, "frame-monitor-attributes", &args)?;
 
     let _ = super::window_cmds::ensure_selected_frame_id(eval);
     let frames = eval
@@ -1072,6 +1056,23 @@ mod tests {
 
         let frames = list_to_vec(&frames_value).expect("frames list");
         assert_eq!(frames.len(), 1);
+    }
+
+    #[test]
+    fn eval_monitor_queries_accept_live_frame_designator() {
+        let mut eval = crate::elisp::Evaluator::new();
+        let frame_id = crate::elisp::window_cmds::ensure_selected_frame_id(&mut eval).0 as i64;
+
+        let list =
+            builtin_display_monitor_attributes_list_eval(&mut eval, vec![Value::Int(frame_id)])
+                .unwrap();
+        let monitors = list_to_vec(&list).expect("monitor list");
+        assert_eq!(monitors.len(), 1);
+
+        let attrs =
+            builtin_frame_monitor_attributes_eval(&mut eval, vec![Value::Int(frame_id)]).unwrap();
+        let attr_list = list_to_vec(&attrs).expect("monitor attrs");
+        assert!(!attr_list.is_empty());
     }
 
     #[test]

@@ -4,6 +4,8 @@
 4	(equal (display-monitor-attributes-list) (display-monitor-attributes-list nil))	OK t
 5	(equal (frame-monitor-attributes) (frame-monitor-attributes nil))	OK t
 6	(let ((term (car (terminal-list)))) (length (display-monitor-attributes-list term)))	OK 1
-7	(condition-case err (display-monitor-attributes-list 1) (error (car err)))	OK error
-8	(condition-case err (frame-monitor-attributes 1) (error (car err)))	OK error
-9	(let* ((attrs (frame-monitor-attributes (car (terminal-list)))) (g (cdr (assq 'geometry attrs)))) g)	OK (0 0 80 25)
+7	(let ((f (selected-frame))) (length (display-monitor-attributes-list f)))	OK 1
+8	(let* ((attrs (frame-monitor-attributes (selected-frame))) (frames (cdr (assq 'frames attrs)))) (and (= (length frames) 1) (frame-live-p (car frames))))	OK t
+9	(condition-case err (display-monitor-attributes-list 999999) (error (car err)))	OK error
+10	(condition-case err (frame-monitor-attributes 999999) (error (car err)))	OK error
+11	(let* ((attrs (frame-monitor-attributes (car (terminal-list)))) (g (cdr (assq 'geometry attrs)))) g)	OK (0 0 80 25)
