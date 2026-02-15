@@ -18,6 +18,15 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Test-gated dead duplicate `current-time`/`float-time` wrappers in `timefns`:
+  - updated:
+    - `rust/neovm-core/src/elisp/timefns.rs`
+      - marked local duplicate `builtin_current_time` and `builtin_float_time` as `#[cfg(test)]` since production dispatch uses `builtins.rs`.
+      - preserved local unit-test coverage for `timefns` conversion logic.
+  - verified:
+    - `cargo test 'elisp::timefns::tests::' -- --nocapture` (pass, 58 tests)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/timer-semantics` (pass, 33/33)
+
 - Test-gated dead duplicate `cl-incf`/`cl-decf` handlers in `cl_extra`:
   - updated:
     - `rust/neovm-core/src/elisp/cl_extra.rs`

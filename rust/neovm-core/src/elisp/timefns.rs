@@ -501,12 +501,14 @@ fn zone_rule_to_offset_name(rule: &ZoneRule, epoch_secs: i64) -> (i64, String) {
 // ---------------------------------------------------------------------------
 
 /// `(current-time)` -> `(HIGH LOW USEC PSEC)`
+#[cfg(test)]
 pub(crate) fn builtin_current_time(args: Vec<Value>) -> EvalResult {
     expect_args("current-time", &args, 0)?;
     Ok(TimeMicros::now().to_list())
 }
 
 /// `(float-time &optional TIME)` -> float seconds since epoch.
+#[cfg(test)]
 pub(crate) fn builtin_float_time(args: Vec<Value>) -> EvalResult {
     expect_min_max_args("float-time", &args, 0, 1)?;
     let tm = if args.is_empty() || args[0].is_nil() {
