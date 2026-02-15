@@ -2184,6 +2184,12 @@ pub(crate) fn builtin_add_name_to_file_eval(eval: &Evaluator, args: Vec<Value>) 
 /// (make-directory DIR &optional PARENTS) -> nil
 pub(crate) fn builtin_make_directory(args: Vec<Value>) -> EvalResult {
     expect_min_args("make-directory", &args, 1)?;
+    if args.len() > 2 {
+        return Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol("make-directory"), Value::Int(args.len() as i64)],
+        ));
+    }
     let dir = expect_string_strict(&args[0])?;
     let parents = args.get(1).is_some_and(|v| v.is_truthy());
     make_directory(&dir, parents)
@@ -2195,6 +2201,12 @@ pub(crate) fn builtin_make_directory(args: Vec<Value>) -> EvalResult {
 /// against dynamic/default `default-directory`.
 pub(crate) fn builtin_make_directory_eval(eval: &Evaluator, args: Vec<Value>) -> EvalResult {
     expect_min_args("make-directory", &args, 1)?;
+    if args.len() > 2 {
+        return Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol("make-directory"), Value::Int(args.len() as i64)],
+        ));
+    }
     let dir = resolve_filename_for_eval(eval, &expect_string_strict(&args[0])?);
     let parents = args.get(1).is_some_and(|v| v.is_truthy());
     make_directory(&dir, parents)
@@ -3006,6 +3018,40 @@ mod tests {
         }
 
         // Clean up
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn test_builtin_make_directory_arity_and_parents_semantics() {
+        let base = std::env::temp_dir().join("neovm_builtin_mkdir_arity");
+        let _ = fs::remove_dir_all(&base);
+        fs::create_dir_all(&base).unwrap();
+        let nested = base.join("a/b");
+        let nested_s = nested.to_string_lossy().to_string();
+
+        let err = builtin_make_directory(vec![Value::string(&nested_s)]).unwrap_err();
+        match err {
+            Flow::Signal(sig) => assert_eq!(sig.symbol, "file-missing"),
+            other => panic!("expected file-missing, got {:?}", other),
+        }
+
+        assert_eq!(
+            builtin_make_directory(vec![Value::string(&nested_s), Value::True]).unwrap(),
+            Value::Nil
+        );
+        assert!(nested.is_dir());
+
+        let err = builtin_make_directory(vec![
+            Value::string(&nested_s),
+            Value::Nil,
+            Value::Nil,
+        ])
+        .unwrap_err();
+        match err {
+            Flow::Signal(sig) => assert_eq!(sig.symbol, "wrong-number-of-arguments"),
+            other => panic!("expected wrong-number-of-arguments, got {:?}", other),
+        }
+
         let _ = fs::remove_dir_all(&base);
     }
 

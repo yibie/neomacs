@@ -4,6 +4,24 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Implemented `make-directory` arity/parents compatibility slice:
+  - updated pure + evaluator-aware builtins in `rust/neovm-core/src/elisp/fileio.rs`:
+    - `builtin_make_directory`
+    - `builtin_make_directory_eval`
+  - semantics aligned with oracle subset:
+    - arity `1..2`
+    - strict `stringp` validation for directory path
+    - non-parents create on missing parent signals `file-missing`
+    - parents flag creates intermediate directories
+    - evaluator path resolves relative names against dynamic/default `default-directory`
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/make-directory-semantics.forms`
+    - `test/neovm/vm-compat/cases/make-directory-semantics.expected.tsv`
+    - wired into `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml make_directory_arity -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/make-directory-semantics.forms EXPECTED=cases/make-directory-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Implemented `copy-file` optional-args compatibility slice:
   - updated pure + evaluator-aware builtins in `rust/neovm-core/src/elisp/fileio.rs`:
     - `builtin_copy_file`
