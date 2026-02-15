@@ -108,6 +108,23 @@ fn get_leaf<'a>(frames: &'a FrameManager, fid: FrameId, wid: WindowId) -> Result
         .ok_or_else(|| signal("error", vec![Value::string("Window not found")]))
 }
 
+/// Ensure a selected frame exists and return its id.
+///
+/// In batch compatibility mode, GNU Emacs still has an initial frame (`F1`).
+/// When the evaluator has no frame yet, synthesize one on demand.
+fn ensure_selected_frame_id(eval: &mut super::eval::Evaluator) -> FrameId {
+    if let Some(fid) = eval.frames.selected_frame().map(|f| f.id) {
+        return fid;
+    }
+
+    let buf_id = eval
+        .buffers
+        .current_buffer()
+        .map(|b| b.id)
+        .unwrap_or_else(|| eval.buffers.create_buffer("*scratch*"));
+    eval.frames.create_frame("F1", 80, 25, buf_id)
+}
+
 /// Compute the height of a window in lines.
 fn window_height_lines(w: &Window, char_height: f32) -> i64 {
     let h = w.bounds().height;
@@ -705,11 +722,7 @@ pub(crate) fn builtin_selected_frame(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_args("selected-frame", &args, 0)?;
-    let fid = eval
-        .frames
-        .selected_frame()
-        .map(|f| f.id)
-        .ok_or_else(|| signal("error", vec![Value::string("No selected frame")]))?;
+    let fid = ensure_selected_frame_id(eval);
     Ok(Value::Int(fid.0 as i64))
 }
 
@@ -719,6 +732,7 @@ pub(crate) fn builtin_frame_list(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_args("frame-list", &args, 0)?;
+    let _ = ensure_selected_frame_id(eval);
     let ids: Vec<Value> = eval
         .frames
         .frame_list()
@@ -1216,6 +1230,14 @@ mod tests {
         let mut ev = Evaluator::new();
         let results = ev.eval_forms(&forms);
         assert_eq!(format_eval_result(&results[0]), "OK nil");
+    }
+
+    #[test]
+    fn selected_frame_bootstraps_initial_frame() {
+        let forms = parse_forms("(list (framep (selected-frame)) (length (frame-list)))").expect("parse");
+        let mut ev = Evaluator::new();
+        let results = ev.eval_forms(&forms);
+        assert_eq!(format_eval_result(&results[0]), "OK (t 1)");
     }
 
     #[test]

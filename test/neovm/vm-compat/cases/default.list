@@ -68,6 +68,7 @@ cases/display-batch-semantics
 cases/display-monitor-semantics
 cases/terminal-parameter-semantics
 cases/terminal-handle-printing
+cases/frame-batch-semantics
 cases/default-directory
 cases/expand-file-name-default-directory
 cases/directory-file-name
