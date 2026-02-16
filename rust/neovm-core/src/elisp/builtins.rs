@@ -6008,6 +6008,9 @@ fn builtin_event_apply_modifier(args: Vec<Value>) -> EvalResult {
     if modifier == Some("control") {
         let code = event & KEY_CHAR_CODE_MASK;
         let mut mod_bits = event & !KEY_CHAR_CODE_MASK;
+        if code <= 31 {
+            return Ok(Value::Int(mod_bits | code));
+        }
         if code != 32 && code != 63 {
             if let Some(resolved) = resolve_control_code(code) {
                 if (65..=90).contains(&code) || (mod_bits & KEY_CHAR_SHIFT) != 0 {
@@ -6023,10 +6026,17 @@ fn builtin_event_apply_modifier(args: Vec<Value>) -> EvalResult {
         let code = event & KEY_CHAR_CODE_MASK;
         let mod_bits = event & !KEY_CHAR_CODE_MASK;
         let shifted = match code {
+            0 => 1,
             1..=26 => code + 64,
+            28 => 29,
+            30 => 31,
             32 => 33,
+            c if (34..=62).contains(&c) && c % 2 == 0 => c + 1,
             64 => 65,
+            92 => 93,
+            94 => 95,
             96 => 97,
+            124 => 125,
             126 => 127,
             97..=122 => code - 32,
             _ => code,
