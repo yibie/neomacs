@@ -19,6 +19,24 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Implemented `float-time` optional time-value decoding + arity lock-in:
+  - updated:
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - `float-time` now enforces max arity `1`.
+      - optional `SPECIFIED-TIME` now decodes:
+        - numeric values (`int`/`float`)
+        - Emacs time lists `(HIGH LOW [USEC [PSEC]])`
+      - invalid payloads now signal typed `wrong-type-argument` errors.
+    - added corpus:
+      - `test/neovm/vm-compat/cases/float-time-semantics.{forms,expected.tsv}`
+        - locks decoding behavior and error/arity contracts.
+    - `test/neovm/vm-compat/cases/default.list`
+      - added `cases/float-time-semantics`.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/float-time-semantics` (pass, 13/13)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass, full default + neovm-only corpus)
+
 - Enforced buffer metadata helper arity contracts:
   - updated:
     - `rust/neovm-core/src/elisp/builtins.rs`
