@@ -1,0 +1,12 @@
+1	(cl-intersection '(a b c) '(b d c))	OK (b c)
+2	(cl-set-difference '(a b c d) '(b d))	OK (a c)
+3	(cl-union '(a b) '(b c))	OK (a b c)
+4	(cl-subsetp '(a b) '(b a c))	OK t
+5	(cl-subsetp '(a z) '(a b c))	OK nil
+6	(cl-substitute 'x 'b '(a b c b))	OK (a x c x)
+7	(cl-remove-if #'numberp '(1 "x" 2))	OK ("x")
+8	(cl-remove-if-not #'numberp '(1 "x" 2))	OK (1 2)
+9	(cl-map 'list #'1+ '(1 2 3))	OK (2 3 4)
+10	(cl-map 'vector #'1+ '(1 2 3))	OK [2 3 4]
+11	(cl-sort '(3 1 2) #'<)	OK (1 2 3)
+12	(cl-stable-sort '(3 1 2) #'<)	OK (1 2 3)
