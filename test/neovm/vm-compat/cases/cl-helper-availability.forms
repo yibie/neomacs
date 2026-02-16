@@ -17,7 +17,7 @@
 (fboundp 'cl-fifth)
 (condition-case err (cl-fifth '(a b c d e)) (error err))
 (fboundp 'cl-find)
-(condition-case err (cl-find) (error err))
+(condition-case err (cl-find 'b '(a b c)) (error err))
 (fboundp 'cl-find-if)
 (condition-case err (cl-find-if) (error err))
 (fboundp 'cl-first)

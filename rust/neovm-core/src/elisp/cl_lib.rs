@@ -760,6 +760,19 @@ pub(crate) fn builtin_cl_gensym(args: Vec<Value>) -> EvalResult {
     Ok(Value::symbol(format!("{prefix}{n}")))
 }
 
+/// `(cl-find ITEM SEQ)` -- return first element in SEQ equal to ITEM.
+pub(crate) fn builtin_cl_find(args: Vec<Value>) -> EvalResult {
+    expect_args("cl-find", &args, 2)?;
+    let target = &args[0];
+    let elements = seq_position_elements(&args[1])?;
+    for element in elements {
+        if equal_value(&element, target, 0) {
+            return Ok(element);
+        }
+    }
+    Ok(Value::Nil)
+}
+
 /// `(seq-contains-p SEQ ELT &optional TESTFN)` — membership test for sequence.
 pub(crate) fn builtin_seq_contains_p(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     if !(2..=3).contains(&args.len()) {
@@ -1582,5 +1595,30 @@ mod tests {
     #[test]
     fn cl_gensym_wrong_type() {
         assert!(builtin_cl_gensym(vec![Value::Int(1)]).is_err());
+    }
+
+    #[test]
+    fn cl_find_found() {
+        let result = builtin_cl_find(vec![
+            Value::symbol("b"),
+            Value::list(vec![Value::symbol("a"), Value::symbol("b"), Value::symbol("c")]),
+        ])
+        .unwrap();
+        assert_eq!(result, Value::symbol("b"));
+    }
+
+    #[test]
+    fn cl_find_not_found() {
+        let result = builtin_cl_find(vec![
+            Value::symbol("z"),
+            Value::list(vec![Value::symbol("a"), Value::symbol("b"), Value::symbol("c")]),
+        ])
+        .unwrap();
+        assert!(result.is_nil());
+    }
+
+    #[test]
+    fn cl_find_wrong_arity() {
+        assert!(builtin_cl_find(vec![Value::symbol("a")]).is_err());
     }
 }

@@ -16,8 +16,8 @@
 16	(condition-case err (cl-every #'numberp '(1 2 3)) (error err))	OK t
 17	(fboundp 'cl-fifth)	OK t
 18	(condition-case err (cl-fifth '(a b c d e)) (error err))	OK e
-19	(fboundp 'cl-find)	OK nil
-20	(condition-case err (cl-find) (error err))	OK (void-function cl-find)
+19	(fboundp 'cl-find)	OK t
+20	(condition-case err (cl-find 'b '(a b c)) (error err))	OK b
 21	(fboundp 'cl-find-if)	OK nil
 22	(condition-case err (cl-find-if) (error err))	OK (void-function cl-find-if)
 23	(fboundp 'cl-first)	OK t
