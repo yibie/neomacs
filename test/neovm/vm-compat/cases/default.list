@@ -327,6 +327,7 @@ cases/memory-use-counts-semantics
 cases/match-data
 cases/rect-extract-semantics
 cases/rect-delete-extract-semantics
+cases/rect-delete-semantics
 cases/string-match-case-fold-semantics
 cases/string-match-case-fold-variable-semantics
 cases/overlay-arity-semantics
