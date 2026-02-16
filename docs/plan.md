@@ -7807,6 +7807,22 @@ Last updated: 2026-02-16
     - `make -C test/neovm/vm-compat check-neovm CASE=cases/cxr-subr-arity-semantics` (pass, 15/15)
     - `make -C test/neovm/vm-compat validate-case-lists` (pass)
     - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass, 1 allowlisted drift)
+- Aligned buffer/point primitive `subr-arity` metadata with GNU Emacs and locked parity in corpus:
+  - added arity overrides:
+    - `(0 . 0)`: `current-buffer`, `buffer-string`, `point`, `point-min`, `point-max`, `erase-buffer`, `widen`
+    - `(0 . 1)`: `buffer-file-name`, `buffer-name`, `buffer-size`, `buffer-modified-p`, `buffer-list`, `buffer-disable-undo`, `buffer-enable-undo`, `buffer-hash`, `buffer-local-variables`
+    - `(1 . 1)`: `buffer-live-p`
+    - `(2 . 2)`: `buffer-local-value`, `buffer-substring`, `buffer-substring-no-properties`
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/buffer-point-subr-arity-semantics.forms`
+    - `test/neovm/vm-compat/cases/buffer-point-subr-arity-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat record FORMS=cases/buffer-point-subr-arity-semantics.forms EXPECTED=cases/buffer-point-subr-arity-semantics.expected.tsv` (pass)
+    - `cargo test subr_arity_buffer_point_primitives_match_oracle -- --nocapture` in `rust/neovm-core` (pass)
+    - `make -C test/neovm/vm-compat check-neovm CASE=cases/buffer-point-subr-arity-semantics` (pass, 15/15)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass, 1 allowlisted drift)
 
 ## Doing
 
