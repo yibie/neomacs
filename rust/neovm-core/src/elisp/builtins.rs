@@ -10731,6 +10731,20 @@ mod tests {
             "symbol-at-point",
             "safe-date-to-time",
             "read-passwd",
+            "clear-rectangle",
+            "delete-extract-rectangle",
+            "delete-rectangle",
+            "describe-function",
+            "describe-variable",
+            "extract-rectangle",
+            "insert-kbd-macro",
+            "insert-rectangle",
+            "kbd-macro-query",
+            "kill-rectangle",
+            "open-rectangle",
+            "string-pixel-width",
+            "string-rectangle",
+            "yank-rectangle",
         ] {
             let value = builtin_symbol_function(&mut eval, vec![Value::symbol(name)])
                 .unwrap_or_else(|_| panic!("symbol-function should resolve {name} autoload"));

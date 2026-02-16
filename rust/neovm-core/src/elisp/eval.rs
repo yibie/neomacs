@@ -279,6 +279,72 @@ impl Evaluator {
             "auth-source",
             "Read a password, prompting with PROMPT, and return password as a string.",
         );
+        seed_autoload("clear-rectangle", "rect", "Blank out the region-rectangle with spaces.");
+        seed_autoload(
+            "delete-extract-rectangle",
+            "rect",
+            "Delete the rectangle with corners START and END and return it as a list of strings.",
+        );
+        seed_autoload(
+            "delete-rectangle",
+            "rect",
+            "Delete the rectangle with corners START and END.",
+        );
+        seed_autoload(
+            "describe-function",
+            "help-fns",
+            "Display the full documentation of FUNCTION in a help buffer.",
+        );
+        seed_autoload(
+            "describe-variable",
+            "help-fns",
+            "Display the full documentation of VARIABLE in a help buffer.",
+        );
+        seed_autoload(
+            "extract-rectangle",
+            "rect",
+            "Return rectangle corners START and END as a list of strings.",
+        );
+        seed_autoload(
+            "insert-kbd-macro",
+            "macros",
+            "Insert in buffer a keyboard macro's definition as Lisp code.",
+        );
+        seed_autoload(
+            "insert-rectangle",
+            "rect",
+            "Insert lines of RECTANGLE with upper left corner at point.",
+        );
+        seed_autoload(
+            "kbd-macro-query",
+            "macros",
+            "Query user during kbd macro execution.",
+        );
+        seed_autoload(
+            "kill-rectangle",
+            "rect",
+            "Delete the region-rectangle and save it as the last killed rectangle.",
+        );
+        seed_autoload(
+            "open-rectangle",
+            "rect",
+            "Blank out the specified rectangle with spaces for later insertion.",
+        );
+        seed_autoload(
+            "string-pixel-width",
+            "subr-x",
+            "Return the width in pixels of STRING.",
+        );
+        seed_autoload(
+            "string-rectangle",
+            "rect",
+            "Replace rectangle contents with STRING.",
+        );
+        seed_autoload(
+            "yank-rectangle",
+            "rect",
+            "Insert the last killed rectangle with its upper left corner at point.",
+        );
         // Some startup helpers are Lisp functions that delegate to primitives.
         // Seed lightweight wrappers so `symbol-function` shape matches GNU Emacs.
         let mut seed_function_wrapper = |name: &str| {
