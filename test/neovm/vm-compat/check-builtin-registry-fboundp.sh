@@ -17,6 +17,7 @@ if [[ ! -f "$allowlist_file" ]]; then
 fi
 
 tmp_names="$(mktemp)"
+tmp_core_names="$(mktemp)"
 tmp_forms="$(mktemp)"
 tmp_oracle="$(mktemp)"
 tmp_neovm="$(mktemp)"
@@ -28,6 +29,7 @@ tmp_stale="$(mktemp)"
 cleanup() {
   rm -f \
     "$tmp_names" \
+    "$tmp_core_names" \
     "$tmp_forms" \
     "$tmp_oracle" \
     "$tmp_neovm" \
@@ -53,13 +55,22 @@ if [[ ! -s "$tmp_names" ]]; then
   exit 1
 fi
 
+# NeoVM-prefixed symbols are extension builtins and intentionally absent in
+# GNU Emacs; exclude them from oracle parity comparison.
+grep -v '^neovm-' "$tmp_names" > "$tmp_core_names"
+
+if [[ ! -s "$tmp_core_names" ]]; then
+  echo "failed to derive core builtin names from registry" >&2
+  exit 1
+fi
+
 awk '
   {
     gsub(/\\/, "\\\\", $0)
     gsub(/"/, "\\\"", $0)
     printf "(fboundp (intern \"%s\"))\n", $0
   }
-' "$tmp_names" > "$tmp_forms"
+' "$tmp_core_names" > "$tmp_forms"
 
 "$script_dir/run-oracle.sh" "$tmp_forms" > "$tmp_oracle"
 "$script_dir/run-neovm.sh" "$tmp_forms" > "$tmp_neovm"
@@ -93,11 +104,15 @@ cut -f1 "$tmp_mismatches" | sort -u | comm -23 - "$tmp_allow" > "$tmp_unexpected
 comm -23 "$tmp_allow" <(cut -f1 "$tmp_mismatches" | sort -u) > "$tmp_stale"
 
 total="$(wc -l < "$tmp_names" | tr -d ' ')"
+core_total="$(wc -l < "$tmp_core_names" | tr -d ' ')"
+extension_total="$((total - core_total))"
 drift="$(wc -l < "$tmp_mismatches" | tr -d ' ')"
 unexpected="$(wc -l < "$tmp_unexpected" | tr -d ' ')"
 stale="$(wc -l < "$tmp_stale" | tr -d ' ')"
 
 echo "checked DISPATCH_BUILTIN_NAMES entries: $total"
+echo "checked core parity entries: $core_total"
+echo "skipped extension entries: $extension_total"
 echo "oracle/neovm fboundp drifts: $drift"
 echo "allowlist entries: $(wc -l < "$tmp_allow" | tr -d ' ')"
 

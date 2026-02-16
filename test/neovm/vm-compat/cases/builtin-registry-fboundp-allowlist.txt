@@ -1,2 +1,2 @@
-# Names intentionally exposed by NeoVM but absent in GNU Emacs -Q.
-neovm-precompile-file
+# Intentionally empty: extension-prefixed names (for example `neovm-*`) are
+# excluded from GNU Emacs oracle parity checks by the harness script.
