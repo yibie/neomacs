@@ -294,6 +294,11 @@ fn subr_arity_value(name: &str) -> Value {
         "/" | "<" | "<=" | "=" | ">" | ">=" | "apply" => arity_cons(1, None),
         "1+" | "1-" | "abs" => arity_cons(1, Some(1)),
         "%" | "/=" | "ash" => arity_cons(2, Some(2)),
+        "goto-char" => arity_cons(1, Some(1)),
+        "beginning-of-line" | "end-of-line" | "beginning-of-buffer" | "end-of-buffer"
+        | "forward-char" | "backward-char" | "forward-word" | "backward-word"
+        | "forward-line" => arity_cons(0, Some(1)),
+        "point-max" | "point-min" | "bobp" | "eobp" | "bolp" | "eolp" => arity_cons(0, Some(0)),
         "if" => Value::cons(Value::Int(2), Value::symbol("unevalled")),
         "defining-kbd-macro" => arity_cons(1, Some(2)),
         "help-key-description" => arity_cons(2, Some(2)),
@@ -743,6 +748,26 @@ mod tests {
         assert_subr_arity("minibuffer-prompt", 0, Some(0));
         assert_subr_arity("minibuffer-contents", 0, Some(0));
         assert_subr_arity("minibuffer-contents-no-properties", 0, Some(0));
+    }
+
+    #[test]
+    fn subr_arity_point_navigation_primitives_match_oracle() {
+        assert_subr_arity("beginning-of-line", 0, Some(1));
+        assert_subr_arity("end-of-line", 0, Some(1));
+        assert_subr_arity("beginning-of-buffer", 0, Some(1));
+        assert_subr_arity("end-of-buffer", 0, Some(1));
+        assert_subr_arity("forward-char", 0, Some(1));
+        assert_subr_arity("backward-char", 0, Some(1));
+        assert_subr_arity("forward-word", 0, Some(1));
+        assert_subr_arity("backward-word", 0, Some(1));
+        assert_subr_arity("forward-line", 0, Some(1));
+        assert_subr_arity("goto-char", 1, Some(1));
+        assert_subr_arity("point-max", 0, Some(0));
+        assert_subr_arity("point-min", 0, Some(0));
+        assert_subr_arity("bobp", 0, Some(0));
+        assert_subr_arity("eobp", 0, Some(0));
+        assert_subr_arity("bolp", 0, Some(0));
+        assert_subr_arity("eolp", 0, Some(0));
     }
 
     #[test]
