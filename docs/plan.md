@@ -23,6 +23,7 @@ Last updated: 2026-02-16
 - Keep newly landed define/default primitive runtime+`subr-arity` parity stable while expanding remaining startup drifts.
 - Keep newly landed `count-lines` runtime+`subr-arity` parity stable while expanding remaining navigation drifts.
 - Keep newly landed thread primitive `subr-arity` oracle matrix coverage stable while expanding remaining parity drifts.
+- Keep newly landed `featurep` runtime+`subr-arity` parity stable while expanding remaining startup/feature drifts.
 
 ## Next
 
@@ -34,6 +35,35 @@ Last updated: 2026-02-16
 6. Expand `recent-keys` capture beyond `read*` consumers to eventual command-loop event publication.
 
 ## Done
+
+- Aligned `featurep` runtime behavior and `subr-arity` metadata with GNU Emacs:
+  - updated:
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - `featurep` now accepts `(1 . 2)` arity.
+      - optional `SUBFEATURE` now checks symbol property `subfeatures` list membership when feature is present.
+      - non-list `subfeatures` property now signals `wrong-type-argument` with `listp`.
+      - added regression tests:
+        - `featurep_accepts_optional_subfeature_arg`
+        - `featurep_subfeatures_property_must_be_list`
+        - `featurep_rejects_more_than_two_args`
+    - `rust/neovm-core/src/elisp/subr_info.rs`
+      - added explicit arity override:
+        - `(1 . 2)`: `featurep`
+      - extended `subr_arity_predicate_core_primitives_match_oracle`.
+    - `test/neovm/vm-compat/cases/featurep-optional-subfeature-semantics.forms`
+    - `test/neovm/vm-compat/cases/featurep-optional-subfeature-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+      - added oracle lock-in case for `featurep` optional subfeature behavior.
+  - recorded with official GNU Emacs:
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat record FORMS=cases/featurep-optional-subfeature-semantics.forms EXPECTED=cases/featurep-optional-subfeature-semantics.expected.tsv` (pass)
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml featurep_accepts_optional_subfeature_arg -- --nocapture` (pass)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml featurep_subfeatures_property_must_be_list -- --nocapture` (pass)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml featurep_rejects_more_than_two_args -- --nocapture` (pass)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml subr_arity_predicate_core_primitives_match_oracle -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/featurep-optional-subfeature-semantics` (pass, 9/9)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass; allowlisted drift only: `neovm-precompile-file`)
 
 - Added full thread primitive `subr-arity` unit matrix coverage in NeoVM:
   - updated:
