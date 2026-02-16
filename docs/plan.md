@@ -55,6 +55,27 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Aligned face/font helper primitive `subr-arity` metadata with GNU Emacs:
+  - added explicit arity lock-ins for:
+    - `(2 . 2)`: `face-attribute-relative-p`, `font-get`, `internal-merge-in-global-face`
+    - `(1 . 3)`: `face-font`, `font-xlfd-name`
+    - `(1 . 2)`: `face-id`, `fontp`, `internal-make-lisp-face`, `internal-lisp-face-empty-p`, `internal-lisp-face-p`
+    - `(0 . 0)`: `face-list`
+    - `(3 . 3)`: `font-put`
+    - `(4 . 4)`: `internal-copy-lisp-face`
+    - `(2 . 3)`: `internal-face-x-get-resource`, `internal-get-lisp-face-attribute`, `internal-lisp-face-equal-p`
+    - `(1 . 1)`: `internal-lisp-face-attribute-values`, `internal-set-alternative-font-family-alist`, `internal-set-alternative-font-registry-alist`, `internal-set-font-selection-order`
+    - `(3 . 4)`: `internal-set-lisp-face-attribute`
+  - added oracle corpus lock-in case:
+    - `test/neovm/vm-compat/cases/face-font-helper-subr-arity-semantics.{forms,expected.tsv}`
+    - wired into default suite: `test/neovm/vm-compat/cases/default.list`
+  - unit coverage:
+    - `subr_arity_face_font_helper_primitives_match_oracle`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml subr_arity_face_font_helper_primitives_match_oracle -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/face-font-helper-subr-arity-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
+
 - Aligned window/navigation helper primitive `subr-arity` metadata with GNU Emacs:
   - added explicit arity lock-ins for:
     - `(0 . 2)`: `delete-frame`, `delete-other-windows`
