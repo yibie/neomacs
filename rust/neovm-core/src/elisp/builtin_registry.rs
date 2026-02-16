@@ -425,6 +425,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "insert-kbd-macro",
     "insert-rectangle",
     "insert-register",
+    "input-pending-p",
     "interactive-p",
     "intern",
     "intern-soft",
@@ -943,6 +944,7 @@ mod tests {
         assert!(is_dispatch_builtin_name("+"));
         assert!(is_dispatch_builtin_name("read-key"));
         assert!(is_dispatch_builtin_name("read-char-exclusive"));
+        assert!(is_dispatch_builtin_name("input-pending-p"));
         assert!(is_dispatch_builtin_name("minibuffer-prompt"));
         assert!(is_dispatch_builtin_name("minibuffer-contents"));
         assert!(is_dispatch_builtin_name(

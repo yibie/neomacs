@@ -827,7 +827,23 @@ fn non_character_input_event_error() -> Flow {
 }
 
 // ---------------------------------------------------------------------------
-// 9. y-or-n-p (stub)
+// 9. input-pending-p
+// ---------------------------------------------------------------------------
+
+/// `(input-pending-p &optional CHECK-TIMERS)`
+///
+/// Return non-nil when `unread-command-events` has at least one pending event.
+/// `CHECK-TIMERS` is currently accepted for arity compatibility and ignored.
+pub(crate) fn builtin_input_pending_p(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_max_args("input-pending-p", &args, 1)?;
+    Ok(Value::bool(eval.peek_unread_command_event().is_some()))
+}
+
+// ---------------------------------------------------------------------------
+// 10. y-or-n-p (stub)
 // ---------------------------------------------------------------------------
 
 /// `(y-or-n-p PROMPT)`
@@ -851,7 +867,7 @@ pub(crate) fn builtin_y_or_n_p(args: Vec<Value>) -> EvalResult {
 }
 
 // ---------------------------------------------------------------------------
-// 10. yes-or-no-p (stub)
+// 11. yes-or-no-p (stub)
 // ---------------------------------------------------------------------------
 
 /// `(yes-or-no-p PROMPT)`
@@ -867,7 +883,7 @@ pub(crate) fn builtin_yes_or_no_p(args: Vec<Value>) -> EvalResult {
 }
 
 // ---------------------------------------------------------------------------
-// 11. read-char (stub)
+// 12. read-char (stub)
 // ---------------------------------------------------------------------------
 
 /// `(read-char &optional PROMPT ...)`
@@ -922,7 +938,7 @@ pub(crate) fn builtin_read_key(
 }
 
 // ---------------------------------------------------------------------------
-// 12. read-key-sequence (stub)
+// 13. read-key-sequence (stub)
 // ---------------------------------------------------------------------------
 
 /// `(read-key-sequence PROMPT)`
@@ -1666,6 +1682,64 @@ mod tests {
     #[test]
     fn yes_or_no_p_rejects_extra_arg() {
         let result = builtin_yes_or_no_p(vec![Value::string("Confirm? "), Value::Nil]);
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"
+        ));
+    }
+
+    #[test]
+    fn input_pending_p_returns_nil_without_events() {
+        let mut ev = Evaluator::new();
+        let result = builtin_input_pending_p(&mut ev, vec![]).unwrap();
+        assert!(result.is_nil());
+    }
+
+    #[test]
+    fn input_pending_p_returns_t_with_unread_events() {
+        let mut ev = Evaluator::new();
+        ev.obarray
+            .set_symbol_value("unread-command-events", Value::list(vec![Value::Int(97)]));
+        let result = builtin_input_pending_p(&mut ev, vec![]).unwrap();
+        assert_eq!(result, Value::True);
+    }
+
+    #[test]
+    fn input_pending_p_uses_dynamic_unread_command_events_binding() {
+        let mut ev = Evaluator::new();
+        ev.obarray
+            .set_symbol_value("unread-command-events", Value::list(vec![Value::Int(97)]));
+        let forms = parse_forms("(let ((unread-command-events nil)) (input-pending-p))").unwrap();
+        let result = ev.eval_expr(&forms[0]).unwrap();
+        assert!(result.is_nil());
+        assert_eq!(
+            ev.obarray.symbol_value("unread-command-events"),
+            Some(&Value::list(vec![Value::Int(97)]))
+        );
+    }
+
+    #[test]
+    fn input_pending_p_returns_nil_for_non_list_unread_command_events() {
+        let mut ev = Evaluator::new();
+        ev.obarray
+            .set_symbol_value("unread-command-events", Value::Int(7));
+        let result = builtin_input_pending_p(&mut ev, vec![]).unwrap();
+        assert!(result.is_nil());
+    }
+
+    #[test]
+    fn input_pending_p_accepts_optional_check_timers_arg() {
+        let mut ev = Evaluator::new();
+        ev.obarray
+            .set_symbol_value("unread-command-events", Value::list(vec![Value::symbol("foo")]));
+        let result = builtin_input_pending_p(&mut ev, vec![Value::symbol("timers")]).unwrap();
+        assert_eq!(result, Value::True);
+    }
+
+    #[test]
+    fn input_pending_p_rejects_more_than_one_arg() {
+        let mut ev = Evaluator::new();
+        let result = builtin_input_pending_p(&mut ev, vec![Value::Nil, Value::Nil]);
         assert!(matches!(
             result,
             Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"

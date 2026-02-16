@@ -295,6 +295,7 @@ fn subr_arity_value(name: &str) -> Value {
         "defining-kbd-macro" => arity_cons(1, Some(2)),
         "help-key-description" => arity_cons(2, Some(2)),
         "recent-keys" => arity_cons(0, Some(1)),
+        "input-pending-p" => arity_cons(0, Some(1)),
         "event-apply-modifier" => arity_cons(4, Some(4)),
         // Threading primitives
         "thread-join" | "thread-name" | "thread-live-p" | "mutexp" | "mutex-name"
