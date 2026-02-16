@@ -1057,6 +1057,7 @@ pub(crate) fn builtin_make_frame(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
+    expect_max_args("make-frame", &args, 1)?;
     let mut width: u32 = 800;
     let mut height: u32 = 600;
     let mut name = String::from("F");
@@ -1107,6 +1108,7 @@ pub(crate) fn builtin_delete_frame(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
+    expect_max_args("delete-frame", &args, 2)?;
     let fid = resolve_frame_id(&eval.frames, args.first())?;
     if !eval.frames.delete_frame(fid) {
         return Err(signal("error", vec![Value::string("Cannot delete frame")]));
@@ -1120,6 +1122,7 @@ pub(crate) fn builtin_frame_parameter(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("frame-parameter", &args, 2)?;
+    expect_max_args("frame-parameter", &args, 2)?;
     let fid = resolve_frame_id(&eval.frames, Some(&args[0]))?;
     let param_name = match &args[1] {
         Value::Symbol(s) => s.clone(),
@@ -1173,6 +1176,7 @@ pub(crate) fn builtin_frame_parameters(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
+    expect_max_args("frame-parameters", &args, 1)?;
     let fid = resolve_frame_id(&eval.frames, args.first())?;
     let frame = eval
         .frames
@@ -1217,6 +1221,7 @@ pub(crate) fn builtin_modify_frame_parameters(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("modify-frame-parameters", &args, 2)?;
+    expect_max_args("modify-frame-parameters", &args, 2)?;
     let fid = resolve_frame_id(&eval.frames, Some(&args[0]))?;
     let items = super::value::list_to_vec(&args[1]).unwrap_or_default();
 
@@ -1268,6 +1273,7 @@ pub(crate) fn builtin_frame_visible_p(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
+    expect_max_args("frame-visible-p", &args, 1)?;
     let fid = resolve_frame_id(&eval.frames, args.first())?;
     let frame = eval
         .frames
@@ -1973,6 +1979,31 @@ mod tests {
     }
 
     // -- Frame operations --
+
+    #[test]
+    fn frame_ops_enforce_max_arity() {
+        let forms = parse_forms(
+            "(condition-case err (make-frame nil nil) (error (car err)))
+             (condition-case err (delete-frame nil nil nil) (error (car err)))
+             (condition-case err (frame-parameter nil 'name nil) (error (car err)))
+             (condition-case err (frame-parameters nil nil) (error (car err)))
+             (condition-case err (modify-frame-parameters nil nil nil) (error (car err)))
+             (condition-case err (frame-visible-p nil nil) (error (car err)))",
+        )
+        .expect("parse");
+        let mut ev = Evaluator::new();
+        let out = ev
+            .eval_forms(&forms)
+            .iter()
+            .map(format_eval_result)
+            .collect::<Vec<_>>();
+        assert_eq!(out[0], "OK wrong-number-of-arguments");
+        assert_eq!(out[1], "OK wrong-number-of-arguments");
+        assert_eq!(out[2], "OK wrong-number-of-arguments");
+        assert_eq!(out[3], "OK wrong-number-of-arguments");
+        assert_eq!(out[4], "OK wrong-number-of-arguments");
+        assert_eq!(out[5], "OK wrong-number-of-arguments");
+    }
 
     #[test]
     fn selected_frame_returns_int() {
