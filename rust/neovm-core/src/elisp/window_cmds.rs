@@ -134,9 +134,19 @@ pub(crate) fn ensure_selected_frame_id(eval: &mut super::eval::Evaluator) -> Fra
         .current_buffer()
         .map(|b| b.id)
         .unwrap_or_else(|| eval.buffers.create_buffer("*scratch*"));
-    // Batch GNU Emacs startup exposes an initial ~80x25 character frame.
-    // With our default 8x16 char metrics this corresponds to 640x400 pixels.
-    eval.frames.create_frame("F1", 640, 400, buf_id)
+    // Batch GNU Emacs startup exposes an initial ~80x24 text window plus
+    // a minibuffer line; frame parameters report 80x25.
+    // With our default 8x16 char metrics the text area corresponds to 640x384.
+    let fid = eval.frames.create_frame("F1", 640, 384, buf_id);
+    if let Some(frame) = eval.frames.get_mut(fid) {
+        frame
+            .parameters
+            .insert("width".to_string(), Value::Int(80));
+        frame
+            .parameters
+            .insert("height".to_string(), Value::Int(25));
+    }
+    fid
 }
 
 /// Compute the height of a window in lines.
@@ -934,8 +944,22 @@ pub(crate) fn builtin_frame_parameter(
         "name" => return Ok(Value::string(frame.name.clone())),
         "title" => return Ok(Value::string(frame.title.clone())),
         // In Emacs, frame parameter width/height are text columns/lines.
-        "width" => return Ok(Value::Int(frame.columns() as i64)),
-        "height" => return Ok(Value::Int(frame.lines() as i64)),
+        // For the bootstrap batch frame, explicit parameter overrides preserve
+        // the 80x25 report shape.
+        "width" => {
+            return Ok(frame
+                .parameters
+                .get("width")
+                .cloned()
+                .unwrap_or(Value::Int(frame.columns() as i64)));
+        }
+        "height" => {
+            return Ok(frame
+                .parameters
+                .get("height")
+                .cloned()
+                .unwrap_or(Value::Int(frame.lines() as i64)));
+        }
         "visibility" => {
             return Ok(if frame.visible {
                 Value::True
@@ -973,14 +997,18 @@ pub(crate) fn builtin_frame_parameters(
         Value::symbol("title"),
         Value::string(frame.title.clone()),
     ));
-    pairs.push(Value::cons(
-        Value::symbol("width"),
-        Value::Int(frame.columns() as i64),
-    ));
-    pairs.push(Value::cons(
-        Value::symbol("height"),
-        Value::Int(frame.lines() as i64),
-    ));
+    let width = frame
+        .parameters
+        .get("width")
+        .cloned()
+        .unwrap_or(Value::Int(frame.columns() as i64));
+    let height = frame
+        .parameters
+        .get("height")
+        .cloned()
+        .unwrap_or(Value::Int(frame.lines() as i64));
+    pairs.push(Value::cons(Value::symbol("width"), width));
+    pairs.push(Value::cons(Value::symbol("height"), height));
     pairs.push(Value::cons(
         Value::symbol("visibility"),
         Value::bool(frame.visible),
