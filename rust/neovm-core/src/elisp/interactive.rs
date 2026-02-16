@@ -835,6 +835,12 @@ pub(crate) fn builtin_key_binding(eval: &mut Evaluator, args: Vec<Value>) -> Eva
             return Ok(key_binding_to_value(binding));
         }
     }
+    if eval.keymaps.global_map().is_none()
+        && events.len() == 1
+        && is_plain_printable_char_event(&events[0])
+    {
+        return Ok(Value::symbol("self-insert-command"));
+    }
 
     Ok(Value::Nil)
 }
@@ -887,6 +893,9 @@ pub(crate) fn builtin_global_key_binding(eval: &mut Evaluator, args: Vec<Value>)
     }
     if let Some(global_id) = eval.keymaps.global_map() {
         return Ok(lookup_keymap_with_partial(eval, global_id, &events));
+    }
+    if events.len() == 1 && is_plain_printable_char_event(&events[0]) {
+        return Ok(Value::symbol("self-insert-command"));
     }
 
     Ok(Value::Nil)
@@ -1039,20 +1048,12 @@ pub(crate) fn builtin_describe_key_briefly(eval: &mut Evaluator, args: Vec<Value
     // Look up the binding
     let global_map_missing = eval.keymaps.global_map().is_none();
     let mut binding_val = builtin_key_binding(eval, vec![args[0].clone()])?;
-    if binding_val.is_nil() && global_map_missing && events.len() == 1 {
-        if let KeyEvent::Char {
-            code,
-            ctrl: false,
-            meta: false,
-            shift: false,
-            super_: false,
-        } = events[0]
-        {
-            // Emacs default map self-inserts printable characters in batch.
-            if !code.is_control() && code != '\u{7f}' {
-                binding_val = Value::symbol("self-insert-command");
-            }
-        }
+    if binding_val.is_nil()
+        && global_map_missing
+        && events.len() == 1
+        && is_plain_printable_char_event(&events[0])
+    {
+        binding_val = Value::symbol("self-insert-command");
     }
     let description = if binding_val.is_nil() {
         format!("{} is undefined", key_desc)
@@ -1550,6 +1551,19 @@ fn key_binding_to_value(binding: &KeyBinding) -> Value {
         KeyBinding::LispValue(v) => v.clone(),
         KeyBinding::Prefix(id) => Value::symbol(format!("keymap-{}", id)),
     }
+}
+
+fn is_plain_printable_char_event(event: &KeyEvent) -> bool {
+    matches!(
+        event,
+        KeyEvent::Char {
+            code,
+            ctrl: false,
+            meta: false,
+            shift: false,
+            super_: false,
+        } if !code.is_control() && *code != '\u{7f}'
+    )
 }
 
 fn ensure_global_keymap(eval: &mut Evaluator) -> u64 {
@@ -2639,6 +2653,13 @@ mod tests {
     }
 
     #[test]
+    fn key_binding_default_plain_char_self_insert() {
+        let mut ev = Evaluator::new();
+        let result = builtin_key_binding(&mut ev, vec![Value::string("a")]).unwrap();
+        assert_eq!(result.as_symbol_name(), Some("self-insert-command"));
+    }
+
+    #[test]
     fn key_binding_too_many_args_errors() {
         let mut ev = Evaluator::new();
         let result = builtin_key_binding(
@@ -2668,6 +2689,13 @@ mod tests {
 
         let result = builtin_global_key_binding(&mut ev, vec![Value::string("M-x")]).unwrap();
         assert_eq!(result.as_symbol_name(), Some("execute-extended-command"));
+    }
+
+    #[test]
+    fn global_key_binding_default_plain_char_self_insert() {
+        let mut ev = Evaluator::new();
+        let result = builtin_global_key_binding(&mut ev, vec![Value::string("a")]).unwrap();
+        assert_eq!(result.as_symbol_name(), Some("self-insert-command"));
     }
 
     #[test]
