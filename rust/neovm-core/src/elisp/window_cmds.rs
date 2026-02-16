@@ -661,6 +661,7 @@ pub(crate) fn builtin_delete_window(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
+    expect_max_args("delete-window", &args, 1)?;
     let (fid, wid) = resolve_window_id(eval, args.first())?;
     if !eval.frames.delete_window(fid, wid) {
         return Err(signal(
@@ -686,6 +687,7 @@ pub(crate) fn builtin_delete_other_windows(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
+    expect_max_args("delete-other-windows", &args, 2)?;
     let (fid, keep_wid) = resolve_window_id(eval, args.first())?;
     let frame = eval
         .frames
@@ -1645,6 +1647,28 @@ mod tests {
     fn delete_sole_window_errors() {
         let r = eval_one_with_frame("(delete-window)");
         assert!(r.contains("ERR"), "deleting sole window should error: {r}");
+    }
+
+    #[test]
+    fn delete_window_and_delete_other_windows_enforce_max_arity() {
+        let forms = parse_forms(
+             "(condition-case err (delete-window nil nil) (error (car err)))
+             (condition-case err (delete-other-windows nil nil nil) (error (car err)))
+             (condition-case err
+                 (let ((w2 (split-window)))
+                   (delete-other-windows w2 nil))
+               (error err))",
+        )
+        .expect("parse");
+        let mut ev = Evaluator::new();
+        let out = ev
+            .eval_forms(&forms)
+            .iter()
+            .map(format_eval_result)
+            .collect::<Vec<_>>();
+        assert_eq!(out[0], "OK wrong-number-of-arguments");
+        assert_eq!(out[1], "OK wrong-number-of-arguments");
+        assert_eq!(out[2], "OK nil");
     }
 
     #[test]
