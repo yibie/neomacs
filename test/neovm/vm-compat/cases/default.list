@@ -110,6 +110,7 @@ cases/bookmark-helper-availability
 cases/kmacro-helper-availability
 cases/kmacro-arity-semantics
 cases/kbd-macro-query-semantics
+cases/kbd-string-encoding-semantics
 cases/cl-helper-availability
 cases/residual-helper-availability
 cases/subr-x-string-helper-availability
