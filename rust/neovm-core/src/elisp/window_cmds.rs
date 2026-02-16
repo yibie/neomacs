@@ -134,9 +134,9 @@ pub(crate) fn ensure_selected_frame_id(eval: &mut super::eval::Evaluator) -> Fra
         .current_buffer()
         .map(|b| b.id)
         .unwrap_or_else(|| eval.buffers.create_buffer("*scratch*"));
-    // Batch GNU Emacs startup exposes an initial ~80x24 character frame.
-    // With our default 8x16 char metrics this corresponds to 640x384 pixels.
-    eval.frames.create_frame("F1", 640, 384, buf_id)
+    // Batch GNU Emacs startup exposes an initial ~80x25 character frame.
+    // With our default 8x16 char metrics this corresponds to 640x400 pixels.
+    eval.frames.create_frame("F1", 640, 400, buf_id)
 }
 
 /// Compute the height of a window in lines.
@@ -933,8 +933,9 @@ pub(crate) fn builtin_frame_parameter(
     match param_name.as_str() {
         "name" => return Ok(Value::string(frame.name.clone())),
         "title" => return Ok(Value::string(frame.title.clone())),
-        "width" => return Ok(Value::Int(frame.width as i64)),
-        "height" => return Ok(Value::Int(frame.height as i64)),
+        // In Emacs, frame parameter width/height are text columns/lines.
+        "width" => return Ok(Value::Int(frame.columns() as i64)),
+        "height" => return Ok(Value::Int(frame.lines() as i64)),
         "visibility" => {
             return Ok(if frame.visible {
                 Value::True
@@ -974,11 +975,11 @@ pub(crate) fn builtin_frame_parameters(
     ));
     pairs.push(Value::cons(
         Value::symbol("width"),
-        Value::Int(frame.width as i64),
+        Value::Int(frame.columns() as i64),
     ));
     pairs.push(Value::cons(
         Value::symbol("height"),
-        Value::Int(frame.height as i64),
+        Value::Int(frame.lines() as i64),
     ));
     pairs.push(Value::cons(
         Value::symbol("visibility"),
@@ -1515,7 +1516,13 @@ mod tests {
     #[test]
     fn frame_parameter_width() {
         let r = eval_one_with_frame("(frame-parameter (selected-frame) 'width)");
-        assert_eq!(r, "OK 800");
+        assert_eq!(r, "OK 100");
+    }
+
+    #[test]
+    fn frame_parameter_height() {
+        let r = eval_one_with_frame("(frame-parameter (selected-frame) 'height)");
+        assert_eq!(r, "OK 37");
     }
 
     #[test]
