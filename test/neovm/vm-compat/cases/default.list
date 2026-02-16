@@ -171,6 +171,7 @@ cases/recursive-top-level-arity-semantics
 cases/minibuffer-contents-no-properties-semantics
 cases/transient-mark-mode-semantics
 cases/input-batch-readers
+cases/thing-at-point-core-semantics
 cases/thing-at-point-url-email-semantics
 cases/thing-at-point-filename-semantics
 cases/read-batch-input-semantics

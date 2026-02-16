@@ -1709,7 +1709,19 @@ fn extract_thing_whitespace(text: &str, idx: usize) -> Value {
 
 fn extract_thing_number(text: &str, idx: usize) -> Value {
     match bounds_number(text, idx) {
-        Some((start, end)) => Value::string(&text[start..end]),
+        Some((start, end)) => {
+            let number = &text[start..end];
+            if number.contains(['.', 'e', 'E']) {
+                return number
+                    .parse::<f64>()
+                    .map(Value::Float)
+                    .unwrap_or_else(|_| Value::string(number));
+            }
+            number
+                .parse::<i64>()
+                .map(Value::Int)
+                .unwrap_or_else(|_| Value::string(number))
+        }
         None => Value::Nil,
     }
 }
@@ -2653,6 +2665,24 @@ mod tests {
         eval_all_with(&mut ev, "(goto-char 46)");
         let email = builtin_thing_at_point(&mut ev, vec![Value::symbol("email")]).unwrap();
         assert_eq!(email.as_str(), Some("user@example.com"));
+    }
+
+    #[test]
+    fn thing_at_point_number_returns_numeric_value() {
+        let mut ev = Evaluator::new();
+        eval_all_with(
+            &mut ev,
+            r#"(get-buffer-create "tap-num")
+               (set-buffer "tap-num")
+               (insert "v 12.34 56")
+               (goto-char 4)"#,
+        );
+        let float_result = builtin_thing_at_point(&mut ev, vec![Value::symbol("number")]).unwrap();
+        assert_eq!(float_result.as_float(), Some(12.34));
+
+        eval_all_with(&mut ev, "(goto-char 10)");
+        let int_result = builtin_thing_at_point(&mut ev, vec![Value::symbol("number")]).unwrap();
+        assert_eq!(int_result.as_int(), Some(56));
     }
 
     #[test]
