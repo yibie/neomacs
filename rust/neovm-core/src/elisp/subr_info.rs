@@ -424,6 +424,7 @@ fn subr_arity_value(name: &str) -> Value {
         "event-basic-type" | "event-convert-list" | "event-modifiers" | "eventp"
         | "error-message-string" => arity_cons(1, Some(1)),
         "copysign" | "equal-including-properties" => arity_cons(2, Some(2)),
+        "count-lines" => arity_cons(2, Some(3)),
         "emacs-pid" => arity_cons(0, Some(0)),
         "eval" => arity_cons(1, Some(2)),
         "eval-buffer" => arity_cons(0, Some(5)),
@@ -969,6 +970,7 @@ mod tests {
         assert_subr_arity("capitalize", 1, Some(1));
         assert_subr_arity("capitalize-word", 1, Some(1));
         assert_subr_arity("capitalize-region", 2, Some(3));
+        assert_subr_arity("count-lines", 2, Some(3));
     }
 
     #[test]

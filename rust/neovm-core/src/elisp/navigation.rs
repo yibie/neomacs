@@ -32,6 +32,17 @@ fn expect_min_args(name: &str, args: &[Value], min: usize) -> Result<(), Flow> {
     }
 }
 
+fn expect_max_args(name: &str, args: &[Value], max: usize) -> Result<(), Flow> {
+    if args.len() > max {
+        Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol(name), Value::Int(args.len() as i64)],
+        ))
+    } else {
+        Ok(())
+    }
+}
+
 fn expect_int(value: &Value) -> Result<i64, Flow> {
     match value {
         Value::Int(n) => Ok(*n),
@@ -260,7 +271,8 @@ pub(crate) fn builtin_count_lines(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    expect_args("count-lines", &args, 2)?;
+    expect_min_args("count-lines", &args, 2)?;
+    expect_max_args("count-lines", &args, 3)?;
     let beg = expect_int(&args[0])?;
     let end = expect_int(&args[1])?;
     let buf = eval.buffers.current_buffer().ok_or_else(no_buffer)?;
@@ -1020,6 +1032,23 @@ mod tests {
         let mut ev = eval_with_text("abcdef");
         let n = eval_int(&mut ev, "(count-lines 1 4)");
         assert_eq!(n, 0);
+    }
+
+    #[test]
+    fn test_count_lines_accepts_optional_third_arg() {
+        let mut ev = eval_with_text("abc\ndef\nghi\n");
+        let n = eval_int(&mut ev, "(count-lines 1 13 t)");
+        assert_eq!(n, 3);
+    }
+
+    #[test]
+    fn test_count_lines_rejects_too_many_args() {
+        let mut ev = eval_with_text("abc\ndef");
+        let err = eval_str(
+            &mut ev,
+            "(condition-case err (count-lines 1 2 nil nil) (error (car err)))",
+        );
+        assert_eq!(err.as_symbol_name(), Some("wrong-number-of-arguments"));
     }
 
     #[test]
