@@ -64,6 +64,32 @@ fn require_string(_name: &str, val: &Value) -> Result<String, Flow> {
     }
 }
 
+fn require_natnum(val: &Value) -> Result<usize, Flow> {
+    match val {
+        Value::Int(n) if *n >= 0 => Ok(*n as usize),
+        other => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("wholenump"), other.clone()],
+        )),
+    }
+}
+
+fn require_char(val: &Value) -> Result<char, Flow> {
+    match val {
+        Value::Char(c) => Ok(*c),
+        Value::Int(n) => char::from_u32(*n as u32).ok_or_else(|| {
+            signal(
+                "wrong-type-argument",
+                vec![Value::symbol("characterp"), val.clone()],
+            )
+        }),
+        other => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("characterp"), other.clone()],
+        )),
+    }
+}
+
 // ---------------------------------------------------------------------------
 // format-spec
 // ---------------------------------------------------------------------------
@@ -762,6 +788,36 @@ pub(crate) fn builtin_format_seconds(args: Vec<Value>) -> EvalResult {
 }
 
 // ---------------------------------------------------------------------------
+// string-pad
+// ---------------------------------------------------------------------------
+
+/// `(string-pad STRING LENGTH &optional PADDING START)` -- pad STRING to LENGTH.
+pub(crate) fn builtin_string_pad(args: Vec<Value>) -> EvalResult {
+    expect_min_max_args("string-pad", &args, 2, 4)?;
+    let s = require_string("string-pad", &args[0])?;
+    let target_len = require_natnum(&args[1])?;
+    let pad_char = if args.len() >= 3 {
+        require_char(&args[2])?
+    } else {
+        ' '
+    };
+    let left_pad = args.len() >= 4 && args[3].is_truthy();
+
+    let current_len = s.chars().count();
+    if current_len >= target_len {
+        return Ok(Value::string(s));
+    }
+
+    let pad_len = target_len - current_len;
+    let padding: String = std::iter::repeat(pad_char).take(pad_len).collect();
+    if left_pad {
+        Ok(Value::string(format!("{padding}{s}")))
+    } else {
+        Ok(Value::string(format!("{s}{padding}")))
+    }
+}
+
+// ---------------------------------------------------------------------------
 // string-chop-newline
 // ---------------------------------------------------------------------------
 
@@ -1067,6 +1123,44 @@ mod tests {
     fn format_seconds_literal_percent() {
         let result = builtin_format_seconds(vec![Value::string("100%%"), Value::Int(0)]);
         assert_eq!(result.unwrap().as_str().unwrap(), "100%");
+    }
+
+    // ===================================================================
+    // string-pad tests
+    // ===================================================================
+
+    #[test]
+    fn string_pad_right_default() {
+        let result = builtin_string_pad(vec![Value::string("x"), Value::Int(2)]).unwrap();
+        assert_eq!(result.as_str().unwrap(), "x ");
+    }
+
+    #[test]
+    fn string_pad_left_custom() {
+        let result = builtin_string_pad(vec![
+            Value::string("x"),
+            Value::Int(4),
+            Value::Char('0'),
+            Value::True,
+        ])
+        .unwrap();
+        assert_eq!(result.as_str().unwrap(), "000x");
+    }
+
+    #[test]
+    fn string_pad_noop_when_long_enough() {
+        let result = builtin_string_pad(vec![Value::string("xyz"), Value::Int(2)]).unwrap();
+        assert_eq!(result.as_str().unwrap(), "xyz");
+    }
+
+    #[test]
+    fn string_pad_type_errors() {
+        assert!(builtin_string_pad(vec![Value::Int(1), Value::Int(2)]).is_err());
+        assert!(builtin_string_pad(vec![Value::string("x"), Value::Int(-1)]).is_err());
+        assert!(
+            builtin_string_pad(vec![Value::string("x"), Value::Int(2), Value::string("x")])
+                .is_err()
+        );
     }
 
     // ===================================================================

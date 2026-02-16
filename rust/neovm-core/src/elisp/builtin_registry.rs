@@ -802,6 +802,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "string-make-unibyte",
     "string-match",
     "string-match-p",
+    "string-pad",
     "string-pixel-width",
     "string-rectangle",
     "string-repeat",
