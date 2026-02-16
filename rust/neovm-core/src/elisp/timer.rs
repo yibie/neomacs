@@ -244,6 +244,17 @@ fn expect_number(value: &Value) -> Result<f64, Flow> {
     }
 }
 
+fn expect_fixnum_like(value: &Value) -> Result<i64, Flow> {
+    match value {
+        Value::Int(n) => Ok(*n),
+        Value::Char(c) => Ok(*c as i64),
+        other => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("fixnump"), other.clone()],
+        )),
+    }
+}
+
 fn parse_run_at_time_delay(value: &Value) -> Result<f64, Flow> {
     match value {
         Value::Nil => Ok(0.0),
@@ -425,16 +436,11 @@ pub(crate) fn builtin_sleep_for(args: Vec<Value>) -> EvalResult {
 
     let secs = expect_number(&args[0])?;
     let millis = if args.len() > 1 {
-        match &args[1] {
-            Value::Int(n) => *n as f64,
-            Value::Float(f) => *f,
-            Value::Nil => 0.0,
-            other => {
-                return Err(signal(
-                    "wrong-type-argument",
-                    vec![Value::symbol("numberp"), other.clone()],
-                ));
-            }
+        if args[1].is_nil() {
+            0.0
+        } else {
+            // GNU Emacs requires a fixnum for the MILLISECONDS argument.
+            expect_fixnum_like(&args[1])? as f64
         }
     } else {
         0.0
@@ -738,7 +744,17 @@ mod tests {
         let result = builtin_sleep_for(vec![Value::string("1")]);
         assert!(matches!(
             result,
-            Err(Flow::Signal(sig)) if sig.symbol == "wrong-type-argument"
+            Err(Flow::Signal(sig))
+                if sig.symbol == "wrong-type-argument"
+                    && sig.data == vec![Value::symbol("numberp"), Value::string("1")]
+        ));
+
+        let result = builtin_sleep_for(vec![Value::Int(0), Value::Float(0.5)]);
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig))
+                if sig.symbol == "wrong-type-argument"
+                    && sig.data == vec![Value::symbol("fixnump"), Value::Float(0.5)]
         ));
     }
 

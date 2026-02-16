@@ -46,6 +46,10 @@
   (error (car err)))
 
 (condition-case err
+    (sleep-for 0 0.5)
+  (error err))
+
+(condition-case err
     (sit-for 0 nil nil)
   (error (car err)))
 
