@@ -6691,6 +6691,19 @@ Last updated: 2026-02-16
   - verified:
     - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/custom-group-p-availability` (pass, 2/2)
     - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` drift count reduced from 65 to 64
+- Reduced residual helper startup-surface exposure to match GNU Emacs `-Q` defaults:
+  - removed default dispatch/registry exposure for:
+    - `base64url-decode-string`, `bool-vector-complement`, `display-line-numbers-update-width`, `downcase-char`, `find-coding-system`, `hash-table-keys`, `hash-table-values`, `register-to-string`, `selected-terminal`, `string-repeat`, `unibyte-string-p`, `extract-rectangle-line`
+  - kept `word-at-point` exposed (required by existing symbol/word-at-point flow compatibility slice)
+  - refreshed oracle baselines:
+    - `test/neovm/vm-compat/cases/residual-helper-availability.forms`
+    - `test/neovm/vm-compat/cases/residual-helper-availability.expected.tsv`
+    - `test/neovm/vm-compat/cases/rect-extract-line-semantics.expected.tsv`
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/residual-helper-availability` (pass, 24/24)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/rect-extract-line-semantics` (pass, 6/6)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/symbol-word-at-point-semantics` (pass, 6/6)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` drift count reduced from 64 to 52
 
 ## Doing
 
