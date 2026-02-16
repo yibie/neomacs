@@ -25,6 +25,20 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Refined `help-key-description` translation detail parity for single-char cases:
+  - updated:
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - added single-char ASCII latin-name rendering in translation paths:
+        - e.g. `"a 'LATIN SMALL LETTER A' (translated from b)"`
+      - kept existing behavior for non-single-char and non-letter translations.
+    - `test/neovm/vm-compat/cases/help-key-recent-keys-semantics.forms`
+      - expanded with char-name translation probes for string and vector inputs.
+    - `test/neovm/vm-compat/cases/help-key-recent-keys-semantics.expected.tsv`
+      - refreshed oracle baseline with the added translation-detail checks.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/help-key-recent-keys-semantics` (pass, 39/39)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass; only allowlisted `neovm-precompile-file` drift)
+
 - Fixed evaluator semantics for vector literals and locked oracle parity:
   - updated:
     - `rust/neovm-core/src/elisp/eval.rs`
