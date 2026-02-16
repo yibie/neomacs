@@ -34,7 +34,7 @@ use crate::core::types::{
     AnimatedCursor, Color, CursorAnimStyle, Rect,
     ease_out_quad, ease_out_cubic, ease_out_expo, ease_in_out_cubic, ease_linear,
 };
-use crate::thread_comm::{InputEvent, PopupMenuItem, RenderCommand, RenderComms, ToolBarItem};
+use crate::thread_comm::{InputEvent, MenuBarItem, PopupMenuItem, RenderCommand, RenderComms, ToolBarItem};
 use cursor::{CursorTarget, CornerSpring, CursorState};
 pub(crate) use popup_menu::{MenuPanel, PopupMenuState, TooltipState};
 use transitions::{CrossfadeTransition, ScrollTransition, TransitionState};
@@ -293,6 +293,14 @@ struct RenderApp {
     // Active tooltip overlay
     tooltip: Option<TooltipState>,
 
+    // Menu bar state
+    menu_bar_items: Vec<MenuBarItem>,
+    menu_bar_height: f32,
+    menu_bar_fg: (f32, f32, f32),
+    menu_bar_bg: (f32, f32, f32),
+    menu_bar_hovered: Option<u32>,
+    menu_bar_active: Option<u32>,
+
     // Toolbar state
     toolbar_items: Vec<ToolBarItem>,
     toolbar_height: f32,
@@ -397,6 +405,12 @@ impl RenderApp {
             child_frame_shadow_opacity: 0.3,
             popup_menu: None,
             tooltip: None,
+            menu_bar_items: Vec::new(),
+            menu_bar_height: 0.0,
+            menu_bar_fg: (0.8, 0.8, 0.8),
+            menu_bar_bg: (0.15, 0.15, 0.15),
+            menu_bar_hovered: None,
+            menu_bar_active: None,
             toolbar_items: Vec::new(),
             toolbar_height: 0.0,
             toolbar_fg: (0.8, 0.8, 0.8),
@@ -1083,6 +1097,7 @@ impl RenderApp {
                 RenderCommand::HidePopupMenu => {
                     log::info!("HidePopupMenu");
                     self.popup_menu = None;
+                    self.menu_bar_active = None;
                     self.frame_dirty = true;
                 }
                 RenderCommand::ShowTooltip { x, y, text, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b } => {
@@ -1254,6 +1269,15 @@ impl RenderApp {
                             renderer.free_image(id);
                         }
                     }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetMenuBar { items, height, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b } => {
+                    log::debug!("SetMenuBar: {} items, height={}, fg=({:.3},{:.3},{:.3}), bg=({:.3},{:.3},{:.3})",
+                        items.len(), height, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b);
+                    self.menu_bar_items = items;
+                    self.menu_bar_height = height;
+                    self.menu_bar_fg = (fg_r, fg_g, fg_b);
+                    self.menu_bar_bg = (bg_r, bg_g, bg_b);
                     self.frame_dirty = true;
                 }
                 RenderCommand::CreateWindow { emacs_frame_id, width, height, title } => {
@@ -2333,6 +2357,26 @@ impl RenderApp {
             }
         }
 
+        // Render menu bar overlay
+        if self.menu_bar_height > 0.0 && !self.menu_bar_items.is_empty() {
+            if let (Some(ref renderer), Some(ref mut glyph_atlas)) =
+                (&self.renderer, &mut self.glyph_atlas)
+            {
+                renderer.render_menu_bar(
+                    &surface_view,
+                    &self.menu_bar_items,
+                    self.menu_bar_height,
+                    self.menu_bar_fg,
+                    self.menu_bar_bg,
+                    self.menu_bar_hovered,
+                    self.menu_bar_active,
+                    glyph_atlas,
+                    self.width,
+                    self.height,
+                );
+            }
+        }
+
         // Render toolbar overlay
         if self.toolbar_height > 0.0 && !self.toolbar_items.is_empty() {
             if let Some(ref renderer) = self.renderer {
@@ -2665,6 +2709,7 @@ impl ApplicationHandler for RenderApp {
                         Key::Named(NamedKey::Escape) => {
                             self.comms.send_input(InputEvent::MenuSelection { index: -1 });
                             self.popup_menu = None;
+                            self.menu_bar_active = None;
                             self.frame_dirty = true;
                         }
                         Key::Named(NamedKey::ArrowDown) => {
@@ -2695,11 +2740,13 @@ impl ApplicationHandler for RenderApp {
                                     } else {
                                         self.comms.send_input(InputEvent::MenuSelection { index: global_idx as i32 });
                                         self.popup_menu = None;
+                                        self.menu_bar_active = None;
                                         self.frame_dirty = true;
                                     }
                                 } else {
                                     self.comms.send_input(InputEvent::MenuSelection { index: -1 });
                                     self.popup_menu = None;
+                                    self.menu_bar_active = None;
                                     self.frame_dirty = true;
                                 }
                             }
@@ -2799,45 +2846,70 @@ impl ApplicationHandler for RenderApp {
             }
 
             WindowEvent::MouseInput { state, button, .. } => {
+                if state == ElementState::Pressed {
+                    log::debug!("MouseInput: {:?} at ({:.1}, {:.1}), menu_bar_h={}, popup={}",
+                        button, self.mouse_pos.0, self.mouse_pos.1, self.menu_bar_height, self.popup_menu.is_some());
+                }
                 // If popup menu is active, handle clicks for it
                 if let Some(ref mut menu) = self.popup_menu {
                     if state == ElementState::Pressed && button == MouseButton::Left {
-                        let idx = menu.hit_test(self.mouse_pos.0, self.mouse_pos.1);
-                        if idx >= 0 {
-                            // Regular item selected
-                            self.comms.send_input(InputEvent::MenuSelection { index: idx });
-                            self.popup_menu = None;
-                            self.frame_dirty = true;
-                        } else {
-                            // Check if click is on a submenu item (which hit_test returns -1 for)
-                            let (depth, local_idx) = menu.hit_test_all(self.mouse_pos.0, self.mouse_pos.1);
-                            if depth >= 0 && local_idx >= 0 {
-                                let panel = if depth == 0 {
-                                    &menu.root_panel
-                                } else {
-                                    &menu.submenu_panels[(depth - 1) as usize]
-                                };
-                                let global_idx = panel.item_indices[local_idx as usize];
-                                if menu.all_items[global_idx].submenu {
-                                    // Clicked a submenu item — keep menu open, submenu auto-opened on hover
-                                    self.frame_dirty = true;
-                                } else {
-                                    // Clicked outside or on a disabled item — cancel
-                                    self.comms.send_input(InputEvent::MenuSelection { index: -1 });
-                                    self.popup_menu = None;
-                                    self.frame_dirty = true;
-                                }
-                            } else {
-                                // Clicked outside all panels — cancel
+                        // Check if clicking on menu bar while popup is open (hover-to-switch)
+                        if self.menu_bar_height > 0.0 && self.mouse_pos.1 < self.menu_bar_height {
+                            if let Some(idx) = self.menu_bar_hit_test(self.mouse_pos.0, self.mouse_pos.1) {
+                                // Close current popup and open new menu
                                 self.comms.send_input(InputEvent::MenuSelection { index: -1 });
                                 self.popup_menu = None;
+                                self.menu_bar_active = Some(idx);
+                                self.comms.send_input(InputEvent::MenuBarClick { index: idx as i32 });
                                 self.frame_dirty = true;
+                            } else {
+                                self.comms.send_input(InputEvent::MenuSelection { index: -1 });
+                                self.popup_menu = None;
+                                self.menu_bar_active = None;
+                                self.frame_dirty = true;
+                            }
+                        } else {
+                            let idx = menu.hit_test(self.mouse_pos.0, self.mouse_pos.1);
+                            if idx >= 0 {
+                                // Regular item selected
+                                self.comms.send_input(InputEvent::MenuSelection { index: idx });
+                                self.popup_menu = None;
+                                self.menu_bar_active = None;
+                                self.frame_dirty = true;
+                            } else {
+                                // Check if click is on a submenu item (which hit_test returns -1 for)
+                                let (depth, local_idx) = menu.hit_test_all(self.mouse_pos.0, self.mouse_pos.1);
+                                if depth >= 0 && local_idx >= 0 {
+                                    let panel = if depth == 0 {
+                                        &menu.root_panel
+                                    } else {
+                                        &menu.submenu_panels[(depth - 1) as usize]
+                                    };
+                                    let global_idx = panel.item_indices[local_idx as usize];
+                                    if menu.all_items[global_idx].submenu {
+                                        // Clicked a submenu item — keep menu open, submenu auto-opened on hover
+                                        self.frame_dirty = true;
+                                    } else {
+                                        // Clicked outside or on a disabled item — cancel
+                                        self.comms.send_input(InputEvent::MenuSelection { index: -1 });
+                                        self.popup_menu = None;
+                                        self.menu_bar_active = None;
+                                        self.frame_dirty = true;
+                                    }
+                                } else {
+                                    // Clicked outside all panels — cancel
+                                    self.comms.send_input(InputEvent::MenuSelection { index: -1 });
+                                    self.popup_menu = None;
+                                    self.menu_bar_active = None;
+                                    self.frame_dirty = true;
+                                }
                             }
                         }
                     } else if state == ElementState::Pressed {
                         // Any other button cancels the menu
                         self.comms.send_input(InputEvent::MenuSelection { index: -1 });
                         self.popup_menu = None;
+                        self.menu_bar_active = None;
                         self.frame_dirty = true;
                     }
                 } else if state == ElementState::Pressed
@@ -2901,8 +2973,26 @@ impl ApplicationHandler for RenderApp {
                     }
                 } else if state == ElementState::Pressed
                     && button == MouseButton::Left
+                    && self.menu_bar_height > 0.0
+                    && self.mouse_pos.1 < self.menu_bar_height
+                {
+                    // Menu bar click — hit test menu bar items
+                    log::debug!("Menu bar click at ({:.1}, {:.1}), menu_bar_height={}", self.mouse_pos.0, self.mouse_pos.1, self.menu_bar_height);
+                    if let Some(idx) = self.menu_bar_hit_test(self.mouse_pos.0, self.mouse_pos.1) {
+                        if self.menu_bar_active == Some(idx) {
+                            // Clicking same item again: close
+                            self.menu_bar_active = None;
+                        } else {
+                            self.menu_bar_active = Some(idx);
+                            self.comms.send_input(InputEvent::MenuBarClick { index: idx as i32 });
+                        }
+                        self.frame_dirty = true;
+                    }
+                } else if state == ElementState::Pressed
+                    && button == MouseButton::Left
                     && self.toolbar_height > 0.0
-                    && self.mouse_pos.1 < self.toolbar_height
+                    && self.mouse_pos.1 < self.menu_bar_height + self.toolbar_height
+                    && self.mouse_pos.1 >= self.menu_bar_height
                 {
                     // Toolbar click — hit test toolbar items
                     if let Some(idx) = self.toolbar_hit_test(self.mouse_pos.0, self.mouse_pos.1) {
@@ -2917,6 +3007,10 @@ impl ApplicationHandler for RenderApp {
                     self.toolbar_pressed = None;
                     self.frame_dirty = true;
                 } else {
+                    if state == ElementState::Pressed && button == MouseButton::Left {
+                        log::info!("Left click at ({:.1}, {:.1}) NOT in menu bar (h={}) or toolbar (h={})",
+                            self.mouse_pos.0, self.mouse_pos.1, self.menu_bar_height, self.toolbar_height);
+                    }
                     let btn = match button {
                         MouseButton::Left => 1,
                         MouseButton::Middle => 2,
@@ -3002,10 +3096,31 @@ impl ApplicationHandler for RenderApp {
                     }
                 }
 
+                // Update menu bar hover state
+                if self.menu_bar_height > 0.0 {
+                    let old_hover = self.menu_bar_hovered;
+                    if ly < self.menu_bar_height {
+                        let new_hover = self.menu_bar_hit_test(lx, ly);
+                        self.menu_bar_hovered = new_hover;
+                        // Hover-to-switch: if a menu is active and hover moves to a different label
+                        if let (Some(active), Some(hov)) = (self.menu_bar_active, new_hover) {
+                            if hov != active {
+                                self.menu_bar_active = Some(hov);
+                                self.comms.send_input(InputEvent::MenuBarClick { index: hov as i32 });
+                            }
+                        }
+                    } else {
+                        self.menu_bar_hovered = None;
+                    }
+                    if self.menu_bar_hovered != old_hover {
+                        self.frame_dirty = true;
+                    }
+                }
+
                 // Update toolbar hover state
                 if self.toolbar_height > 0.0 {
                     let old_hover = self.toolbar_hovered;
-                    if ly < self.toolbar_height {
+                    if ly < self.menu_bar_height + self.toolbar_height && ly >= self.menu_bar_height {
                         self.toolbar_hovered = self.toolbar_hit_test(lx, ly);
                     } else {
                         self.toolbar_hovered = None;

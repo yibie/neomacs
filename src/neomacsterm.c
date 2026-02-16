@@ -562,30 +562,30 @@ neomacs_menu_show (struct frame *f, int x, int y, int menuflags,
   if (!NILP (title) && STRINGP (title))
     title_str = SSDATA (title);
 
-  /* Resolve menu face colors for themed popup rendering */
+  /* Use frame foreground/background colors so popup menus match the
+     current theme.  The 'menu' face often has light-themed defaults
+     that clash with dark themes.  */
   uint32_t menu_fg = 0, menu_bg = 0;
   {
-    int face_id = lookup_named_face (NULL, f, Qmenu, false);
-    if (face_id >= 0)
-      {
-        struct face *mface = FACE_FROM_ID (f, face_id);
-        if (mface)
-          {
-            unsigned long fg = mface->foreground;
-            unsigned long bg = mface->background;
-            menu_fg = ((RED_FROM_ULONG (fg) << 16)
-                       | (GREEN_FROM_ULONG (fg) << 8)
-                       | BLUE_FROM_ULONG (fg));
-            menu_bg = ((RED_FROM_ULONG (bg) << 16)
-                       | (GREEN_FROM_ULONG (bg) << 8)
-                       | BLUE_FROM_ULONG (bg));
-          }
-      }
+    unsigned long fg = FRAME_FOREGROUND_PIXEL (f);
+    unsigned long bg = FRAME_BACKGROUND_PIXEL (f);
+    menu_fg = ((RED_FROM_ULONG (fg) << 16)
+               | (GREEN_FROM_ULONG (fg) << 8)
+               | BLUE_FROM_ULONG (fg));
+    menu_bg = ((RED_FROM_ULONG (bg) << 16)
+               | (GREEN_FROM_ULONG (bg) << 8)
+               | BLUE_FROM_ULONG (bg));
   }
+
+  /* If the popup originates from the menu bar area, position it just
+     below the menu bar rather than overlapping it.  */
+  int popup_y = y;
+  if (y < FRAME_LINE_HEIGHT (f))
+    popup_y = FRAME_LINE_HEIGHT (f);
 
   neomacs_popup_activated_flag = 1;
   neomacs_display_show_popup_menu (dpyinfo->display_handle,
-                                   x, y, c_items, item_count,
+                                   x, popup_y, c_items, item_count,
                                    title_str, menu_fg, menu_bg);
 
   /* Block waiting for menu selection event from render thread.
@@ -5295,6 +5295,74 @@ neomacs_layout_check_line_prefix (void *buffer_ptr, void *window_ptr,
   return 0;
 }
 
+/* Send menu bar items to the GPU menu bar.
+   Extracts items from FRAME_MENU_BAR_ITEMS (f->menu_bar_items), a
+   vector of 4-element chunks: [key, string, maplist, hpos].
+   Sends them to the render thread for GPU rendering.  */
+static void
+neomacs_send_menu_bar_items (struct frame *f)
+{
+  struct neomacs_display_info *dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return;
+
+  if (FRAME_MENU_BAR_LINES (f) <= 0)
+    {
+      /* Send empty menu bar to hide it.  */
+      neomacs_display_menu_bar_begin (dpyinfo->display_handle, 0, 0.0f);
+      neomacs_display_menu_bar_end (dpyinfo->display_handle, 0, 0);
+      return;
+    }
+
+  Lisp_Object items = FRAME_MENU_BAR_ITEMS (f);
+  if (!VECTORP (items) || ASIZE (items) < 4)
+    {
+      neomacs_display_menu_bar_begin (dpyinfo->display_handle, 0, 0.0f);
+      neomacs_display_menu_bar_end (dpyinfo->display_handle, 0, 0);
+      return;
+    }
+
+  /* Use frame foreground/background colors so the menu bar matches the
+     current theme.  The 'menu' face often has light-themed defaults that
+     clash with dark themes.  */
+  unsigned long fg_pixel = FRAME_FOREGROUND_PIXEL (f);
+  unsigned long bg_pixel = FRAME_BACKGROUND_PIXEL (f);
+
+  uint32_t fg_rgb = ((RED_FROM_ULONG (fg_pixel) << 16)
+                     | (GREEN_FROM_ULONG (fg_pixel) << 8)
+                     | BLUE_FROM_ULONG (fg_pixel));
+  uint32_t bg_rgb = ((RED_FROM_ULONG (bg_pixel) << 16)
+                     | (GREEN_FROM_ULONG (bg_pixel) << 8)
+                     | BLUE_FROM_ULONG (bg_pixel));
+
+  /* Count items (4-element chunks, stop at nil string).  */
+  int nitems = 0;
+  for (int i = 0; i + 3 < ASIZE (items); i += 4)
+    {
+      if (NILP (AREF (items, i + 1)))
+        break;
+      nitems++;
+    }
+
+  float height = (float) FRAME_LINE_HEIGHT (f);
+  neomacs_display_menu_bar_begin (dpyinfo->display_handle, nitems, height);
+
+  for (int i = 0; i < nitems; i++)
+    {
+      int base = i * 4;
+      Lisp_Object key = AREF (items, base);
+      Lisp_Object string = AREF (items, base + 1);
+
+      const char *label = STRINGP (string) ? SSDATA (string) : "";
+      const char *key_name = SYMBOLP (key) ? SSDATA (SYMBOL_NAME (key)) : "";
+
+      neomacs_display_menu_bar_add_item (dpyinfo->display_handle,
+                                          i, label, key_name);
+    }
+
+  neomacs_display_menu_bar_end (dpyinfo->display_handle, fg_rgb, bg_rgb);
+}
+
 /* Send tool bar items to the GPU toolbar.
    Extracts items from f->tool_bar_items (populated by update_tool_bar
    in redisplay_internal) and sends them to the render thread.  */
@@ -5526,17 +5594,9 @@ neomacs_update_end (struct frame *f)
                            marker_byte_position (saved_mini_pointm));
         }
 
-      /* Extract menu bar and tool bar from current_matrix.
-         Their desired_matrix was populated by
-         neomacs_display_menu_and_tool_bar() in redisplay_internal,
-         then copied desired→current by update_menu_bar/update_tool_bar
-         in update_frame (dispnew.c).  */
-      if (WINDOWP (f->menu_bar_window))
-        {
-          struct window *mbw = XWINDOW (f->menu_bar_window);
-          if (mbw->current_matrix)
-            neomacs_extract_window_glyphs (mbw, NULL);
-        }
+      /* Send menu bar items to GPU menu bar instead of extracting
+         from glyph matrix.  */
+      neomacs_send_menu_bar_items (f);
       /* Send tool bar items to GPU toolbar instead of extracting
          from glyph matrix (which renders text-based icons).  */
       neomacs_send_tool_bar_items (f);
@@ -16342,6 +16402,35 @@ neomacs_display_wakeup_handler (int fd, void *data)
                     XSETFRAME (inev.ie.frame_or_window, f);
                     inev.ie.arg = key;
                     inev.ie.modifiers = 0;
+                    neomacs_evq_enqueue (&inev);
+                  }
+              }
+          }
+          break;
+
+        case NEOMACS_EVENT_MENU_BAR_CLICK:
+          {
+            /* ev->x contains the menu bar item index.
+               Synthesize a mouse-1 click at the item's column
+               position in the menu bar row, so keyboard.c's
+               internal menu bar click handling picks it up.  */
+            int idx = ev->x;
+            Lisp_Object items = FRAME_MENU_BAR_ITEMS (f);
+            int base = idx * 4;
+            if (VECTORP (items) && base + 3 < ASIZE (items))
+              {
+                Lisp_Object pos = AREF (items, base + 3);
+                if (FIXNUMP (pos))
+                  {
+                    /* Convert character column to pixel X.  */
+                    int col = XFIXNUM (pos);
+                    int px = col * FRAME_COLUMN_WIDTH (f);
+                    inev.ie.kind = MOUSE_CLICK_EVENT;
+                    inev.ie.code = 0;  /* button-1 */
+                    inev.ie.modifiers = down_modifier;
+                    XSETINT (inev.ie.x, px);
+                    XSETINT (inev.ie.y, 0);
+                    XSETFRAME (inev.ie.frame_or_window, f);
                     neomacs_evq_enqueue (&inev);
                   }
               }

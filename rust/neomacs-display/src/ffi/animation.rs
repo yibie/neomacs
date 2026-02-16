@@ -1402,3 +1402,86 @@ pub unsafe extern "C" fn neomacs_display_set_tool_bar_config(
         });
     }
 }
+
+// ============================================================================
+// Menu Bar FFI
+// ============================================================================
+
+thread_local! {
+    static MENUBAR_ITEMS: RefCell<Vec<MenuBarItem>> = RefCell::new(Vec::new());
+    static MENUBAR_HEIGHT: RefCell<f32> = RefCell::new(0.0);
+}
+
+/// Begin collecting menu bar items. Call before add_item calls.
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_menu_bar_begin(
+    _handle: *mut NeomacsDisplay,
+    count: c_int,
+    height: f32,
+) {
+    MENUBAR_ITEMS.with(|items| {
+        let mut items = items.borrow_mut();
+        items.clear();
+        items.reserve(count as usize);
+    });
+    MENUBAR_HEIGHT.with(|h| {
+        *h.borrow_mut() = height;
+    });
+}
+
+/// Add a single menu bar item.
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_menu_bar_add_item(
+    _handle: *mut NeomacsDisplay,
+    index: c_int,
+    label: *const c_char,
+    key_name: *const c_char,
+) {
+    let lbl = if label.is_null() {
+        String::new()
+    } else {
+        CStr::from_ptr(label).to_string_lossy().into_owned()
+    };
+    let key = if key_name.is_null() {
+        String::new()
+    } else {
+        CStr::from_ptr(key_name).to_string_lossy().into_owned()
+    };
+
+    MENUBAR_ITEMS.with(|items| {
+        items.borrow_mut().push(MenuBarItem {
+            index: index as u32,
+            label: lbl,
+            key,
+        });
+    });
+}
+
+/// Finish collecting menu bar items and send to render thread.
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_menu_bar_end(
+    _handle: *mut NeomacsDisplay,
+    fg_color: u32,
+    bg_color: u32,
+) {
+    let items = MENUBAR_ITEMS.with(|items| {
+        std::mem::take(&mut *items.borrow_mut())
+    });
+    let height = MENUBAR_HEIGHT.with(|h| *h.borrow());
+
+    let fg_r = ((fg_color >> 16) & 0xFF) as f32 / 255.0;
+    let fg_g = ((fg_color >> 8) & 0xFF) as f32 / 255.0;
+    let fg_b = (fg_color & 0xFF) as f32 / 255.0;
+    let bg_r = ((bg_color >> 16) & 0xFF) as f32 / 255.0;
+    let bg_g = ((bg_color >> 8) & 0xFF) as f32 / 255.0;
+    let bg_b = (bg_color & 0xFF) as f32 / 255.0;
+
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(RenderCommand::SetMenuBar {
+            items,
+            height,
+            fg_r, fg_g, fg_b,
+            bg_r, bg_g, bg_b,
+        });
+    }
+}

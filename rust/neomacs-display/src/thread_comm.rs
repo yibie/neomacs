@@ -102,6 +102,8 @@ pub enum InputEvent {
     },
     /// Toolbar button clicked (index into toolbar items)
     ToolBarClick { index: i32 },
+    /// Menu bar item clicked (index into menu bar items)
+    MenuBarClick { index: i32 },
 }
 
 /// A single item in a popup menu
@@ -119,6 +121,14 @@ pub struct PopupMenuItem {
     pub submenu: bool,
     /// Nesting depth (0 = top-level, 1 = first submenu, etc.)
     pub depth: u32,
+}
+
+/// A top-level menu bar item (e.g., "File", "Edit", "Tools")
+#[derive(Clone, Debug)]
+pub struct MenuBarItem {
+    pub index: u32,
+    pub label: String,
+    pub key: String,
 }
 
 /// A single toolbar item sent from C
@@ -367,6 +377,13 @@ pub enum RenderCommand {
     SetToolBarConfig {
         icon_size: u32,
         padding: u32,
+    },
+    /// Set menu bar items (sent each frame when items change)
+    SetMenuBar {
+        items: Vec<MenuBarItem>,
+        height: f32,
+        fg_r: f32, fg_g: f32, fg_b: f32,
+        bg_r: f32, bg_g: f32, bg_b: f32,
     },
 }
 

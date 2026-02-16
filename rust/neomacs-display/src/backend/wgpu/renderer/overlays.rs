@@ -10,7 +10,7 @@ use super::super::glyph_atlas::{GlyphKey, WgpuGlyphAtlas};
 use crate::core::face::Face;
 use crate::render_thread::PopupMenuState;
 use crate::render_thread::TooltipState;
-use crate::thread_comm::ToolBarItem;
+use crate::thread_comm::{MenuBarItem, ToolBarItem};
 use std::collections::HashMap;
 
 impl WgpuRenderer {
@@ -351,7 +351,7 @@ impl WgpuRenderer {
             }
 
             // Render text glyphs inline with proper scale_factor handling
-            // (render_overlay_glyphs doesn't divide by scale_factor and adds hardcoded +14.0)
+            // (uses same formula as render_overlay_glyphs: y + ascent - bearing_y/sf)
             if !text_glyphs.is_empty() {
                 // Sort by key for batching consecutive same-texture draws
                 text_glyphs.sort_by(|a, b| {
@@ -806,20 +806,30 @@ impl WgpuRenderer {
         let mut vertices: Vec<GlyphVertex> = Vec::with_capacity(glyphs.len() * 6);
         let mut valid: Vec<bool> = Vec::with_capacity(glyphs.len());
 
+        let sf = self.scale_factor;
+        // Font ascent in logical pixels — used to convert caller's "top of text line"
+        // y coordinate to proper glyph position. bearing_y from the atlas is the
+        // per-glyph distance from baseline to glyph top (in physical pixels).
+        // Formula: glyph_y = y + ascent - bearing_y/sf
+        // For tall glyphs (A,F): bearing_y/sf ≈ ascent → glyph_y ≈ y (glyph fills from top)
+        // For short glyphs (.,-): bearing_y/sf < ascent → glyph_y > y (pushed down to baseline)
+        let font_ascent = glyph_atlas.default_font_size() * 0.8;
         for (key, x, y, color) in glyphs.iter() {
             if let Some(cached) = glyph_atlas.get(key) {
-                let gw = cached.width as f32;
-                let gh = cached.height as f32;
-                let gx = *x + cached.bearing_x;
-                let gy = *y - cached.bearing_y + 14.0;
+                // Divide atlas metrics by scale_factor to get logical positions
+                // (atlas rasterizes at physical resolution for HiDPI)
+                let glyph_x = *x + cached.bearing_x / sf;
+                let glyph_y = *y + font_ascent - cached.bearing_y / sf;
+                let glyph_w = cached.width as f32 / sf;
+                let glyph_h = cached.height as f32 / sf;
 
                 vertices.extend_from_slice(&[
-                    GlyphVertex { position: [gx, gy], tex_coords: [0.0, 0.0], color: *color },
-                    GlyphVertex { position: [gx + gw, gy], tex_coords: [1.0, 0.0], color: *color },
-                    GlyphVertex { position: [gx + gw, gy + gh], tex_coords: [1.0, 1.0], color: *color },
-                    GlyphVertex { position: [gx, gy], tex_coords: [0.0, 0.0], color: *color },
-                    GlyphVertex { position: [gx + gw, gy + gh], tex_coords: [1.0, 1.0], color: *color },
-                    GlyphVertex { position: [gx, gy + gh], tex_coords: [0.0, 1.0], color: *color },
+                    GlyphVertex { position: [glyph_x, glyph_y], tex_coords: [0.0, 0.0], color: *color },
+                    GlyphVertex { position: [glyph_x + glyph_w, glyph_y], tex_coords: [1.0, 0.0], color: *color },
+                    GlyphVertex { position: [glyph_x + glyph_w, glyph_y + glyph_h], tex_coords: [1.0, 1.0], color: *color },
+                    GlyphVertex { position: [glyph_x, glyph_y], tex_coords: [0.0, 0.0], color: *color },
+                    GlyphVertex { position: [glyph_x + glyph_w, glyph_y + glyph_h], tex_coords: [1.0, 1.0], color: *color },
+                    GlyphVertex { position: [glyph_x, glyph_y + glyph_h], tex_coords: [0.0, 1.0], color: *color },
                 ]);
                 valid.push(true);
             } else {
@@ -855,7 +865,7 @@ impl WgpuRenderer {
                 timestamp_writes: None,
                 occlusion_query_set: None,
             });
-            pass.set_pipeline(&self.image_pipeline);
+            pass.set_pipeline(&self.glyph_pipeline);
             pass.set_bind_group(0, &self.uniform_bind_group, &[]);
             pass.set_vertex_buffer(0, buffer.slice(..));
 
@@ -872,7 +882,7 @@ impl WgpuRenderer {
                     if cached.is_color {
                         pass.set_pipeline(&self.opaque_image_pipeline);
                     } else {
-                        pass.set_pipeline(&self.image_pipeline);
+                        pass.set_pipeline(&self.glyph_pipeline);
                     }
                     pass.set_bind_group(1, &cached.bind_group, &[]);
                     let batch_start = vert_idx;
@@ -2132,6 +2142,125 @@ impl WgpuRenderer {
             pass.draw(0..rect_vertices.len() as u32, 0..1);
         }
         self.queue.submit(Some(encoder.finish()));
+    }
+
+    /// Render the GPU menu bar overlay at the top of the frame.
+    pub fn render_menu_bar(
+        &self,
+        view: &wgpu::TextureView,
+        items: &[MenuBarItem],
+        menu_bar_height: f32,
+        fg: (f32, f32, f32),
+        bg: (f32, f32, f32),
+        hovered: Option<u32>,
+        active: Option<u32>,
+        glyph_atlas: &mut WgpuGlyphAtlas,
+        surface_width: u32,
+        surface_height: u32,
+    ) {
+        let logical_w = surface_width as f32 / self.scale_factor;
+        let logical_h = surface_height as f32 / self.scale_factor;
+        let uniforms = Uniforms {
+            screen_size: [logical_w, logical_h],
+            _padding: [0.0, 0.0],
+        };
+        self.queue
+            .write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
+
+        let bg_color = Color::new(bg.0, bg.1, bg.2, 1.0).srgb_to_linear();
+        let padding_x = 8.0_f32;
+        let font_size = glyph_atlas.default_font_size();
+        let char_width = font_size * 0.6;
+        let font_size_bits = 0.0_f32.to_bits();
+
+        // --- Pass 1: Background bar + item highlights ---
+        let mut rect_verts: Vec<RectVertex> = Vec::new();
+
+        // Full menu bar background
+        self.add_rect(&mut rect_verts, 0.0, 0.0, logical_w, menu_bar_height, &bg_color);
+
+        // Item hover/active highlights
+        let mut item_x = padding_x;
+        for item in items {
+            let label_width = item.label.len() as f32 * char_width + padding_x * 2.0;
+
+            let is_hovered = hovered == Some(item.index);
+            let is_active = active == Some(item.index);
+
+            if is_active {
+                let c = Color::new(fg.0, fg.1, fg.2, 0.15).srgb_to_linear();
+                self.add_rect(&mut rect_verts, item_x, 0.0, label_width, menu_bar_height, &c);
+            } else if is_hovered {
+                let c = Color::new(fg.0, fg.1, fg.2, 0.1).srgb_to_linear();
+                self.add_rect(&mut rect_verts, item_x, 0.0, label_width, menu_bar_height, &c);
+            }
+
+            item_x += label_width;
+        }
+
+        // Bottom border line
+        let border_color = Color::new(fg.0, fg.1, fg.2, 0.15).srgb_to_linear();
+        self.add_rect(&mut rect_verts, 0.0, menu_bar_height - 1.0, logical_w, 1.0, &border_color);
+
+        if !rect_verts.is_empty() {
+            let buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Menu Bar Rect Buffer"),
+                contents: bytemuck::cast_slice(&rect_verts),
+                usage: wgpu::BufferUsages::VERTEX,
+            });
+            let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Menu Bar Rect Encoder"),
+            });
+            {
+                let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("Menu Bar Rect Pass"),
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Load,
+                            store: wgpu::StoreOp::Store,
+                        },
+                    })],
+                    depth_stencil_attachment: None,
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
+                });
+                pass.set_pipeline(&self.rect_pipeline);
+                pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                pass.set_vertex_buffer(0, buffer.slice(..));
+                pass.draw(0..rect_verts.len() as u32, 0..1);
+            }
+            self.queue.submit(std::iter::once(encoder.finish()));
+        }
+
+        // --- Pass 2: Text labels via glyph atlas ---
+        let text_color = {
+            let c = Color::new(fg.0, fg.1, fg.2, 1.0).srgb_to_linear();
+            [c.r, c.g, c.b, c.a]
+        };
+
+        let mut overlay_glyphs: Vec<(GlyphKey, f32, f32, [f32; 4])> = Vec::new();
+        let text_y = (menu_bar_height - font_size) / 2.0;
+
+        let mut item_x = padding_x;
+        for item in items {
+            let label_x = item_x + padding_x;
+            for (ci, ch) in item.label.chars().enumerate() {
+                let key = GlyphKey {
+                    charcode: ch as u32,
+                    face_id: 0,
+                    font_size_bits,
+                };
+                glyph_atlas.get_or_create(&self.device, &self.queue, &key, None);
+                overlay_glyphs.push((key, label_x + (ci as f32) * char_width, text_y, text_color));
+            }
+            let label_width = item.label.len() as f32 * char_width + padding_x * 2.0;
+            item_x += label_width;
+        }
+
+        log::info!("render_menu_bar: {} overlay_glyphs, text_y={}", overlay_glyphs.len(), text_y);
+        self.render_overlay_glyphs(view, &mut overlay_glyphs, glyph_atlas);
     }
 
     /// Render the GPU toolbar overlay at the top of the frame.

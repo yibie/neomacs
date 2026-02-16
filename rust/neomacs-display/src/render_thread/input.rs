@@ -80,6 +80,29 @@ impl RenderApp {
         None
     }
 
+    /// Hit-test menu bar items. Returns the index of the item under (x, y), or None.
+    pub(super) fn menu_bar_hit_test(&self, x: f32, _y: f32) -> Option<u32> {
+        if self.menu_bar_height <= 0.0 || self.menu_bar_items.is_empty() {
+            return None;
+        }
+        let padding_x = 8.0_f32;
+        let char_width = if let Some(ref atlas) = self.glyph_atlas {
+            atlas.default_font_size() * 0.6
+        } else {
+            8.0
+        };
+
+        let mut item_x = padding_x;
+        for item in &self.menu_bar_items {
+            let label_width = item.label.len() as f32 * char_width + padding_x * 2.0;
+            if x >= item_x && x < item_x + label_width {
+                return Some(item.index);
+            }
+            item_x += label_width;
+        }
+        None
+    }
+
     /// Detect if the mouse is on a resize edge of a borderless window.
     /// Returns the resize direction if within the border zone, or None.
     pub(super) fn detect_resize_edge(

@@ -20,6 +20,7 @@ pub enum EventKind {
     FileDrop = 14,
     TerminalTitleChanged = 15,
     ToolBarClick = 16,
+    MenuBarClick = 17,
 }
 
 /// Modifier flags matching Emacs.
@@ -45,6 +46,7 @@ pub const NEOMACS_EVENT_MENU_SELECTION: u32 = EventKind::MenuSelection as u32;
 pub const NEOMACS_EVENT_FILE_DROP: u32 = EventKind::FileDrop as u32;
 pub const NEOMACS_EVENT_TERMINAL_TITLE_CHANGED: u32 = EventKind::TerminalTitleChanged as u32;
 pub const NEOMACS_EVENT_TOOL_BAR_CLICK: u32 = EventKind::ToolBarClick as u32;
+pub const NEOMACS_EVENT_MENU_BAR_CLICK: u32 = EventKind::MenuBarClick as u32;
 
 /// Input event structure passed to C.
 #[repr(C)]

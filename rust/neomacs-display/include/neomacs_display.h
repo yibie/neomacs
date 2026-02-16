@@ -150,6 +150,8 @@
 
 
 
+
+
 /**
  * Maximum number of DMA-BUF planes supported.
  */
@@ -2732,6 +2734,26 @@ void neomacs_display_tool_bar_end(struct NeomacsDisplay *handle,
  * Configure toolbar appearance.
  */
 void neomacs_display_set_tool_bar_config(struct NeomacsDisplay *handle, int iconSize, int padding);
+
+/**
+ * Begin collecting menu bar items. Call before add_item calls.
+ */
+void neomacs_display_menu_bar_begin(struct NeomacsDisplay *handle, int count, float height);
+
+/**
+ * Add a single menu bar item.
+ */
+void neomacs_display_menu_bar_add_item(struct NeomacsDisplay *handle,
+                                       int index,
+                                       const char *label,
+                                       const char *keyName);
+
+/**
+ * Finish collecting menu bar items and send to render thread.
+ */
+void neomacs_display_menu_bar_end(struct NeomacsDisplay *handle,
+                                  uint32_t fgColor,
+                                  uint32_t bgColor);
 
 /**
  * Create a new terminal.

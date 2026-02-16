@@ -54,6 +54,7 @@ pub use events::{
     NEOMACS_EVENT_FILE_DROP,
     NEOMACS_EVENT_TERMINAL_TITLE_CHANGED,
     NEOMACS_EVENT_TOOL_BAR_CLICK,
+    NEOMACS_EVENT_MENU_BAR_CLICK,
 };
 
 #[cfg(all(feature = "wpe-webkit", target_os = "linux"))]

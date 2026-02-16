@@ -2643,4 +2643,31 @@ void neomacs_display_set_tool_bar_config(struct NeomacsDisplay *handle,
                                           int icon_size,
                                           int padding);
 
+/* ============================================================================
+ * Menu Bar
+ * ============================================================================ */
+
+#define NEOMACS_EVENT_MENU_BAR_CLICK 17
+
+/**
+ * Begin collecting menu bar items.
+ */
+void neomacs_display_menu_bar_begin(struct NeomacsDisplay *handle,
+                                     int count, float height);
+
+/**
+ * Add a single menu bar item.
+ */
+void neomacs_display_menu_bar_add_item(struct NeomacsDisplay *handle,
+                                        int index,
+                                        const char *label,
+                                        const char *key_name);
+
+/**
+ * Finish collecting menu bar items and send to render thread.
+ */
+void neomacs_display_menu_bar_end(struct NeomacsDisplay *handle,
+                                   uint32_t fg_color,
+                                   uint32_t bg_color);
+
 #endif  /* NEOMACS_DISPLAY_H */
