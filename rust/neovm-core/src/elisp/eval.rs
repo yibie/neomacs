@@ -2963,6 +2963,18 @@ mod tests {
     }
 
     #[test]
+    fn apply_autoload_object_signals_wrong_type_argument_symbolp() {
+        assert_eq!(
+            eval_one(
+                "(condition-case err
+                     (apply '(autoload \"x\" nil nil nil) '(3))
+                   (wrong-type-argument (list (car err) (nth 1 err) (autoloadp (nth 2 err)))))"
+            ),
+            "OK (wrong-type-argument symbolp t)"
+        );
+    }
+
+    #[test]
     fn fset_nil_reports_symbol_payload_for_void_function_calls() {
         let results = eval_all(
             "(fset 'vm-fsetnil nil)
