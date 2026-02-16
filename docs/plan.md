@@ -25,6 +25,26 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Fixed evaluator semantics for vector literals and locked oracle parity:
+  - updated:
+    - `rust/neovm-core/src/elisp/eval.rs`
+      - changed `Expr::Vector` evaluation to self-evaluating constant semantics (elements are no longer evaluated in lexical/dynamic environments).
+      - added unit coverage for symbol/list/vector-literal constant behavior.
+    - `test/neovm/vm-compat/cases/vector-literal-self-eval-semantics.forms`
+      - new corpus covering:
+        - symbol payload preservation (`[f1]`)
+        - lexical shadowing non-effect for vector literals
+        - list payload preservation (`[(+ 1 2)]`)
+        - downstream key-path compatibility (`key-description` / `help-key-description` with vector symbol events)
+    - `test/neovm/vm-compat/cases/vector-literal-self-eval-semantics.expected.tsv`
+      - recorded oracle baseline for the new case.
+    - `test/neovm/vm-compat/cases/default.list`
+      - added `cases/vector-literal-self-eval-semantics` to recurring default compatibility execution.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/vector-literal-self-eval-semantics` (pass, 8/8)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass; only allowlisted `neovm-precompile-file` drift)
+
 - Implemented `defining-kbd-macro` builtin parity and locked behavior with oracle corpus:
   - updated:
     - `rust/neovm-core/src/elisp/kmacro.rs`
