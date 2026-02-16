@@ -47,6 +47,22 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Aligned doc helper primitive `subr-arity` metadata with GNU Emacs:
+  - added explicit arity lock-ins for:
+    - `Snarf-documentation`: `(1 . 1)`
+    - `substitute-command-keys`: `(1 . 3)`
+    - `documentation`: `(1 . 2)`
+    - `documentation-property`: `(2 . 3)`
+    - `help-function-arglist`: `(1 . 2)`
+  - added oracle corpus lock-in case:
+    - `test/neovm/vm-compat/cases/doc-helper-subr-arity-semantics`
+  - wired into default vm-compat suite:
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml subr_arity_doc_helper_primitives_match_oracle -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/doc-helper-subr-arity-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
+
 - Aligned image/font primitive `subr-arity` metadata with GNU Emacs:
   - added explicit arity lock-ins for:
     - `clear-font-cache`: `(0 . 0)`
