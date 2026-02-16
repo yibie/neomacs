@@ -11,14 +11,40 @@ use std::fs::File;
 use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::path::Path;
 use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{mpsc, Arc, Mutex, OnceLock};
 use std::thread;
+
+use resvg::usvg::fontdb;
 
 #[cfg(target_os = "linux")]
 use super::external_buffer::DmaBufBuffer;
 
 /// Maximum texture dimension (width or height)
 const MAX_TEXTURE_SIZE: u32 = 4096;
+
+/// Global font database for SVG text rendering (loaded once, shared across threads)
+static SVG_FONTDB: OnceLock<Arc<fontdb::Database>> = OnceLock::new();
+
+/// Get or initialize the global font database for SVG rendering.
+/// Loads system fonts on first call. Thread-safe via OnceLock.
+fn svg_fontdb() -> Arc<fontdb::Database> {
+    SVG_FONTDB
+        .get_or_init(|| {
+            let mut db = fontdb::Database::new();
+            db.load_system_fonts();
+            let count = db.len();
+            if count > 0 {
+                log::info!("SVG fontdb: loaded {} system font faces", count);
+            } else {
+                log::warn!(
+                    "SVG fontdb: no system fonts found! SVG text elements will not render. \
+                     Ensure fonts are installed (e.g. noto-fonts, dejavu-fonts)."
+                );
+            }
+            Arc::new(db)
+        })
+        .clone()
+}
 
 /// Maximum total cache memory in bytes (64MB)
 const MAX_CACHE_MEMORY: usize = 64 * 1024 * 1024;
@@ -259,7 +285,10 @@ impl ImageCache {
 
     /// Decode SVG data via resvg, returning RGBA pixels
     fn decode_svg_data(data: &[u8], max_width: u32, max_height: u32) -> Option<(u32, u32, Vec<u8>)> {
-        let tree = resvg::usvg::Tree::from_data(data, &resvg::usvg::Options::default()).ok()?;
+        let fontdb = svg_fontdb();
+        let mut opts = resvg::usvg::Options::default();
+        opts.fontdb = fontdb;
+        let tree = resvg::usvg::Tree::from_data(data, &opts).ok()?;
         let svg_size = tree.size();
         let svg_w = svg_size.width();
         let svg_h = svg_size.height();
@@ -495,7 +524,10 @@ impl ImageCache {
 
     /// Query SVG dimensions without full rendering
     fn query_svg_dimensions(data: &[u8]) -> Option<ImageDimensions> {
-        let tree = resvg::usvg::Tree::from_data(data, &resvg::usvg::Options::default()).ok()?;
+        let fontdb = svg_fontdb();
+        let mut opts = resvg::usvg::Options::default();
+        opts.fontdb = fontdb;
+        let tree = resvg::usvg::Tree::from_data(data, &opts).ok()?;
         let size = tree.size();
         let w = size.width().ceil() as u32;
         let h = size.height().ceil() as u32;
