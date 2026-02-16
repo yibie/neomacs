@@ -416,18 +416,26 @@ pub(crate) fn builtin_kill_rectangle(
 
 /// `(yank-rectangle)` -- insert the last killed rectangle at point.
 ///
-/// Stub: returns nil.  Full implementation requires inserting each line
-/// of the killed rectangle at the corresponding line and column.
+/// Compatibility behavior:
+/// - inserts `RectangleState.killed` at point using `insert-rectangle`
+///   semantics
+/// - returns nil when no rectangle has been killed yet
 pub(crate) fn builtin_yank_rectangle(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
     expect_args("yank-rectangle", &args, 0)?;
     if eval.rectangle.killed.is_empty() {
-        return Err(signal("error", vec![Value::string("No rectangle to yank")]));
+        return Ok(Value::Nil);
     }
-    // Stub: no-op insertion.
-    Ok(Value::Nil)
+    let rectangle = Value::list(
+        eval.rectangle
+            .killed
+            .iter()
+            .map(|s| Value::string(s.clone()))
+            .collect(),
+    );
+    builtin_insert_rectangle(eval, vec![rectangle])
 }
 
 /// `(insert-rectangle RECTANGLE)` -- insert RECTANGLE (a list of strings)
@@ -796,19 +804,34 @@ mod tests {
     }
 
     #[test]
-    fn yank_rectangle_empty_errors() {
+    fn yank_rectangle_empty_returns_nil() {
         let mut eval = super::super::eval::Evaluator::new();
         let result = builtin_yank_rectangle(&mut eval, vec![]);
-        assert!(result.is_err());
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_nil());
     }
 
     #[test]
     fn yank_rectangle_after_kill() {
         let mut eval = super::super::eval::Evaluator::new();
-        eval.rectangle.killed = vec!["hello".to_string(), "world".to_string()];
+        {
+            let buf = eval
+                .buffers
+                .current_buffer_mut()
+                .expect("current buffer must exist");
+            buf.insert("abc\ndef\n");
+            buf.goto_char(0);
+        }
+        eval.rectangle.killed = vec!["X".to_string(), "Y".to_string()];
         let result = builtin_yank_rectangle(&mut eval, vec![]);
         assert!(result.is_ok());
         assert!(result.unwrap().is_nil());
+        let buf = eval
+            .buffers
+            .current_buffer()
+            .expect("current buffer must exist");
+        assert_eq!(buf.buffer_string(), "Xabc\nYdef\n");
+        assert_eq!(buf.text.byte_to_char(buf.point()) as i64 + 1, 7);
     }
 
     #[test]
