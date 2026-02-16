@@ -20,6 +20,22 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Aligned filename thing-at-point boundary behavior with oracle and refreshed filename corpus:
+  - updated:
+    - `rust/neovm-core/src/elisp/interactive.rs`
+      - switched filename extraction to reuse `bounds_filename`.
+      - extended `bounds_filename` to accept end-boundary points (point right after filename token).
+      - added focused unit coverage for end-boundary filename extraction.
+    - `test/neovm/vm-compat/cases/thing-at-point-filename-semantics.forms`
+      - restored end-boundary filename probes without point rewinding.
+    - `test/neovm/vm-compat/cases/thing-at-point-filename-semantics.expected.tsv`
+      - refreshed oracle baseline for end-boundary filename behavior.
+  - verified:
+    - `cargo test thing_at_point_filename --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `cargo test bounds_of_thing_at_point_filename --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/thing-at-point-filename-semantics` (pass, 4/4)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Added `bounds-of-thing-at-point` filename support and locked oracle corpus coverage:
   - updated:
     - `rust/neovm-core/src/elisp/interactive.rs`
