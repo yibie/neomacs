@@ -90,6 +90,8 @@ pub struct Evaluator {
     pub(crate) rectangle: RectangleState,
     /// Interactive command registry — tracks interactive commands.
     pub(crate) interactive: InteractiveRegistry,
+    /// Input events consumed by read* APIs, used by `recent-keys`.
+    recent_input_events: Vec<Value>,
     /// Frame manager — owns all frames and windows.
     pub(crate) frames: FrameManager,
     /// Mode registry — major/minor modes.
@@ -204,6 +206,7 @@ impl Evaluator {
             kill_ring: KillRing::new(),
             rectangle: RectangleState::new(),
             interactive: InteractiveRegistry::new(),
+            recent_input_events: Vec::new(),
             frames: FrameManager::new(),
             modes: ModeRegistry::new(),
             threads: ThreadManager::new(),
@@ -221,6 +224,34 @@ impl Evaluator {
         self.obarray
             .symbol_value("lexical-binding")
             .is_some_and(|v| v.is_truthy())
+    }
+
+    pub(crate) fn record_input_event(&mut self, event: Value) {
+        self.recent_input_events.push(event);
+    }
+
+    pub(crate) fn recent_input_events(&self) -> &[Value] {
+        &self.recent_input_events
+    }
+
+    pub(crate) fn pop_unread_command_event(&mut self) -> Option<Value> {
+        let current = self
+            .obarray
+            .symbol_value("unread-command-events")
+            .cloned()
+            .unwrap_or(Value::Nil);
+        match current {
+            Value::Cons(cell) => {
+                let pair = cell.lock().expect("poisoned");
+                let head = pair.car.clone();
+                let tail = pair.cdr.clone();
+                drop(pair);
+                self.obarray.set_symbol_value("unread-command-events", tail);
+                self.record_input_event(head.clone());
+                Some(head)
+            }
+            _ => None,
+        }
     }
 
     /// Enable or disable lexical binding.

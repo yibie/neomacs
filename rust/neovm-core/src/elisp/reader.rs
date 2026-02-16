@@ -796,25 +796,6 @@ pub(crate) fn builtin_completing_read(
     ))
 }
 
-fn pop_unread_command_event(eval: &mut super::eval::Evaluator) -> Option<Value> {
-    let current = eval
-        .obarray
-        .symbol_value("unread-command-events")
-        .cloned()
-        .unwrap_or(Value::Nil);
-    match current {
-        Value::Cons(cell) => {
-            let pair = cell.lock().expect("poisoned");
-            let head = pair.car.clone();
-            let tail = pair.cdr.clone();
-            drop(pair);
-            eval.obarray.set_symbol_value("unread-command-events", tail);
-            Some(head)
-        }
-        _ => None,
-    }
-}
-
 fn event_to_int(event: &Value) -> Option<i64> {
     match event {
         Value::Int(n) => Some(*n),
@@ -903,7 +884,7 @@ pub(crate) fn builtin_read_char(
         ));
     }
     expect_optional_prompt_string(&args)?;
-    if let Some(event) = pop_unread_command_event(eval) {
+    if let Some(event) = eval.pop_unread_command_event() {
         if let Some(n) = event_to_int(&event) {
             return Ok(Value::Int(n));
         }
@@ -926,7 +907,7 @@ pub(crate) fn builtin_read_key(
         ));
     }
     expect_optional_prompt_string(&args)?;
-    if let Some(event) = pop_unread_command_event(eval) {
+    if let Some(event) = eval.pop_unread_command_event() {
         if let Some(n) = event_to_int(&event) {
             return Ok(Value::Int(n));
         }
@@ -949,7 +930,7 @@ pub(crate) fn builtin_read_key_sequence(
     expect_min_args("read-key-sequence", &args, 1)?;
     expect_max_args("read-key-sequence", &args, 6)?;
     expect_optional_prompt_string(&args)?;
-    if let Some(event) = pop_unread_command_event(eval) {
+    if let Some(event) = eval.pop_unread_command_event() {
         if let Some(c) = event_to_char(&event) {
             return Ok(Value::string(c.to_string()));
         }
@@ -969,7 +950,7 @@ pub(crate) fn builtin_read_key_sequence_vector(
     expect_min_args("read-key-sequence-vector", &args, 1)?;
     expect_max_args("read-key-sequence-vector", &args, 6)?;
     expect_optional_prompt_string(&args)?;
-    if let Some(event) = pop_unread_command_event(eval) {
+    if let Some(event) = eval.pop_unread_command_event() {
         if let Some(n) = event_to_int(&event) {
             return Ok(Value::vector(vec![Value::Int(n)]));
         }
@@ -1706,6 +1687,7 @@ mod tests {
             .set_symbol_value("unread-command-events", Value::list(vec![Value::Int(97)]));
         let result = builtin_read_char(&mut ev, vec![]).unwrap();
         assert_eq!(result.as_int(), Some(97));
+        assert_eq!(ev.recent_input_events(), &[Value::Int(97)]);
     }
 
     #[test]
@@ -1720,6 +1702,7 @@ mod tests {
                 if sig.symbol == "error"
                     && sig.data == vec![Value::string("Non-character input-event")]
         ));
+        assert_eq!(ev.recent_input_events(), &[Value::symbol("foo")]);
     }
 
     #[test]

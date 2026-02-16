@@ -166,25 +166,6 @@ pub(crate) fn builtin_eval_region(
     eval_forms_from_source(eval, &source)
 }
 
-fn pop_unread_command_event(eval: &mut super::eval::Evaluator) -> Option<Value> {
-    let current = eval
-        .obarray
-        .symbol_value("unread-command-events")
-        .cloned()
-        .unwrap_or(Value::Nil);
-    match current {
-        Value::Cons(cell) => {
-            let pair = cell.lock().expect("poisoned");
-            let head = pair.car.clone();
-            let tail = pair.cdr.clone();
-            drop(pair);
-            eval.obarray.set_symbol_value("unread-command-events", tail);
-            Some(head)
-        }
-        _ => None,
-    }
-}
-
 fn event_to_int(event: &Value) -> Option<i64> {
     match event {
         Value::Int(n) => Some(*n),
@@ -217,7 +198,7 @@ pub(crate) fn builtin_read_event(
         ));
     }
     expect_optional_prompt_string(&args)?;
-    if let Some(event) = pop_unread_command_event(eval) {
+    if let Some(event) = eval.pop_unread_command_event() {
         if let Some(n) = event_to_int(&event) {
             return Ok(Value::Int(n));
         }
@@ -243,7 +224,7 @@ pub(crate) fn builtin_read_char_exclusive(
         ));
     }
     expect_optional_prompt_string(&args)?;
-    while let Some(event) = pop_unread_command_event(eval) {
+    while let Some(event) = eval.pop_unread_command_event() {
         if let Some(n) = event_to_int(&event) {
             return Ok(Value::Int(n));
         }
@@ -697,6 +678,7 @@ mod tests {
             .set_symbol_value("unread-command-events", Value::list(vec![Value::Int(97)]));
         let result = builtin_read_event(&mut ev, vec![]).unwrap();
         assert_eq!(result.as_int(), Some(97));
+        assert_eq!(ev.recent_input_events(), &[Value::Int(97)]);
     }
 
     #[test]
@@ -770,6 +752,7 @@ mod tests {
         );
         let result = builtin_read_char_exclusive(&mut ev, vec![]).unwrap();
         assert_eq!(result.as_int(), Some(97));
+        assert_eq!(ev.recent_input_events(), &[Value::symbol("foo"), Value::Int(97)]);
     }
 
     #[test]
