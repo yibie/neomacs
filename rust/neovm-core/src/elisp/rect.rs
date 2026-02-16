@@ -247,7 +247,17 @@ fn clamped_rect_inputs(
     eval: &super::eval::Evaluator,
     start: i64,
     end: i64,
-) -> Option<(String, usize, usize, usize, usize, usize, usize)> {
+) -> Option<(
+    String,
+    usize,
+    usize,
+    usize,
+    usize,
+    usize,
+    usize,
+    usize,
+    usize,
+)> {
     let buf = eval.buffers.current_buffer()?;
     let point_min_char = buf.text.byte_to_char(buf.point_min()) as i64 + 1;
     let point_max_char = buf.text.byte_to_char(buf.point_max()) as i64 + 1;
@@ -267,7 +277,7 @@ fn clamped_rect_inputs(
         (end_col, start_col)
     };
     Some((
-        text, pmin, pmax, start_line, end_line, left_col, right_col,
+        text, pmin, pmax, start_line, start_col, end_line, end_col, left_col, right_col,
     ))
 }
 
@@ -326,7 +336,7 @@ pub(crate) fn builtin_extract_rectangle(
     expect_args("extract-rectangle", &args, 2)?;
     let start = expect_int(&args[0])?;
     let end = expect_int(&args[1])?;
-    let Some((text, _pmin, _pmax, start_line, end_line, left_col, right_col)) =
+    let Some((text, _pmin, _pmax, start_line, _start_col, end_line, _end_col, left_col, right_col)) =
         clamped_rect_inputs(eval, start, end)
     else {
         return Ok(Value::list(Vec::new()));
@@ -355,7 +365,7 @@ pub(crate) fn builtin_delete_rectangle(
     expect_args("delete-rectangle", &args, 2)?;
     let start = expect_int(&args[0])?;
     let end = expect_int(&args[1])?;
-    let Some((text, pmin, pmax, start_line, end_line, left_col, right_col)) =
+    let Some((text, pmin, pmax, start_line, _start_col, end_line, _end_col, left_col, right_col)) =
         clamped_rect_inputs(eval, start, end)
     else {
         return Ok(Value::Int(1));
@@ -503,14 +513,51 @@ pub(crate) fn builtin_insert_rectangle(
 ///
 /// Stub: returns nil.
 pub(crate) fn builtin_open_rectangle(
-    _eval: &mut super::eval::Evaluator,
+    eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
     expect_args("open-rectangle", &args, 2)?;
-    let _start = expect_int(&args[0])?;
-    let _end = expect_int(&args[1])?;
-    // Stub: no-op.
-    Ok(Value::Nil)
+    let start = expect_int(&args[0])?;
+    let end = expect_int(&args[1])?;
+
+    let Some((text, pmin, pmax, start_line, _start_col, end_line, _end_col, left_col, right_col)) =
+        clamped_rect_inputs(eval, start, end)
+    else {
+        return Ok(args[0].clone());
+    };
+
+    let width = right_col.saturating_sub(left_col);
+    if width > 0 {
+        let mut lines: Vec<String> = text.split('\n').map(ToString::to_string).collect();
+        let spaces = " ".repeat(width);
+        for line_index in rectangle_lines_for_extract(start_line, end_line) {
+            while lines.len() <= line_index {
+                lines.push(String::new());
+            }
+            let line = &mut lines[line_index];
+            let line_len = line.chars().count();
+            if line_len < left_col {
+                line.push_str(&" ".repeat(left_col - line_len));
+            }
+            let insert_at = char_index_to_byte(line, left_col);
+            line.insert_str(insert_at, &spaces);
+        }
+
+        let rewritten = lines.join("\n");
+        if let Some(buf) = eval.buffers.current_buffer_mut() {
+            buf.delete_region(pmin, pmax);
+            buf.goto_char(pmin);
+            buf.insert(&rewritten);
+        }
+    }
+
+    if let Some(buf) = eval.buffers.current_buffer_mut() {
+        let target_char = if start > 0 { start as usize - 1 } else { 0 };
+        let target_byte = buf.text.char_to_byte(target_char.min(buf.text.char_count()));
+        buf.goto_char(target_byte);
+    }
+
+    Ok(args[0].clone())
 }
 
 /// `(clear-rectangle START END &optional FILL)` -- replace the rectangle
@@ -575,7 +622,7 @@ pub(crate) fn builtin_delete_extract_rectangle(
     let start = expect_int(&args[0])?;
     let end = expect_int(&args[1])?;
 
-    let Some((text, pmin, pmax, start_line, end_line, left_col, right_col)) =
+    let Some((text, pmin, pmax, start_line, _start_col, end_line, _end_col, left_col, right_col)) =
         clamped_rect_inputs(eval, start, end)
     else {
         return Ok(Value::list(Vec::new()));
@@ -918,11 +965,32 @@ mod tests {
     }
 
     #[test]
-    fn open_rectangle_returns_nil() {
+    fn open_rectangle_returns_start() {
         let mut eval = super::super::eval::Evaluator::new();
         let result = builtin_open_rectangle(&mut eval, vec![Value::Int(1), Value::Int(10)]);
         assert!(result.is_ok());
-        assert!(result.unwrap().is_nil());
+        assert_eq!(result.unwrap(), Value::Int(1));
+    }
+
+    #[test]
+    fn open_rectangle_eval_mutates_buffer_and_point() {
+        let mut eval = super::super::eval::Evaluator::new();
+        {
+            let buf = eval
+                .buffers
+                .current_buffer_mut()
+                .expect("current buffer must exist");
+            buf.insert("abcdef\n123456\n");
+        }
+        let result = builtin_open_rectangle(&mut eval, vec![Value::Int(1), Value::Int(9)])
+            .expect("open-rectangle");
+        assert_eq!(result, Value::Int(1));
+        let buf = eval
+            .buffers
+            .current_buffer()
+            .expect("current buffer must exist");
+        assert_eq!(buf.buffer_string(), " abcdef\n 123456\n");
+        assert_eq!(buf.text.byte_to_char(buf.point()) as i64 + 1, 1);
     }
 
     #[test]
