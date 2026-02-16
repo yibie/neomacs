@@ -6664,6 +6664,11 @@ Last updated: 2026-02-16
     - `test/neovm/vm-compat/cases/key-binding-default-self-insert-semantics.expected.tsv`
   - verified:
     - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/key-binding-default-self-insert-semantics` (pass, 10/10)
+- Reduced oracle-runner setup friction by auto-discovering GNU Emacs in Nix environments:
+  - `test/neovm/vm-compat/run-oracle.sh` now falls back to `/nix/store/*-emacs-*/bin/emacs` when `NEOVM_ORACLE_EMACS`/`ORACLE_EMACS` is unset and `emacs` is missing from `PATH`
+  - added Neomacs guard fallback: when `emacs` resolves to Neomacs, runner now attempts a GNU Emacs fallback candidate before failing
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/core` (pass, 15/15) without manually setting oracle env vars
 
 ## Doing
 
