@@ -190,6 +190,49 @@ impl Evaluator {
                 ),
             })),
         );
+        // Bookmark command wrappers are startup autoloads in GNU Emacs.
+        let mut seed_autoload = |name: &str, file: &str, doc: &str| {
+            obarray.set_symbol_function(
+                name,
+                Value::list(vec![
+                    Value::symbol("autoload"),
+                    Value::string(file),
+                    Value::string(doc),
+                    Value::True,
+                    Value::Nil,
+                ]),
+            );
+        };
+        seed_autoload(
+            "bookmark-delete",
+            "bookmark",
+            "Delete BOOKMARK-NAME from the bookmark list.",
+        );
+        seed_autoload(
+            "bookmark-jump",
+            "bookmark",
+            "Jump to bookmark BOOKMARK (a point in some file).",
+        );
+        seed_autoload(
+            "bookmark-load",
+            "bookmark",
+            "Load bookmarks from FILE (which must be in bookmark format).",
+        );
+        seed_autoload(
+            "bookmark-rename",
+            "bookmark",
+            "Change the name of OLD-NAME bookmark to NEW-NAME name.",
+        );
+        seed_autoload(
+            "bookmark-save",
+            "bookmark",
+            "Save currently defined bookmarks in FILE.",
+        );
+        seed_autoload(
+            "bookmark-set",
+            "bookmark",
+            "Set a bookmark named NAME at the current location.",
+        );
 
         // Mark standard variables as special (dynamically bound)
         for name in &[

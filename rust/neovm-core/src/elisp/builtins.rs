@@ -10716,6 +10716,11 @@ mod tests {
             .expect("symbol-function should resolve subr-primitive-p wrapper");
         assert!(matches!(subr_primitive, Value::Lambda(_)));
 
+        let bookmark_delete =
+            builtin_symbol_function(&mut eval, vec![Value::symbol("bookmark-delete")])
+                .expect("symbol-function should resolve bookmark-delete autoload");
+        assert!(crate::elisp::autoload::is_autoload_value(&bookmark_delete));
+
         let throw_fn = builtin_symbol_function(&mut eval, vec![Value::symbol("throw")])
             .expect("symbol-function should resolve throw as callable subr");
         assert_eq!(throw_fn, Value::Subr("throw".to_string()));
