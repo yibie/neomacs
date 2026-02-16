@@ -25,6 +25,34 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Aligned window startup alias shape and batch window-size query semantics with GNU Emacs:
+  - updated:
+    - `rust/neovm-core/src/elisp/eval.rs`
+      - added startup function-cell aliases:
+        - `window-height -> window-total-height`
+        - `window-width -> window-body-width`
+    - `rust/neovm-core/src/elisp/window_cmds.rs`
+      - aligned batch window-size behavior:
+        - bootstrap initial frame as 80x24-char equivalent (640x384 px with 8x16 metrics),
+        - enforce max arity for `window-height`/`window-width`/`window-body-height`/`window-body-width`,
+        - return character dimensions for `window-body-*` even when second arg is non-nil (oracle batch shape).
+      - added regression coverage for frame-less startup size queries.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - extended symbol-function alias test coverage for `window-height` and `window-width`.
+    - `test/neovm/vm-compat/cases/window-alias-introspection-semantics.forms`
+    - `test/neovm/vm-compat/cases/window-alias-introspection-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+      - added oracle lock-in for alias-cell shape, callable behavior, and arity error paths.
+  - recorded with official GNU Emacs:
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat record FORMS=cases/window-alias-introspection-semantics.forms EXPECTED=cases/window-alias-introspection-semantics.expected.tsv` (pass)
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml symbol_function_resolves_builtin_and_special_names -- --nocapture` (pass)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml window_size_queries_bootstrap_initial_frame -- --nocapture` (pass)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml window_body_height_pixelwise -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/window-alias-introspection-semantics` (pass, 12/12)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/window-frame-subr-arity-semantics` (pass, 26/26)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass)
+
 - Added missing window helper builtins and aligned window/frame `subr-arity` metadata with GNU Emacs:
   - updated:
     - `rust/neovm-core/src/elisp/window_cmds.rs`
