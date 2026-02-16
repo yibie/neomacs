@@ -4813,6 +4813,7 @@ pub(crate) fn builtin_buffer_size(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
+    expect_max_args("buffer-size", &args, 1)?;
     let buf = if args.is_empty() || matches!(args[0], Value::Nil) {
         eval.buffers
             .current_buffer()
@@ -4862,6 +4863,7 @@ pub(crate) fn builtin_buffer_modified_p(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
+    expect_max_args("buffer-modified-p", &args, 1)?;
     let buf = if args.is_empty() || matches!(args[0], Value::Nil) {
         eval.buffers
             .current_buffer()
@@ -4895,7 +4897,7 @@ pub(crate) fn builtin_buffer_list(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    let _ = args;
+    expect_max_args("buffer-list", &args, 1)?;
     let ids = eval.buffers.buffer_list();
     let vals: Vec<Value> = ids.into_iter().map(Value::Buffer).collect();
     Ok(Value::list(vals))

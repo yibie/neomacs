@@ -126,6 +126,7 @@ cases/make-symbolic-link-semantics
 cases/buffer-locals
 cases/buffer-point-arity-semantics
 cases/buffer-state-arity-semantics
+cases/buffer-metadata-arity-semantics
 cases/buffer-live-p-semantics
 cases/buffer-read-only-default-semantics
 cases/delete-indentation-read-only-variable-semantics
