@@ -910,6 +910,9 @@ pub(crate) fn builtin_terminal_parameter_eval(
 pub(crate) fn builtin_set_terminal_parameter(args: Vec<Value>) -> EvalResult {
     expect_args("set-terminal-parameter", &args, 3)?;
     expect_terminal_designator(&args[0])?;
+    if matches!(args[1], Value::Str(_)) {
+        return Ok(Value::Nil);
+    }
     let key = args[1].to_hash_key(&HashTableTest::Eq);
     let previous =
         TERMINAL_PARAMS.with(|slot| slot.borrow_mut().insert(key, args[2].clone()));
@@ -925,6 +928,9 @@ pub(crate) fn builtin_set_terminal_parameter_eval(
 ) -> EvalResult {
     expect_args("set-terminal-parameter", &args, 3)?;
     expect_terminal_designator_eval(eval, &args[0])?;
+    if matches!(args[1], Value::Str(_)) {
+        return Ok(Value::Nil);
+    }
     let key = args[1].to_hash_key(&HashTableTest::Eq);
     let previous =
         TERMINAL_PARAMS.with(|slot| slot.borrow_mut().insert(key, args[2].clone()));
@@ -1222,6 +1228,11 @@ mod tests {
             builtin_set_terminal_parameter(vec![Value::Nil, Value::string("k"), Value::Int(9)])
                 .unwrap();
         assert!(set_result.is_nil());
+
+        let second_result =
+            builtin_set_terminal_parameter(vec![Value::Nil, Value::string("k"), Value::Int(1)])
+                .unwrap();
+        assert!(second_result.is_nil());
 
         let get_result = builtin_terminal_parameter(vec![Value::Nil, Value::symbol("k")]).unwrap();
         assert!(get_result.is_nil());
