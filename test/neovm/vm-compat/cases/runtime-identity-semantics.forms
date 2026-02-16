@@ -9,5 +9,5 @@
 (> (emacs-pid) 0)
 
 (condition-case err (system-name nil) (error (car err)))
-(condition-case err (emacs-version nil) (error (car err)))
+(condition-case err (stringp (emacs-version nil)) (error (car err)))
 (condition-case err (emacs-pid nil) (error (car err)))
