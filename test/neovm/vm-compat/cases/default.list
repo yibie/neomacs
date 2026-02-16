@@ -39,6 +39,7 @@ cases/sub-zero-arity-semantics
 cases/help-key-recent-keys-semantics
 cases/event-builtins-semantics
 cases/event-key-helpers-semantics
+cases/event-apply-low-ascii-matrix-semantics
 cases/lookup-key-partial-semantics
 cases/key-binding-partial-semantics
 cases/key-binding-empty-designator-semantics
