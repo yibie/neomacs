@@ -190,6 +190,17 @@ fn expect_max_args(name: &str, args: &[Value], max: usize) -> Result<(), Flow> {
     }
 }
 
+fn expect_int_or_marker(value: &Value) -> Result<i64, Flow> {
+    match value {
+        Value::Int(n) => Ok(*n),
+        Value::Char(c) => Ok(*c as i64),
+        other => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("integer-or-marker-p"), other.clone()],
+        )),
+    }
+}
+
 fn require_known_charset(value: &Value) -> Result<String, Flow> {
     let name = match value {
         Value::Symbol(s) => s.clone(),
@@ -397,6 +408,55 @@ pub(crate) fn builtin_find_charset_region(args: Vec<Value>) -> EvalResult {
     Ok(Value::list(vec![Value::symbol("ascii")]))
 }
 
+/// Evaluator-aware variant of `(find-charset-region BEG END &optional TABLE)`.
+///
+/// Returns charset symbols present in the region `[BEG, END)` where BEG/END are
+/// Emacs 1-based character positions inside the accessible region.
+pub(crate) fn builtin_find_charset_region_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_min_args("find-charset-region", &args, 2)?;
+    expect_max_args("find-charset-region", &args, 3)?;
+    let beg = expect_int_or_marker(&args[0])?;
+    let end = expect_int_or_marker(&args[1])?;
+
+    let buf = eval
+        .buffers
+        .current_buffer()
+        .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
+
+    let point_min = buf.text.byte_to_char(buf.point_min()) as i64 + 1;
+    let point_max = buf.text.byte_to_char(buf.point_max()) as i64 + 1;
+    if beg < point_min || beg > point_max || end < point_min || end > point_max {
+        return Err(signal(
+            "args-out-of-range",
+            vec![Value::Int(beg), Value::Int(end)],
+        ));
+    }
+
+    let mut a = beg;
+    let mut b = end;
+    if a > b {
+        std::mem::swap(&mut a, &mut b);
+    }
+
+    let start_byte = buf.text.char_to_byte((a - 1).max(0) as usize);
+    let end_byte = buf.text.char_to_byte((b - 1).max(0) as usize);
+    if start_byte == end_byte {
+        return Ok(Value::list(vec![Value::symbol("ascii")]));
+    }
+
+    let text = buf.buffer_substring(start_byte, end_byte);
+    let charsets = classify_string_charsets(&text);
+    if charsets.is_empty() {
+        return Ok(Value::list(vec![Value::symbol("ascii")]));
+    }
+    Ok(Value::list(
+        charsets.into_iter().map(Value::symbol).collect::<Vec<_>>(),
+    ))
+}
+
 /// `(find-charset-string STR &optional TABLE)` -- stub, return list
 /// of charsets present in STR.
 pub(crate) fn builtin_find_charset_string(args: Vec<Value>) -> EvalResult {
@@ -474,6 +534,57 @@ pub(crate) fn builtin_clear_charset_maps(args: Vec<Value>) -> EvalResult {
 pub(crate) fn builtin_charset_after(args: Vec<Value>) -> EvalResult {
     expect_max_args("charset-after", &args, 1)?;
     Ok(Value::symbol("unicode"))
+}
+
+/// Evaluator-aware variant of `(charset-after &optional POS)`.
+///
+/// Returns the charset of the character at POS (1-based), or the character
+/// after point when POS is omitted. Returns nil at end-of-buffer or for
+/// out-of-range numeric positions.
+pub(crate) fn builtin_charset_after_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_max_args("charset-after", &args, 1)?;
+    let buf = eval
+        .buffers
+        .current_buffer()
+        .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
+
+    let target_byte = if let Some(pos) = args.first() {
+        let pos = expect_int_or_marker(pos)?;
+        let point_min = buf.text.byte_to_char(buf.point_min()) as i64 + 1;
+        let point_max = buf.text.byte_to_char(buf.point_max()) as i64 + 1;
+        if pos < point_min || pos > point_max {
+            return Ok(Value::Nil);
+        }
+        buf.text.char_to_byte((pos - 1).max(0) as usize)
+    } else {
+        buf.point()
+    };
+
+    let point_max_byte = buf.point_max();
+    if target_byte >= point_max_byte {
+        return Ok(Value::Nil);
+    }
+
+    let Some(ch) = buf.char_after(target_byte) else {
+        return Ok(Value::Nil);
+    };
+    let cp = ch as u32;
+    let charset = if (RAW_BYTE_SENTINEL_MIN..=RAW_BYTE_SENTINEL_MAX).contains(&cp) {
+        "eight-bit"
+    } else if (UNIBYTE_BYTE_SENTINEL_MIN..=UNIBYTE_BYTE_SENTINEL_MAX).contains(&cp) {
+        let byte = cp - UNIBYTE_BYTE_SENTINEL_MIN;
+        if byte <= 0x7F { "ascii" } else { "eight-bit" }
+    } else if cp <= 0x7F {
+        "ascii"
+    } else if cp <= 0xFFFF {
+        "unicode-bmp"
+    } else {
+        "unicode"
+    };
+    Ok(Value::symbol(charset))
 }
 
 fn classify_string_charsets(s: &str) -> Vec<&'static str> {
@@ -855,6 +966,54 @@ mod tests {
         .is_err());
     }
 
+    #[test]
+    fn find_charset_region_eval_semantics() {
+        let mut eval = super::super::eval::Evaluator::new();
+        {
+            let buf = eval
+                .buffers
+                .current_buffer_mut()
+                .expect("current buffer must exist");
+            buf.insert("aé😀");
+        }
+
+        let all = builtin_find_charset_region_eval(&mut eval, vec![Value::Int(1), Value::Int(4)])
+            .expect("find-charset-region all");
+        assert_eq!(
+            all,
+            Value::list(vec![
+                Value::symbol("ascii"),
+                Value::symbol("unicode"),
+                Value::symbol("unicode-bmp"),
+            ])
+        );
+
+        let bmp = builtin_find_charset_region_eval(&mut eval, vec![Value::Int(2), Value::Int(3)])
+            .expect("find-charset-region bmp");
+        assert_eq!(bmp, Value::list(vec![Value::symbol("unicode-bmp")]));
+
+        let empty =
+            builtin_find_charset_region_eval(&mut eval, vec![Value::Int(4), Value::Int(4)])
+                .expect("find-charset-region empty");
+        assert_eq!(empty, Value::list(vec![Value::symbol("ascii")]));
+    }
+
+    #[test]
+    fn find_charset_region_eval_out_of_range_errors() {
+        let mut eval = super::super::eval::Evaluator::new();
+        {
+            let buf = eval
+                .buffers
+                .current_buffer_mut()
+                .expect("current buffer must exist");
+            buf.insert("abc");
+        }
+        assert!(builtin_find_charset_region_eval(&mut eval, vec![Value::Int(0), Value::Int(2)])
+            .is_err());
+        assert!(builtin_find_charset_region_eval(&mut eval, vec![Value::Int(1), Value::Int(5)])
+            .is_err());
+    }
+
     // -----------------------------------------------------------------------
     // Builtin tests: find-charset-string
     // -----------------------------------------------------------------------
@@ -1121,6 +1280,46 @@ mod tests {
     #[test]
     fn charset_after_wrong_arg_count() {
         assert!(builtin_charset_after(vec![Value::Int(1), Value::Int(2)]).is_err());
+    }
+
+    #[test]
+    fn charset_after_eval_semantics() {
+        let mut eval = super::super::eval::Evaluator::new();
+        {
+            let buf = eval
+                .buffers
+                .current_buffer_mut()
+                .expect("current buffer must exist");
+            buf.insert("aé😀");
+        }
+
+        // No arg uses char after point; after insert point is at EOB.
+        assert!(builtin_charset_after_eval(&mut eval, vec![])
+            .expect("charset-after no arg")
+            .is_nil());
+
+        assert_eq!(
+            builtin_charset_after_eval(&mut eval, vec![Value::Int(1)]).expect("pos 1"),
+            Value::symbol("ascii")
+        );
+        assert_eq!(
+            builtin_charset_after_eval(&mut eval, vec![Value::Int(2)]).expect("pos 2"),
+            Value::symbol("unicode-bmp")
+        );
+        assert_eq!(
+            builtin_charset_after_eval(&mut eval, vec![Value::Int(3)]).expect("pos 3"),
+            Value::symbol("unicode")
+        );
+        assert!(builtin_charset_after_eval(&mut eval, vec![Value::Int(4)])
+            .expect("pos 4")
+            .is_nil());
+        assert!(builtin_charset_after_eval(&mut eval, vec![Value::Int(0)])
+            .expect("pos 0")
+            .is_nil());
+        assert!(builtin_charset_after_eval(&mut eval, vec![Value::Int(10)])
+            .expect("pos 10")
+            .is_nil());
+        assert!(builtin_charset_after_eval(&mut eval, vec![Value::string("x")]).is_err());
     }
 
     // -----------------------------------------------------------------------
