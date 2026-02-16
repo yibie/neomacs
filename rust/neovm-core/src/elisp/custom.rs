@@ -159,6 +159,21 @@ pub(crate) fn builtin_custom_variable_p(
     Ok(Value::bool(eval.custom.is_custom_variable(name)))
 }
 
+/// `(custom-group-p SYMBOL)` -- returns t if SYMBOL is a custom group.
+pub(crate) fn builtin_custom_group_p(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_args("custom-group-p", &args, 1)?;
+    let name = match &args[0] {
+        Value::Symbol(s) => s.as_str(),
+        Value::Nil => "nil",
+        Value::True => "t",
+        _ => return Ok(Value::Nil),
+    };
+    Ok(Value::bool(eval.custom.is_custom_group(name)))
+}
+
 // ---------------------------------------------------------------------------
 // Evaluator-dependent builtins
 // ---------------------------------------------------------------------------
@@ -870,6 +885,17 @@ mod tests {
         let _result = ev.eval_expr(&forms[0]);
         assert!(ev.custom.is_custom_group("my-group"));
         assert!(!ev.custom.is_custom_group("other"));
+    }
+
+    #[test]
+    fn defgroup_custom_group_p() {
+        let results = eval_all(
+            r#"(defgroup my-group nil "Docs.")
+               (custom-group-p 'my-group)
+               (custom-group-p 'other)"#,
+        );
+        assert_eq!(results[1], "OK t");
+        assert_eq!(results[2], "OK nil");
     }
 
     #[test]

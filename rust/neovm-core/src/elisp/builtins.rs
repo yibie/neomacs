@@ -6366,6 +6366,7 @@ pub(crate) fn dispatch_builtin(
 
         // Custom system (evaluator-dependent)
         "custom-variable-p" => return Some(super::custom::builtin_custom_variable_p(eval, args)),
+        "custom-group-p" => return Some(super::custom::builtin_custom_group_p(eval, args)),
         "custom-set-variables" => {
             return Some(super::custom::builtin_custom_set_variables(eval, args))
         }
