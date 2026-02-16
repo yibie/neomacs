@@ -25,6 +25,24 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Extended `event-convert-list` control-modifier parity for `C-SPC`/`C-?` paths:
+  - updated:
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - adjusted control-resolution guard in `event-convert-list` so:
+        - `'(control ?\ )` yields control-bit encoded space (`67108896`)
+        - `'(control ?\?)` yields control-bit encoded question mark (`67108927`)
+      - retained existing resolved-control behavior for alphabetic and bracket-family control paths.
+    - `test/neovm/vm-compat/cases/event-builtins-semantics.forms`
+      - added explicit probes:
+        - `(event-convert-list '(control ?\ ))`
+        - `(event-convert-list '(control ?\?))`
+    - `test/neovm/vm-compat/cases/event-builtins-semantics.expected.tsv`
+      - refreshed oracle baseline with the new control space/question conversion lines.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/event-builtins-semantics` (pass, 53/53)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass; only allowlisted `neovm-precompile-file` drift)
+
 - Fixed uppercase control conversion parity in `event-convert-list` and locked coverage in oracle corpus:
   - updated:
     - `rust/neovm-core/src/elisp/builtins.rs`
