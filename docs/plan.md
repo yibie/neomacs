@@ -41,6 +41,7 @@ Last updated: 2026-02-16
 - Keep newly landed list/sequence helper primitive `subr-arity` parity stable while expanding remaining sequence/search helper drifts.
 - Keep newly landed read-core helper primitive `subr-arity` parity stable while expanding remaining minibuffer/input drifts.
 - Keep newly landed input-mode helper primitive `subr-arity` parity stable while expanding remaining input/runtime drifts.
+- Keep newly landed filesystem-create helper primitive `subr-arity` parity stable while expanding remaining filesystem helper drifts.
 
 ## Next
 
@@ -52,6 +53,21 @@ Last updated: 2026-02-16
 6. Expand `recent-keys` capture beyond `read*` consumers to eventual command-loop event publication.
 
 ## Done
+
+- Aligned filesystem-create helper primitive `subr-arity` metadata with GNU Emacs:
+  - added explicit arity lock-ins for:
+    - `(1 . 2)`: `make-directory`
+    - `(1 . 4)`: `make-temp-file`
+    - `(1 . 3)`: `make-nearby-temp-file`
+    - `(2 . 3)`: `make-symbolic-link`, `rename-file`, `add-name-to-file`
+  - added oracle corpus lock-in case:
+    - `test/neovm/vm-compat/cases/filesystem-create-subr-arity-semantics`
+  - wired into default vm-compat suite:
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml subr_arity_filesystem_create_primitives_match_oracle -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/filesystem-create-subr-arity-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
 
 - Aligned input-mode helper primitive `subr-arity` metadata with GNU Emacs:
   - added explicit arity lock-ins for:
