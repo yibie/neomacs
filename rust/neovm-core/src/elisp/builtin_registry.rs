@@ -177,6 +177,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "cl-evenp",
     "cl-fifth",
     "cl-find",
+    "cl-find-if",
     "cl-first",
     "cl-fourth",
     "cl-gensym",

@@ -6948,6 +6948,7 @@ pub(crate) fn dispatch_builtin(
         "cl-some" => return Some(super::cl_lib::builtin_cl_some(eval, args)),
         "seq-every-p" => return Some(super::cl_lib::builtin_seq_every_p(eval, args)),
         "cl-every" => return Some(super::cl_lib::builtin_cl_every(eval, args)),
+        "cl-find-if" => return Some(super::cl_lib::builtin_cl_find_if(eval, args)),
         "cl-notany" => return Some(super::cl_lib::builtin_cl_notany(eval, args)),
         "cl-notevery" => return Some(super::cl_lib::builtin_cl_notevery(eval, args)),
         "seq-sort" => return Some(super::cl_lib::builtin_seq_sort(eval, args)),

@@ -773,6 +773,23 @@ pub(crate) fn builtin_cl_find(args: Vec<Value>) -> EvalResult {
     Ok(Value::Nil)
 }
 
+/// `(cl-find-if PREDICATE SEQ)` -- return first element satisfying PREDICATE.
+pub(crate) fn builtin_cl_find_if(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_args("cl-find-if", &args, 2)?;
+    let pred = args[0].clone();
+    let elements = seq_position_elements(&args[1])?;
+    for element in elements {
+        let matched = eval.apply(pred.clone(), vec![element.clone()])?;
+        if matched.is_truthy() {
+            return Ok(element);
+        }
+    }
+    Ok(Value::Nil)
+}
+
 /// `(seq-contains-p SEQ ELT &optional TESTFN)` — membership test for sequence.
 pub(crate) fn builtin_seq_contains_p(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     if !(2..=3).contains(&args.len()) {
@@ -1620,5 +1637,25 @@ mod tests {
     #[test]
     fn cl_find_wrong_arity() {
         assert!(builtin_cl_find(vec![Value::symbol("a")]).is_err());
+    }
+
+    #[test]
+    fn cl_find_if_with_eval() {
+        let mut evaluator = super::super::eval::Evaluator::new();
+        let result = builtin_cl_find_if(
+            &mut evaluator,
+            vec![
+                Value::Subr("numberp".to_string()),
+                Value::list(vec![Value::string("x"), Value::Int(2)]),
+            ],
+        )
+        .unwrap();
+        assert_eq!(result, Value::Int(2));
+    }
+
+    #[test]
+    fn cl_find_if_wrong_arity() {
+        let mut evaluator = super::super::eval::Evaluator::new();
+        assert!(builtin_cl_find_if(&mut evaluator, vec![Value::Subr("numberp".to_string())]).is_err());
     }
 }

@@ -19,7 +19,7 @@
 (fboundp 'cl-find)
 (condition-case err (cl-find 'b '(a b c)) (error err))
 (fboundp 'cl-find-if)
-(condition-case err (cl-find-if) (error err))
+(condition-case err (cl-find-if #'numberp '("x" 2)) (error err))
 (fboundp 'cl-first)
 (condition-case err (cl-first '(a b)) (error err))
 (fboundp 'cl-fourth)
