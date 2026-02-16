@@ -123,7 +123,7 @@ cd test/neovm/vm-compat
 make check-thread-neovm
 ```
 
-Run the builtin registry `fboundp` parity gate (GNU Emacs `-Q` vs NeoVM, with explicit allowlist for intentional extensions):
+Run the builtin registry `fboundp` parity gate (GNU Emacs `-Q` vs NeoVM core builtin names):
 
 ```bash
 cd test/neovm/vm-compat
@@ -202,7 +202,8 @@ Post-freeze updates:
 
 - Added builtin registry `fboundp` parity gate:
   - `make check-builtin-registry-fboundp`
-  - allowlist file: `cases/builtin-registry-fboundp-allowlist.txt`
+  - core-only parity (`neovm-*` extension names are excluded)
+  - allowlist file for remaining core drifts: `cases/builtin-registry-fboundp-allowlist.txt`
 - Added CI gate step for builtin registry parity in `.github/workflows/vm-compat.yml`.
 - Added `cases/input-batch-readers` corpus and wired it into default `check-all-neovm` coverage.
 - Added CI gate job for `make check-ert-allowlist` in `.github/workflows/vm-compat.yml`.
