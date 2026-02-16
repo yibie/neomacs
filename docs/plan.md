@@ -19,6 +19,23 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Implemented oracle-aligned `open-rectangle` semantics and locked compatibility corpus coverage:
+  - updated:
+    - `rust/neovm-core/src/elisp/rect.rs`
+      - replaced no-op stub behavior with column-aware space insertion across rectangle lines.
+      - aligned return value to original `START` argument and point update to post-operation `goto-char START` behavior.
+      - added focused unit coverage for return value, buffer mutation, and point placement.
+    - `test/neovm/vm-compat/cases/rect-open-semantics.forms`
+      - added oracle-backed probes for basic/open-at-column behavior, START-below-END asymmetry, out-of-range START point behavior, no-width rectangles, and type errors.
+    - `test/neovm/vm-compat/cases/rect-open-semantics.expected.tsv`
+      - recorded oracle baseline outputs for open-rectangle behavior.
+    - `test/neovm/vm-compat/cases/default.list`
+      - added `cases/rect-open-semantics` to recurring default compatibility execution.
+  - verified:
+    - `cargo test open_rectangle --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/rect-open-semantics` (pass, 8/8)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Implemented oracle-aligned `yank-rectangle` semantics and locked compatibility corpus coverage:
   - updated:
     - `rust/neovm-core/src/elisp/rect.rs`
