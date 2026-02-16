@@ -344,10 +344,9 @@ impl Evaluator {
             Expr::Bool(true) => Ok(Value::True),
             Expr::Bool(false) => Ok(Value::Nil),
             Expr::Vector(items) => {
-                let mut vals = Vec::with_capacity(items.len());
-                for item in items {
-                    vals.push(self.eval(item)?);
-                }
+                // Emacs vector literals are self-evaluating constants; elements
+                // are not evaluated in the current lexical/dynamic environment.
+                let vals = items.iter().map(quote_to_value).collect();
                 Ok(Value::vector(vals))
             }
             Expr::Symbol(symbol) => self.eval_symbol(symbol),
@@ -2220,6 +2219,14 @@ mod tests {
     fn vector_ops() {
         assert_eq!(eval_one("(aref [10 20 30] 1)"), "OK 20");
         assert_eq!(eval_one("(length [1 2 3])"), "OK 3");
+    }
+
+    #[test]
+    fn vector_literals_are_self_evaluating_constants() {
+        assert_eq!(eval_one("(aref [f1] 0)"), "OK f1");
+        assert_eq!(eval_one("(let ((f1 'shadowed)) (aref [f1] 0))"), "OK f1");
+        assert_eq!(eval_one("(aref [(+ 1 2)] 0)"), "OK (+ 1 2)");
+        assert_eq!(eval_one("(let ((x 1)) (aref [x] 0))"), "OK x");
     }
 
     #[test]
