@@ -8045,6 +8045,20 @@ Last updated: 2026-02-16
     - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/composition-subr-arity-semantics` (pass, 8/8)
     - `make -C test/neovm/vm-compat validate-case-lists` (pass)
     - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass, 1 allowlisted drift)
+- Aligned predicate/core helper primitive `subr-arity` metadata with GNU Emacs and locked parity in corpus:
+  - added arity overrides:
+    - `(1 . 1)`: `charsetp`, `closurep`, `compiled-function-p`, `custom-variable-p`, `default-value`
+    - `(2 . 2)`: `decode-char`
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/predicate-core-subr-arity-semantics.forms`
+    - `test/neovm/vm-compat/cases/predicate-core-subr-arity-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat record FORMS=cases/predicate-core-subr-arity-semantics.forms EXPECTED=cases/predicate-core-subr-arity-semantics.expected.tsv` (pass)
+    - `cargo test subr_arity_predicate_core_primitives_match_oracle -- --nocapture` in `rust/neovm-core` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/predicate-core-subr-arity-semantics` (pass, 6/6)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass, 1 allowlisted drift)
 
 ## Doing
 
