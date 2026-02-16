@@ -5854,6 +5854,248 @@ fn builtin_text_char_description(args: Vec<Value>) -> EvalResult {
     Ok(Value::string(rendered))
 }
 
+fn parse_event_symbol_prefixes(mut name: &str) -> (Vec<Value>, &str) {
+    let mut mods = Vec::new();
+    loop {
+        if let Some(rest) = name.strip_prefix("C-") {
+            mods.push(Value::symbol("control"));
+            name = rest;
+            continue;
+        }
+        if let Some(rest) = name.strip_prefix("M-") {
+            mods.push(Value::symbol("meta"));
+            name = rest;
+            continue;
+        }
+        if let Some(rest) = name.strip_prefix("S-") {
+            mods.push(Value::symbol("shift"));
+            name = rest;
+            continue;
+        }
+        if let Some(rest) = name.strip_prefix("s-") {
+            mods.push(Value::symbol("super"));
+            name = rest;
+            continue;
+        }
+        if let Some(rest) = name.strip_prefix("H-") {
+            mods.push(Value::symbol("hyper"));
+            name = rest;
+            continue;
+        }
+        if let Some(rest) = name.strip_prefix("A-") {
+            mods.push(Value::symbol("alt"));
+            name = rest;
+            continue;
+        }
+        break;
+    }
+    (mods, name)
+}
+
+fn mouse_event_kind_symbol(name: &str) -> Option<Value> {
+    if name.starts_with("down-mouse-") {
+        return Some(Value::symbol("down"));
+    }
+    if name.starts_with("drag-mouse-") {
+        return Some(Value::symbol("drag"));
+    }
+    if name.starts_with("double-mouse-") {
+        return Some(Value::symbol("double"));
+    }
+    if name.starts_with("triple-mouse-") {
+        return Some(Value::symbol("triple"));
+    }
+    if name.contains("mouse-") {
+        return Some(Value::symbol("click"));
+    }
+    None
+}
+
+/// `(eventp OBJECT)` -> non-nil if OBJECT is an event.
+fn builtin_eventp(args: Vec<Value>) -> EvalResult {
+    expect_args("eventp", &args, 1)?;
+    let is_event = match &args[0] {
+        Value::Int(_) | Value::Char(_) | Value::True | Value::Symbol(_) => true,
+        Value::Cons(_) => match list_to_vec(&args[0]) {
+            Some(items) => matches!(items.first(), Some(Value::Symbol(_)) | Some(Value::True)),
+            None => false,
+        },
+        _ => false,
+    };
+    Ok(Value::bool(is_event))
+}
+
+/// `(event-modifiers EVENT)` -> list of event modifier symbols.
+fn builtin_event_modifiers(args: Vec<Value>) -> EvalResult {
+    expect_args("event-modifiers", &args, 1)?;
+    match &args[0] {
+        Value::Int(n) => {
+            let code = *n & KEY_CHAR_CODE_MASK;
+            let mods = *n & !KEY_CHAR_CODE_MASK;
+            let mut out = Vec::new();
+            if (mods & KEY_CHAR_SHIFT) != 0 {
+                out.push(Value::symbol("shift"));
+            }
+            if (mods & KEY_CHAR_CTRL) != 0 || code <= 31 {
+                out.push(Value::symbol("control"));
+            }
+            if (mods & KEY_CHAR_SUPER) != 0 {
+                out.push(Value::symbol("super"));
+            }
+            if (mods & KEY_CHAR_META) != 0 {
+                out.push(Value::symbol("meta"));
+            }
+            if (mods & KEY_CHAR_HYPER) != 0 {
+                out.push(Value::symbol("hyper"));
+            }
+            if (mods & KEY_CHAR_ALT) != 0 {
+                out.push(Value::symbol("alt"));
+            }
+            Ok(Value::list(out))
+        }
+        Value::Char(c) => builtin_event_modifiers(vec![Value::Int(*c as i64)]),
+        Value::Symbol(name) => {
+            let (mut out, base) = parse_event_symbol_prefixes(name);
+            if let Some(kind) = mouse_event_kind_symbol(base) {
+                out.push(kind);
+            }
+            Ok(Value::list(out))
+        }
+        Value::Cons(_) => {
+            let items = list_to_vec(&args[0]).unwrap_or_default();
+            if let Some(first) = items.first() {
+                builtin_event_modifiers(vec![first.clone()])
+            } else {
+                Ok(Value::Nil)
+            }
+        }
+        _ => Ok(Value::Nil),
+    }
+}
+
+/// `(event-apply-modifier EVENT MODIFIER CLICK-COUNT ...)` -- arity-compatible placeholder.
+fn builtin_event_apply_modifier(args: Vec<Value>) -> EvalResult {
+    expect_args("event-apply-modifier", &args, 9)?;
+    Err(signal(
+        "error",
+        vec![Value::string("event-apply-modifier not yet implemented")],
+    ))
+}
+
+/// `(listify-key-sequence SEQUENCE)` -> list representation of key sequence.
+fn builtin_listify_key_sequence(args: Vec<Value>) -> EvalResult {
+    expect_args("listify-key-sequence", &args, 1)?;
+    match &args[0] {
+        Value::Nil => Ok(Value::Nil),
+        Value::Str(s) => Ok(Value::list(
+            s.chars().map(|ch| Value::Int(ch as i64)).collect(),
+        )),
+        Value::Vector(v) => Ok(Value::list(v.lock().expect("vector lock poisoned").clone())),
+        Value::Cons(_) => {
+            let items = list_to_vec(&args[0]).ok_or_else(|| {
+                signal(
+                    "wrong-type-argument",
+                    vec![Value::symbol("sequencep"), args[0].clone()],
+                )
+            })?;
+            for item in &items {
+                if !matches!(item, Value::Int(_) | Value::Char(_)) {
+                    return Err(signal(
+                        "wrong-type-argument",
+                        vec![Value::symbol("number-or-marker-p"), item.clone()],
+                    ));
+                }
+            }
+            Ok(Value::list(items))
+        }
+        _ => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("sequencep"), args[0].clone()],
+        )),
+    }
+}
+
+fn key_valid_token(token: &str) -> bool {
+    let mut rest = token;
+    loop {
+        if let Some(next) = rest.strip_prefix("C-") {
+            if next.is_empty() {
+                return false;
+            }
+            rest = next;
+            continue;
+        }
+        if let Some(next) = rest.strip_prefix("M-") {
+            if next.is_empty() {
+                return false;
+            }
+            rest = next;
+            continue;
+        }
+        if let Some(next) = rest.strip_prefix("S-") {
+            if next.is_empty() {
+                return false;
+            }
+            rest = next;
+            continue;
+        }
+        if let Some(next) = rest.strip_prefix("s-") {
+            if next.is_empty() {
+                return false;
+            }
+            rest = next;
+            continue;
+        }
+        if let Some(next) = rest.strip_prefix("H-") {
+            if next.is_empty() {
+                return false;
+            }
+            rest = next;
+            continue;
+        }
+        if let Some(next) = rest.strip_prefix("A-") {
+            if next.is_empty() {
+                return false;
+            }
+            rest = next;
+            continue;
+        }
+        break;
+    }
+    if rest.is_empty() {
+        return false;
+    }
+
+    if let Some(inner) = rest.strip_prefix('<').and_then(|s| s.strip_suffix('>')) {
+        return !inner.is_empty();
+    }
+
+    if matches!(rest, "RET" | "TAB" | "SPC" | "ESC" | "DEL" | "return") {
+        return true;
+    }
+
+    let mut chars = rest.chars();
+    if chars.next().is_some() && chars.next().is_none() {
+        return true;
+    }
+
+    false
+}
+
+/// `(key-valid-p KEY-DESC)` -> non-nil when KEY-DESC is a valid key description string.
+fn builtin_key_valid_p(args: Vec<Value>) -> EvalResult {
+    expect_args("key-valid-p", &args, 1)?;
+    let Value::Str(s) = &args[0] else {
+        return Ok(Value::Nil);
+    };
+    let trimmed = s.trim();
+    if trimmed.is_empty() {
+        return Ok(Value::Nil);
+    }
+    let valid = trimmed.split_whitespace().all(key_valid_token);
+    Ok(Value::bool(valid))
+}
+
 /// `(single-key-description KEY &optional NO-ANGLES)` -> string
 fn builtin_single_key_description(args: Vec<Value>) -> EvalResult {
     expect_range_args("single-key-description", &args, 1, 2)?;
@@ -7621,6 +7863,11 @@ pub(crate) fn dispatch_builtin(
         "key-description" => builtin_key_description(args),
         "event-convert-list" => builtin_event_convert_list(args),
         "event-basic-type" => builtin_event_basic_type(args),
+        "event-apply-modifier" => builtin_event_apply_modifier(args),
+        "eventp" => builtin_eventp(args),
+        "event-modifiers" => builtin_event_modifiers(args),
+        "listify-key-sequence" => builtin_listify_key_sequence(args),
+        "key-valid-p" => builtin_key_valid_p(args),
         "text-char-description" => builtin_text_char_description(args),
 
         // Process (pure — no evaluator needed)
@@ -8173,6 +8420,11 @@ pub(crate) fn dispatch_builtin_pure(name: &str, args: Vec<Value>) -> Option<Eval
         "key-description" => builtin_key_description(args),
         "event-convert-list" => builtin_event_convert_list(args),
         "event-basic-type" => builtin_event_basic_type(args),
+        "event-apply-modifier" => builtin_event_apply_modifier(args),
+        "eventp" => builtin_eventp(args),
+        "event-modifiers" => builtin_event_modifiers(args),
+        "listify-key-sequence" => builtin_listify_key_sequence(args),
+        "key-valid-p" => builtin_key_valid_p(args),
         "text-char-description" => builtin_text_char_description(args),
         // Process (pure)
         "shell-command-to-string" => super::process::builtin_shell_command_to_string(args),
