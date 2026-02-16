@@ -5476,7 +5476,11 @@ const KEY_CHAR_META: i64 = 0x8000000;
 const KEY_CHAR_CTRL: i64 = 0x4000000;
 const KEY_CHAR_SHIFT: i64 = 0x2000000;
 const KEY_CHAR_SUPER: i64 = 0x0800000;
-const KEY_CHAR_MOD_MASK: i64 = KEY_CHAR_META | KEY_CHAR_CTRL | KEY_CHAR_SHIFT | KEY_CHAR_SUPER;
+const KEY_CHAR_HYPER: i64 = 0x1000000;
+const KEY_CHAR_ALT: i64 = 0x0400000;
+const KEY_CHAR_MOD_MASK: i64 =
+    KEY_CHAR_META | KEY_CHAR_CTRL | KEY_CHAR_SHIFT | KEY_CHAR_SUPER | KEY_CHAR_HYPER | KEY_CHAR_ALT;
+const KEY_CHAR_CODE_MASK: i64 = 0x3FFFFF;
 
 fn invalid_single_key_error() -> Flow {
     signal(
@@ -5566,6 +5570,12 @@ fn describe_int_key(code: i64) -> Result<String, Flow> {
         if super_ {
             out.push_str("s-");
         }
+        if (mods & KEY_CHAR_HYPER) != 0 {
+            out.push_str("H-");
+        }
+        if (mods & KEY_CHAR_ALT) != 0 {
+            out.push_str("A-");
+        }
     };
 
     let mut out = String::new();
@@ -5625,6 +5635,223 @@ fn key_sequence_values(value: &Value) -> Result<Vec<Value>, Flow> {
             vec![Value::symbol("sequencep"), value.clone()],
         )),
     }
+}
+
+fn resolve_control_code(code: i64) -> Option<i64> {
+    match code {
+        32 => Some(0), // SPC
+        63 => Some(127), // ?
+        64 => Some(0), // @
+        65..=90 => Some(code - 64), // A-Z
+        91 => Some(27),             // [
+        92 => Some(28),             // \
+        93 => Some(29),             // ]
+        94 => Some(30),             // ^
+        95 => Some(31),             // _
+        97..=122 => Some(code - 96), // a-z
+        _ => None,
+    }
+}
+
+fn event_modifier_bit(symbol: &str) -> Option<i64> {
+    match symbol {
+        "control" => Some(KEY_CHAR_CTRL),
+        "meta" => Some(KEY_CHAR_META),
+        "shift" => Some(KEY_CHAR_SHIFT),
+        "super" => Some(KEY_CHAR_SUPER),
+        "hyper" => Some(KEY_CHAR_HYPER),
+        "alt" => Some(KEY_CHAR_ALT),
+        _ => None,
+    }
+}
+
+fn event_modifier_prefix(bits: i64) -> String {
+    let mut out = String::new();
+    if (bits & KEY_CHAR_CTRL) != 0 {
+        out.push_str("C-");
+    }
+    if (bits & KEY_CHAR_META) != 0 {
+        out.push_str("M-");
+    }
+    if (bits & KEY_CHAR_SHIFT) != 0 {
+        out.push_str("S-");
+    }
+    if (bits & KEY_CHAR_SUPER) != 0 {
+        out.push_str("s-");
+    }
+    if (bits & KEY_CHAR_HYPER) != 0 {
+        out.push_str("H-");
+    }
+    if (bits & KEY_CHAR_ALT) != 0 {
+        out.push_str("A-");
+    }
+    out
+}
+
+fn basic_char_code(mut code: i64) -> i64 {
+    code &= KEY_CHAR_CODE_MASK;
+    match code {
+        0 => 64,
+        1..=26 => code + 96,
+        27..=31 => code + 64,
+        65..=90 => code + 32,
+        _ => code,
+    }
+}
+
+fn symbol_has_modifier_prefix(name: &str) -> bool {
+    name.starts_with("C-")
+        || name.starts_with("M-")
+        || name.starts_with("S-")
+        || name.starts_with("s-")
+        || name.starts_with("H-")
+        || name.starts_with("A-")
+}
+
+/// `(event-convert-list EVENT-DESC)` -> event object or nil
+fn builtin_event_convert_list(args: Vec<Value>) -> EvalResult {
+    expect_args("event-convert-list", &args, 1)?;
+    let Some(items) = list_to_vec(&args[0]) else {
+        return Ok(Value::Nil);
+    };
+    if items.is_empty() {
+        return Ok(Value::Nil);
+    }
+    if items.len() == 1 {
+        return Ok(items[0].clone());
+    }
+
+    let mut mod_bits = 0i64;
+    let mut base: Option<Value> = None;
+    for item in items {
+        if base.is_none() {
+            if let Some(sym) = item.as_symbol_name() {
+                if let Some(bit) = event_modifier_bit(sym) {
+                    mod_bits |= bit;
+                    continue;
+                }
+            }
+            base = Some(item);
+        } else {
+            return Err(signal("error", vec![Value::string("Invalid event description")]));
+        }
+    }
+
+    let Some(base) = base else {
+        return Ok(Value::Nil);
+    };
+
+    match base {
+        Value::Int(_) | Value::Char(_) => {
+            let mut code = match base {
+                Value::Int(i) => i,
+                Value::Char(c) => c as i64,
+                _ => unreachable!(),
+            };
+
+            let ctrl = (mod_bits & KEY_CHAR_CTRL) != 0;
+            let shift = (mod_bits & KEY_CHAR_SHIFT) != 0;
+
+            if shift && !ctrl && (97..=122).contains(&code) {
+                code -= 32;
+                mod_bits &= !KEY_CHAR_SHIFT;
+            }
+            if ctrl {
+                if let Some(resolved) = resolve_control_code(code) {
+                    code = resolved;
+                    mod_bits &= !KEY_CHAR_CTRL;
+                }
+            }
+            Ok(Value::Int(code | mod_bits))
+        }
+        Value::Symbol(name) => {
+            if mod_bits == 0 {
+                Ok(Value::symbol(name))
+            } else {
+                Ok(Value::symbol(format!("{}{}", event_modifier_prefix(mod_bits), name)))
+            }
+        }
+        Value::Nil | Value::True => {
+            if mod_bits == 0 {
+                Ok(base)
+            } else {
+                Err(signal("error", vec![Value::string("Invalid event description")]))
+            }
+        }
+        _ => Err(signal("error", vec![Value::string("Invalid event description")])),
+    }
+}
+
+/// `(event-basic-type EVENT)` -> base event type
+fn builtin_event_basic_type(args: Vec<Value>) -> EvalResult {
+    expect_args("event-basic-type", &args, 1)?;
+    match &args[0] {
+        Value::Int(n) => Ok(Value::Int(basic_char_code(*n))),
+        Value::Char(c) => Ok(Value::Int(basic_char_code(*c as i64))),
+        Value::Str(_) => Ok(Value::Nil),
+        Value::Nil => Ok(Value::Nil),
+        Value::True => Ok(Value::True),
+        Value::Vector(_) => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("integer-or-marker-p"), args[0].clone()],
+        )),
+        Value::Symbol(name) => {
+            if symbol_has_modifier_prefix(name) {
+                Ok(Value::Nil)
+            } else {
+                Ok(args[0].clone())
+            }
+        }
+        Value::Cons(_) => {
+            let items = list_to_vec(&args[0]).unwrap_or_default();
+            if let Some(first) = items.first() {
+                builtin_event_basic_type(vec![first.clone()])
+            } else {
+                Ok(Value::Nil)
+            }
+        }
+        _ => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("integer-or-marker-p"), args[0].clone()],
+        )),
+    }
+}
+
+/// `(text-char-description CHARACTER)` -> printable text description.
+fn builtin_text_char_description(args: Vec<Value>) -> EvalResult {
+    expect_args("text-char-description", &args, 1)?;
+    let code = match &args[0] {
+        Value::Int(n) if (0..=KEY_CHAR_CODE_MASK).contains(n) => *n,
+        Value::Char(c) => *c as i64,
+        _ => {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("characterp"), args[0].clone()],
+            ))
+        }
+    };
+    if (code & !KEY_CHAR_CODE_MASK) != 0 {
+        return Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("characterp"), args[0].clone()],
+        ));
+    }
+
+    let rendered = match code {
+        0 => "^@".to_string(),
+        1..=26 => format!("^{}", char::from_u32((code as u32) + 64).unwrap_or('?')),
+        27 => "^[".to_string(),
+        28 => "^\\\\".to_string(),
+        29 => "^]".to_string(),
+        30 => "^^".to_string(),
+        31 => "^_".to_string(),
+        127 => "^?".to_string(),
+        _ => match char::from_u32(code as u32) {
+            Some(ch) => ch.to_string(),
+            None => "\u{FFFD}\u{FFFD}\u{FFFD}\u{FFFD}".to_string(),
+        },
+    };
+    Ok(Value::string(rendered))
 }
 
 /// `(single-key-description KEY &optional NO-ANGLES)` -> string
@@ -7392,6 +7619,9 @@ pub(crate) fn dispatch_builtin(
         "kbd" => builtin_kbd(args),
         "single-key-description" => builtin_single_key_description(args),
         "key-description" => builtin_key_description(args),
+        "event-convert-list" => builtin_event_convert_list(args),
+        "event-basic-type" => builtin_event_basic_type(args),
+        "text-char-description" => builtin_text_char_description(args),
 
         // Process (pure — no evaluator needed)
         "shell-command-to-string" => super::process::builtin_shell_command_to_string(args),
@@ -7941,6 +8171,9 @@ pub(crate) fn dispatch_builtin_pure(name: &str, args: Vec<Value>) -> Option<Eval
         "kbd" => builtin_kbd(args),
         "single-key-description" => builtin_single_key_description(args),
         "key-description" => builtin_key_description(args),
+        "event-convert-list" => builtin_event_convert_list(args),
+        "event-basic-type" => builtin_event_basic_type(args),
+        "text-char-description" => builtin_text_char_description(args),
         // Process (pure)
         "shell-command-to-string" => super::process::builtin_shell_command_to_string(args),
         "getenv" => super::process::builtin_getenv(args),
