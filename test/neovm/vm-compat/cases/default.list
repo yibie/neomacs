@@ -350,6 +350,7 @@ cases/next-previous-window-arity-semantics
 cases/frame-ops-arity-semantics
 cases/frame-visible-p-semantics
 cases/frame-designator-errors-semantics
+cases/frame-selected-window-semantics
 cases/select-frame-semantics
 cases/select-frame-set-input-focus-semantics
 cases/window-designator-bootstrap-semantics
