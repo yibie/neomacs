@@ -27,6 +27,7 @@ cases/called-interactively-p-semantics
 cases/interactive-p-semantics
 cases/where-is-internal-semantics
 cases/describe-substitute-command-semantics
+cases/describe-key-briefly-sequence-semantics
 cases/keymap-binding-basics-semantics
 cases/keymap-map-selection-semantics
 cases/keymap-parent-semantics
