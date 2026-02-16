@@ -4872,7 +4872,12 @@ pub(crate) fn builtin_buffer_enable_undo(
             .id
     } else {
         match &args[0] {
-            Value::Buffer(id) => *id,
+            Value::Buffer(id) => {
+                if eval.buffers.get(*id).is_none() {
+                    return Ok(Value::Nil);
+                }
+                *id
+            }
             Value::Str(name) => eval.buffers.find_buffer_by_name(name).ok_or_else(|| {
                 signal(
                     "error",
@@ -4890,7 +4895,7 @@ pub(crate) fn builtin_buffer_enable_undo(
     let buf = eval
         .buffers
         .get_mut(id)
-        .ok_or_else(|| signal("error", vec![Value::string("No such live buffer")]))?;
+        .ok_or_else(|| signal("error", vec![Value::string("Selecting deleted buffer")]))?;
     buf.undo_list.set_enabled(true);
     buf.set_buffer_local("buffer-undo-list", Value::Nil);
     Ok(Value::Nil)
@@ -4918,13 +4923,24 @@ pub(crate) fn builtin_buffer_disable_undo(
             .id
     } else {
         match &args[0] {
-            Value::Buffer(id) => *id,
-            Value::Str(name) => eval.buffers.find_buffer_by_name(name).ok_or_else(|| {
-                signal(
-                    "error",
-                    vec![Value::string(format!("No buffer named {name}"))],
-                )
-            })?,
+            Value::Buffer(id) => {
+                if eval.buffers.get(*id).is_none() {
+                    return Err(signal(
+                        "error",
+                        vec![Value::string("Selecting deleted buffer")],
+                    ));
+                }
+                *id
+            }
+            Value::Str(name) => match eval.buffers.find_buffer_by_name(name) {
+                Some(id) => id,
+                None => {
+                    return Err(signal(
+                        "wrong-type-argument",
+                        vec![Value::symbol("stringp"), Value::Nil],
+                    ))
+                }
+            },
             other => {
                 return Err(signal(
                     "wrong-type-argument",
@@ -4936,7 +4952,7 @@ pub(crate) fn builtin_buffer_disable_undo(
     let buf = eval
         .buffers
         .get_mut(id)
-        .ok_or_else(|| signal("error", vec![Value::string("No such live buffer")]))?;
+        .ok_or_else(|| signal("error", vec![Value::string("Selecting deleted buffer")]))?;
     buf.undo_list.set_enabled(false);
     buf.set_buffer_local("buffer-undo-list", Value::True);
     Ok(Value::True)
@@ -10047,6 +10063,65 @@ mod tests {
         let _ = builtin_kill_buffer(&mut eval, vec![dead_for_modified.clone()]).unwrap();
         let modified = builtin_buffer_modified_p(&mut eval, vec![dead_for_modified]).unwrap();
         assert_eq!(modified, Value::Nil);
+    }
+
+    #[test]
+    fn buffer_undo_designators_match_deleted_and_missing_buffer_semantics() {
+        let mut eval = super::super::eval::Evaluator::new();
+
+        let enable_missing_name = builtin_buffer_enable_undo(
+            &mut eval,
+            vec![Value::string("*undo-enable-missing*")],
+        )
+        .expect_err("buffer-enable-undo missing string should signal");
+        match enable_missing_name {
+            Flow::Signal(sig) => {
+                assert_eq!(sig.symbol, "error");
+                assert_eq!(
+                    sig.data,
+                    vec![Value::string("No buffer named *undo-enable-missing*")]
+                );
+            }
+            other => panic!("unexpected flow: {other:?}"),
+        }
+
+        let disable_missing_name = builtin_buffer_disable_undo(
+            &mut eval,
+            vec![Value::string("*undo-disable-missing*")],
+        )
+        .expect_err("buffer-disable-undo missing string should signal wrong-type-argument");
+        match disable_missing_name {
+            Flow::Signal(sig) => {
+                assert_eq!(sig.symbol, "wrong-type-argument");
+                assert_eq!(sig.data, vec![Value::symbol("stringp"), Value::Nil]);
+            }
+            other => panic!("unexpected flow: {other:?}"),
+        }
+
+        let dead_for_enable = builtin_generate_new_buffer(
+            &mut eval,
+            vec![Value::string("*undo-enable-deleted*")],
+        )
+        .unwrap();
+        let _ = builtin_kill_buffer(&mut eval, vec![dead_for_enable.clone()]).unwrap();
+        let enable_deleted = builtin_buffer_enable_undo(&mut eval, vec![dead_for_enable]).unwrap();
+        assert_eq!(enable_deleted, Value::Nil);
+
+        let dead_for_disable = builtin_generate_new_buffer(
+            &mut eval,
+            vec![Value::string("*undo-disable-deleted*")],
+        )
+        .unwrap();
+        let _ = builtin_kill_buffer(&mut eval, vec![dead_for_disable.clone()]).unwrap();
+        let disable_deleted = builtin_buffer_disable_undo(&mut eval, vec![dead_for_disable])
+            .expect_err("buffer-disable-undo should reject deleted buffer objects");
+        match disable_deleted {
+            Flow::Signal(sig) => {
+                assert_eq!(sig.symbol, "error");
+                assert_eq!(sig.data, vec![Value::string("Selecting deleted buffer")]);
+            }
+            other => panic!("unexpected flow: {other:?}"),
+        }
     }
 
     #[test]

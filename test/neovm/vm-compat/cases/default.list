@@ -340,6 +340,7 @@ cases/set-buffer-dead-buffer-semantics
 cases/get-buffer-designator-errors-semantics
 cases/buffer-create-missing-arg-semantics
 cases/buffer-size-modified-deleted-buffer-semantics
+cases/buffer-undo-designator-semantics
 cases/default-directory
 cases/expand-file-name-default-directory
 cases/directory-file-name
