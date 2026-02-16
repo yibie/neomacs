@@ -334,7 +334,7 @@ pub(crate) fn builtin_window_height(
 ) -> EvalResult {
     expect_max_args("window-height", &args, 1)?;
     let _ = ensure_selected_frame_id(eval);
-    let (fid, wid) = resolve_window_id(eval, args.first())?;
+    let (fid, wid) = resolve_window_id_with_pred(eval, args.first(), "window-valid-p")?;
     let w = get_leaf(&eval.frames, fid, wid)?;
     let ch = eval.frames.get(fid).map(|f| f.char_height).unwrap_or(16.0);
     Ok(Value::Int(window_height_lines(w, ch)))
@@ -364,8 +364,9 @@ pub(crate) fn builtin_window_body_height(
     let w = get_leaf(&eval.frames, fid, wid)?;
     let _pixelwise = args.get(1);
     // Batch GNU Emacs returns character-height values even when PIXELWISE is non-nil.
+    // The body area excludes one mode-line row in the default window.
     let ch = eval.frames.get(fid).map(|f| f.char_height).unwrap_or(16.0);
-    Ok(Value::Int(window_height_lines(w, ch)))
+    Ok(Value::Int(window_height_lines(w, ch).saturating_sub(1)))
 }
 
 /// `(window-body-width &optional WINDOW PIXELWISE)` -> integer.
@@ -385,26 +386,30 @@ pub(crate) fn builtin_window_body_width(
 
 /// `(window-total-height &optional WINDOW ROUND)` -> integer.
 ///
-/// Compatibility wrapper over `window-body-height`: we currently have no
-/// separate total-vs-body geometry model in batch mode.
 pub(crate) fn builtin_window_total_height(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
     expect_max_args("window-total-height", &args, 2)?;
-    builtin_window_body_height(eval, args)
+    let _ = ensure_selected_frame_id(eval);
+    let (fid, wid) = resolve_window_id_with_pred(eval, args.first(), "window-valid-p")?;
+    let w = get_leaf(&eval.frames, fid, wid)?;
+    let ch = eval.frames.get(fid).map(|f| f.char_height).unwrap_or(16.0);
+    Ok(Value::Int(window_height_lines(w, ch)))
 }
 
 /// `(window-total-width &optional WINDOW ROUND)` -> integer.
 ///
-/// Compatibility wrapper over `window-body-width`: we currently have no
-/// separate total-vs-body geometry model in batch mode.
 pub(crate) fn builtin_window_total_width(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
     expect_max_args("window-total-width", &args, 2)?;
-    builtin_window_body_width(eval, args)
+    let _ = ensure_selected_frame_id(eval);
+    let (fid, wid) = resolve_window_id_with_pred(eval, args.first(), "window-valid-p")?;
+    let w = get_leaf(&eval.frames, fid, wid)?;
+    let cw = eval.frames.get(fid).map(|f| f.char_width).unwrap_or(8.0);
+    Ok(Value::Int(window_width_cols(w, cw)))
 }
 
 /// `(window-list &optional FRAME MINIBUF ALL-FRAMES)` -> list of window ids.
@@ -1604,6 +1609,43 @@ mod tests {
         let mut ev = Evaluator::new();
         let results = ev.eval_forms(&forms);
         assert_eq!(format_eval_result(&results[0]), "OK (t t t t)");
+    }
+
+    #[test]
+    fn window_size_queries_match_batch_defaults_and_invalid_window_predicates() {
+        let forms = parse_forms(
+            "(window-height nil)
+             (window-width nil)
+             (window-body-height nil)
+             (window-body-width nil)
+             (window-total-height nil)
+             (window-total-width nil)
+             (condition-case err (window-height 999999) (error err))
+             (condition-case err (window-width 999999) (error err))
+             (condition-case err (window-body-height 999999) (error err))
+             (condition-case err (window-body-width 999999) (error err))
+             (condition-case err (window-total-height 999999) (error err))
+             (condition-case err (window-total-width 999999) (error err))",
+        )
+        .expect("parse");
+        let mut ev = Evaluator::new();
+        let out = ev
+            .eval_forms(&forms)
+            .iter()
+            .map(format_eval_result)
+            .collect::<Vec<_>>();
+        assert_eq!(out[0], "OK 24");
+        assert_eq!(out[1], "OK 80");
+        assert_eq!(out[2], "OK 23");
+        assert_eq!(out[3], "OK 80");
+        assert_eq!(out[4], "OK 24");
+        assert_eq!(out[5], "OK 80");
+        assert_eq!(out[6], "OK (wrong-type-argument window-valid-p 999999)");
+        assert_eq!(out[7], "OK (wrong-type-argument window-live-p 999999)");
+        assert_eq!(out[8], "OK (wrong-type-argument window-live-p 999999)");
+        assert_eq!(out[9], "OK (wrong-type-argument window-live-p 999999)");
+        assert_eq!(out[10], "OK (wrong-type-argument window-valid-p 999999)");
+        assert_eq!(out[11], "OK (wrong-type-argument window-valid-p 999999)");
     }
 
     #[test]
