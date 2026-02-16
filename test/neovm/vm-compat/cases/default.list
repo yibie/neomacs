@@ -362,6 +362,7 @@ cases/coding-system-runtime-semantics
 cases/coding-system-io-arity-semantics
 cases/coding-system-io-runtime-semantics
 cases/coding-system-designator-semantics
+cases/coding-time-subr-arity-semantics
 cases/float-time-semantics
 cases/safe-date-to-time-semantics
 cases/time-zone-rule-semantics

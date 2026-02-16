@@ -403,6 +403,13 @@ fn subr_arity_value(name: &str) -> Value {
         "documentation" => arity_cons(1, Some(2)),
         "documentation-property" => arity_cons(2, Some(3)),
         "help-function-arglist" => arity_cons(1, Some(2)),
+        "decode-coding-string" | "encode-coding-string" => arity_cons(2, Some(4)),
+        "decode-time" => arity_cons(0, Some(3)),
+        "detect-coding-region" => arity_cons(2, Some(3)),
+        "detect-coding-string" => arity_cons(1, Some(2)),
+        "encode-char" => arity_cons(2, Some(2)),
+        "encode-time" => arity_cons(1, None),
+        "format-time-string" => arity_cons(1, Some(3)),
         "backtrace-frame" => arity_cons(1, Some(2)),
         "run-hook-with-args" => arity_cons(1, None),
         "base64-decode-string" => arity_cons(1, Some(3)),
@@ -1105,6 +1112,18 @@ mod tests {
         assert_subr_arity("documentation", 1, Some(2));
         assert_subr_arity("documentation-property", 2, Some(3));
         assert_subr_arity("help-function-arglist", 1, Some(2));
+    }
+
+    #[test]
+    fn subr_arity_coding_time_primitives_match_oracle() {
+        assert_subr_arity("decode-coding-string", 2, Some(4));
+        assert_subr_arity("decode-time", 0, Some(3));
+        assert_subr_arity("detect-coding-region", 2, Some(3));
+        assert_subr_arity("detect-coding-string", 1, Some(2));
+        assert_subr_arity("encode-char", 2, Some(2));
+        assert_subr_arity("encode-coding-string", 2, Some(4));
+        assert_subr_arity("encode-time", 1, None);
+        assert_subr_arity("format-time-string", 1, Some(3));
     }
 
     #[test]
