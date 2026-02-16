@@ -23,6 +23,22 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Expanded `kbd` uncommon modifier-composition corpus and locked oracle parity for edge combinations:
+  - updated:
+    - `test/neovm/vm-compat/cases/kbd-modifier-composition-semantics.forms`
+      - added probes for:
+        - mixed modifier-order equivalence (`M-C-*` vs `C-M-*`, `s-M-*` vs `M-s-*`)
+        - angle-key modifier composition (`S-<return>`, `C-S-<f1>`)
+        - named-key/modifier split behavior (`C-RET` vs `C-<return>`)
+        - trailing-modifier token behavior (`"M-"`, `"s-"`)
+    - `test/neovm/vm-compat/cases/kbd-modifier-composition-semantics.expected.tsv`
+      - recorded oracle baseline outputs for the new edge matrix.
+    - `test/neovm/vm-compat/cases/default.list`
+      - added `cases/kbd-modifier-composition-semantics` to recurring default compatibility execution.
+  - verified:
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/kbd-modifier-composition-semantics` (pass, 17/17)
+
 - Aligned `describe-variable` optional-argument arity with oracle and stabilized existing helper-arity corpus:
   - updated:
     - `rust/neovm-core/src/elisp/doc.rs`
