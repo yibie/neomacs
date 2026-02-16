@@ -220,6 +220,7 @@ cases/display-query-designator-semantics
 cases/display-images-face-support-semantics
 cases/display-frame-designator-semantics
 cases/x-display-batch-semantics
+cases/x-display-terminal-designator-semantics
 cases/display-monitor-semantics
 cases/display-monitor-frames-semantics
 cases/image-clear-cache-semantics

@@ -78,6 +78,11 @@ fn invalid_get_device_terminal_error(value: &Value) -> Flow {
     )
 }
 
+fn terminal_not_x_display_error(value: &Value) -> Option<Flow> {
+    terminal_handle_id(value)
+        .map(|id| signal("error", vec![Value::string(format!("Terminal {id} is not an X display"))]))
+}
+
 fn terminal_designator_p(value: &Value) -> bool {
     value.is_nil() || is_terminal_handle(value)
 }
@@ -640,10 +645,16 @@ pub(crate) fn builtin_x_close_connection(args: Vec<Value>) -> EvalResult {
             "error",
             vec![Value::string(format!("Display {display} can't be opened"))],
         )),
-        other => Err(signal(
-            "wrong-type-argument",
-            vec![Value::symbol("frame-live-p"), other.clone()],
-        )),
+        other => {
+            if let Some(err) = terminal_not_x_display_error(other) {
+                Err(err)
+            } else {
+                Err(signal(
+                    "wrong-type-argument",
+                    vec![Value::symbol("frame-live-p"), other.clone()],
+                ))
+            }
+        }
     }
 }
 
@@ -677,6 +688,13 @@ pub(crate) fn builtin_x_display_pixel_width(args: Vec<Value>) -> EvalResult {
             "error",
             vec![Value::string("X windows are not in use or not initialized")],
         )),
+        Some(display) if is_terminal_handle(display) => {
+            if let Some(err) = terminal_not_x_display_error(display) {
+                Err(err)
+            } else {
+                Err(invalid_get_device_terminal_error(display))
+            }
+        }
         Some(Value::Str(display)) => Err(signal(
             "error",
             vec![Value::string(format!("Display {display} can't be opened"))],
@@ -719,6 +737,13 @@ pub(crate) fn builtin_x_display_pixel_height(args: Vec<Value>) -> EvalResult {
             "error",
             vec![Value::string("X windows are not in use or not initialized")],
         )),
+        Some(display) if is_terminal_handle(display) => {
+            if let Some(err) = terminal_not_x_display_error(display) {
+                Err(err)
+            } else {
+                Err(invalid_get_device_terminal_error(display))
+            }
+        }
         Some(Value::Str(display)) => Err(signal(
             "error",
             vec![Value::string(format!("Display {display} can't be opened"))],
@@ -758,6 +783,7 @@ pub(crate) fn builtin_x_display_color_p(args: Vec<Value>) -> EvalResult {
     expect_max_args("x-display-color-p", &args, 1)?;
     match args.first() {
         None | Some(Value::Nil) => Ok(Value::Nil),
+        Some(display) if is_terminal_handle(display) => Ok(Value::Nil),
         Some(Value::Str(display)) => Err(signal(
             "error",
             vec![Value::string(format!("Display {display} does not exist"))],
@@ -1574,9 +1600,17 @@ mod tests {
         let x_nil = builtin_x_close_connection(vec![Value::Nil]);
         let x_int = builtin_x_close_connection(vec![Value::Int(1)]);
         let x_str = builtin_x_close_connection(vec![Value::string("")]);
+        let x_term = builtin_x_close_connection(vec![terminal_handle_value()]);
         assert!(x_nil.is_err());
         assert!(x_int.is_err());
         assert!(x_str.is_err());
+        match x_term {
+            Err(Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "error");
+                assert_eq!(sig.data, vec![Value::string("Terminal 0 is not an X display")]);
+            }
+            other => panic!("expected error signal, got {other:?}"),
+        }
     }
 
     #[test]
@@ -1599,25 +1633,43 @@ mod tests {
         let width_none = builtin_x_display_pixel_width(vec![]);
         let width_int = builtin_x_display_pixel_width(vec![Value::Int(1)]);
         let width_str = builtin_x_display_pixel_width(vec![Value::string("")]);
+        let width_term = builtin_x_display_pixel_width(vec![terminal_handle_value()]);
         let height_none = builtin_x_display_pixel_height(vec![]);
         let height_int = builtin_x_display_pixel_height(vec![Value::Int(1)]);
         let height_str = builtin_x_display_pixel_height(vec![Value::string("")]);
+        let height_term = builtin_x_display_pixel_height(vec![terminal_handle_value()]);
         assert!(width_none.is_err());
         assert!(width_int.is_err());
         assert!(width_str.is_err());
         assert!(height_none.is_err());
         assert!(height_int.is_err());
         assert!(height_str.is_err());
+        match width_term {
+            Err(Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "error");
+                assert_eq!(sig.data, vec![Value::string("Terminal 0 is not an X display")]);
+            }
+            other => panic!("expected error signal, got {other:?}"),
+        }
+        match height_term {
+            Err(Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "error");
+                assert_eq!(sig.data, vec![Value::string("Terminal 0 is not an X display")]);
+            }
+            other => panic!("expected error signal, got {other:?}"),
+        }
     }
 
     #[test]
     fn x_display_color_p_batch_and_arg_errors() {
         let none = builtin_x_display_color_p(vec![]).unwrap();
         let nil = builtin_x_display_color_p(vec![Value::Nil]).unwrap();
+        let term = builtin_x_display_color_p(vec![terminal_handle_value()]).unwrap();
         let int_err = builtin_x_display_color_p(vec![Value::Int(1)]);
         let str_err = builtin_x_display_color_p(vec![Value::string("")]);
         assert!(none.is_nil());
         assert!(nil.is_nil());
+        assert!(term.is_nil());
         match int_err {
             Err(Flow::Signal(sig)) => {
                 assert_eq!(sig.symbol, "error");
