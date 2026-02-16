@@ -21,6 +21,7 @@ Last updated: 2026-02-16
 - Keep newly landed `eval*` primitive runtime+`subr-arity` parity stable while expanding remaining startup drifts.
 - Keep newly landed startup-helper primitive `subr-arity` parity stable while expanding remaining high-volume drifts.
 - Keep newly landed define/default primitive runtime+`subr-arity` parity stable while expanding remaining startup drifts.
+- Keep newly landed `count-lines` runtime+`subr-arity` parity stable while expanding remaining navigation drifts.
 
 ## Next
 
@@ -32,6 +33,31 @@ Last updated: 2026-02-16
 6. Expand `recent-keys` capture beyond `read*` consumers to eventual command-loop event publication.
 
 ## Done
+
+- Aligned `count-lines` runtime arity behavior and `subr-arity` metadata with GNU Emacs:
+  - updated:
+    - `rust/neovm-core/src/elisp/navigation.rs`
+      - `count-lines`: now accepts optional 3rd arg (`(2 . 3)`), still computes from first two args.
+      - added regression tests:
+        - `test_count_lines_accepts_optional_third_arg`
+        - `test_count_lines_rejects_too_many_args`
+    - `rust/neovm-core/src/elisp/subr_info.rs`
+      - added explicit arity override:
+        - `(2 . 3)`: `count-lines`
+      - extended unit matrix `subr_arity_navigation_case_primitives_match_oracle`.
+    - `test/neovm/vm-compat/cases/count-lines-subr-arity-semantics.forms`
+    - `test/neovm/vm-compat/cases/count-lines-subr-arity-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+      - added oracle lock-in case for `count-lines` arity payload.
+  - recorded with official GNU Emacs:
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat record FORMS=cases/count-lines-subr-arity-semantics.forms EXPECTED=cases/count-lines-subr-arity-semantics.expected.tsv` (pass)
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml test_count_lines_accepts_optional_third_arg -- --nocapture` (pass)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml test_count_lines_rejects_too_many_args -- --nocapture` (pass)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml subr_arity_navigation_case_primitives_match_oracle -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/count-lines-subr-arity-semantics` (pass, 1/1)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass; allowlisted drift only: `neovm-precompile-file`)
 
 - Aligned define/default primitive runtime arity behavior and `subr-arity` metadata with GNU Emacs:
   - updated:
