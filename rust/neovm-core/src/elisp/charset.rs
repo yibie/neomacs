@@ -400,6 +400,18 @@ pub(crate) fn builtin_charset_id_internal(args: Vec<Value>) -> EvalResult {
 /// this builtin accepts exactly 17 arguments.
 pub(crate) fn builtin_define_charset_internal(args: Vec<Value>) -> EvalResult {
     expect_args("define-charset-internal", &args, 17)?;
+
+    // Emacs validates early "array" arguments before deeper charset setup.
+    // We keep the stub body but mirror this front-of-function type contract.
+    for value in [&args[1], &args[2]] {
+        if !(value.is_vector() || value.is_string()) {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("arrayp"), (*value).clone()],
+            ));
+        }
+    }
+
     Ok(Value::Nil)
 }
 
@@ -934,8 +946,23 @@ mod tests {
     }
 
     #[test]
+    fn define_charset_internal_exact_arity_validates_array_args() {
+        let err = builtin_define_charset_internal(vec![Value::Nil; 17]).unwrap_err();
+        match err {
+            Flow::Signal(sig) => {
+                assert_eq!(sig.symbol, "wrong-type-argument");
+                assert_eq!(sig.data, vec![Value::symbol("arrayp"), Value::Nil]);
+            }
+            other => panic!("expected wrong-type-argument signal, got {other:?}"),
+        }
+    }
+
+    #[test]
     fn define_charset_internal_exact_arity_returns_nil_stub() {
-        let r = builtin_define_charset_internal(vec![Value::Nil; 17]).unwrap();
+        let mut args = vec![Value::Nil; 17];
+        args[1] = Value::string("dimension");
+        args[2] = Value::vector(vec![Value::Int(0), Value::Int(1)]);
+        let r = builtin_define_charset_internal(args).unwrap();
         assert!(r.is_nil());
     }
 
