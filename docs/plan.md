@@ -20,6 +20,9 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Re-ran full `vm-compat` gate after core thing-at-point corpus and numeric-return alignment:
+  - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+
 - Aligned `thing-at-point 'number` return type with oracle and added core thing-at-point corpus lock-in:
   - updated:
     - `rust/neovm-core/src/elisp/interactive.rs`
