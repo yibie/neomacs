@@ -10150,6 +10150,20 @@ Last updated: 2026-02-16
     - `cargo test --manifest-path rust/neovm-core/Cargo.toml frame_visible_p_enforces_arity_and_designators` (pass)
     - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/frame-visible-p-semantics` (pass, 4/4)
     - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
+- Aligned frame designator error payloads with GNU Emacs across core frame parameter/deletion builtins:
+  - runtime changes:
+    - `frame-parameter`, `frame-parameters`, and `delete-frame` now signal `(wrong-type-argument framep VALUE)` for invalid/stale designators
+    - `modify-frame-parameters` now signals `(wrong-type-argument frame-live-p VALUE)` for invalid/stale designators
+    - nil/omitted frame designators now bootstrap/use selected frame in batch mode (matching GNU Emacs startup behavior)
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/frame-designator-errors-semantics.forms`
+    - `test/neovm/vm-compat/cases/frame-designator-errors-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat record FORMS=cases/frame-designator-errors-semantics.forms EXPECTED=cases/frame-designator-errors-semantics.expected.tsv` (pass)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml frame_designator_errors_use_emacs_predicates` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/frame-designator-errors-semantics` (pass, 10/10)
+    - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
 
 ## Doing
 
@@ -10158,7 +10172,7 @@ Last updated: 2026-02-16
   - run oracle/parity checks after each behavior-affecting change
   - remove dead helper code that is not part of exposed compatibility surface
 - Identify the next high-impact builtin still stubbed in NeoVM core and land it as a small implementation + oracle-corpus lock-in slice.
-  - current focus: continue targeted frame/window semantic parity lock-ins after recent arity slices, then pivot to next evaluator-backed stub replacement
+  - current focus: continue targeted frame/window semantic parity lock-ins (designator + error payload precision), then pivot to next evaluator-backed stub replacement
 - Reduce vm-compat operator friction for large case sets (small Makefile UX improvements).
   - added list-driven targets: `record-list`, `check-list`, `check-neovm-list` with `LIST=cases/<name>.list`
 
