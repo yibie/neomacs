@@ -8,8 +8,8 @@
 8	(condition-case err (downcase-char 65) (error err))	OK 97
 9	(fboundp 'extract-rectangle-line)	OK nil
 10	(condition-case err (extract-rectangle-line) (error err))	OK (void-function extract-rectangle-line)
-11	(fboundp 'find-coding-system)	OK nil
-12	(condition-case err (find-coding-system) (error err))	OK (void-function find-coding-system)
+11	(fboundp 'find-coding-system)	OK t
+12	(condition-case err (find-coding-system 'utf-8) (error err))	OK utf-8
 13	(fboundp 'hash-table-keys)	OK t
 14	(condition-case err (hash-table-keys (make-hash-table)) (error err))	OK nil
 15	(fboundp 'hash-table-values)	OK t

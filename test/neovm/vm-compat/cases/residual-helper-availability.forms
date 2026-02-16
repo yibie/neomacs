@@ -9,7 +9,7 @@
 (fboundp 'extract-rectangle-line)
 (condition-case err (extract-rectangle-line) (error err))
 (fboundp 'find-coding-system)
-(condition-case err (find-coding-system) (error err))
+(condition-case err (find-coding-system 'utf-8) (error err))
 (fboundp 'hash-table-keys)
 (condition-case err (hash-table-keys (make-hash-table)) (error err))
 (fboundp 'hash-table-values)

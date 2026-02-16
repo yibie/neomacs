@@ -6907,6 +6907,12 @@ pub(crate) fn dispatch_builtin(
                 args,
             ))
         }
+        "find-coding-system" => {
+            return Some(super::coding::builtin_find_coding_system(
+                &eval.coding_systems,
+                args,
+            ))
+        }
 
         "seq-position" => return Some(super::cl_lib::builtin_seq_position(eval, args)),
         "seq-contains-p" => return Some(super::cl_lib::builtin_seq_contains_p(eval, args)),
@@ -7525,6 +7531,7 @@ pub(crate) fn dispatch_builtin(
         "define-coding-system-alias" => {
             super::coding::builtin_define_coding_system_alias(&mut eval.coding_systems, args)
         }
+        "find-coding-system" => super::coding::builtin_find_coding_system(&eval.coding_systems, args),
         "coding-system-p" => super::coding::builtin_coding_system_p(&eval.coding_systems, args),
         "check-coding-system" => {
             super::coding::builtin_check_coding_system(&eval.coding_systems, args)

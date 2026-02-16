@@ -647,6 +647,23 @@ pub(crate) fn builtin_check_coding_system(
     }
 }
 
+/// `(find-coding-system CODING-SYSTEM)` -- resolve CODING-SYSTEM to a known
+/// canonical symbol, or return nil when unknown.
+pub(crate) fn builtin_find_coding_system(
+    mgr: &CodingSystemManager,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_args("find-coding-system", &args, 1)?;
+    let name = coding_system_name(&args[0])?;
+    if name == "nil" {
+        return Ok(Value::Nil);
+    }
+    match mgr.resolve(&name) {
+        Some(canonical) => Ok(Value::symbol(canonical.to_string())),
+        None => Ok(Value::Nil),
+    }
+}
+
 /// `(define-coding-system-alias ALIAS CODING-SYSTEM)` -- register ALIAS for
 /// CODING-SYSTEM and return nil.
 pub(crate) fn builtin_define_coding_system_alias(
@@ -1438,6 +1455,16 @@ mod tests {
             }
             other => panic!("expected coding-system-error signal, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn find_coding_system_known_and_unknown() {
+        let m = mgr();
+        let known = builtin_find_coding_system(&m, vec![Value::symbol("utf-8")]).unwrap();
+        assert_eq!(known, Value::symbol("utf-8"));
+
+        let unknown = builtin_find_coding_system(&m, vec![Value::symbol("vm-no-such-coding")]).unwrap();
+        assert_eq!(unknown, Value::Nil);
     }
 
     #[test]

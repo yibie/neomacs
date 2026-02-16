@@ -334,6 +334,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "find-charset-region",
     "find-charset-string",
     "find-composition-internal",
+    "find-coding-system",
     "find-file",
     "find-file-noselect",
     "find-font",
