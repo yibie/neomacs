@@ -55,6 +55,20 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Aligned `sleep-for` milliseconds type contract with GNU Emacs and locked oracle parity:
+  - runtime behavior:
+    - `sleep-for` now requires MILLISECONDS to be fixnum-like (`int`/`char`) or `nil`.
+    - non-fixnum MILLISECONDS now signal `wrong-type-argument fixnump ...` (oracle-aligned).
+  - unit coverage:
+    - extended `test_builtin_sleep_for` with explicit float-milliseconds error payload assertion.
+  - oracle corpus expanded and re-recorded:
+    - `test/neovm/vm-compat/cases/timer-semantics.forms`
+    - `test/neovm/vm-compat/cases/timer-semantics.expected.tsv`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml test_builtin_sleep_for -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/timer-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
+
 - Expanded `minor-mode-key-binding` emulation error-path lock-in:
   - added explicit coverage that active emulation entries with invalid keymap ids signal `wrong-type-argument keymapp ...`.
   - expanded corpus:
