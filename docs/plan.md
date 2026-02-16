@@ -20,6 +20,18 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Added oracle lock-in corpus for `symbol-at-point` / `word-at-point` wrappers:
+  - updated:
+    - `test/neovm/vm-compat/cases/symbol-word-at-point-semantics.forms`
+      - added probes for symbol extraction, word extraction (with/without no-properties arg), nil behavior, and arity errors.
+    - `test/neovm/vm-compat/cases/symbol-word-at-point-semantics.expected.tsv`
+      - recorded oracle baseline outputs for wrapper behavior.
+    - `test/neovm/vm-compat/cases/default.list`
+      - added `cases/symbol-word-at-point-semantics` to recurring compatibility execution.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/symbol-word-at-point-semantics` (pass, 5/5)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Re-ran full `vm-compat` gate after adding line corpus lock-in:
   - `make -C test/neovm/vm-compat check-all-neovm` (pass)
 
