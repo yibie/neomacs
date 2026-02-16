@@ -54,6 +54,7 @@ Last updated: 2026-02-16
 - Keep newly landed deleted-buffer default parity for `buffer-size`/`buffer-modified-p` stable while expanding remaining buffer metadata drifts.
 - Keep newly landed buffer undo helper designator parity stable while expanding remaining buffer lifecycle/error-path drifts.
 - Keep newly landed window designator bootstrap/type-error parity stable while expanding remaining window geometry/runtime drifts.
+- Keep newly landed window size-query default/predicate parity stable while expanding remaining window/frame-list drifts.
 - Keep newly landed window missing-buffer/designator parity slice stable while expanding remaining window lifecycle/helper drifts.
 
 ## Next
@@ -68,6 +69,25 @@ Last updated: 2026-02-16
 8. Resolve the last startup wrapper-shape drift (`neovm-precompile-file`) with an explicit extension-vs-oracle policy and lock-in corpus note.
 
 ## Done
+
+- Aligned window size-query defaults and invalid-handle predicates with GNU Emacs:
+  - updated runtime behavior:
+    - `rust/neovm-core/src/elisp/window_cmds.rs`
+    - `window-body-height` now excludes one mode-line row in batch default geometry (`23` vs `24` total).
+    - `window-total-height` / `window-total-width` now compute total geometry directly instead of aliasing body variants.
+    - invalid-handle predicates now match oracle expectations:
+      - `window-height` / `window-total-height` / `window-total-width` => `window-valid-p`
+      - `window-width` / `window-body-height` / `window-body-width` => `window-live-p`
+  - added evaluator regression:
+    - `window_size_queries_match_batch_defaults_and_invalid_window_predicates`
+  - added oracle corpus case:
+    - `test/neovm/vm-compat/cases/window-size-query-semantics.{forms,expected.tsv}`
+    - wired into:
+      - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml window_size_queries_match_batch_defaults_and_invalid_window_predicates -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/window-size-query-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/window-designator-bootstrap-semantics` (pass)
 
 - Aligned window designator bootstrap and invalid-handle error semantics with GNU Emacs:
   - updated runtime behavior:
