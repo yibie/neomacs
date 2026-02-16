@@ -21,6 +21,24 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Aligned `locale-info` runtime semantics with oracle for day/month/paper payloads and expanded corpus lock-in:
+  - updated:
+    - `rust/neovm-core/src/elisp/misc.rs`
+      - expanded `locale-info` from single-key `codeset` behavior to oracle-aligned values for:
+        - `'days` => 7-element weekday vector
+        - `'months` => 12-element month vector
+        - `'paper` => `(210 297)`
+      - added focused unit coverage for new locale payload shapes.
+    - `test/neovm/vm-compat/cases/locale-info-semantics.forms`
+      - added oracle probes for `days`, `months`, and `paper`.
+    - `test/neovm/vm-compat/cases/locale-info-semantics.expected.tsv`
+      - refreshed oracle baseline outputs for expanded locale-info semantics.
+  - verified:
+    - `cargo test locale_info --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/locale-info-semantics` (pass, 8/8)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+
 - Expanded coding-system derived designator compatibility for `utf-8-auto` / `prefer-utf-8` variants and locked corpus coverage:
   - updated:
     - `rust/neovm-core/src/elisp/coding.rs`
