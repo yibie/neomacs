@@ -417,7 +417,14 @@ pub(crate) fn builtin_window_list(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    let fid = resolve_frame_id(&eval.frames, args.first())?;
+    expect_max_args("window-list", &args, 3)?;
+    let fid = ensure_selected_frame_id(eval);
+    if args.first().is_some_and(|value| !value.is_nil()) {
+        return Err(signal(
+            "error",
+            vec![Value::string("Window is on a different frame")],
+        ));
+    }
     let frame = eval
         .frames
         .get(fid)
@@ -1492,6 +1499,27 @@ mod tests {
     fn window_list_has_one_entry() {
         let r = eval_one_with_frame("(length (window-list))");
         assert_eq!(r, "OK 1");
+    }
+
+    #[test]
+    fn window_list_bootstraps_and_rejects_non_nil_frame_designators() {
+        let forms = parse_forms(
+            "(condition-case err (length (window-list)) (error err))
+             (condition-case err (window-list 999999) (error err))
+             (condition-case err (window-list 'foo) (error err))
+             (condition-case err (window-list (selected-window)) (error err))",
+        )
+        .expect("parse");
+        let mut ev = Evaluator::new();
+        let out = ev
+            .eval_forms(&forms)
+            .iter()
+            .map(format_eval_result)
+            .collect::<Vec<_>>();
+        assert_eq!(out[0], "OK 1");
+        assert_eq!(out[1], "OK (error \"Window is on a different frame\")");
+        assert_eq!(out[2], "OK (error \"Window is on a different frame\")");
+        assert_eq!(out[3], "OK (error \"Window is on a different frame\")");
     }
 
     #[test]
