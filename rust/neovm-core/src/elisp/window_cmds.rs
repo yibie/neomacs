@@ -703,27 +703,35 @@ pub(crate) fn builtin_select_window(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("select-window", &args, 1)?;
-    let wid_val = expect_int(&args[0])? as u64;
-    let fid = eval
-        .frames
-        .selected_frame()
-        .map(|f| f.id)
-        .ok_or_else(|| signal("error", vec![Value::string("No selected frame")]))?;
-    let ok = eval
-        .frames
-        .get_mut(fid)
-        .map(|f| f.select_window(WindowId(wid_val)))
-        .unwrap_or(false);
-    if !ok {
-        return Err(signal(
-            "error",
-            vec![Value::string(format!(
-                "Window {} not found in selected frame",
-                wid_val
-            ))],
-        ));
+    expect_max_args("select-window", &args, 2)?;
+    let fid = ensure_selected_frame_id(eval);
+    let wid = match args.first() {
+        Some(Value::Int(n)) => WindowId(*n as u64),
+        Some(other) => {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("window-live-p"), other.clone()],
+            ))
+        }
+        None => unreachable!("expect_min_args enforced"),
+    };
+    let selected_buffer = {
+        let frame = eval
+            .frames
+            .get_mut(fid)
+            .ok_or_else(|| signal("error", vec![Value::string("No selected frame")]))?;
+        if !frame.select_window(wid) {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("window-live-p"), args[0].clone()],
+            ));
+        }
+        frame.find_window(wid).and_then(|w| w.buffer_id())
+    };
+    if let Some(buffer_id) = selected_buffer {
+        eval.buffers.set_current(buffer_id);
     }
-    Ok(Value::Int(wid_val as i64))
+    Ok(Value::Int(wid.0 as i64))
 }
 
 /// `(other-window COUNT &optional ALL-FRAMES)` -> nil.
@@ -1622,6 +1630,44 @@ mod tests {
                (= (selected-window) new-win))",
         );
         assert_eq!(results[0], "OK t");
+    }
+
+    #[test]
+    fn select_window_validates_designators_and_arity() {
+        let forms = parse_forms(
+            "(condition-case err (select-window nil) (error err))
+             (condition-case err (select-window 'foo) (error err))
+             (condition-case err (select-window 999999) (error err))
+             (windowp (select-window (selected-window)))
+             (condition-case err (select-window (selected-window) nil nil) (error (car err)))",
+        )
+        .expect("parse");
+        let mut ev = Evaluator::new();
+        let out = ev
+            .eval_forms(&forms)
+            .iter()
+            .map(format_eval_result)
+            .collect::<Vec<_>>();
+        assert_eq!(out[0], "OK (wrong-type-argument window-live-p nil)");
+        assert_eq!(out[1], "OK (wrong-type-argument window-live-p foo)");
+        assert_eq!(out[2], "OK (wrong-type-argument window-live-p 999999)");
+        assert_eq!(out[3], "OK t");
+        assert_eq!(out[4], "OK wrong-number-of-arguments");
+    }
+
+    #[test]
+    fn select_window_updates_current_buffer_to_selected_window_buffer() {
+        let result = eval_one_with_frame(
+            "(save-current-buffer
+               (let* ((b1 (get-buffer-create \"sw-curbuf-a\"))
+                      (b2 (get-buffer-create \"sw-curbuf-b\")))
+                 (set-window-buffer nil b1)
+                 (let ((w2 (split-window)))
+                   (set-window-buffer w2 b2)
+                   (select-window w2)
+                   (buffer-name (current-buffer)))))",
+        );
+        assert_eq!(result, "OK \"sw-curbuf-b\"");
     }
 
     #[test]
