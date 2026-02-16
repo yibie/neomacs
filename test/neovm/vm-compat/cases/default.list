@@ -50,6 +50,7 @@ cases/kmacro-command-subr-arity-semantics
 cases/delete-subr-arity-semantics
 cases/filesystem-path-subr-arity-semantics
 cases/event-error-misc-subr-arity-semantics
+cases/eval-subr-arity-semantics
 cases/category-ccl-subr-arity-semantics
 cases/coding-system-subr-arity-semantics
 cases/color-subr-arity-semantics

@@ -416,6 +416,10 @@ fn subr_arity_value(name: &str) -> Value {
         | "error-message-string" => arity_cons(1, Some(1)),
         "copysign" | "equal-including-properties" => arity_cons(2, Some(2)),
         "emacs-pid" => arity_cons(0, Some(0)),
+        "eval" => arity_cons(1, Some(2)),
+        "eval-buffer" => arity_cons(0, Some(5)),
+        "eval-expression" => arity_cons(1, Some(4)),
+        "eval-region" => arity_cons(2, Some(4)),
         "help-key-description" => arity_cons(2, Some(2)),
         "recent-keys" => arity_cons(0, Some(1)),
         "input-pending-p" => arity_cons(0, Some(1)),
@@ -1041,6 +1045,14 @@ mod tests {
         assert_subr_arity("copysign", 2, Some(2));
         assert_subr_arity("equal-including-properties", 2, Some(2));
         assert_subr_arity("emacs-pid", 0, Some(0));
+    }
+
+    #[test]
+    fn subr_arity_eval_primitives_match_oracle() {
+        assert_subr_arity("eval", 1, Some(2));
+        assert_subr_arity("eval-buffer", 0, Some(5));
+        assert_subr_arity("eval-expression", 1, Some(4));
+        assert_subr_arity("eval-region", 2, Some(4));
     }
 
     #[test]

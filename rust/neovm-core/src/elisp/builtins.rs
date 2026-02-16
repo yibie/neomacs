@@ -3231,6 +3231,7 @@ pub(crate) fn builtin_neovm_precompile_file(
 
 pub(crate) fn builtin_eval(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_min_args("eval", &args, 1)?;
+    expect_max_args("eval", &args, 2)?;
     // Convert value back to expr and evaluate
     let expr = super::eval::value_to_expr_pub(&args[0]);
     eval.eval(&expr) // eval.eval() already returns EvalResult = Result<Value, Flow>
@@ -9603,6 +9604,23 @@ mod tests {
         .unwrap();
         assert!(missing.is_nil());
         assert!(builtin_get_file_buffer(&mut eval, vec![Value::Int(1)]).is_err());
+    }
+
+    #[test]
+    fn eval_builtin_rejects_too_many_args() {
+        let mut eval = super::super::eval::Evaluator::new();
+        let err = builtin_eval(
+            &mut eval,
+            vec![Value::Int(1), Value::Nil, Value::symbol("ignored")],
+        )
+        .expect_err("eval should reject more than two arguments");
+        match err {
+            Flow::Signal(sig) => {
+                assert_eq!(sig.symbol, "wrong-number-of-arguments");
+                assert_eq!(sig.data, vec![Value::symbol("eval"), Value::Int(3)]);
+            }
+            other => panic!("unexpected flow: {other:?}"),
+        }
     }
 
     #[test]

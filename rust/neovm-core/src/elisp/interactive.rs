@@ -605,6 +605,15 @@ pub(crate) fn builtin_eval_expression(eval: &mut Evaluator, args: Vec<Value>) ->
             vec![Value::symbol("eval-expression"), Value::Int(0)],
         ));
     }
+    if args.len() > 4 {
+        return Err(signal(
+            "wrong-number-of-arguments",
+            vec![
+                Value::symbol("eval-expression"),
+                Value::Int(args.len() as i64),
+            ],
+        ));
+    }
 
     let expr = super::eval::value_to_expr_pub(&args[0]);
     eval.eval(&expr)
@@ -3947,6 +3956,32 @@ mod tests {
             Flow::Signal(sig) => {
                 assert_eq!(sig.symbol, "end-of-file");
                 assert_eq!(sig.data, vec![Value::string("Error reading from stdin")]);
+            }
+            other => panic!("unexpected flow: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn eval_expression_rejects_too_many_args() {
+        let mut ev = Evaluator::new();
+        let result = builtin_eval_expression(
+            &mut ev,
+            vec![
+                Value::Int(1),
+                Value::Nil,
+                Value::Nil,
+                Value::Nil,
+                Value::Nil,
+            ],
+        )
+        .expect_err("eval-expression should reject more than four args");
+        match result {
+            Flow::Signal(sig) => {
+                assert_eq!(sig.symbol, "wrong-number-of-arguments");
+                assert_eq!(
+                    sig.data,
+                    vec![Value::symbol("eval-expression"), Value::Int(5)]
+                );
             }
             other => panic!("unexpected flow: {other:?}"),
         }
