@@ -419,6 +419,39 @@ pub(crate) fn builtin_bookmark_all_names(
     Ok(Value::list(names))
 }
 
+/// (bookmark-get-filename BOOKMARK) -> filename string or nil
+///
+/// BOOKMARK may be a bookmark name or a bookmark record alist.
+pub(crate) fn builtin_bookmark_get_filename(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_args("bookmark-get-filename", &args, 1)?;
+
+    if let Some(items) = super::value::list_to_vec(&args[0]) {
+        for item in &items {
+            if let Value::Cons(cell) = item {
+                let pair = cell.lock().expect("poisoned");
+                if let Value::Symbol(sym) = &pair.car {
+                    if sym == "filename" {
+                        return Ok(pair.cdr.clone());
+                    }
+                }
+            }
+        }
+        return Ok(Value::Nil);
+    }
+
+    let name = expect_string(&args[0])?;
+    let filename = eval
+        .bookmarks
+        .get(&name)
+        .and_then(|bm| bm.filename.as_ref())
+        .map(|s| Value::string(s.clone()))
+        .unwrap_or(Value::Nil);
+    Ok(filename)
+}
+
 /// (bookmark-save) -> string
 ///
 /// Serialize all bookmarks and return the string.  In a real Emacs this
@@ -778,6 +811,25 @@ mod tests {
         assert_eq!(names.len(), 2);
         assert_eq!(names[0].as_str(), Some("a-bookmark"));
         assert_eq!(names[1].as_str(), Some("z-bookmark"));
+    }
+
+    #[test]
+    fn test_builtin_bookmark_get_filename() {
+        use super::super::eval::Evaluator;
+
+        let mut eval = Evaluator::new();
+        builtin_bookmark_set(
+            &mut eval,
+            vec![Value::string("with-file"), Value::string("/tmp/file.el")],
+        )
+        .unwrap();
+
+        let found = builtin_bookmark_get_filename(&mut eval, vec![Value::string("with-file")]).unwrap();
+        assert_eq!(found.as_str(), Some("/tmp/file.el"));
+
+        let missing =
+            builtin_bookmark_get_filename(&mut eval, vec![Value::string("missing")]).unwrap();
+        assert!(missing.is_nil());
     }
 
     #[test]

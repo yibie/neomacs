@@ -6235,6 +6235,9 @@ pub(crate) fn dispatch_builtin(
         "bookmark-all-names" => {
             return Some(super::bookmark::builtin_bookmark_all_names(eval, args))
         }
+        "bookmark-get-filename" => {
+            return Some(super::bookmark::builtin_bookmark_get_filename(eval, args))
+        }
         "bookmark-save" => return Some(super::bookmark::builtin_bookmark_save(eval, args)),
         "bookmark-load" => return Some(super::bookmark::builtin_bookmark_load(eval, args)),
         // Abbreviation operations (evaluator-dependent)
