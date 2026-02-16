@@ -334,6 +334,7 @@ cases/rect-yank-semantics
 cases/rect-open-semantics
 cases/rect-string-semantics
 cases/rect-replace-semantics
+cases/rect-clear-semantics
 cases/string-match-case-fold-semantics
 cases/string-match-case-fold-variable-semantics
 cases/overlay-arity-semantics
