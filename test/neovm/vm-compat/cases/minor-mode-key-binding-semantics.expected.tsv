@@ -1,0 +1,5 @@
+1	(minor-mode-key-binding "a")	OK nil
+2	(minor-mode-key-binding [])	OK nil
+3	(condition-case err (minor-mode-key-binding 1) (error err))	OK nil
+4	(condition-case err (minor-mode-key-binding) (error err))	OK (wrong-number-of-arguments minor-mode-key-binding 0)
+5	(condition-case err (minor-mode-key-binding "a" t 'extra) (error err))	OK (wrong-number-of-arguments minor-mode-key-binding 3)

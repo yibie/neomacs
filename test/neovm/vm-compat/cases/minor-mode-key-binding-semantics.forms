@@ -1,0 +1,11 @@
+(minor-mode-key-binding "a")
+(minor-mode-key-binding [])
+(condition-case err
+    (minor-mode-key-binding 1)
+  (error err))
+(condition-case err
+    (minor-mode-key-binding)
+  (error err))
+(condition-case err
+    (minor-mode-key-binding "a" t 'extra)
+  (error err))
