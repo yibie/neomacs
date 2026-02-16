@@ -7456,8 +7456,6 @@ pub(crate) fn dispatch_builtin(
 
         // Charset (pure)
         "charsetp" => super::charset::builtin_charsetp(args),
-        "charset-list" => super::charset::builtin_charset_list(args),
-        "unibyte-charset" => super::charset::builtin_unibyte_charset(args),
         "charset-priority-list" => super::charset::builtin_charset_priority_list(args),
         "set-charset-priority" => super::charset::builtin_set_charset_priority(args),
         "char-charset" => super::charset::builtin_char_charset(args),
