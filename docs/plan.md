@@ -47,6 +47,23 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Aligned indent helper primitive `subr-arity` metadata with GNU Emacs:
+  - added explicit arity lock-ins for:
+    - `indent-according-to-mode`, `indent-for-tab-command`: `(0 . 1)`
+    - `indent-line-to`: `(1 . 1)`
+    - `indent-region`: `(2 . 3)`
+    - `indent-rigidly`: `(3 . 4)`
+    - `indent-to`, `move-to-column`: `(1 . 2)`
+    - `tab-to-tab-stop`: `(0 . 0)`
+  - added oracle corpus lock-in case:
+    - `test/neovm/vm-compat/cases/indent-subr-arity-semantics`
+  - wired into default vm-compat suite:
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml subr_arity_indent_primitives_match_oracle -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/indent-subr-arity-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
+
 - Aligned coding/time helper primitive `subr-arity` metadata with GNU Emacs:
   - added explicit arity lock-ins for:
     - `decode-coding-string`, `encode-coding-string`: `(2 . 4)`
