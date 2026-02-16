@@ -359,6 +359,14 @@ pub(crate) fn builtin_make_list(args: Vec<Value>) -> EvalResult {
     Ok(Value::list(items))
 }
 
+/// `(string-repeat STRING COUNT)` -- repeat STRING COUNT times.
+pub(crate) fn builtin_string_repeat(args: Vec<Value>) -> EvalResult {
+    expect_args("string-repeat", &args, 2)?;
+    let s = expect_string(&args[0])?;
+    let count = expect_wholenump(&args[1])?;
+    Ok(Value::string(s.repeat(count as usize)))
+}
+
 /// `(safe-length LIST)` -- return the length of LIST, returning 0 for
 /// non-lists and stopping at circular references (up to a limit).
 pub(crate) fn builtin_safe_length(args: Vec<Value>) -> EvalResult {
@@ -736,6 +744,26 @@ mod tests {
     fn make_list_negative_errors() {
         let result = builtin_make_list(vec![Value::Int(-1), Value::Int(1)]);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn string_repeat_basic() {
+        let result = builtin_string_repeat(vec![Value::string("ab"), Value::Int(3)]).unwrap();
+        assert_eq!(result.as_str().unwrap(), "ababab");
+    }
+
+    #[test]
+    fn string_repeat_zero() {
+        let result = builtin_string_repeat(vec![Value::string("ab"), Value::Int(0)]).unwrap();
+        assert_eq!(result.as_str().unwrap(), "");
+    }
+
+    #[test]
+    fn string_repeat_errors() {
+        assert!(builtin_string_repeat(vec![]).is_err());
+        assert!(builtin_string_repeat(vec![Value::string("ab")]).is_err());
+        assert!(builtin_string_repeat(vec![Value::string("ab"), Value::Int(-1)]).is_err());
+        assert!(builtin_string_repeat(vec![Value::Int(1), Value::Int(2)]).is_err());
     }
 
     // ----- safe-length -----

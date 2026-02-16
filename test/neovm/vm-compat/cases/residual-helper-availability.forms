@@ -19,7 +19,7 @@
 (fboundp 'selected-terminal)
 (condition-case err (selected-terminal) (error err))
 (fboundp 'string-repeat)
-(condition-case err (string-repeat) (error err))
+(condition-case err (string-repeat "ab" 3) (error err))
 (fboundp 'unibyte-string-p)
 (condition-case err (unibyte-string-p "abc") (error err))
 (fboundp 'word-at-point)

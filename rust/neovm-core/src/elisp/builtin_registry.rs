@@ -800,6 +800,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "string-match-p",
     "string-pixel-width",
     "string-rectangle",
+    "string-repeat",
     "string-replace",
     "string-search",
     "string-to-multibyte",

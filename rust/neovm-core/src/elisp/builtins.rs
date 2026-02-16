@@ -7520,6 +7520,7 @@ pub(crate) fn dispatch_builtin(
         "rassq" => super::misc::builtin_rassq(args),
         "assoc-default" => super::misc::builtin_assoc_default(args),
         "make-list" => super::misc::builtin_make_list(args),
+        "string-repeat" => super::misc::builtin_string_repeat(args),
         "safe-length" => super::misc::builtin_safe_length(args),
         "subst-char-in-string" => super::misc::builtin_subst_char_in_string(args),
         "string-to-multibyte" => super::misc::builtin_string_to_multibyte(args),

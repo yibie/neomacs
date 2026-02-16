@@ -18,8 +18,8 @@
 18	(condition-case err (register-to-string) (error err))	OK (void-function register-to-string)
 19	(fboundp 'selected-terminal)	OK t
 20	(condition-case err (selected-terminal) (error err))	OK #<terminal 0 on initial_terminal>
-21	(fboundp 'string-repeat)	OK nil
-22	(condition-case err (string-repeat) (error err))	OK (void-function string-repeat)
+21	(fboundp 'string-repeat)	OK t
+22	(condition-case err (string-repeat "ab" 3) (error err))	OK "ababab"
 23	(fboundp 'unibyte-string-p)	OK t
 24	(condition-case err (unibyte-string-p "abc") (error err))	OK t
 25	(fboundp 'word-at-point)	OK t
