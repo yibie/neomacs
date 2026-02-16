@@ -23,6 +23,34 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Implemented additional input/key helper builtins and locked oracle parity:
+  - updated:
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - added pure builtins:
+        - `eventp`
+        - `event-modifiers`
+        - `event-apply-modifier` (arity-compatible placeholder path)
+        - `listify-key-sequence`
+        - `key-valid-p`
+      - wired behavior to match oracle for key/event helper edge cases used in vm-compat corpus.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - added startup builtin registry entries for:
+        - `event-apply-modifier`
+        - `event-modifiers`
+        - `eventp`
+        - `listify-key-sequence`
+        - `key-valid-p`
+    - `test/neovm/vm-compat/cases/event-key-helpers-semantics.forms`
+      - new corpus covering event predicates/modifiers, listify-key-sequence behavior, key-valid-p parsing edges, and event-apply-modifier arity contract.
+    - `test/neovm/vm-compat/cases/event-key-helpers-semantics.expected.tsv`
+      - recorded oracle baseline for the helper builtin matrix.
+    - `test/neovm/vm-compat/cases/default.list`
+      - added `cases/event-key-helpers-semantics` to recurring default compatibility execution.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/event-key-helpers-semantics` (pass, 67/67)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass; only allowlisted `neovm-precompile-file` drift)
+
 - Implemented missing event helper builtins and locked oracle parity:
   - updated:
     - `rust/neovm-core/src/elisp/builtins.rs`
