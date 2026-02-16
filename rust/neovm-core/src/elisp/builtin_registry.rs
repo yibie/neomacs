@@ -799,6 +799,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "string-fill",
     "string-glyph-split",
     "string-lines",
+    "string-limit",
     "string-make-multibyte",
     "string-make-unibyte",
     "string-match",

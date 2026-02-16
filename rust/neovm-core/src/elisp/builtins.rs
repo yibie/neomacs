@@ -7476,6 +7476,7 @@ pub(crate) fn dispatch_builtin(
         "format-seconds" => super::format::builtin_format_seconds(args),
         "string-pad" => super::format::builtin_string_pad(args),
         "string-fill" => super::format::builtin_string_fill(args),
+        "string-limit" => super::format::builtin_string_limit(args),
         "string-chop-newline" => super::format::builtin_string_chop_newline(args),
         "string-lines" => super::format::builtin_string_lines(args),
         "string-clean-whitespace" => super::format::builtin_string_clean_whitespace(args),

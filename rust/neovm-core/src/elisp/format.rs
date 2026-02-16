@@ -864,6 +864,53 @@ pub(crate) fn builtin_string_fill(args: Vec<Value>) -> EvalResult {
 }
 
 // ---------------------------------------------------------------------------
+// string-limit
+// ---------------------------------------------------------------------------
+
+/// `(string-limit STRING LENGTH &optional END ELLIPSIS)` -- limit STRING size.
+///
+/// If STRING exceeds LENGTH, truncate to fit.  END non-nil truncates from the
+/// start (keeping the right side).  ELLIPSIS is inserted on the truncated side.
+pub(crate) fn builtin_string_limit(args: Vec<Value>) -> EvalResult {
+    expect_min_max_args("string-limit", &args, 2, 4)?;
+    let s = require_string("string-limit", &args[0])?;
+    let limit = require_natnum(&args[1])?;
+    let from_end = args.get(2).is_some_and(Value::is_truthy);
+    let ellipsis = if args.len() >= 4 {
+        require_string("string-limit", &args[3])?
+    } else {
+        String::new()
+    };
+
+    let current_len = s.chars().count();
+    if current_len <= limit {
+        return Ok(Value::string(s));
+    }
+
+    if limit == 0 {
+        return Ok(Value::string(""));
+    }
+
+    let ellipsis_len = ellipsis.chars().count();
+    if ellipsis_len >= limit {
+        let clipped: String = ellipsis.chars().take(limit).collect();
+        return Ok(Value::string(clipped));
+    }
+
+    let keep_len = limit - ellipsis_len;
+    if from_end {
+        let suffix: String = s
+            .chars()
+            .skip(current_len.saturating_sub(keep_len))
+            .collect();
+        Ok(Value::string(format!("{ellipsis}{suffix}")))
+    } else {
+        let prefix: String = s.chars().take(keep_len).collect();
+        Ok(Value::string(format!("{prefix}{ellipsis}")))
+    }
+}
+
+// ---------------------------------------------------------------------------
 // string-chop-newline
 // ---------------------------------------------------------------------------
 
@@ -1236,6 +1283,44 @@ mod tests {
     fn string_fill_type_errors() {
         assert!(builtin_string_fill(vec![Value::Int(1), Value::Int(2)]).is_err());
         assert!(builtin_string_fill(vec![Value::string("x"), Value::Int(-1)]).is_err());
+    }
+
+    // ===================================================================
+    // string-limit tests
+    // ===================================================================
+
+    #[test]
+    fn string_limit_noop() {
+        let result = builtin_string_limit(vec![Value::string("x"), Value::Int(2)]).unwrap();
+        assert_eq!(result.as_str().unwrap(), "x");
+    }
+
+    #[test]
+    fn string_limit_truncates_prefix() {
+        let result = builtin_string_limit(vec![Value::string("abcd"), Value::Int(2)]).unwrap();
+        assert_eq!(result.as_str().unwrap(), "ab");
+    }
+
+    #[test]
+    fn string_limit_truncates_from_end_with_ellipsis() {
+        let result = builtin_string_limit(vec![
+            Value::string("abcd"),
+            Value::Int(3),
+            Value::True,
+            Value::string("."),
+        ])
+        .unwrap();
+        assert_eq!(result.as_str().unwrap(), ".cd");
+    }
+
+    #[test]
+    fn string_limit_type_errors() {
+        assert!(builtin_string_limit(vec![Value::Int(1), Value::Int(2)]).is_err());
+        assert!(builtin_string_limit(vec![Value::string("x"), Value::Int(-1)]).is_err());
+        assert!(
+            builtin_string_limit(vec![Value::string("x"), Value::Int(1), Value::Nil, Value::Int(1)])
+                .is_err()
+        );
     }
 
     // ===================================================================

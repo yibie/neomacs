@@ -4,5 +4,5 @@
 4	(condition-case err (string-pad "x" 2) (error err))	OK "x "
 5	(fboundp 'string-fill)	OK t
 6	(condition-case err (string-fill "x" 2) (error err))	OK "x"
-7	(fboundp 'string-limit)	OK nil
-8	(condition-case err (string-limit "x" 2) (error err))	OK (void-function string-limit)
+7	(fboundp 'string-limit)	OK t
+8	(condition-case err (string-limit "x" 2) (error err))	OK "x"
