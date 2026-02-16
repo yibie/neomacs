@@ -1,0 +1,6 @@
+; waiting-for-user-input-p should stay nil in batch and not consume unread events.
+(waiting-for-user-input-p)
+(let ((unread-command-events (list 97))) (waiting-for-user-input-p))
+(let ((unread-command-events (list 97)))
+  (list (waiting-for-user-input-p) unread-command-events))
+(condition-case err (waiting-for-user-input-p nil) (list (car err) (cdr err)))

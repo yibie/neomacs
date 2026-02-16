@@ -200,6 +200,7 @@ cases/input-batch-readers
 cases/input-mode-semantics
 cases/input-pending-semantics
 cases/input-unread-command-events-dynamic-semantics
+cases/waiting-for-user-input-semantics
 cases/thing-at-point-core-semantics
 cases/thing-at-point-line-semantics
 cases/thing-at-point-sentence-sexp-semantics

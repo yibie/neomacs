@@ -1,0 +1,4 @@
+1	(waiting-for-user-input-p)	OK nil
+2	(let ((unread-command-events (list 97))) (waiting-for-user-input-p))	OK nil
+3	(let ((unread-command-events (list 97))) (list (waiting-for-user-input-p) unread-command-events))	OK (nil (97))
+4	(condition-case err (waiting-for-user-input-p nil) (list (car err) (cdr err)))	ERR (wrong-number-of-arguments (waiting-for-user-input-p 1))
