@@ -19,6 +19,24 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Exposed `cl-first` as a callable CL helper:
+  - updated:
+    - `rust/neovm-core/src/elisp/cl_lib.rs`
+      - added `cl-first` builtin (arity `1`) with list-first semantics (`nil` for empty list, `listp` type checks).
+      - added focused unit coverage for list, nil, and wrong-type paths.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - pure CL/seq dispatch now routes `cl-first`.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - added `cl-first` to builtin registry.
+    - `test/neovm/vm-compat/cases/cl-helper-availability.forms`
+      - switched helper probe to callable form `(cl-first '(a b))`.
+    - `test/neovm/vm-compat/cases/cl-helper-availability.expected.tsv`
+      - updated expectations from missing helper to callable behavior (`a`).
+  - verified:
+    - `cargo test cl_first --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/cl-helper-availability` (pass, 86/86)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Exposed `unibyte-charset` as a callable charset helper:
   - updated:
     - `rust/neovm-core/src/elisp/charset.rs`
