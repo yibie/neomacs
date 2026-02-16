@@ -96,40 +96,6 @@ impl Default for RectangleState {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Helper: compute line count between two buffer positions
-// ---------------------------------------------------------------------------
-
-/// Given START and END positions, estimate the number of lines spanned.
-/// Uses the current buffer's text to count newlines between the two positions.
-fn line_count_between(eval: &super::eval::Evaluator, start: i64, end: i64) -> usize {
-    let (lo, hi) = if start <= end {
-        (start as usize, end as usize)
-    } else {
-        (end as usize, start as usize)
-    };
-
-    // Try to read text from the current buffer to count newlines.
-    if let Some(buf) = eval.buffers.current_buffer() {
-        let buf_size = buf.buffer_size();
-        let lo = lo.min(buf_size);
-        let hi = hi.min(buf_size);
-        if lo >= hi {
-            return 0;
-        }
-        let text = buf.buffer_substring(lo, hi);
-        // Number of lines is newline count + 1 (unless region is empty).
-        if text.is_empty() {
-            return 0;
-        }
-        return text.chars().filter(|&c| c == '\n').count() + 1;
-    }
-
-    // Fallback: rough estimate based on typical line length.
-    let span = (hi - lo).max(1);
-    (span / 40).max(1)
-}
-
 fn line_col_for_char_index(text: &str, target: usize) -> (usize, usize) {
     let mut line = 0usize;
     let mut col = 0usize;
@@ -384,8 +350,10 @@ pub(crate) fn builtin_delete_rectangle(
 /// `(kill-rectangle START END)` -- save the rectangular region to the
 /// rectangle kill buffer, then delete it.
 ///
-/// Stub: saves empty strings to `RectangleState.killed`, does not modify
-/// the buffer.
+/// Compatibility behavior:
+/// - performs the same extraction/deletion as `delete-extract-rectangle`
+/// - updates `RectangleState.killed`
+/// - returns the extracted rectangle list
 pub(crate) fn builtin_kill_rectangle(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
@@ -393,10 +361,14 @@ pub(crate) fn builtin_kill_rectangle(
     expect_args("kill-rectangle", &args, 2)?;
     let start = expect_int(&args[0])?;
     let end = expect_int(&args[1])?;
-    let nlines = line_count_between(eval, start, end);
-    let killed: Vec<String> = (0..nlines).map(|_| String::new()).collect();
+    let extracted = builtin_delete_extract_rectangle(eval, vec![Value::Int(start), Value::Int(end)])?;
+    let killed = list_to_vec(&extracted)
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|value| value.as_str().map(ToString::to_string))
+        .collect();
     eval.rectangle.killed = killed;
-    Ok(Value::Nil)
+    Ok(extracted)
 }
 
 /// `(yank-rectangle)` -- insert the last killed rectangle at point.
@@ -729,10 +701,26 @@ mod tests {
     #[test]
     fn kill_rectangle_updates_state() {
         let mut eval = super::super::eval::Evaluator::new();
-        let result = builtin_kill_rectangle(&mut eval, vec![Value::Int(1), Value::Int(10)]);
-        assert!(result.is_ok());
-        // State should have been updated (may be empty strings, but vector should exist).
-        // The killed rectangle is stored in eval.rectangle.killed.
+        {
+            let buf = eval
+                .buffers
+                .current_buffer_mut()
+                .expect("current buffer must exist");
+            buf.insert("abcdef\n123456\n");
+        }
+        let result = builtin_kill_rectangle(&mut eval, vec![Value::Int(1), Value::Int(9)])
+            .expect("kill-rectangle");
+        assert_eq!(
+            result,
+            Value::list(vec![Value::string("a"), Value::string("1")])
+        );
+        assert_eq!(eval.rectangle.killed, vec!["a".to_string(), "1".to_string()]);
+        let buffer_after = eval
+            .buffers
+            .current_buffer()
+            .expect("current buffer must exist")
+            .buffer_string();
+        assert_eq!(buffer_after, "bcdef\n23456\n");
     }
 
     #[test]
