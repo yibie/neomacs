@@ -626,7 +626,7 @@ impl WgpuRenderer {
 
         let padding = 4.0_f32;
         let font_size = glyph_atlas.default_font_size();
-        let char_width = font_size * 0.6;
+        let char_width = glyph_atlas.default_char_width();
         let font_size_bits = 0.0_f32.to_bits();
 
         // Render each panel (root + open submenus)
@@ -813,7 +813,7 @@ impl WgpuRenderer {
         // Formula: glyph_y = y + ascent - bearing_y/sf
         // For tall glyphs (A,F): bearing_y/sf ≈ ascent → glyph_y ≈ y (glyph fills from top)
         // For short glyphs (.,-): bearing_y/sf < ascent → glyph_y > y (pushed down to baseline)
-        let font_ascent = glyph_atlas.default_font_size() * 0.8;
+        let font_ascent = glyph_atlas.default_font_ascent();
         for (key, x, y, color) in glyphs.iter() {
             if let Some(cached) = glyph_atlas.get(key) {
                 // Divide atlas metrics by scale_factor to get logical positions
@@ -914,7 +914,7 @@ impl WgpuRenderer {
 
         let font_size = glyph_atlas.default_font_size();
         let scale = 3.0_f32;
-        let char_width = font_size * 0.6 * scale;
+        let char_width = glyph_atlas.default_char_width() * scale;
         let char_height = font_size * scale;
         let font_size_bits = 0.0_f32.to_bits();
         let alpha = self.effects.window_watermark.opacity.clamp(0.0, 1.0);
@@ -1153,7 +1153,7 @@ impl WgpuRenderer {
         // === Pass 2: Collect all text glyphs and render batched ===
         let padding = 6.0_f32;
         let line_height = glyph_atlas.default_line_height();
-        let char_width = glyph_atlas.default_font_size() * 0.6;
+        let char_width = glyph_atlas.default_char_width();
         let font_size_bits = 0.0_f32.to_bits();
         let mut overlay_glyphs: Vec<(GlyphKey, f32, f32, [f32; 4])> = Vec::new();
 
@@ -1316,7 +1316,7 @@ impl WgpuRenderer {
 
         // === Pass 2: Title text and button icons ===
         let font_size = glyph_atlas.default_font_size();
-        let char_width = font_size * 0.6;
+        let char_width = glyph_atlas.default_char_width();
         let font_size_bits = 0.0_f32.to_bits();
         let mut overlay_glyphs: Vec<(GlyphKey, f32, f32, [f32; 4])> = Vec::new();
 
@@ -1501,7 +1501,7 @@ impl WgpuRenderer {
         self.queue
             .write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
 
-        let char_width = glyph_atlas.default_font_size() * 0.6;
+        let char_width = glyph_atlas.default_char_width();
         let font_size_bits = 0.0_f32.to_bits();
         let text_len = preedit_text.chars().count();
         let preedit_width = text_len as f32 * char_width;
@@ -1726,7 +1726,7 @@ impl WgpuRenderer {
             return;
         }
 
-        let char_width = glyph_atlas.default_font_size() * 0.6;
+        let char_width = glyph_atlas.default_char_width();
         let line_height = glyph_atlas.default_line_height();
         let bar_height = line_height + 4.0;
         let padding_x = 6.0_f32;
@@ -1912,7 +1912,7 @@ impl WgpuRenderer {
         let wpm_int = wpm.round() as u32;
         let label = format!("{} WPM", wpm_int);
 
-        let char_width = glyph_atlas.default_font_size() * 0.6;
+        let char_width = glyph_atlas.default_char_width();
         let line_height = glyph_atlas.default_line_height();
         let padding_x = 8.0_f32;
         let padding_y = 2.0_f32;
@@ -2014,7 +2014,7 @@ impl WgpuRenderer {
         self.queue
             .write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
 
-        let char_width = glyph_atlas.default_font_size() * 0.6;
+        let char_width = glyph_atlas.default_char_width();
         let line_height = glyph_atlas.default_line_height();
         let padding = 4.0_f32;
         let line_spacing = 2.0_f32;
@@ -2170,7 +2170,7 @@ impl WgpuRenderer {
         let bg_color = Color::new(bg.0, bg.1, bg.2, 1.0).srgb_to_linear();
         let padding_x = 8.0_f32;
         let font_size = glyph_atlas.default_font_size();
-        let char_width = font_size * 0.6;
+        let char_width = glyph_atlas.default_char_width();
         let font_size_bits = 0.0_f32.to_bits();
 
         // --- Pass 1: Background bar + item highlights ---

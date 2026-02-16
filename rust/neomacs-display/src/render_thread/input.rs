@@ -87,7 +87,7 @@ impl RenderApp {
         }
         let padding_x = 8.0_f32;
         let char_width = if let Some(ref atlas) = self.glyph_atlas {
-            atlas.default_font_size() * 0.6
+            atlas.default_char_width()
         } else {
             8.0
         };

@@ -1085,10 +1085,10 @@ impl RenderApp {
                 }
                 RenderCommand::ShowPopupMenu { x, y, items, title, fg, bg } => {
                     log::info!("ShowPopupMenu at ({}, {}) with {} items", x, y, items.len());
-                    let (fs, lh) = self.glyph_atlas.as_ref()
-                        .map(|a| (a.default_font_size(), a.default_line_height()))
-                        .unwrap_or((13.0, 17.0));
-                    let mut menu = PopupMenuState::new(x, y, items, title, fs, lh);
+                    let (fs, lh, cw) = self.glyph_atlas.as_ref()
+                        .map(|a| (a.default_font_size(), a.default_line_height(), a.default_char_width()))
+                        .unwrap_or((13.0, 17.0, 13.0 * 0.6));
+                    let mut menu = PopupMenuState::new(x, y, items, title, fs, lh, cw);
                     menu.face_fg = fg;
                     menu.face_bg = bg;
                     self.popup_menu = Some(menu);
@@ -1102,16 +1102,16 @@ impl RenderApp {
                 }
                 RenderCommand::ShowTooltip { x, y, text, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b } => {
                     log::debug!("ShowTooltip at ({}, {})", x, y);
-                    let (fs, lh) = self.glyph_atlas.as_ref()
-                        .map(|a| (a.default_font_size(), a.default_line_height()))
-                        .unwrap_or((13.0, 17.0));
+                    let (fs, lh, cw) = self.glyph_atlas.as_ref()
+                        .map(|a| (a.default_font_size(), a.default_line_height(), a.default_char_width()))
+                        .unwrap_or((13.0, 17.0, 13.0 * 0.6));
                     self.tooltip = Some(TooltipState::new(
                         x, y, &text,
                         (fg_r, fg_g, fg_b),
                         (bg_r, bg_g, bg_b),
                         self.width as f32 / self.scale_factor as f32,
                         self.height as f32 / self.scale_factor as f32,
-                        fs, lh,
+                        fs, lh, cw,
                     ));
                     self.frame_dirty = true;
                 }

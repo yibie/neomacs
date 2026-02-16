@@ -34,6 +34,24 @@ pub struct ComposedGlyphKey {
     pub font_size_bits: u32,
 }
 
+/// Result of rasterizing a glyph or text sequence.
+pub struct RasterizeResult {
+    /// Width in pixels
+    pub width: u32,
+    /// Height in pixels
+    pub height: u32,
+    /// Pixel data (R8 alpha for mask glyphs, RGBA for color glyphs)
+    pub pixel_data: Vec<u8>,
+    /// Bearing X (offset from origin, physical pixels)
+    pub bearing_x: f32,
+    /// Bearing Y (offset from baseline, physical pixels)
+    pub bearing_y: f32,
+    /// True if this is a color glyph (RGBA texture)
+    pub is_color: bool,
+    /// Horizontal advance width (physical pixels)
+    pub advance_width: f32,
+}
+
 /// A cached glyph with its wgpu texture and bind group
 pub struct CachedGlyph {
     /// Texture containing this glyph
@@ -54,6 +72,8 @@ pub struct CachedGlyph {
     /// Color glyphs should be rendered with the image pipeline (direct RGBA),
     /// not the glyph pipeline (alpha-mask tinted with foreground color).
     pub is_color: bool,
+    /// Horizontal advance width (physical pixels)
+    pub advance_width: f32,
     /// Frame generation when this glyph was last accessed
     last_accessed: u64,
 }
@@ -87,6 +107,10 @@ pub struct WgpuGlyphAtlas {
     interned_families: HashSet<&'static str>,
     /// Frame generation counter (incremented each frame)
     generation: u64,
+    /// Cached default font char width (logical pixels), populated on first face_id=0 rasterization
+    cached_char_width: Option<f32>,
+    /// Cached default font ascent (logical pixels), populated on first face_id=0 rasterization
+    cached_font_ascent: Option<f32>,
 }
 
 impl WgpuGlyphAtlas {
@@ -142,6 +166,8 @@ impl WgpuGlyphAtlas {
             max_size: 4096,
             interned_families: HashSet::new(),
             generation: 0,
+            cached_char_width: None,
+            cached_font_ascent: None,
         }
     }
 
@@ -184,21 +210,29 @@ impl WgpuGlyphAtlas {
             return None;
         }
 
-        let rasterize_result = self.rasterize_glyph(c, face);
-        if rasterize_result.is_none() {
+        let result = self.rasterize_glyph(c, face);
+        if result.is_none() {
             log::warn!("glyph_atlas: failed to rasterize '{}' (U+{:04X}) face_id={} has_face={}",
                 c, key.charcode, key.face_id, face.is_some());
             return None;
         }
-        let (width, height, pixel_data, bearing_x, bearing_y, is_color) = rasterize_result?;
+        let result = result?;
 
-        if width == 0 || height == 0 {
-            log::debug!("glyph_atlas: skipping empty glyph '{}' ({}x{})", c, width, height);
+        if result.width == 0 || result.height == 0 {
+            log::debug!("glyph_atlas: skipping empty glyph '{}' ({}x{})", c, result.width, result.height);
             return None;
         }
 
         log::debug!("glyph_atlas: rasterized '{}' {}x{} bearing ({:.1},{:.1}) color={}",
-            c, width, height, bearing_x, bearing_y, is_color);
+            c, result.width, result.height, result.bearing_x, result.bearing_y, result.is_color);
+
+        // Cache default font metrics from the first face_id=0 glyph
+        if key.face_id == 0 && self.cached_char_width.is_none() {
+            self.cached_char_width = Some(result.advance_width / self.scale_factor);
+            self.cached_font_ascent = Some(result.bearing_y / self.scale_factor);
+        }
+
+        let RasterizeResult { width, height, pixel_data, bearing_x, bearing_y, is_color, advance_width } = result;
 
         // Color glyphs use Rgba8UnormSrgb (4 bytes/pixel), mask glyphs use R8Unorm (1 byte/pixel)
         let (format, bytes_per_pixel) = if is_color {
@@ -285,6 +319,7 @@ impl WgpuGlyphAtlas {
             bearing_x,
             bearing_y,
             is_color,
+            advance_width,
             last_accessed: gen,
         };
         self.cache.insert(key.clone(), cached_glyph);
@@ -317,12 +352,12 @@ impl WgpuGlyphAtlas {
         }
 
         // Rasterize the composed text
-        let rasterize_result = self.rasterize_text(text, face);
-        if rasterize_result.is_none() {
+        let result = self.rasterize_text(text, face);
+        if result.is_none() {
             log::warn!("glyph_atlas: failed to rasterize composed text '{}'", text);
             return None;
         }
-        let (width, height, pixel_data, bearing_x, bearing_y, is_color) = rasterize_result?;
+        let RasterizeResult { width, height, pixel_data, bearing_x, bearing_y, is_color, advance_width } = result?;
 
         if width == 0 || height == 0 {
             return None;
@@ -373,7 +408,7 @@ impl WgpuGlyphAtlas {
         let gen = self.generation;
         self.composed_cache.insert(key.clone(), CachedGlyph {
             texture, view, bind_group, width, height,
-            bearing_x, bearing_y, is_color, last_accessed: gen,
+            bearing_x, bearing_y, is_color, advance_width, last_accessed: gen,
         });
         self.composed_cache.get(&key)
     }
@@ -385,14 +420,14 @@ impl WgpuGlyphAtlas {
 
     /// Rasterize text (single char or multi-codepoint sequence) and return pixel data.
     ///
-    /// Returns (width, height, pixel_data, bearing_x, bearing_y, is_color)
+    /// Returns a `RasterizeResult` containing pixel data and metrics:
     /// - For mask glyphs: pixel_data is R8 alpha, is_color=false
     /// - For color glyphs: pixel_data is RGBA, is_color=true
     fn rasterize_text(
         &mut self,
         text: &str,
         face: Option<&Face>,
-    ) -> Option<(u32, u32, Vec<u8>, f32, f32, bool)> {
+    ) -> Option<RasterizeResult> {
         // Create attributes from face
         let attrs = self.face_to_attrs(face);
 
@@ -417,10 +452,11 @@ impl WgpuGlyphAtlas {
 
         // For multi-glyph sequences (e.g. emoji ZWJ), we need to composite
         // all sub-glyphs into a single texture. Collect them first.
-        let mut sub_glyphs: Vec<(f32, f32, u32, u32, Vec<u8>, bool)> = Vec::new();
+        let mut sub_glyphs: Vec<(f32, f32, u32, u32, Vec<u8>, bool, f32)> = Vec::new();
 
         for run in buffer.layout_runs() {
             for glyph in run.glyphs.iter() {
+                let advance_w = glyph.w * self.scale_factor;
                 let physical_glyph = glyph.physical((0.0, 0.0), self.scale_factor);
 
                 if let Some(image) = self
@@ -463,7 +499,7 @@ impl WgpuGlyphAtlas {
                         }
                     };
 
-                    sub_glyphs.push((bearing_x, bearing_y, width, height, pixel_data, is_color));
+                    sub_glyphs.push((bearing_x, bearing_y, width, height, pixel_data, is_color, advance_w));
                 }
             }
         }
@@ -475,8 +511,11 @@ impl WgpuGlyphAtlas {
         // Single glyph: return directly (common case for single chars and
         // composed emoji that the font renders as a single glyph)
         if sub_glyphs.len() == 1 {
-            if let Some((bx, by, w, h, data, is_color)) = sub_glyphs.into_iter().next() {
-                return Some((w, h, data, bx, by, is_color));
+            if let Some((bx, by, w, h, data, is_color, adv_w)) = sub_glyphs.into_iter().next() {
+                return Some(RasterizeResult {
+                    width: w, height: h, pixel_data: data,
+                    bearing_x: bx, bearing_y: by, is_color, advance_width: adv_w,
+                });
             } else {
                 return None;
             }
@@ -489,13 +528,15 @@ impl WgpuGlyphAtlas {
         let mut min_y = f32::MAX;
         let mut max_y = f32::MIN;
         let mut any_color = false;
+        let mut total_advance: f32 = 0.0;
 
-        for (bx, by, w, h, _, is_color) in &sub_glyphs {
+        for (bx, by, w, h, _, is_color, adv_w) in &sub_glyphs {
             min_x = min_x.min(*bx);
             max_x = max_x.max(*bx + *w as f32);
             min_y = min_y.min(-*by);  // bearing_y is distance from baseline (positive = up)
             max_y = max_y.max(-*by + *h as f32);
             if *is_color { any_color = true; }
+            total_advance += adv_w;
         }
 
         let total_w = (max_x - min_x).ceil() as u32;
@@ -509,7 +550,7 @@ impl WgpuGlyphAtlas {
         let bpp = 4u32; // always RGBA for composited result
         let mut composite = vec![0u8; (total_w * total_h * bpp) as usize];
 
-        for (bx, by, w, h, data, is_color) in &sub_glyphs {
+        for (bx, by, w, h, data, is_color, _) in &sub_glyphs {
             let ox = (*bx - min_x).round() as i32;
             let oy = (-*by - min_y).round() as i32;
 
@@ -556,7 +597,15 @@ impl WgpuGlyphAtlas {
         }
 
         // For composited result with mixed content, always use color (RGBA)
-        Some((total_w, total_h, composite, min_x, -min_y, any_color || sub_glyphs.len() > 1))
+        Some(RasterizeResult {
+            width: total_w,
+            height: total_h,
+            pixel_data: composite,
+            bearing_x: min_x,
+            bearing_y: -min_y,
+            is_color: any_color || sub_glyphs.len() > 1,
+            advance_width: total_advance,
+        })
     }
 
     /// Rasterize a single glyph and return pixel data (convenience wrapper)
@@ -564,7 +613,7 @@ impl WgpuGlyphAtlas {
         &mut self,
         c: char,
         face: Option<&Face>,
-    ) -> Option<(u32, u32, Vec<u8>, f32, f32, bool)> {
+    ) -> Option<RasterizeResult> {
         self.rasterize_text(&c.to_string(), face)
     }
 
@@ -619,6 +668,8 @@ impl WgpuGlyphAtlas {
     pub fn clear(&mut self) {
         self.cache.clear();
         self.composed_cache.clear();
+        self.cached_char_width = None;
+        self.cached_font_ascent = None;
     }
 
     /// Update the scale factor and clear the cache so glyphs are
@@ -650,6 +701,20 @@ impl WgpuGlyphAtlas {
     /// Get the default line height
     pub fn default_line_height(&self) -> f32 {
         self.default_line_height
+    }
+
+    /// Get the default font's character width (logical pixels).
+    /// Measured from the first rasterized face_id=0 glyph.
+    /// Falls back to `font_size * 0.6` until a glyph is rasterized.
+    pub fn default_char_width(&self) -> f32 {
+        self.cached_char_width.unwrap_or(self.default_font_size * 0.6)
+    }
+
+    /// Get the default font's ascent (logical pixels).
+    /// Measured from the first rasterized face_id=0 glyph.
+    /// Falls back to `font_size * 0.8` until a glyph is rasterized.
+    pub fn default_font_ascent(&self) -> f32 {
+        self.cached_font_ascent.unwrap_or(self.default_font_size * 0.8)
     }
 
     /// Set font metrics
