@@ -1,0 +1,30 @@
+(with-temp-buffer
+  (insert "my-symbol other")
+  (goto-char (point-min))
+  (search-forward "sym")
+  (let ((s (symbol-at-point)))
+    (if s (symbol-name s) nil)))
+
+(with-temp-buffer
+  (insert "my-symbol other")
+  (goto-char (point-min))
+  (search-forward "sym")
+  (word-at-point))
+
+(with-temp-buffer
+  (insert "alpha beta")
+  (goto-char (point-min))
+  (search-forward "alp")
+  (word-at-point t))
+
+(with-temp-buffer
+  (insert "   ")
+  (goto-char (point-min))
+  (search-forward " ")
+  (symbol-at-point))
+
+(with-temp-buffer
+  (insert "alpha")
+  (goto-char (point-min))
+  (search-forward "alp")
+  (condition-case err (word-at-point nil nil) (error (car err))))
