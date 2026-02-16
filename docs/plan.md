@@ -21,6 +21,30 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Aligned `switch-to-buffer` / `display-buffer` / `pop-to-buffer` runtime semantics with oracle batch behavior and added dedicated corpus lock-in:
+  - updated:
+    - `rust/neovm-core/src/elisp/window_cmds.rs`
+      - added max-arity enforcement:
+        - `switch-to-buffer` max 3 args
+        - `display-buffer` max 3 args
+        - `pop-to-buffer` max 3 args
+      - switched all three builtins to bootstrap an initial selected frame via `ensure_selected_frame_id` instead of signaling `"No selected frame"` in batch.
+      - aligned `pop-to-buffer` return shape to batch-compatible buffer return while preserving current-buffer/window update side effects.
+      - expanded unit coverage for frame bootstrap path and max-arity edges.
+    - `test/neovm/vm-compat/cases/window-buffer-switch-semantics.forms`
+      - added oracle probes for switch/display/pop return-shape predicates and arity errors.
+    - `test/neovm/vm-compat/cases/window-buffer-switch-semantics.expected.tsv`
+      - recorded oracle baseline outputs for the new window-buffer switching semantics case.
+    - `test/neovm/vm-compat/cases/default.list`
+      - added `cases/window-buffer-switch-semantics` to recurring default compatibility execution.
+  - verified:
+    - `cargo test switch_display_pop_bootstrap_initial_frame --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `cargo test switch_display_pop_enforce_max_arity --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `cargo test pop_to_buffer_returns_buffer --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/window-buffer-switch-semantics` (pass, 12/12)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+
 - Aligned `display-images-p` / `display-supports-face-attributes-p` runtime semantics with oracle and added dedicated corpus lock-in:
   - updated:
     - `rust/neovm-core/src/elisp/display.rs`
