@@ -137,14 +137,35 @@ fn line_count_between(eval: &super::eval::Evaluator, start: i64, end: i64) -> us
 /// `(extract-rectangle-line STARTCOL ENDCOL &optional LINE)` -- extract one
 /// line of a rectangle as a string.
 ///
-/// Compatibility stub: validates argument shapes and returns an empty string.
+/// Compatibility behavior:
+/// - with optional LINE, returns substring between STARTCOL and ENDCOL
+/// - without LINE, returns an empty string (legacy stub path)
 pub(crate) fn builtin_extract_rectangle_line(args: Vec<Value>) -> EvalResult {
     expect_min_args("extract-rectangle-line", &args, 2)?;
     expect_max_args("extract-rectangle-line", &args, 3)?;
-    let _start_col = expect_int(&args[0])?;
-    let _end_col = expect_int(&args[1])?;
+    let start_col = expect_int(&args[0])?;
+    let end_col = expect_int(&args[1])?;
+    if start_col < 0 || end_col < 0 {
+        return Err(signal(
+            "args-out-of-range",
+            vec![Value::Int(start_col), Value::Int(end_col)],
+        ));
+    }
     if args.len() == 3 {
-        let _line = expect_string(&args[2])?;
+        let line = expect_string(&args[2])?;
+        let mut lo = start_col as usize;
+        let mut hi = end_col as usize;
+        if lo > hi {
+            std::mem::swap(&mut lo, &mut hi);
+        }
+        let chars: Vec<char> = line.chars().collect();
+        lo = lo.min(chars.len());
+        hi = hi.min(chars.len());
+        if lo >= hi {
+            return Ok(Value::string(""));
+        }
+        let slice: String = chars[lo..hi].iter().collect();
+        return Ok(Value::string(slice));
     }
     Ok(Value::string(""))
 }
@@ -370,6 +391,38 @@ mod tests {
     fn extract_rectangle_line_returns_string() {
         let result = builtin_extract_rectangle_line(vec![Value::Int(1), Value::Int(3)]).unwrap();
         assert_eq!(result.as_str(), Some(""));
+    }
+
+    #[test]
+    fn extract_rectangle_line_with_line_argument() {
+        let result = builtin_extract_rectangle_line(vec![
+            Value::Int(1),
+            Value::Int(3),
+            Value::string("abcdef"),
+        ])
+        .unwrap();
+        assert_eq!(result.as_str(), Some("bc"));
+    }
+
+    #[test]
+    fn extract_rectangle_line_swapped_columns() {
+        let result = builtin_extract_rectangle_line(vec![
+            Value::Int(3),
+            Value::Int(1),
+            Value::string("abcdef"),
+        ])
+        .unwrap();
+        assert_eq!(result.as_str(), Some("bc"));
+    }
+
+    #[test]
+    fn extract_rectangle_line_negative_column_errors() {
+        assert!(builtin_extract_rectangle_line(vec![
+            Value::Int(-1),
+            Value::Int(1),
+            Value::string("abc"),
+        ])
+        .is_err());
     }
 
     #[test]
