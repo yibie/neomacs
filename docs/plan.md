@@ -32,6 +32,7 @@ Last updated: 2026-02-16
 - Keep newly landed `setenv` runtime+`subr-arity` parity stable while expanding remaining process/env drifts.
 - Keep newly landed hash-table introspection primitive `subr-arity` parity stable while expanding remaining hash/runtime introspection drifts.
 - Keep newly landed hash-table core primitive `subr-arity` parity stable while expanding remaining hash/runtime behavior drifts.
+- Keep newly landed buffer lookup primitive runtime+`subr-arity` parity stable while expanding remaining buffer helper drifts.
 
 ## Next
 
@@ -43,6 +44,38 @@ Last updated: 2026-02-16
 6. Expand `recent-keys` capture beyond `read*` consumers to eventual command-loop event publication.
 
 ## Done
+
+- Aligned buffer lookup primitive runtime behavior and `subr-arity` metadata with GNU Emacs:
+  - updated:
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - `get-buffer-create` now accepts optional 2nd arg `(1 . 2)` and still rejects 3+ args.
+      - `generate-new-buffer` now accepts optional 2nd arg `(1 . 2)` and still rejects 3+ args.
+      - `generate-new-buffer-name` now accepts optional 2nd arg `(1 . 2)` with Emacs-like type boundary:
+        - accepted optional values: `nil`, `t`, symbol/keyword, string
+        - non-string-like non-nil values signal `wrong-type-argument stringp`
+      - added regression tests:
+        - `get_buffer_create_accepts_optional_second_arg`
+        - `generate_new_buffer_accepts_optional_second_arg`
+        - `generate_new_buffer_name_optional_arg_matches_expected_types`
+    - `rust/neovm-core/src/elisp/subr_info.rs`
+      - added explicit arity overrides:
+        - `(1 . 1)`: `get-buffer`, `get-file-buffer`
+        - `(1 . 2)`: `get-buffer-create`, `generate-new-buffer-name`, `generate-new-buffer`
+      - added unit matrix `subr_arity_buffer_lookup_primitives_match_oracle`.
+    - `test/neovm/vm-compat/cases/buffer-lookup-subr-arity-semantics.forms`
+    - `test/neovm/vm-compat/cases/buffer-lookup-subr-arity-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+      - added oracle lock-in case for buffer lookup arity and optional-arg behavior.
+  - recorded with official GNU Emacs:
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat record FORMS=cases/buffer-lookup-subr-arity-semantics.forms EXPECTED=cases/buffer-lookup-subr-arity-semantics.expected.tsv` (pass)
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml get_buffer_create_accepts_optional_second_arg` (pass)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml generate_new_buffer_accepts_optional_second_arg` (pass)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml generate_new_buffer_name_optional_arg_matches_expected_types` (pass)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml subr_arity_buffer_lookup_primitives_match_oracle` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/buffer-lookup-subr-arity-semantics` (pass, 15/15)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass; allowlisted drift only: `neovm-precompile-file`)
 
 - Aligned hash-table core primitive `subr-arity` metadata with GNU Emacs:
   - updated:
