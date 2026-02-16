@@ -19,6 +19,24 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Implemented oracle-aligned `clear-rectangle` semantics and locked compatibility corpus coverage:
+  - updated:
+    - `rust/neovm-core/src/elisp/rect.rs`
+      - replaced no-op stub behavior with rectangle-width space filling and per-line trailing-space trimming over affected rectangle lines.
+      - aligned `clear-rectangle` point behavior by restoring caller point after rewrite (clamped when buffer shrinks), while returning rectangle end position from the clear operation.
+      - aligned optional `FILL` handling with oracle behavior (accepted but ignored).
+      - added focused unit coverage for return/value shape, buffer mutation, point restoration, and optional-fill acceptance.
+    - `test/neovm/vm-compat/cases/rect-clear-semantics.forms`
+      - added oracle-backed probes for multi-line clears, START-below-END asymmetry, out-of-range positions, optional fill variants, width-zero path, and type errors.
+    - `test/neovm/vm-compat/cases/rect-clear-semantics.expected.tsv`
+      - recorded oracle baseline outputs for clear-rectangle behavior.
+    - `test/neovm/vm-compat/cases/default.list`
+      - added `cases/rect-clear-semantics` to recurring default compatibility execution.
+  - verified:
+    - `cargo test clear_rectangle --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/rect-clear-semantics` (pass, 10/10)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Implemented oracle-aligned `string-rectangle` / `replace-rectangle` semantics and locked compatibility corpus coverage:
   - updated:
     - `rust/neovm-core/src/elisp/rect.rs`
