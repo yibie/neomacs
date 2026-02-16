@@ -16,6 +16,7 @@ Last updated: 2026-02-16
 - Keep newly landed `command-execute` / `compare-strings` / `completing-read` `subr-arity` parity stable while expanding the remaining command/input matrix.
 - Keep newly landed kmacro/command-loop `subr-arity` parity stable while expanding edit-command arity lock-ins.
 - Keep newly landed delete-family command `subr-arity` parity stable while expanding remaining edit/display command arity matrix.
+- Keep newly landed filesystem/path primitive `subr-arity` parity stable while expanding command/display slices.
 
 ## Next
 
@@ -27,6 +28,29 @@ Last updated: 2026-02-16
 6. Expand `recent-keys` capture beyond `read*` consumers to eventual command-loop event publication.
 
 ## Done
+
+- Aligned filesystem/path primitive `subr-arity` metadata with GNU Emacs:
+  - updated:
+    - `rust/neovm-core/src/elisp/subr_info.rs`
+      - added explicit arity overrides:
+        - `(1 . 3)`: `delete-directory`
+        - `(1 . 2)`: `delete-file`
+        - `(1 . 1)`: `directory-file-name`, `directory-name-p`
+        - `(1 . 5)`: `directory-files`
+        - `(1 . 6)`: `directory-files-and-attributes`
+        - `(1 . 2)`: `expand-file-name`
+      - added unit matrix `subr_arity_filesystem_path_primitives_match_oracle`.
+    - `test/neovm/vm-compat/cases/filesystem-path-subr-arity-semantics.forms`
+    - `test/neovm/vm-compat/cases/filesystem-path-subr-arity-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+      - added oracle lock-in case for filesystem/path arity payloads.
+  - recorded with official GNU Emacs:
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat record FORMS=cases/filesystem-path-subr-arity-semantics.forms EXPECTED=cases/filesystem-path-subr-arity-semantics.expected.tsv` (pass)
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml subr_arity_filesystem_path_primitives_match_oracle -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/filesystem-path-subr-arity-semantics` (pass, 7/7)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass; allowlisted drift only: `neovm-precompile-file`)
 
 - Aligned delete-family command primitive `subr-arity` metadata with GNU Emacs:
   - updated:
