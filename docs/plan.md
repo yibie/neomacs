@@ -19,6 +19,23 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Implemented oracle-aligned `delete-rectangle` return/value semantics and locked compatibility corpus coverage:
+  - updated:
+    - `rust/neovm-core/src/elisp/rect.rs`
+      - replaced nil-returning no-op behavior with rectangle deletion that returns the final point (1-based char position), matching Emacs.
+      - reused rectangle deletion semantics shared with `delete-extract-rectangle` and set point after rewrite to the expected post-command location.
+      - added focused unit coverage for buffer mutation and return value shape.
+    - `test/neovm/vm-compat/cases/rect-delete-semantics.forms`
+      - added oracle-backed probes for return value + buffer state, order asymmetry, clamping, and type errors.
+    - `test/neovm/vm-compat/cases/rect-delete-semantics.expected.tsv`
+      - recorded oracle baseline outputs for delete-rectangle behavior.
+    - `test/neovm/vm-compat/cases/default.list`
+      - added `cases/rect-delete-semantics` to recurring default compatibility execution.
+  - verified:
+    - `cargo test delete_rectangle --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/rect-delete-semantics` (pass, 5/5)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+
 - Implemented oracle-aligned `delete-extract-rectangle` semantics and locked compatibility corpus coverage:
   - updated:
     - `rust/neovm-core/src/elisp/rect.rs`
