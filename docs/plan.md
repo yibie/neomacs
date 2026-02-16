@@ -19,6 +19,25 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Enforced runtime identity helper arity contracts:
+  - updated:
+    - `rust/neovm-core/src/elisp/builtins_extra.rs`
+      - `system-name`, `emacs-version`, and `emacs-pid` now enforce zero arity.
+      - added unit coverage for `wrong-number-of-arguments` on extra args.
+    - added corpus:
+      - `test/neovm/vm-compat/cases/runtime-identity-semantics.{forms,expected.tsv}`
+        - locks return-shape and arity contracts for:
+          - `system-name`
+          - `emacs-version`
+          - `emacs-pid`
+    - `test/neovm/vm-compat/cases/default.list`
+      - added `cases/runtime-identity-semantics`.
+  - verified:
+    - `cargo test builtins_extra::tests::runtime_identity_arity_contracts --manifest-path rust/neovm-core/Cargo.toml -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/runtime-identity-semantics` (pass, 10/10)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass, full default + neovm-only corpus)
+
 - Aligned user identity builtin contracts with optional argument compatibility:
   - updated:
     - `rust/neovm-core/src/elisp/builtins_extra.rs`
