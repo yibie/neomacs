@@ -55,6 +55,30 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Aligned command/edit runtime helper primitive `subr-arity` metadata with GNU Emacs:
+  - added explicit arity lock-ins for:
+    - `(1 . 2)`: `self-insert-command`, `single-key-description`, `skip-chars-backward`, `skip-chars-forward`, `skip-syntax-backward`, `skip-syntax-forward`, `transpose-sexps`
+    - `(1 . many)`: `sort`, `syntax-ppss-flush-cache`
+    - `(1 . 1)`: `shell-command-to-string`, `special-form-p`, `store-kbd-macro-event`, `unibyte-char-to-multibyte`, `upcase-initials`, `upcase-word`, `use-global-map`, `use-local-map`, `view-register`
+    - `(2 . 2)`: `signal`, `take`
+    - `(0 . 4)`: `split-window`
+    - `(1 . 3)`: `switch-to-buffer`
+    - `(0 . 0)`: `this-command-keys`, `this-command-keys-vector`, `undo-boundary`, `universal-argument`, `use-region-p`
+    - `(0 . 1)`: `transient-mark-mode`, `undo`, `yank`, `yank-pop`
+    - `(1 . 1)`: `transpose-chars`, `transpose-lines`, `transpose-paragraphs`, `transpose-sentences`, `transpose-words`
+    - `(2 . 3)`: `upcase-initials-region`, `upcase-region`
+    - `(1 . 5)`: `where-is-internal`
+    - `(2 . many)`: `widget-apply`
+  - added oracle corpus lock-in case:
+    - `test/neovm/vm-compat/cases/command-edit-runtime-subr-arity-semantics.{forms,expected.tsv}`
+    - wired into default suite: `test/neovm/vm-compat/cases/default.list`
+  - unit coverage:
+    - `subr_arity_command_edit_runtime_helpers_match_oracle`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml subr_arity_command_edit_runtime_helpers_match_oracle -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/command-edit-runtime-subr-arity-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
+
 - Aligned time/user/runtime helper primitive `subr-arity` metadata with GNU Emacs:
   - added explicit arity lock-ins for:
     - `(1 . 1)`: `threadp`, `text-char-description`, `y-or-n-p`, `yes-or-no-p`, `zerop`
