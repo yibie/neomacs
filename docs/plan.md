@@ -55,6 +55,26 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Aligned edit/state helper primitive `subr-arity` metadata with GNU Emacs and locked oracle parity:
+  - added explicit arity lock-ins for:
+    - `(0 . 2)`: `newline`, `next-line`
+    - `(0 . 1)`: `newline-and-indent`, `max-char`, `make-syntax-table`
+    - `(1 . 1)`: `open-line`, `locale-info`, `make-local-variable`, `make-variable-buffer-local`
+    - `(1 . 3)`: `other-window`, `goto-line`
+    - `(1 . 4)`: `flush-lines`, `keep-lines`, `how-many`
+    - `(1 . 2)`: `local-variable-p`, `mapatoms`
+    - `(0 . 0)`: `memory-use-counts`, `make-marker`
+    - `(2 . 2)`: `map-char-table`
+  - added oracle corpus lock-in case:
+    - `test/neovm/vm-compat/cases/edit-state-helper-subr-arity-semantics.{forms,expected.tsv}`
+    - wired into default suite: `test/neovm/vm-compat/cases/default.list`
+  - unit coverage:
+    - `subr_arity_edit_state_helper_primitives_match_oracle`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml subr_arity_edit_state_helper_primitives_match_oracle -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/edit-state-helper-subr-arity-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
+
 - Aligned search/match primitive runtime arity + `subr-arity` metadata with GNU Emacs:
   - runtime behavior:
     - enforced max arity for search primitives: `search-forward`, `search-backward`, `re-search-forward`, `re-search-backward` (1..4).
