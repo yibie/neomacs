@@ -5760,6 +5760,9 @@ fn builtin_event_convert_list(args: Vec<Value>) -> EvalResult {
             }
             if ctrl {
                 if let Some(resolved) = resolve_control_code(code) {
+                    if (65..=90).contains(&code) {
+                        mod_bits |= KEY_CHAR_SHIFT;
+                    }
                     code = resolved;
                     mod_bits &= !KEY_CHAR_CTRL;
                 }
