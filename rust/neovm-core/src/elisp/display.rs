@@ -906,17 +906,14 @@ pub(crate) fn builtin_terminal_parameter_eval(
     })
 }
 
-/// (set-terminal-parameter TERMINAL PARAMETER VALUE) -> nil
+/// (set-terminal-parameter TERMINAL PARAMETER VALUE) -> previous value
 pub(crate) fn builtin_set_terminal_parameter(args: Vec<Value>) -> EvalResult {
     expect_args("set-terminal-parameter", &args, 3)?;
     expect_terminal_designator(&args[0])?;
-    if let Ok(name) = expect_symbol_name(&args[1]) {
-        let key = HashKey::Symbol(name);
-        TERMINAL_PARAMS.with(|slot| {
-            slot.borrow_mut().insert(key, args[2].clone());
-        });
-    }
-    Ok(Value::Nil)
+    let key = args[1].to_hash_key(&HashTableTest::Eq);
+    let previous =
+        TERMINAL_PARAMS.with(|slot| slot.borrow_mut().insert(key, args[2].clone()));
+    Ok(previous.unwrap_or(Value::Nil))
 }
 
 /// Evaluator-aware variant of `set-terminal-parameter`.
@@ -928,13 +925,10 @@ pub(crate) fn builtin_set_terminal_parameter_eval(
 ) -> EvalResult {
     expect_args("set-terminal-parameter", &args, 3)?;
     expect_terminal_designator_eval(eval, &args[0])?;
-    if let Ok(name) = expect_symbol_name(&args[1]) {
-        let key = HashKey::Symbol(name);
-        TERMINAL_PARAMS.with(|slot| {
-            slot.borrow_mut().insert(key, args[2].clone());
-        });
-    }
-    Ok(Value::Nil)
+    let key = args[1].to_hash_key(&HashTableTest::Eq);
+    let previous =
+        TERMINAL_PARAMS.with(|slot| slot.borrow_mut().insert(key, args[2].clone()));
+    Ok(previous.unwrap_or(Value::Nil))
 }
 
 // ---------------------------------------------------------------------------
@@ -1231,6 +1225,18 @@ mod tests {
 
         let get_result = builtin_terminal_parameter(vec![Value::Nil, Value::symbol("k")]).unwrap();
         assert!(get_result.is_nil());
+    }
+
+    #[test]
+    fn set_terminal_parameter_returns_previous_for_repeat_non_symbol_key() {
+        clear_terminal_parameters();
+        let first =
+            builtin_set_terminal_parameter(vec![Value::Nil, Value::Int(1), Value::Int(9)]).unwrap();
+        assert!(first.is_nil());
+
+        let second =
+            builtin_set_terminal_parameter(vec![Value::Nil, Value::Int(1), Value::Int(1)]).unwrap();
+        assert_eq!(second, Value::Int(9));
     }
 
     #[test]
