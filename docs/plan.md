@@ -61,12 +61,13 @@ Last updated: 2026-02-16
 - Keep newly landed `set-window-dedicated-p` designator parity stable while expanding remaining window lifecycle/helper drifts.
 - Keep newly landed `select-window` designator/current-buffer parity stable while expanding remaining window lifecycle/helper drifts.
 - Keep newly landed `other-window` current-buffer side-effect parity stable while expanding remaining window navigation/helper drifts.
+- Keep newly landed `delete-window` / `delete-other-windows` current-buffer side-effect parity stable while expanding remaining window lifecycle/helper drifts.
 - Keep newly landed window missing-buffer/designator parity slice stable while expanding remaining window lifecycle/helper drifts.
 
 ## Next
 
 1. Keep `check-all-neovm` as a recurring post-slice gate to catch regressions early.
-2. Land the next evaluator-backed stub replacement after the `get-buffer-window` optional-buffer slice (prefer high-impact buffer/window lifecycle helper paths).
+2. Land the next evaluator-backed stub replacement after the `delete-window` / `delete-other-windows` current-buffer parity slice (prefer high-impact buffer/window lifecycle helper paths).
 3. Continue expanding oracle corpora for remaining high-risk stub areas (search/input/minibuffer/display/font edge paths) and keep list/alist primitive semantics locked in.
 4. Keep Rust backend behind compile-time switch and preserve Emacs C core as default backend.
 5. Expand `kbd` edge corpus around uncommon modifier composition and align non-`kbd` key-description consumers with the new parser semantics where needed.
@@ -75,6 +76,22 @@ Last updated: 2026-02-16
 8. Resolve the last startup wrapper-shape drift (`neovm-precompile-file`) with an explicit extension-vs-oracle policy and lock-in corpus note.
 
 ## Done
+
+- Aligned `delete-window` / `delete-other-windows` current-buffer side effects with GNU Emacs and added oracle lock-ins:
+  - updated runtime behavior:
+    - `rust/neovm-core/src/elisp/window_cmds.rs`
+    - `delete-window` now updates current buffer to the selected window's displayed buffer after successful deletion.
+    - `delete-other-windows` now updates current buffer to the kept window's displayed buffer after window consolidation.
+  - added evaluator regressions:
+    - `delete_window_updates_current_buffer_to_selected_window_buffer`
+    - `delete_other_windows_updates_current_buffer_when_kept_window_differs`
+  - added oracle corpus cases:
+    - `test/neovm/vm-compat/cases/delete-window-current-buffer-semantics.{forms,expected.tsv}`
+    - `test/neovm/vm-compat/cases/delete-other-windows-current-buffer-semantics.{forms,expected.tsv}`
+    - wired into:
+      - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
 
 - Aligned `other-window` current-buffer side effects with GNU Emacs and added oracle lock-in:
   - updated runtime behavior:
