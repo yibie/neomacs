@@ -130,6 +130,14 @@ cd test/neovm/vm-compat
 make check-builtin-registry-fboundp
 ```
 
+Run the oracle default-path guard (ensures runner scripts stay pinned to the
+hardcoded GNU Emacs oracle binary):
+
+```bash
+cd test/neovm/vm-compat
+make check-oracle-default-path
+```
+
 Run the ERT allowlist oracle scaffold (for upstream differential bootstrapping):
 
 ```bash

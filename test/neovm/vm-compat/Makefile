@@ -24,7 +24,7 @@ ERT_ALLOWLIST ?= cases/ert-allowlist-smoke.txt
 ERT_EXPECTED ?= cases/ert-allowlist-smoke.expected.tsv
 ERT_LOAD_FILES ?= cases/ert-allowlist-fixtures/smoke-tests.el
 
-.PHONY: oracle neovm record check compare check-neovm record-all check-all check-all-neovm check-all-neovm-only check-all-neovm-strict check-legacy-elc-neovm check-introspection-neovm check-thread-neovm check-runner-feature-stamp check-builtin-registry-fboundp check-case-line-filter list-cases record-list check-list check-neovm-list check-one-neovm validate-case-lists ert-oracle record-ert-allowlist check-ert-allowlist bench-load-cache
+.PHONY: oracle neovm record check compare check-neovm record-all check-all check-all-neovm check-all-neovm-only check-all-neovm-strict check-legacy-elc-neovm check-introspection-neovm check-thread-neovm check-runner-feature-stamp check-builtin-registry-fboundp check-oracle-default-path check-case-line-filter list-cases record-list check-list check-neovm-list check-one-neovm validate-case-lists ert-oracle record-ert-allowlist check-ert-allowlist bench-load-cache
 
 oracle:
 	./run-oracle.sh $(FORMS)
@@ -80,6 +80,7 @@ check-all-neovm-strict:
 	@set -e; \
 	$(MAKE) --no-print-directory check-all-neovm; \
 	$(MAKE) --no-print-directory check-builtin-registry-fboundp; \
+	$(MAKE) --no-print-directory check-oracle-default-path; \
 	echo "strict neovm compatibility checks passed"
 
 check-all-neovm-only:
@@ -116,6 +117,9 @@ check-runner-feature-stamp:
 
 check-builtin-registry-fboundp:
 	./check-builtin-registry-fboundp.sh
+
+check-oracle-default-path:
+	./check-oracle-default-path.sh
 
 check-case-line-filter:
 	./check-case-line-filter.sh
