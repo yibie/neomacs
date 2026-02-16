@@ -351,6 +351,7 @@ fn subr_arity_value(name: &str) -> Value {
         "buffer-file-name" | "buffer-name" | "buffer-size" | "buffer-modified-p"
         | "buffer-list" | "buffer-disable-undo" | "buffer-enable-undo" | "buffer-hash"
         | "buffer-local-variables" => arity_cons(0, Some(1)),
+        "other-buffer" => arity_cons(0, Some(3)),
         "marker-buffer" | "marker-insertion-type" | "marker-position" | "markerp" => {
             arity_cons(1, Some(1))
         }
@@ -1280,6 +1281,7 @@ mod tests {
         assert_subr_arity("buffer-size", 0, Some(1));
         assert_subr_arity("buffer-modified-p", 0, Some(1));
         assert_subr_arity("buffer-list", 0, Some(1));
+        assert_subr_arity("other-buffer", 0, Some(3));
         assert_subr_arity("buffer-disable-undo", 0, Some(1));
         assert_subr_arity("buffer-enable-undo", 0, Some(1));
         assert_subr_arity("buffer-hash", 0, Some(1));

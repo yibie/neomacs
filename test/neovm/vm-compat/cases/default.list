@@ -333,6 +333,7 @@ cases/terminal-handle-printing
 cases/frame-batch-semantics
 cases/window-buffer-switch-semantics
 cases/window-buffer-designator-errors-semantics
+cases/other-buffer-semantics
 cases/default-directory
 cases/expand-file-name-default-directory
 cases/directory-file-name

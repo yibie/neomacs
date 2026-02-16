@@ -4985,6 +4985,50 @@ pub(crate) fn builtin_buffer_list(
     Ok(Value::list(vals))
 }
 
+/// (other-buffer &optional BUFFER VISIBLE-OK FRAME) → buffer
+///
+/// Batch-friendly behavior:
+/// - prefers `*Messages*` when available and distinct from BUFFER
+/// - otherwise returns a live buffer distinct from BUFFER when possible
+/// - falls back to BUFFER/current buffer when no alternative exists
+pub(crate) fn builtin_other_buffer(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_max_args("other-buffer", &args, 3)?;
+
+    let current_id = eval.buffers.current_buffer().map(|buf| buf.id);
+    let avoid_id = match args.first() {
+        None | Some(Value::Nil) => current_id,
+        Some(Value::Buffer(id)) => Some(*id),
+        Some(Value::Str(name)) => eval.buffers.find_buffer_by_name(name),
+        // GNU Emacs is permissive for non-buffer designators here; treat as
+        // unspecified and still return a live buffer.
+        Some(_) => current_id,
+    };
+
+    if let Some(messages_id) = eval.buffers.find_buffer_by_name("*Messages*") {
+        if Some(messages_id) != avoid_id {
+            return Ok(Value::Buffer(messages_id));
+        }
+    }
+
+    if let Some(id) = eval
+        .buffers
+        .buffer_list()
+        .into_iter()
+        .find(|id| Some(*id) != avoid_id)
+    {
+        return Ok(Value::Buffer(id));
+    }
+
+    if let Some(id) = avoid_id.or(current_id) {
+        return Ok(Value::Buffer(id));
+    }
+
+    Ok(Value::Nil)
+}
+
 /// (generate-new-buffer-name BASE) → string
 pub(crate) fn builtin_generate_new_buffer_name(
     eval: &mut super::eval::Evaluator,
@@ -6883,6 +6927,7 @@ pub(crate) fn dispatch_builtin(
         "buffer-modified-p" => return Some(builtin_buffer_modified_p(eval, args)),
         "set-buffer-modified-p" => return Some(builtin_set_buffer_modified_p(eval, args)),
         "buffer-list" => return Some(builtin_buffer_list(eval, args)),
+        "other-buffer" => return Some(builtin_other_buffer(eval, args)),
         "generate-new-buffer-name" => return Some(builtin_generate_new_buffer_name(eval, args)),
         "generate-new-buffer" => return Some(builtin_generate_new_buffer(eval, args)),
         "char-after" => return Some(builtin_char_after(eval, args)),
@@ -9785,6 +9830,36 @@ mod tests {
                     sig.data,
                     vec![Value::symbol("stringp"), Value::list(vec![Value::Int(1)])]
                 );
+            }
+            other => panic!("unexpected flow: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn other_buffer_prefers_live_alternative_and_enforces_arity() {
+        let mut eval = super::super::eval::Evaluator::new();
+        let _ = builtin_get_buffer_create(&mut eval, vec![Value::string("*Messages*")]).unwrap();
+        let avoid = builtin_get_buffer_create(&mut eval, vec![Value::string("*ob-avoid*")])
+            .expect("create avoid buffer");
+
+        let other = builtin_other_buffer(&mut eval, vec![avoid.clone()]).expect("other-buffer");
+        assert!(matches!(other, Value::Buffer(_)));
+        assert_ne!(other, avoid);
+
+        let from_non_buffer =
+            builtin_other_buffer(&mut eval, vec![Value::Int(1)]).expect("other-buffer int");
+        assert!(matches!(from_non_buffer, Value::Buffer(_)));
+
+        let from_missing_name = builtin_other_buffer(&mut eval, vec![Value::string("*missing*")])
+            .expect("other-buffer missing name");
+        assert!(matches!(from_missing_name, Value::Buffer(_)));
+
+        let err = builtin_other_buffer(&mut eval, vec![Value::Nil, Value::Nil, Value::Nil, Value::Nil])
+            .expect_err("other-buffer should reject more than three args");
+        match err {
+            Flow::Signal(sig) => {
+                assert_eq!(sig.symbol, "wrong-number-of-arguments");
+                assert_eq!(sig.data, vec![Value::symbol("other-buffer"), Value::Int(4)]);
             }
             other => panic!("unexpected flow: {other:?}"),
         }

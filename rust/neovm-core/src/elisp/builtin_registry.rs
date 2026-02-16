@@ -601,6 +601,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "open-line",
     "open-rectangle",
     "open-termscript",
+    "other-buffer",
     "other-window",
     "overlay-buffer",
     "overlay-end",
