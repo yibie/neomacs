@@ -25,6 +25,30 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Hardened vm-compat runner parsing for stdout-noisy forms (for example `read-passwd` prompts):
+  - updated:
+    - `test/neovm/vm-compat/oracle_eval.el`
+      - switched case-line emission to post-eval full-line writes with a stable case prefix (`__NEOVM_CASE__\t`).
+    - `rust/neovm-worker/examples/elisp_compat_runner.rs`
+      - prefixed emitted case lines with the same stable marker.
+    - `test/neovm/vm-compat/run-oracle.sh`
+    - `test/neovm/vm-compat/run-neovm.sh`
+      - filter output to case-prefixed lines and strip prefix before compare/record, so incidental stdout noise does not corrupt TSV parsing.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/core` (pass, 15/15)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/input-batch-readers` (pass, 70/70)
+
+- Added oracle lock-in corpus for `read-passwd` batch semantics:
+  - added and enabled:
+    - `test/neovm/vm-compat/cases/read-passwd-batch-semantics.forms`
+    - `test/neovm/vm-compat/cases/read-passwd-batch-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+  - recorded with official GNU Emacs:
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat record FORMS=cases/read-passwd-batch-semantics.forms EXPECTED=cases/read-passwd-batch-semantics.expected.tsv` (pass)
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/read-passwd-batch-semantics` (pass, 8/8)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Implemented `read-passwd` batch compatibility in reader path:
   - updated:
     - `rust/neovm-core/src/elisp/reader.rs`
