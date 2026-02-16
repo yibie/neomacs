@@ -55,6 +55,25 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Aligned time/user/runtime helper primitive `subr-arity` metadata with GNU Emacs:
+  - added explicit arity lock-ins for:
+    - `(1 . 1)`: `threadp`, `text-char-description`, `y-or-n-p`, `yes-or-no-p`, `zerop`
+    - `(2 . 2)`: `time-add`, `time-equal-p`, `time-less-p`, `time-subtract`
+    - `(1 . 2)`: `time-convert`
+    - `(0 . 0)`: `system-groups`, `system-users`, `user-real-login-name`, `user-real-uid`, `user-uid`, `zlib-available-p`
+    - `(0 . 2)`: `tab-bar-height`, `tool-bar-height`
+    - `(0 . 1)`: `user-full-name`, `user-login-name`
+    - `(2 . 3)`: `zlib-decompress-region`
+  - added oracle corpus lock-in case:
+    - `test/neovm/vm-compat/cases/time-user-runtime-subr-arity-semantics.{forms,expected.tsv}`
+    - wired into default suite: `test/neovm/vm-compat/cases/default.list`
+  - unit coverage:
+    - `subr_arity_time_user_runtime_helpers_match_oracle`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml subr_arity_time_user_runtime_helpers_match_oracle -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/time-user-runtime-subr-arity-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
+
 - Aligned string/syntax helper primitive `subr-arity` metadata with GNU Emacs:
   - added explicit arity lock-ins for:
     - `(1 . 1)`: `string-as-multibyte`, `string-as-unibyte`, `string-make-multibyte`, `string-make-unibyte`, `string-to-multibyte`, `string-to-syntax`, `string-to-unibyte`, `substitute-in-file-name`, `syntax-after`, `syntax-class-to-char`, `syntax-table-p`
