@@ -55,6 +55,25 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Aligned `set*`/`scan-*` helper primitive `subr-arity` metadata with GNU Emacs:
+  - added explicit arity lock-ins for:
+    - `(1 . 1)`: `set-buffer`, `set-buffer-modified-p`, `set-case-table`, `set-category-table`, `set-default-file-modes`, `set-standard-case-table`, `set-syntax-table`, `set-time-zone-rule`
+    - `(2 . 2)`: `set-default`, `set-keymap-parent`, `set-window-dedicated-p`, `setcar`, `setcdr`, `set-char-table-parent`
+    - `(3 . 3)`: `set-char-table-extra-slot`, `set-char-table-range`, `scan-lists`
+    - `(2 . 3)`: `set-file-modes`
+    - `(1 . 3)`: `set-file-times`, `set-terminal-coding-system`
+    - `(1 . 2)`: `set-keyboard-coding-system`, `set-match-data`
+    - `(2 . 2)`: `scan-sexps`
+  - added oracle corpus lock-in case:
+    - `test/neovm/vm-compat/cases/set-scan-subr-arity-semantics.{forms,expected.tsv}`
+    - wired into default suite: `test/neovm/vm-compat/cases/default.list`
+  - unit coverage:
+    - `subr_arity_set_scan_helpers_match_oracle`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml subr_arity_set_scan_helpers_match_oracle -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/set-scan-subr-arity-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
+
 - Aligned syntax/category/plist helper primitive `subr-arity` metadata with GNU Emacs:
   - added explicit arity lock-ins for:
     - `(2 . 2)`: `file-attributes-lessp`
