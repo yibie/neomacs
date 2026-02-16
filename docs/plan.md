@@ -7781,6 +7781,20 @@ Last updated: 2026-02-16
     - prints a single success sentinel on full pass
   - verified:
     - `make -C test/neovm/vm-compat check-all-neovm-strict ALL_NEOVM_CASES='cases/core'` (pass)
+- Aligned point/navigation primitive `subr-arity` metadata with GNU Emacs and locked parity in corpus:
+  - added arity overrides:
+    - `(1 . 1)`: `goto-char`
+    - `(0 . 1)`: `beginning-of-line`, `end-of-line`, `beginning-of-buffer`, `end-of-buffer`, `forward-char`, `backward-char`, `forward-word`, `backward-word`, `forward-line`
+    - `(0 . 0)`: `point-max`, `point-min`, `bobp`, `eobp`, `bolp`, `eolp`
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/point-navigation-subr-arity-semantics.forms`
+    - `test/neovm/vm-compat/cases/point-navigation-subr-arity-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test subr_arity_point_navigation_primitives_match_oracle -- --nocapture` in `rust/neovm-core` (pass)
+    - `make -C test/neovm/vm-compat check-neovm CASE=cases/point-navigation-subr-arity-semantics` (pass, 15/15)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass, 1 allowlisted drift)
 
 ## Doing
 
