@@ -299,8 +299,15 @@ fn subr_arity_value(name: &str) -> Value {
         n if is_cxr_subr_name(n) => arity_cons(1, Some(1)),
         "message" => arity_cons(1, None),
         "/" | "<" | "<=" | "=" | ">" | ">=" | "apply" => arity_cons(1, None),
+        "cons" => arity_cons(2, Some(2)),
         "1+" | "1-" | "abs" => arity_cons(1, Some(1)),
         "%" | "/=" | "ash" => arity_cons(2, Some(2)),
+        "copy-alist" | "copy-hash-table" | "copy-sequence" => arity_cons(1, Some(1)),
+        "copy-marker" => arity_cons(0, Some(2)),
+        "copy-syntax-table" => arity_cons(0, Some(1)),
+        "copy-file" => arity_cons(2, Some(6)),
+        "copy-region-as-kill" => arity_cons(2, Some(3)),
+        "copy-to-register" => arity_cons(3, Some(5)),
         "goto-char" => arity_cons(1, Some(1)),
         "beginning-of-line" | "end-of-line" | "beginning-of-buffer" | "end-of-buffer"
         | "forward-char" | "backward-char" | "forward-word" | "backward-word"
@@ -984,6 +991,19 @@ mod tests {
         assert_subr_arity("defined-colors", 0, Some(1));
         assert_subr_arity("color-defined-p", 1, Some(2));
         assert_subr_arity("color-values", 1, Some(2));
+    }
+
+    #[test]
+    fn subr_arity_copy_cons_primitives_match_oracle() {
+        assert_subr_arity("cons", 2, Some(2));
+        assert_subr_arity("copy-alist", 1, Some(1));
+        assert_subr_arity("copy-file", 2, Some(6));
+        assert_subr_arity("copy-hash-table", 1, Some(1));
+        assert_subr_arity("copy-marker", 0, Some(2));
+        assert_subr_arity("copy-region-as-kill", 2, Some(3));
+        assert_subr_arity("copy-sequence", 1, Some(1));
+        assert_subr_arity("copy-syntax-table", 0, Some(1));
+        assert_subr_arity("copy-to-register", 3, Some(5));
     }
 
     #[test]
