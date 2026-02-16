@@ -319,6 +319,7 @@ cases/process-subr-arity-semantics
 cases/getenv-optional-frame-semantics
 cases/file-name-concat
 cases/path-predicates
+cases/file-stat-predicate-subr-arity-semantics
 cases/file-name-types
 cases/file-name-completion
 cases/substitute-in-file-name

@@ -308,6 +308,12 @@ fn subr_arity_value(name: &str) -> Value {
         "copy-file" => arity_cons(2, Some(6)),
         "copy-region-as-kill" => arity_cons(2, Some(3)),
         "copy-to-register" => arity_cons(3, Some(5)),
+        "file-attributes" | "file-modes" => arity_cons(1, Some(2)),
+        "file-directory-p" | "file-exists-p" | "file-readable-p" | "file-regular-p"
+        | "file-symlink-p" | "file-writable-p" => arity_cons(1, Some(1)),
+        "file-newer-than-file-p" | "file-equal-p" | "file-in-directory-p" => {
+            arity_cons(2, Some(2))
+        }
         "goto-char" => arity_cons(1, Some(1)),
         "beginning-of-line" | "end-of-line" | "beginning-of-buffer" | "end-of-buffer"
         | "forward-char" | "backward-char" | "forward-word" | "backward-word"
@@ -1078,6 +1084,21 @@ mod tests {
         assert_subr_arity("directory-files-and-attributes", 1, Some(6));
         assert_subr_arity("directory-name-p", 1, Some(1));
         assert_subr_arity("expand-file-name", 1, Some(2));
+    }
+
+    #[test]
+    fn subr_arity_file_stat_predicate_primitives_match_oracle() {
+        assert_subr_arity("file-attributes", 1, Some(2));
+        assert_subr_arity("file-directory-p", 1, Some(1));
+        assert_subr_arity("file-equal-p", 2, Some(2));
+        assert_subr_arity("file-exists-p", 1, Some(1));
+        assert_subr_arity("file-in-directory-p", 2, Some(2));
+        assert_subr_arity("file-modes", 1, Some(2));
+        assert_subr_arity("file-newer-than-file-p", 2, Some(2));
+        assert_subr_arity("file-readable-p", 1, Some(1));
+        assert_subr_arity("file-regular-p", 1, Some(1));
+        assert_subr_arity("file-symlink-p", 1, Some(1));
+        assert_subr_arity("file-writable-p", 1, Some(1));
     }
 
     #[test]
