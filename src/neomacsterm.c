@@ -2916,22 +2916,26 @@ neomacs_layout_status_line_text_1 (struct window *w, struct frame *f,
   if (!w || !out_buf || out_buf_len <= 0)
     return -1;
 
-  /* Fill base face data. */
-  struct face *base_face = FACE_FROM_ID_OR_NULL (f, face_id);
-  if (!base_face)
-    base_face = FACE_FROM_ID_OR_NULL (f, DEFAULT_FACE_ID);
-  if (face_out && base_face)
-    fill_face_data (f, base_face, (struct FaceDataFFI *) face_out);
-
   if (NILP (format))
     return 0;
 
   if (!BUFFERP (w->contents))
     return -1;
 
+  /* Switch to window's buffer BEFORE face lookup so that
+     face-remapping-alist (used by solaire-mode to remap mode-line,
+     header-line, etc.) is respected.  */
   struct buffer *buf = XBUFFER (w->contents);
   struct buffer *old = current_buffer;
   set_buffer_internal_1 (buf);
+
+  /* Fill base face data with remapped face. */
+  int remapped_face_id = lookup_basic_face (w, f, face_id);
+  struct face *base_face = FACE_FROM_ID_OR_NULL (f, remapped_face_id);
+  if (!base_face)
+    base_face = FACE_FROM_ID_OR_NULL (f, face_id);
+  if (face_out && base_face)
+    fill_face_data (f, base_face, (struct FaceDataFFI *) face_out);
 
   /* Call (format-mode-line FORMAT nil WINDOW BUFFER).
      Pass nil as FACE so that per-segment face properties from
@@ -3004,7 +3008,7 @@ neomacs_layout_status_line_text_1 (struct window *w, struct frame *f,
           {
             ptrdiff_t endpos;
             int rid = face_at_string_position (w, result, charpos, 0,
-                                               &endpos, face_id,
+                                               &endpos, remapped_face_id,
                                                false, 0);
             if (endpos > charpos && endpos < next_pos)
               next_pos = endpos;
