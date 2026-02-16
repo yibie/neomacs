@@ -118,17 +118,24 @@ echo "skipped extension entries: $extension_total"
 echo "oracle/neovm function-kind drifts: $drift"
 echo "allowlist entries: $(wc -l < "$tmp_allow" | tr -d ' ')"
 
-if [[ "$drift" -gt 0 ]]; then
-  echo
-  echo "drift details (name | oracle | neovm):"
-  cat "$tmp_mismatches"
-fi
-
 if [[ "$unexpected" -gt 0 ]]; then
+  echo
+  echo "all drift details (name | oracle | neovm):"
+  cat "$tmp_mismatches"
   echo
   echo "unexpected drifts not in allowlist:"
   cat "$tmp_unexpected"
   exit 1
+fi
+
+if [[ "$drift" -gt 0 ]] && [[ "${SHOW_ALLOWLISTED_DRIFTS:-0}" != "1" ]]; then
+  echo "all current drifts are allowlisted; set SHOW_ALLOWLISTED_DRIFTS=1 to print details"
+fi
+
+if [[ "$drift" -gt 0 ]] && [[ "${SHOW_ALLOWLISTED_DRIFTS:-0}" == "1" ]]; then
+  echo
+  echo "drift details (name | oracle | neovm):"
+  cat "$tmp_mismatches"
 fi
 
 if [[ "$stale" -gt 0 ]]; then
