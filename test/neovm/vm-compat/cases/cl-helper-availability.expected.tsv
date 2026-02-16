@@ -36,10 +36,10 @@
 36	(condition-case err (cl-minusp -1) (error err))	OK t
 37	(fboundp 'cl-ninth)	OK t
 38	(condition-case err (cl-ninth '(a b c d e f g h i)) (error err))	OK i
-39	(fboundp 'cl-notany)	OK nil
-40	(condition-case err (cl-notany) (error err))	OK (void-function cl-notany)
-41	(fboundp 'cl-notevery)	OK nil
-42	(condition-case err (cl-notevery) (error err))	OK (void-function cl-notevery)
+39	(fboundp 'cl-notany)	OK t
+40	(condition-case err (cl-notany #'numberp '("x" "y")) (error err))	OK t
+41	(fboundp 'cl-notevery)	OK t
+42	(condition-case err (cl-notevery #'numberp '(1 "x")) (error err))	OK t
 43	(fboundp 'cl-oddp)	OK t
 44	(condition-case err (cl-oddp 3) (error err))	OK t
 45	(fboundp 'cl-plusp)	OK t
