@@ -173,6 +173,7 @@ cases/transient-mark-mode-semantics
 cases/input-batch-readers
 cases/thing-at-point-core-semantics
 cases/thing-at-point-line-semantics
+cases/thing-at-point-sentence-sexp-semantics
 cases/thing-at-point-url-email-semantics
 cases/thing-at-point-filename-semantics
 cases/symbol-word-at-point-semantics

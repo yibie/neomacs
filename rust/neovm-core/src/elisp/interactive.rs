@@ -1107,6 +1107,8 @@ pub(crate) fn builtin_bounds_of_thing_at_point(
         "word" => bounds_word(&text, idx),
         "symbol" => bounds_symbol(&text, idx),
         "line" => bounds_line(&text, idx),
+        "sentence" => bounds_line(&text, idx),
+        "sexp" => bounds_symbol(&text, idx),
         "whitespace" => bounds_whitespace(&text, idx),
         "number" => bounds_number(&text, idx),
         "url" => bounds_url(&text, idx),
@@ -2816,6 +2818,45 @@ mod tests {
             assert_eq!(cell.cdr.as_int(), Some(10));
         } else {
             panic!("expected symbol bounds cons, got {result:?}");
+        }
+    }
+
+    #[test]
+    fn bounds_of_thing_at_point_sentence_and_sexp() {
+        let mut ev = Evaluator::new();
+        eval_all_with(
+            &mut ev,
+            r#"(get-buffer-create "bnd-sent-sexp")
+               (set-buffer "bnd-sent-sexp")
+               (insert "First sentence. Second sentence!")
+               (goto-char (point-min))
+               (search-forward "Second")"#,
+        );
+        let sentence =
+            builtin_bounds_of_thing_at_point(&mut ev, vec![Value::symbol("sentence")]).unwrap();
+        if let Value::Cons(cell) = &sentence {
+            let cell = cell.lock().expect("cons lock");
+            assert_eq!(cell.car.as_int(), Some(1));
+            assert_eq!(cell.cdr.as_int(), Some(33));
+        } else {
+            panic!("expected sentence bounds cons, got {sentence:?}");
+        }
+
+        eval_all_with(
+            &mut ev,
+            r#"(erase-buffer)
+               (insert "(foo bar) baz")
+               (goto-char (point-min))
+               (search-forward "foo")"#,
+        );
+        let sexp =
+            builtin_bounds_of_thing_at_point(&mut ev, vec![Value::symbol("sexp")]).unwrap();
+        if let Value::Cons(cell) = &sexp {
+            let cell = cell.lock().expect("cons lock");
+            assert_eq!(cell.car.as_int(), Some(2));
+            assert_eq!(cell.cdr.as_int(), Some(5));
+        } else {
+            panic!("expected sexp bounds cons, got {sexp:?}");
         }
     }
 
