@@ -268,6 +268,7 @@ pub unsafe extern "C" fn neomacs_display_load_image_data(
     // Threaded path: send encoded data to render thread
     if let Some(ref state) = THREADED_STATE {
         let id = IMAGE_ID_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        log::info!("load_image_data: threaded path, id={}, len={} bytes", id, len);
         let cmd = RenderCommand::ImageLoadData {
             id,
             data: data_slice.to_vec(),

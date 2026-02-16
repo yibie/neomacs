@@ -7245,8 +7245,10 @@ neomacs_get_or_load_image (struct neomacs_display_info *dpyinfo, struct image *i
   /* Not in cache - load the image */
   uint32_t gpu_id = 0;
 
-  /* Try to load from pixmap data if available (Emacs decoded it) */
-  if (img->pixmap && img->pixmap->data)
+  /* Try to load from pixmap data if available (Emacs decoded it).
+     Skip the sentinel pixmap (1) set by neomacs_load to prevent
+     prepare_image_for_display from re-calling load.  */
+  if (img->pixmap && img->pixmap != (Emacs_Pixmap) 1 && img->pixmap->data)
     {
       /* Emacs Cairo uses ARGB32 or RGB24 format */
       int width = img->pixmap->width;

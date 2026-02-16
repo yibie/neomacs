@@ -13128,6 +13128,11 @@ neomacs_load (struct frame *f, struct image *img)
         }
     }
 
+  /* Set pixmap to a sentinel value so prepare_image_for_display won't
+     re-call neomacs_load on every redisplay.  The actual GPU loading is
+     done lazily by neomacs_get_or_load_image in neomacsterm.c.  */
+  img->pixmap = (Emacs_Pixmap) 1;
+
   /* Mark background as valid */
   img->background_valid = 1;
   img->background = 0;
@@ -13137,17 +13142,29 @@ neomacs_load (struct frame *f, struct image *img)
   return true;
 }
 
+/* Clear a neomacs GPU-backed image.  neomacs_load sets img->pixmap to a
+   sentinel value (1) to prevent prepare_image_for_display from
+   re-calling load on every redisplay.  We must reset it before calling
+   the generic clear function, which would try to free_pixmap on it.  */
+static void
+neomacs_clear_image (struct frame *f, struct image *img)
+{
+  if (img->pixmap == (Emacs_Pixmap) 1)
+    img->pixmap = NO_PIXMAP;
+  image_clear_image (f, img);
+}
+
 /* Array of supported image types.  */
 
 static struct image_type const image_types[] =
 {
  /* Neomacs GPU-backed image types (unconditional, Rust decoding) */
- { SYMBOL_INDEX (Qpng),  neomacs_png_image_p,  neomacs_load, image_clear_image },
- { SYMBOL_INDEX (Qjpeg), neomacs_jpeg_image_p, neomacs_load, image_clear_image },
- { SYMBOL_INDEX (Qgif),  neomacs_gif_image_p,  neomacs_load, image_clear_image },
- { SYMBOL_INDEX (Qtiff), neomacs_tiff_image_p, neomacs_load, image_clear_image },
- { SYMBOL_INDEX (Qwebp), neomacs_webp_image_p, neomacs_load, image_clear_image },
- { SYMBOL_INDEX (Qsvg),  neomacs_svg_image_p,  neomacs_load, image_clear_image },
+ { SYMBOL_INDEX (Qpng),  neomacs_png_image_p,  neomacs_load, neomacs_clear_image },
+ { SYMBOL_INDEX (Qjpeg), neomacs_jpeg_image_p, neomacs_load, neomacs_clear_image },
+ { SYMBOL_INDEX (Qgif),  neomacs_gif_image_p,  neomacs_load, neomacs_clear_image },
+ { SYMBOL_INDEX (Qtiff), neomacs_tiff_image_p, neomacs_load, neomacs_clear_image },
+ { SYMBOL_INDEX (Qwebp), neomacs_webp_image_p, neomacs_load, neomacs_clear_image },
+ { SYMBOL_INDEX (Qsvg),  neomacs_svg_image_p,  neomacs_load, neomacs_clear_image },
 #ifdef HAVE_GHOSTSCRIPT
  { SYMBOL_INDEX (Qpostscript), gs_image_p, gs_load, image_clear_image },
 #endif
@@ -13184,7 +13201,7 @@ static struct image_type const image_types[] =
  { SYMBOL_INDEX (Qwebp), webp_image_p, webp_load, image_clear_image,
    IMAGE_TYPE_INIT (init_webp_functions) },
 #endif
- { SYMBOL_INDEX (Qneomacs), neomacs_image_p, neomacs_load, image_clear_image },
+ { SYMBOL_INDEX (Qneomacs), neomacs_image_p, neomacs_load, neomacs_clear_image },
  { SYMBOL_INDEX (Qxbm), xbm_image_p, xbm_load, image_clear_image },
  { SYMBOL_INDEX (Qpbm), pbm_image_p, pbm_load, image_clear_image },
 };
