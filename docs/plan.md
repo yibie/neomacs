@@ -19,6 +19,25 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Exposed `cl-subseq` as a callable CL helper:
+  - updated:
+    - `rust/neovm-core/src/elisp/cl_lib.rs`
+      - added `cl-subseq` builtin (arity `2..3`) as a CL alias over `seq-subseq`.
+      - added local `expect_max_args` helper in `cl_lib` for bounded-arity checks.
+      - added focused unit coverage for list extraction, wrong arity, and wrong-type paths.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - pure CL/seq dispatch now routes `cl-subseq`.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - added `cl-subseq` to builtin registry.
+    - `test/neovm/vm-compat/cases/cl-helper-availability.forms`
+      - switched helper probe to callable form `(cl-subseq '(a b c d) 1 3)`.
+    - `test/neovm/vm-compat/cases/cl-helper-availability.expected.tsv`
+      - updated expectations from missing helper to callable behavior (`(b c)`).
+  - verified:
+    - `cargo test cl_subseq --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/cl-helper-availability` (pass, 86/86)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Exposed `cl-minusp` as a callable CL helper:
   - updated:
     - `rust/neovm-core/src/elisp/cl_lib.rs`
