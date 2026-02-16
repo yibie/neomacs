@@ -501,6 +501,26 @@ pub(crate) fn builtin_kmacro_add_counter(
     Ok(Value::Nil)
 }
 
+/// (kmacro-set-format FORMAT) -> nil
+pub(crate) fn builtin_kmacro_set_format(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_args("kmacro-set-format", &args, 1)?;
+    let format = match &args[0] {
+        Value::Str(s) if s.is_empty() => "%d".to_string(),
+        Value::Str(s) => s.to_string(),
+        other => {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("stringp"), other.clone()],
+            ))
+        }
+    };
+    eval.kmacro.counter_format = format;
+    Ok(Value::Nil)
+}
+
 /// (store-kbd-macro-event EVENT) -> nil
 ///
 /// Add EVENT to the keyboard macro currently being recorded.
@@ -895,6 +915,32 @@ mod tests {
         assert!(builtin_kmacro_add_counter(&mut eval, vec![]).is_err());
         assert!(builtin_kmacro_add_counter(&mut eval, vec![Value::Nil]).is_err());
         assert!(builtin_kmacro_add_counter(&mut eval, vec![Value::Int(1), Value::Nil]).is_err());
+    }
+
+    #[test]
+    fn test_kmacro_set_format_builtin() {
+        use super::super::eval::Evaluator;
+
+        let mut eval = Evaluator::new();
+        assert_eq!(eval.kmacro.counter_format, "%d");
+
+        assert_eq!(
+            builtin_kmacro_set_format(&mut eval, vec![Value::string("item-%d")]).unwrap(),
+            Value::Nil
+        );
+        assert_eq!(eval.kmacro.counter_format, "item-%d");
+
+        assert_eq!(
+            builtin_kmacro_set_format(&mut eval, vec![Value::string("")]).unwrap(),
+            Value::Nil
+        );
+        assert_eq!(eval.kmacro.counter_format, "%d");
+
+        assert!(builtin_kmacro_set_format(&mut eval, vec![]).is_err());
+        assert!(builtin_kmacro_set_format(&mut eval, vec![Value::Nil]).is_err());
+        assert!(
+            builtin_kmacro_set_format(&mut eval, vec![Value::string("%d"), Value::Nil]).is_err()
+        );
     }
 
     #[test]

@@ -458,6 +458,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "kmacro-add-counter",
     "kmacro-p",
     "kmacro-set-counter",
+    "kmacro-set-format",
     "kill-append",
     "kill-buffer",
     "kill-line",

@@ -6215,6 +6215,7 @@ pub(crate) fn dispatch_builtin(
         "kmacro-p" => return Some(super::kmacro::builtin_kmacro_p(args)),
         "kmacro-add-counter" => return Some(super::kmacro::builtin_kmacro_add_counter(eval, args)),
         "kmacro-set-counter" => return Some(super::kmacro::builtin_kmacro_set_counter(eval, args)),
+        "kmacro-set-format" => return Some(super::kmacro::builtin_kmacro_set_format(eval, args)),
         "kbd-macro-query" => return Some(super::kmacro::builtin_kbd_macro_query(eval, args)),
         "store-kbd-macro-event" => {
             return Some(super::kmacro::builtin_store_kbd_macro_event(eval, args))
