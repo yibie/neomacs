@@ -134,7 +134,9 @@ pub(crate) fn ensure_selected_frame_id(eval: &mut super::eval::Evaluator) -> Fra
         .current_buffer()
         .map(|b| b.id)
         .unwrap_or_else(|| eval.buffers.create_buffer("*scratch*"));
-    eval.frames.create_frame("F1", 80, 25, buf_id)
+    // Batch GNU Emacs startup exposes an initial ~80x24 character frame.
+    // With our default 8x16 char metrics this corresponds to 640x384 pixels.
+    eval.frames.create_frame("F1", 640, 384, buf_id)
 }
 
 /// Compute the height of a window in lines.
@@ -297,6 +299,8 @@ pub(crate) fn builtin_window_height(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
+    expect_max_args("window-height", &args, 1)?;
+    let _ = ensure_selected_frame_id(eval);
     let (fid, wid) = resolve_window_id(&eval.frames, args.first())?;
     let w = get_leaf(&eval.frames, fid, wid)?;
     let ch = eval.frames.get(fid).map(|f| f.char_height).unwrap_or(16.0);
@@ -308,6 +312,8 @@ pub(crate) fn builtin_window_width(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
+    expect_max_args("window-width", &args, 1)?;
+    let _ = ensure_selected_frame_id(eval);
     let (fid, wid) = resolve_window_id(&eval.frames, args.first())?;
     let w = get_leaf(&eval.frames, fid, wid)?;
     let cw = eval.frames.get(fid).map(|f| f.char_width).unwrap_or(8.0);
@@ -319,15 +325,14 @@ pub(crate) fn builtin_window_body_height(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
+    expect_max_args("window-body-height", &args, 2)?;
+    let _ = ensure_selected_frame_id(eval);
     let (fid, wid) = resolve_window_id(&eval.frames, args.first())?;
     let w = get_leaf(&eval.frames, fid, wid)?;
-    let pixelwise = args.get(1).map_or(false, |v| v.is_truthy());
-    if pixelwise {
-        Ok(Value::Int(w.bounds().height as i64))
-    } else {
-        let ch = eval.frames.get(fid).map(|f| f.char_height).unwrap_or(16.0);
-        Ok(Value::Int(window_height_lines(w, ch)))
-    }
+    let _pixelwise = args.get(1);
+    // Batch GNU Emacs returns character-height values even when PIXELWISE is non-nil.
+    let ch = eval.frames.get(fid).map(|f| f.char_height).unwrap_or(16.0);
+    Ok(Value::Int(window_height_lines(w, ch)))
 }
 
 /// `(window-body-width &optional WINDOW PIXELWISE)` -> integer.
@@ -335,15 +340,14 @@ pub(crate) fn builtin_window_body_width(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
+    expect_max_args("window-body-width", &args, 2)?;
+    let _ = ensure_selected_frame_id(eval);
     let (fid, wid) = resolve_window_id(&eval.frames, args.first())?;
     let w = get_leaf(&eval.frames, fid, wid)?;
-    let pixelwise = args.get(1).map_or(false, |v| v.is_truthy());
-    if pixelwise {
-        Ok(Value::Int(w.bounds().width as i64))
-    } else {
-        let cw = eval.frames.get(fid).map(|f| f.char_width).unwrap_or(8.0);
-        Ok(Value::Int(window_width_cols(w, cw)))
-    }
+    let _pixelwise = args.get(1);
+    // Batch GNU Emacs returns character-width values even when PIXELWISE is non-nil.
+    let cw = eval.frames.get(fid).map(|f| f.char_width).unwrap_or(8.0);
+    Ok(Value::Int(window_width_cols(w, cw)))
 }
 
 /// `(window-total-height &optional WINDOW ROUND)` -> integer.
@@ -1241,8 +1245,8 @@ mod tests {
         let r = eval_one_with_frame("(window-body-height nil t)");
         assert!(r.starts_with("OK "));
         let val: i64 = r.strip_prefix("OK ").unwrap().trim().parse().unwrap();
-        // 600 pixels
-        assert_eq!(val, 600);
+        // Batch mode returns character rows.
+        assert_eq!(val, 37);
     }
 
     #[test]
@@ -1250,7 +1254,8 @@ mod tests {
         let r = eval_one_with_frame("(window-body-width nil t)");
         assert!(r.starts_with("OK "));
         let val: i64 = r.strip_prefix("OK ").unwrap().trim().parse().unwrap();
-        assert_eq!(val, 800);
+        // Batch mode returns character columns.
+        assert_eq!(val, 100);
     }
 
     #[test]
@@ -1398,6 +1403,20 @@ mod tests {
         let mut ev = Evaluator::new();
         let results = ev.eval_forms(&forms);
         assert_eq!(format_eval_result(&results[0]), "OK (t 1)");
+    }
+
+    #[test]
+    fn window_size_queries_bootstrap_initial_frame() {
+        let forms = parse_forms(
+            "(list (integerp (window-height))
+                   (integerp (window-width))
+                   (integerp (window-body-height))
+                   (integerp (window-body-width)))",
+        )
+        .expect("parse");
+        let mut ev = Evaluator::new();
+        let results = ev.eval_forms(&forms);
+        assert_eq!(format_eval_result(&results[0]), "OK (t t t t)");
     }
 
     #[test]

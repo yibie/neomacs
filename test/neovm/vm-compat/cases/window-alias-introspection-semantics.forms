@@ -1,0 +1,14 @@
+(symbol-function 'window-height)
+(symbol-function 'window-width)
+(subrp (symbol-function 'window-height))
+(subrp (symbol-function 'window-width))
+(condition-case err (subr-arity (symbol-function 'window-height)) (error err))
+(condition-case err (subr-arity (symbol-function 'window-width)) (error err))
+
+(window-height)
+(window-height nil t)
+(window-width)
+(window-width nil t)
+
+(condition-case err (window-height nil nil nil) (wrong-number-of-arguments (car err)))
+(condition-case err (window-width nil nil nil) (wrong-number-of-arguments (car err)))

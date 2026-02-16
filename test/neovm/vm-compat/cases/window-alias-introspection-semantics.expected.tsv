@@ -1,0 +1,12 @@
+1	(symbol-function 'window-height)	OK window-total-height
+2	(symbol-function 'window-width)	OK window-body-width
+3	(subrp (symbol-function 'window-height))	OK nil
+4	(subrp (symbol-function 'window-width))	OK nil
+5	(condition-case err (subr-arity (symbol-function 'window-height)) (error err))	OK (wrong-type-argument subrp window-total-height)
+6	(condition-case err (subr-arity (symbol-function 'window-width)) (error err))	OK (wrong-type-argument subrp window-body-width)
+7	(window-height)	OK 24
+8	(window-height nil t)	OK 24
+9	(window-width)	OK 80
+10	(window-width nil t)	OK 80
+11	(condition-case err (window-height nil nil nil) (wrong-number-of-arguments (car err)))	OK wrong-number-of-arguments
+12	(condition-case err (window-width nil nil nil) (wrong-number-of-arguments (car err)))	OK wrong-number-of-arguments

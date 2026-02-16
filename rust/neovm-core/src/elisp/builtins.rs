@@ -10354,6 +10354,14 @@ mod tests {
                 .expect("symbol-function should resolve x-display-color-p alias");
         assert_eq!(x_display_color, Value::symbol("display-color-p"));
 
+        let window_height = builtin_symbol_function(&mut eval, vec![Value::symbol("window-height")])
+            .expect("symbol-function should resolve window-height alias");
+        assert_eq!(window_height, Value::symbol("window-total-height"));
+
+        let window_width = builtin_symbol_function(&mut eval, vec![Value::symbol("window-width")])
+            .expect("symbol-function should resolve window-width alias");
+        assert_eq!(window_width, Value::symbol("window-body-width"));
+
         let throw_fn = builtin_symbol_function(&mut eval, vec![Value::symbol("throw")])
             .expect("symbol-function should resolve throw as callable subr");
         assert_eq!(throw_fn, Value::Subr("throw".to_string()));

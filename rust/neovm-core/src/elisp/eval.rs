@@ -162,6 +162,9 @@ impl Evaluator {
         // GNU Emacs exposes `x-display-color-p` as an alias to
         // `display-color-p` in startup state.
         obarray.set_symbol_function("x-display-color-p", Value::symbol("display-color-p"));
+        // Window size aliases are also preseeded in startup state.
+        obarray.set_symbol_function("window-height", Value::symbol("window-total-height"));
+        obarray.set_symbol_function("window-width", Value::symbol("window-body-width"));
 
         // Mark standard variables as special (dynamically bound)
         for name in &[
