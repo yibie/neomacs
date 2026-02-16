@@ -412,6 +412,10 @@ fn subr_arity_value(name: &str) -> Value {
         "directory-files" => arity_cons(1, Some(5)),
         "directory-files-and-attributes" => arity_cons(1, Some(6)),
         "expand-file-name" => arity_cons(1, Some(2)),
+        "event-basic-type" | "event-convert-list" | "event-modifiers" | "eventp"
+        | "error-message-string" => arity_cons(1, Some(1)),
+        "copysign" | "equal-including-properties" => arity_cons(2, Some(2)),
+        "emacs-pid" => arity_cons(0, Some(0)),
         "help-key-description" => arity_cons(2, Some(2)),
         "recent-keys" => arity_cons(0, Some(1)),
         "input-pending-p" => arity_cons(0, Some(1)),
@@ -1025,6 +1029,18 @@ mod tests {
         assert_subr_arity("directory-files-and-attributes", 1, Some(6));
         assert_subr_arity("directory-name-p", 1, Some(1));
         assert_subr_arity("expand-file-name", 1, Some(2));
+    }
+
+    #[test]
+    fn subr_arity_event_error_misc_primitives_match_oracle() {
+        assert_subr_arity("event-basic-type", 1, Some(1));
+        assert_subr_arity("event-convert-list", 1, Some(1));
+        assert_subr_arity("event-modifiers", 1, Some(1));
+        assert_subr_arity("eventp", 1, Some(1));
+        assert_subr_arity("error-message-string", 1, Some(1));
+        assert_subr_arity("copysign", 2, Some(2));
+        assert_subr_arity("equal-including-properties", 2, Some(2));
+        assert_subr_arity("emacs-pid", 0, Some(0));
     }
 
     #[test]
