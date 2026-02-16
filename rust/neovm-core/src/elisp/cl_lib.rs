@@ -229,6 +229,19 @@ pub(crate) fn builtin_cl_coerce(args: Vec<Value>) -> EvalResult {
     builtin_seq_concatenate(vec![args[1].clone(), args[0].clone()])
 }
 
+/// `(cl-adjoin ITEM LIST)` -- add ITEM to LIST if not already present.
+pub(crate) fn builtin_cl_adjoin(args: Vec<Value>) -> EvalResult {
+    expect_args("cl-adjoin", &args, 2)?;
+    let item = args[0].clone();
+    let list = args[1].clone();
+    let found = super::builtins::builtin_member(vec![item.clone(), list.clone()])?;
+    if found.is_truthy() {
+        Ok(list)
+    } else {
+        Ok(Value::cons(item, list))
+    }
+}
+
 fn seq_position_list_elements(seq: &Value) -> Result<Vec<Value>, Flow> {
     let mut elements = Vec::new();
     let mut cursor = seq.clone();
@@ -1229,6 +1242,31 @@ mod tests {
     #[test]
     fn cl_coerce_wrong_type_name() {
         assert!(builtin_cl_coerce(vec![Value::Nil, Value::Int(0)]).is_err());
+    }
+
+    #[test]
+    fn cl_adjoin_prepends_when_missing() {
+        let result = builtin_cl_adjoin(vec![
+            Value::symbol("a"),
+            Value::list(vec![Value::symbol("b"), Value::symbol("c")]),
+        ])
+        .unwrap();
+        assert_eq!(
+            result,
+            Value::list(vec![Value::symbol("a"), Value::symbol("b"), Value::symbol("c")])
+        );
+    }
+
+    #[test]
+    fn cl_adjoin_keeps_existing() {
+        let list = Value::list(vec![Value::symbol("a"), Value::symbol("b")]);
+        let result = builtin_cl_adjoin(vec![Value::symbol("a"), list.clone()]).unwrap();
+        assert_eq!(result, list);
+    }
+
+    #[test]
+    fn cl_adjoin_wrong_arity() {
+        assert!(builtin_cl_adjoin(vec![Value::symbol("a")]).is_err());
     }
 
     #[test]

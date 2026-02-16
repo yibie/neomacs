@@ -7597,6 +7597,7 @@ pub(crate) fn dispatch_builtin(
         "bool-vector-subsetp" => super::chartable::builtin_bool_vector_subsetp(args),
 
         // Note: windowp and framep are in the eval-dependent section above
+        "cl-adjoin" => super::cl_lib::builtin_cl_adjoin(args),
         "cl-first" => super::cl_lib::builtin_cl_first(args),
         "cl-second" => super::cl_lib::builtin_cl_second(args),
         "cl-third" => super::cl_lib::builtin_cl_third(args),

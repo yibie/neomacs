@@ -1,5 +1,5 @@
-1	(fboundp 'cl-adjoin)	OK nil
-2	(condition-case err (cl-adjoin) (error err))	OK (void-function cl-adjoin)
+1	(fboundp 'cl-adjoin)	OK t
+2	(condition-case err (cl-adjoin 'a '(b c)) (error err))	OK (a b c)
 3	(fboundp 'cl-coerce)	OK t
 4	(condition-case err (cl-coerce '(a b) 'vector) (error err))	OK [a b]
 5	(fboundp 'cl-concatenate)	OK t
