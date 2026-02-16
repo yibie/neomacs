@@ -47,6 +47,25 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Aligned timer runtime + `subr-arity` compatibility with GNU Emacs:
+  - `timer-activate` now accepts `(1 . 3)` args and mirrors optional-arg
+    behavior:
+    - accepts 2nd optional arg
+    - accepts 3rd optional arg only when `nil`/cons
+    - non-cons non-`nil` 3rd arg signals `wrong-type-argument consp`
+  - added explicit `subr-arity` lock-ins for:
+    - `run-with-timer`, `run-with-idle-timer`: `(3 . many)`
+    - `timer-activate`: `(1 . 3)`
+    - `sleep-for`, `sit-for`: `(1 . 2)`
+  - updated oracle corpus:
+    - `cases/command-timer-subr-arity-semantics`
+    - `cases/timer-semantics`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml subr_arity_command_timer_primitives_match_oracle -- --nocapture` (pass)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml test_eval_timer_activate -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/command-timer-subr-arity-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/timer-semantics` (pass)
+
 - Hardcoded vm-compat oracle default to official GNU Emacs path:
   - default oracle binary now set to:
     - `/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs`
