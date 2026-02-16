@@ -52,10 +52,10 @@
 52	(condition-case err (cl-remove 'a '(a b a)) (error err))	OK (b)
 53	(fboundp 'cl-remove-duplicates)	OK t
 54	(condition-case err (cl-remove-duplicates '(a b a c b)) (error err))	OK (a b c)
-55	(fboundp 'cl-remove-if)	OK nil
-56	(condition-case err (cl-remove-if) (error err))	OK (void-function cl-remove-if)
-57	(fboundp 'cl-remove-if-not)	OK nil
-58	(condition-case err (cl-remove-if-not) (error err))	OK (void-function cl-remove-if-not)
+55	(fboundp 'cl-remove-if)	OK t
+56	(condition-case err (cl-remove-if #'numberp '(1 "x" 2)) (error err))	OK ("x")
+57	(fboundp 'cl-remove-if-not)	OK t
+58	(condition-case err (cl-remove-if-not #'numberp '(1 "x" 2)) (error err))	OK (1 2)
 59	(fboundp 'cl-rest)	OK t
 60	(condition-case err (cl-rest '(a b c)) (error err))	OK (b c)
 61	(fboundp 'cl-second)	OK t

@@ -193,6 +193,8 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "cl-reduce",
     "cl-remove",
     "cl-remove-duplicates",
+    "cl-remove-if",
+    "cl-remove-if-not",
     "cl-rest",
     "cl-second",
     "cl-set-difference",

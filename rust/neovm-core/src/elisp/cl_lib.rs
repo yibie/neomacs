@@ -887,6 +887,44 @@ pub(crate) fn builtin_cl_stable_sort(
     super::builtins::builtin_sort(eval, args)
 }
 
+/// `(cl-remove-if PREDICATE SEQ)` -- remove elements satisfying PREDICATE.
+pub(crate) fn builtin_cl_remove_if(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_args("cl-remove-if", &args, 2)?;
+    let pred = args[0].clone();
+    let elements = seq_position_elements(&args[1])?;
+    let mut out = Vec::new();
+
+    for element in elements {
+        let matched = eval.apply(pred.clone(), vec![element.clone()])?;
+        if !matched.is_truthy() {
+            out.push(element);
+        }
+    }
+    Ok(Value::list(out))
+}
+
+/// `(cl-remove-if-not PREDICATE SEQ)` -- keep elements satisfying PREDICATE.
+pub(crate) fn builtin_cl_remove_if_not(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_args("cl-remove-if-not", &args, 2)?;
+    let pred = args[0].clone();
+    let elements = seq_position_elements(&args[1])?;
+    let mut out = Vec::new();
+
+    for element in elements {
+        let matched = eval.apply(pred.clone(), vec![element.clone()])?;
+        if matched.is_truthy() {
+            out.push(element);
+        }
+    }
+    Ok(Value::list(out))
+}
+
 /// `(seq-contains-p SEQ ELT &optional TESTFN)` — membership test for sequence.
 pub(crate) fn builtin_seq_contains_p(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     if !(2..=3).contains(&args.len()) {
@@ -1905,5 +1943,33 @@ mod tests {
             builtin_cl_stable_sort(&mut evaluator, vec![seq, Value::Subr("<".to_string())])
                 .unwrap();
         assert_eq!(result, Value::list(vec![Value::Int(1), Value::Int(2), Value::Int(3)]));
+    }
+
+    #[test]
+    fn cl_remove_if_with_eval() {
+        let mut evaluator = super::super::eval::Evaluator::new();
+        let result = builtin_cl_remove_if(
+            &mut evaluator,
+            vec![
+                Value::Subr("numberp".to_string()),
+                Value::list(vec![Value::Int(1), Value::string("x"), Value::Int(2)]),
+            ],
+        )
+        .unwrap();
+        assert_eq!(result, Value::list(vec![Value::string("x")]));
+    }
+
+    #[test]
+    fn cl_remove_if_not_with_eval() {
+        let mut evaluator = super::super::eval::Evaluator::new();
+        let result = builtin_cl_remove_if_not(
+            &mut evaluator,
+            vec![
+                Value::Subr("numberp".to_string()),
+                Value::list(vec![Value::Int(1), Value::string("x"), Value::Int(2)]),
+            ],
+        )
+        .unwrap();
+        assert_eq!(result, Value::list(vec![Value::Int(1), Value::Int(2)]));
     }
 }
