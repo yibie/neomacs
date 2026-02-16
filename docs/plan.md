@@ -6669,6 +6669,14 @@ Last updated: 2026-02-16
   - added Neomacs guard fallback: when `emacs` resolves to Neomacs, runner now attempts a GNU Emacs fallback candidate before failing
   - verified:
     - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/core` (pass, 15/15) without manually setting oracle env vars
+- Aligned startup `fboundp` surface for kmacro helper functions with GNU Emacs `-Q`:
+  - removed default dispatch/registry exposure of `kmacro-p`, `kmacro-set-counter`, `kmacro-add-counter`, `kmacro-set-format`, `last-kbd-macro`, `defining-kbd-macro-p`, and `executing-kbd-macro-p`
+  - refreshed oracle baseline:
+    - `test/neovm/vm-compat/cases/kmacro-helper-availability.expected.tsv`
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/kmacro-helper-availability` (pass, 14/14)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/kmacro-arity-semantics` (pass, 12/12)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` drift count reduced from 77 to 70
 
 ## Doing
 
