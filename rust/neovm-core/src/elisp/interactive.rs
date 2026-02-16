@@ -787,6 +787,7 @@ fn command_name_display(value: &Value) -> String {
 /// Return the binding for KEY in the current keymaps.
 pub(crate) fn builtin_key_binding(eval: &mut Evaluator, args: Vec<Value>) -> EvalResult {
     expect_min_args("key-binding", &args, 1)?;
+    expect_max_args("key-binding", &args, 4)?;
     let string_designator = args[0].is_string();
 
     let events = match super::kbd::key_events_from_designator(&args[0]) {
@@ -841,6 +842,7 @@ pub(crate) fn builtin_key_binding(eval: &mut Evaluator, args: Vec<Value>) -> Eva
 /// `(local-key-binding KEY &optional ACCEPT-DEFAULTS)`
 pub(crate) fn builtin_local_key_binding(eval: &mut Evaluator, args: Vec<Value>) -> EvalResult {
     expect_min_args("local-key-binding", &args, 1)?;
+    expect_max_args("local-key-binding", &args, 2)?;
 
     let Some(local_id) = eval.current_local_map else {
         // Oracle batch behavior: when no local map is active, non-array KEY does
@@ -866,6 +868,7 @@ pub(crate) fn builtin_local_key_binding(eval: &mut Evaluator, args: Vec<Value>) 
 /// `(global-key-binding KEY &optional ACCEPT-DEFAULTS)`
 pub(crate) fn builtin_global_key_binding(eval: &mut Evaluator, args: Vec<Value>) -> EvalResult {
     expect_min_args("global-key-binding", &args, 1)?;
+    expect_max_args("global-key-binding", &args, 2)?;
 
     let events = match super::kbd::key_events_from_designator(&args[0]) {
         Ok(events) => events,
@@ -2595,6 +2598,22 @@ mod tests {
     }
 
     #[test]
+    fn key_binding_too_many_args_errors() {
+        let mut ev = Evaluator::new();
+        let result = builtin_key_binding(
+            &mut ev,
+            vec![
+                Value::string("C-c"),
+                Value::Nil,
+                Value::Nil,
+                Value::Nil,
+                Value::Nil,
+            ],
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
     fn global_key_binding_returns_binding() {
         let mut ev = Evaluator::new();
         let map_id = ev.keymaps.make_keymap();
@@ -2616,10 +2635,28 @@ mod tests {
     }
 
     #[test]
+    fn global_key_binding_too_many_args_errors() {
+        let mut ev = Evaluator::new();
+        let result = builtin_global_key_binding(
+            &mut ev,
+            vec![Value::string("C-c"), Value::Nil, Value::Nil],
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
     fn local_key_binding_nil_when_no_local_map() {
         let mut ev = Evaluator::new();
         let result = builtin_local_key_binding(&mut ev, vec![Value::string("C-c")]).unwrap();
         assert!(result.is_nil());
+    }
+
+    #[test]
+    fn local_key_binding_too_many_args_errors() {
+        let mut ev = Evaluator::new();
+        let result =
+            builtin_local_key_binding(&mut ev, vec![Value::string("C-c"), Value::Nil, Value::Nil]);
+        assert!(result.is_err());
     }
 
     #[test]
