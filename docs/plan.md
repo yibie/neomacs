@@ -25,6 +25,19 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Aligned `terminal-parameter` symbol-key lookup semantics (`symbol`/`keyword`/`nil`/`t`) with oracle:
+  - updated:
+    - `rust/neovm-core/src/elisp/display.rs`
+      - `terminal-parameter` now accepts symbol-like keys including keywords and resolves lookup using eq-style key identity consistent with `set-terminal-parameter` storage.
+      - fixed keyword/nil/t retrieval parity after prior previous-value work.
+    - `test/neovm/vm-compat/cases/terminal-parameter-state-semantics.forms`
+      - expanded with keyword/nil/t symbol-key probes and string-key error probe.
+    - `test/neovm/vm-compat/cases/terminal-parameter-state-semantics.expected.tsv`
+      - refreshed oracle baseline for the expanded key-type matrix.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/terminal-parameter-state-semantics` (pass, 23/23)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/terminal-parameter-semantics` (pass, 24/24)
+
 - Refined terminal parameter key semantics for string-key edge parity:
   - updated:
     - `rust/neovm-core/src/elisp/display.rs`
