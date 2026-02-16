@@ -576,7 +576,15 @@ pub(crate) fn builtin_insert_rectangle(
     })?;
     let mut rectangle = Vec::with_capacity(items.len());
     for item in &items {
-        rectangle.push(expect_string(item)?);
+        match item {
+            Value::Str(s) => rectangle.push((**s).clone()),
+            other => {
+                return Err(signal(
+                    "wrong-type-argument",
+                    vec![Value::symbol("buffer-or-string-p"), other.clone()],
+                ));
+            }
+        }
     }
 
     if rectangle.is_empty() {
