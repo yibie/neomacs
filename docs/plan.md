@@ -31,6 +31,7 @@ Last updated: 2026-02-16
 - Keep newly landed file-name helper `subr-arity` parity stable while expanding remaining filesystem/path introspection drifts.
 - Keep newly landed `setenv` runtime+`subr-arity` parity stable while expanding remaining process/env drifts.
 - Keep newly landed hash-table introspection primitive `subr-arity` parity stable while expanding remaining hash/runtime introspection drifts.
+- Keep newly landed hash-table core primitive `subr-arity` parity stable while expanding remaining hash/runtime behavior drifts.
 
 ## Next
 
@@ -42,6 +43,27 @@ Last updated: 2026-02-16
 6. Expand `recent-keys` capture beyond `read*` consumers to eventual command-loop event publication.
 
 ## Done
+
+- Aligned hash-table core primitive `subr-arity` metadata with GNU Emacs:
+  - updated:
+    - `rust/neovm-core/src/elisp/subr_info.rs`
+      - added explicit arity overrides:
+        - `(1 . 1)`: `hash-table-p`, `clrhash`, `hash-table-count`
+        - `(2 . 3)`: `gethash`
+        - `(3 . 3)`: `puthash`
+        - `(2 . 2)`: `remhash`, `maphash`
+      - added unit matrix `subr_arity_hash_table_core_primitives_match_oracle`.
+    - `test/neovm/vm-compat/cases/hash-table-core-subr-arity-semantics.forms`
+    - `test/neovm/vm-compat/cases/hash-table-core-subr-arity-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+      - added oracle lock-in case for hash-table core arity payloads.
+  - recorded with official GNU Emacs:
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat record FORMS=cases/hash-table-core-subr-arity-semantics.forms EXPECTED=cases/hash-table-core-subr-arity-semantics.expected.tsv` (pass)
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml subr_arity_hash_table_core_primitives_match_oracle -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/hash-table-core-subr-arity-semantics` (pass, 8/8)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass; allowlisted drift only: `neovm-precompile-file`)
 
 - Aligned hash-table introspection primitive `subr-arity` metadata with GNU Emacs:
   - updated:
