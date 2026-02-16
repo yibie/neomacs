@@ -19,6 +19,25 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Exposed `string-repeat` as a real misc helper builtin:
+  - updated:
+    - `rust/neovm-core/src/elisp/misc.rs`
+      - added `string-repeat` builtin (arity `2`) with `wholenump` count validation.
+      - returns repeated string payload, including empty result for zero count.
+      - added focused unit coverage for success and error paths.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - pure misc dispatch now routes `string-repeat`.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - added `string-repeat` to builtin registry.
+    - `test/neovm/vm-compat/cases/residual-helper-availability.forms`
+      - switched helper probe to `(string-repeat "ab" 3)`.
+    - `test/neovm/vm-compat/cases/residual-helper-availability.expected.tsv`
+      - updated expectations from `void-function` to callable helper behavior (`"ababab"`).
+  - verified:
+    - `cargo test string_repeat --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/residual-helper-availability` (pass, 26/26)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Exposed `find-coding-system` as a real coding helper builtin:
   - updated:
     - `rust/neovm-core/src/elisp/coding.rs`
