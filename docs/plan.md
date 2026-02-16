@@ -8027,6 +8027,24 @@ Last updated: 2026-02-16
     - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/current-state-subr-arity-semantics` (pass, 9/9)
     - `make -C test/neovm/vm-compat validate-case-lists` (pass)
     - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass, 1 allowlisted drift)
+- Aligned composition/mark primitive `subr-arity` metadata with GNU Emacs and locked parity in corpus:
+  - added arity overrides:
+    - `(0 . 1)`: `activate-mark`, `auto-composition-mode`, `deactivate-mark`
+    - `(0 . 0)`: `clear-composition-cache`
+    - `(1 . 1)`: `composition-sort-rules`
+    - `(2 . 4)`: `compose-region-internal`
+    - `(3 . 5)`: `compose-string-internal`
+    - `(4 . 4)`: `composition-get-gstring`
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/composition-subr-arity-semantics.forms`
+    - `test/neovm/vm-compat/cases/composition-subr-arity-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat record FORMS=cases/composition-subr-arity-semantics.forms EXPECTED=cases/composition-subr-arity-semantics.expected.tsv` (pass)
+    - `cargo test subr_arity_composition_primitives_match_oracle -- --nocapture` in `rust/neovm-core` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/composition-subr-arity-semantics` (pass, 8/8)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass, 1 allowlisted drift)
 
 ## Doing
 
