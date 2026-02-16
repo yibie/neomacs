@@ -797,8 +797,8 @@ fn subr_arity_value(name: &str) -> Value {
         | "x-display-pixel-height" | "x-server-version" | "x-server-max-request-size"
         | "x-display-grayscale-p" | "redraw-frame" | "ding" | "internal-show-cursor-p"
         | "controlling-tty-p" | "suspend-tty" | "resume-tty" | "terminal-coding-system"
-        | "frame-parameters" | "window-buffer" | "window-dedicated-p" | "window-point"
-        | "window-start" => {
+        | "frame-parameters" | "frame-selected-window" | "window-buffer"
+        | "window-dedicated-p" | "window-point" | "window-start" => {
             arity_cons(0, Some(1))
         }
         "terminal-list" | "x-display-list" | "redraw-display" | "frame-list"
@@ -1165,6 +1165,7 @@ mod tests {
         assert_subr_arity("terminal-list", 0, Some(0));
         assert_subr_arity("terminal-live-p", 1, Some(1));
         assert_subr_arity("frame-terminal", 0, Some(1));
+        assert_subr_arity("frame-selected-window", 0, Some(1));
         assert_subr_arity("terminal-parameter", 2, Some(2));
         assert_subr_arity("set-terminal-parameter", 3, Some(3));
         assert_subr_arity("tty-type", 0, Some(1));

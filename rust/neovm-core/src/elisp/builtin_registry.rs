@@ -370,6 +370,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "frame-monitor-attributes",
     "frame-parameter",
     "frame-parameters",
+    "frame-selected-window",
     "frame-terminal",
     "frame-visible-p",
     "framep",
