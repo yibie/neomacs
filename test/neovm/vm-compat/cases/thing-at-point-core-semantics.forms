@@ -32,14 +32,12 @@
   (insert "v 12.34 x")
   (goto-char (point-min))
   (search-forward "12")
-  (backward-char 1)
   (thing-at-point 'number))
 
 (with-temp-buffer
   (insert "v 12.34 x")
   (goto-char (point-min))
   (search-forward "12")
-  (backward-char 1)
   (bounds-of-thing-at-point 'number))
 
 (with-temp-buffer

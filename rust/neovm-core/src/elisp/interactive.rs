@@ -1834,17 +1834,39 @@ fn bounds_whitespace(text: &str, idx: usize) -> Option<(usize, usize)> {
 
 fn bounds_number(text: &str, idx: usize) -> Option<(usize, usize)> {
     let chars: Vec<char> = text.chars().collect();
-    if idx >= chars.len() || !chars[idx].is_ascii_digit() {
+    if idx > chars.len() {
         return None;
     }
 
-    let mut start = idx;
-    while start > 0 && (chars[start - 1].is_ascii_digit() || chars[start - 1] == '.') {
+    let is_number_char = |c: char| c.is_ascii_digit() || c == '.';
+    let has_adjacent_digit = |i: usize, chs: &[char]| {
+        (i > 0 && chs[i - 1].is_ascii_digit()) || (i + 1 < chs.len() && chs[i + 1].is_ascii_digit())
+    };
+
+    let focus_idx = if idx < chars.len()
+        && (chars[idx].is_ascii_digit() || (chars[idx] == '.' && has_adjacent_digit(idx, &chars)))
+    {
+        idx
+    } else if idx > 0
+        && (chars[idx - 1].is_ascii_digit()
+            || (chars[idx - 1] == '.' && has_adjacent_digit(idx - 1, &chars)))
+    {
+        idx - 1
+    } else {
+        return None;
+    };
+
+    let mut start = focus_idx;
+    while start > 0 && is_number_char(chars[start - 1]) {
         start -= 1;
     }
-    let mut end = idx;
-    while end < chars.len() && (chars[end].is_ascii_digit() || chars[end] == '.') {
+    let mut end = focus_idx;
+    while end < chars.len() && is_number_char(chars[end]) {
         end += 1;
+    }
+
+    if !chars[start..end].iter().any(|c| c.is_ascii_digit()) {
+        return None;
     }
 
     let byte_start: usize = chars[..start].iter().map(|c| c.len_utf8()).sum();
@@ -2675,7 +2697,7 @@ mod tests {
             r#"(get-buffer-create "tap-num")
                (set-buffer "tap-num")
                (insert "v 12.34 56")
-               (goto-char 4)"#,
+               (goto-char 5)"#,
         );
         let float_result = builtin_thing_at_point(&mut ev, vec![Value::symbol("number")]).unwrap();
         assert_eq!(float_result.as_float(), Some(12.34));
