@@ -374,10 +374,17 @@ fn subr_arity_value(name: &str) -> Value {
         "assoc-default" => arity_cons(2, Some(4)),
         "back-to-indentation" | "backward-prefix-chars" => arity_cons(0, Some(0)),
         "backward-sexp" => arity_cons(0, Some(2)),
-        "backward-kill-word" | "move-beginning-of-line" | "capitalize" | "capitalize-word" => {
+        "backward-kill-word" | "move-beginning-of-line" | "move-end-of-line" | "capitalize"
+        | "capitalize-word" | "downcase-word" | "kill-local-variable" | "kill-word" => {
             arity_cons(1, Some(1))
         }
         "capitalize-region" => arity_cons(2, Some(3)),
+        "downcase-region" | "kill-region" | "kill-ring-save" => arity_cons(2, Some(3)),
+        "kill-append" => arity_cons(2, Some(2)),
+        "kill-new" => arity_cons(1, Some(2)),
+        "kill-buffer" | "kill-line" | "kill-whole-line" | "just-one-space" => {
+            arity_cons(0, Some(1))
+        }
         "add-hook" => arity_cons(2, Some(4)),
         "add-name-to-file" => arity_cons(2, Some(3)),
         "add-text-properties" => arity_cons(3, Some(4)),
@@ -1112,6 +1119,23 @@ mod tests {
         assert_subr_arity("capitalize-word", 1, Some(1));
         assert_subr_arity("capitalize-region", 2, Some(3));
         assert_subr_arity("count-lines", 2, Some(3));
+    }
+
+    #[test]
+    fn subr_arity_kill_edit_primitives_match_oracle() {
+        assert_subr_arity("downcase-region", 2, Some(3));
+        assert_subr_arity("downcase-word", 1, Some(1));
+        assert_subr_arity("move-end-of-line", 1, Some(1));
+        assert_subr_arity("just-one-space", 0, Some(1));
+        assert_subr_arity("kill-append", 2, Some(2));
+        assert_subr_arity("kill-buffer", 0, Some(1));
+        assert_subr_arity("kill-line", 0, Some(1));
+        assert_subr_arity("kill-local-variable", 1, Some(1));
+        assert_subr_arity("kill-new", 1, Some(2));
+        assert_subr_arity("kill-region", 2, Some(3));
+        assert_subr_arity("kill-ring-save", 2, Some(3));
+        assert_subr_arity("kill-whole-line", 0, Some(1));
+        assert_subr_arity("kill-word", 1, Some(1));
     }
 
     #[test]
