@@ -60,6 +60,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "bolp",
     "bookmark-all-names",
     "bookmark-delete",
+    "bookmark-get-annotation",
     "bookmark-get-filename",
     "bookmark-get-position",
     "bookmark-jump",

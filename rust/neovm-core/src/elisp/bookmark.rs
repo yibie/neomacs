@@ -484,6 +484,39 @@ pub(crate) fn builtin_bookmark_get_position(
     Ok(position)
 }
 
+/// (bookmark-get-annotation BOOKMARK) -> annotation string or nil
+///
+/// BOOKMARK may be a bookmark name or a bookmark record alist.
+pub(crate) fn builtin_bookmark_get_annotation(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_args("bookmark-get-annotation", &args, 1)?;
+
+    if let Some(items) = super::value::list_to_vec(&args[0]) {
+        for item in &items {
+            if let Value::Cons(cell) = item {
+                let pair = cell.lock().expect("poisoned");
+                if let Value::Symbol(sym) = &pair.car {
+                    if sym == "annotation" {
+                        return Ok(pair.cdr.clone());
+                    }
+                }
+            }
+        }
+        return Ok(Value::Nil);
+    }
+
+    let name = expect_string(&args[0])?;
+    let annotation = eval
+        .bookmarks
+        .get(&name)
+        .and_then(|bm| bm.annotation.as_ref())
+        .map(|s| Value::string(s.clone()))
+        .unwrap_or(Value::Nil);
+    Ok(annotation)
+}
+
 /// (bookmark-save) -> string
 ///
 /// Serialize all bookmarks and return the string.  In a real Emacs this
@@ -876,6 +909,30 @@ mod tests {
 
         let missing =
             builtin_bookmark_get_position(&mut eval, vec![Value::string("missing")]).unwrap();
+        assert!(missing.is_nil());
+    }
+
+    #[test]
+    fn test_builtin_bookmark_get_annotation() {
+        use super::super::eval::Evaluator;
+
+        let mut eval = Evaluator::new();
+        builtin_bookmark_set(
+            &mut eval,
+            vec![
+                Value::string("with-note"),
+                Value::string("/tmp/file.el"),
+                Value::string("note"),
+            ],
+        )
+        .unwrap();
+
+        let found =
+            builtin_bookmark_get_annotation(&mut eval, vec![Value::string("with-note")]).unwrap();
+        assert_eq!(found.as_str(), Some("note"));
+
+        let missing =
+            builtin_bookmark_get_annotation(&mut eval, vec![Value::string("missing")]).unwrap();
         assert!(missing.is_nil());
     }
 
