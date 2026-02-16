@@ -25,6 +25,27 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Aligned `event-apply-modifier` low-ASCII control/shift edge semantics with oracle and locked coverage:
+  - updated:
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - control modifier path now preserves already-controlled low ASCII codes (`0..31`) instead of forcing odd-bit fallback.
+      - shift modifier path now covers low-ASCII punctuation/control edge transforms required by oracle:
+        - `0 -> 1`
+        - `28 -> 29`
+        - `30 -> 31`
+        - even range `34..62` maps to `+1`
+        - `92 -> 93`
+        - `94 -> 95`
+        - `124 -> 125`
+    - `test/neovm/vm-compat/cases/event-key-helpers-semantics.forms`
+      - expanded `event-apply-modifier` probes for low-ASCII control/shift edge codes.
+    - `test/neovm/vm-compat/cases/event-key-helpers-semantics.expected.tsv`
+      - refreshed oracle baseline for expanded edge matrix.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/event-key-helpers-semantics` (pass, 92/92)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - generated temporary fuzz matrix `event-apply-modifier` on `0..127` for control/shift and confirmed oracle parity (`256/256`)
+
 - Aligned `event-convert-list` control-code integer semantics for already-controlled ASCII (`0..31`) with oracle:
   - updated:
     - `rust/neovm-core/src/elisp/builtins.rs`
