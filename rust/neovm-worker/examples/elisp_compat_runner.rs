@@ -57,10 +57,9 @@ fn main() {
         }
     };
 
-    let threads = std::thread::available_parallelism()
-        .map(|n| n.get())
-        .unwrap_or(1)
-        .max(1);
+    // Run compat forms on one worker thread to preserve per-thread Lisp runtime
+    // state across sequential forms (matches oracle batch expectations).
+    let threads = 1usize;
     let rt = WorkerRuntime::with_elisp_executor(WorkerConfig {
         threads,
         queue_capacity: forms.len().max(64),
