@@ -55,6 +55,26 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Aligned read/region helper primitive `subr-arity` metadata with GNU Emacs:
+  - added explicit arity lock-ins for:
+    - `(1 . 4)`: `read-buffer`
+    - `(1 . 2)`: `read-coding-system`
+    - `(1 . 5)`: `read-directory-name`
+    - `(1 . 6)`: `read-file-name`, `read-key-sequence`, `read-key-sequence-vector`
+    - `(1 . 7)`: `read-from-minibuffer`
+    - `(1 . 1)`: `read-non-nil-coding-system`, `regexp-quote`
+    - `(0 . 1)`: `recenter-top-bottom`
+    - `(0 . 0)`: `recursion-depth`, `region-beginning`, `region-end`
+  - added oracle corpus lock-in case:
+    - `test/neovm/vm-compat/cases/read-region-helper-subr-arity-semantics.{forms,expected.tsv}`
+    - wired into default suite: `test/neovm/vm-compat/cases/default.list`
+  - unit coverage:
+    - `subr_arity_read_region_helper_primitives_match_oracle`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml subr_arity_read_region_helper_primitives_match_oracle -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/read-region-helper-subr-arity-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
+
 - Aligned edit/state helper primitive `subr-arity` metadata with GNU Emacs and locked oracle parity:
   - added explicit arity lock-ins for:
     - `(0 . 2)`: `newline`, `next-line`
