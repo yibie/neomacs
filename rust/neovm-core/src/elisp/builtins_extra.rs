@@ -11,6 +11,7 @@
 
 use super::error::{signal, EvalResult, Flow};
 use super::value::Value;
+use std::fs;
 
 // ---------------------------------------------------------------------------
 // Argument helpers
@@ -29,6 +30,17 @@ fn expect_args(name: &str, args: &[Value], n: usize) -> Result<(), Flow> {
 
 fn expect_min_args(name: &str, args: &[Value], min: usize) -> Result<(), Flow> {
     if args.len() < min {
+        Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol(name), Value::Int(args.len() as i64)],
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+fn expect_max_args(name: &str, args: &[Value], max: usize) -> Result<(), Flow> {
+    if args.len() > max {
         Err(signal(
             "wrong-number-of-arguments",
             vec![Value::symbol(name), Value::Int(args.len() as i64)],
@@ -410,26 +422,186 @@ pub(crate) fn builtin_zerop(args: Vec<Value>) -> EvalResult {
 // Misc operations
 // ---------------------------------------------------------------------------
 
-/// `(user-login-name)` -> string.
+#[derive(Debug, Clone)]
+struct PasswdEntry {
+    login: String,
+    uid: i64,
+    gecos: String,
+}
+
+fn parse_passwd_entry(line: &str) -> Option<PasswdEntry> {
+    let trimmed = line.trim();
+    if trimmed.is_empty() || trimmed.starts_with('#') {
+        return None;
+    }
+
+    let mut fields = trimmed.split(':');
+    let login = fields.next()?.to_string();
+    let _passwd = fields.next()?;
+    let uid = fields.next()?.parse::<i64>().ok()?;
+    let _gid = fields.next()?;
+    let gecos = fields.next().unwrap_or("").to_string();
+    Some(PasswdEntry { login, uid, gecos })
+}
+
+fn load_passwd_entries() -> Vec<PasswdEntry> {
+    fs::read_to_string("/etc/passwd")
+        .ok()
+        .map(|content| content.lines().filter_map(parse_passwd_entry).collect())
+        .unwrap_or_default()
+}
+
+fn login_name_from_env() -> Option<String> {
+    std::env::var("LOGNAME")
+        .ok()
+        .or_else(|| std::env::var("USER").ok())
+        .filter(|name| !name.is_empty())
+}
+
+fn current_uid() -> i64 {
+    std::process::Command::new("id")
+        .arg("-u")
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .and_then(|s| s.trim().parse::<i64>().ok())
+        .unwrap_or(1000)
+}
+
+fn real_uid() -> i64 {
+    std::process::Command::new("id")
+        .args(["-ru"])
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .and_then(|s| s.trim().parse::<i64>().ok())
+        .unwrap_or_else(current_uid)
+}
+
+fn lookup_login_by_uid(uid: i64) -> Option<String> {
+    load_passwd_entries()
+        .into_iter()
+        .find(|entry| entry.uid == uid)
+        .map(|entry| entry.login)
+}
+
+fn canonical_full_name(entry: &PasswdEntry) -> String {
+    let first_gecos = entry.gecos.split(',').next().unwrap_or("").trim();
+    if first_gecos.is_empty() {
+        entry.login.clone()
+    } else {
+        first_gecos.to_string()
+    }
+}
+
+fn lookup_full_name_by_uid(uid: i64) -> Option<String> {
+    load_passwd_entries()
+        .into_iter()
+        .find(|entry| entry.uid == uid)
+        .map(|entry| canonical_full_name(&entry))
+}
+
+fn lookup_full_name_by_login(login: &str) -> Option<String> {
+    load_passwd_entries()
+        .into_iter()
+        .find(|entry| entry.login == login)
+        .map(|entry| canonical_full_name(&entry))
+}
+
+fn expect_uid_arg(val: &Value) -> Result<i64, Flow> {
+    match val {
+        Value::Int(uid) => Ok(*uid),
+        other => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("integerp"), other.clone()],
+        )),
+    }
+}
+
+/// `(user-login-name &optional UID)` -> string or nil.
 pub(crate) fn builtin_user_login_name(args: Vec<Value>) -> EvalResult {
-    let _ = args;
-    let name = std::env::var("USER")
-        .or_else(|_| std::env::var("LOGNAME"))
-        .unwrap_or_else(|_| "unknown".to_string());
-    Ok(Value::string(name))
+    expect_max_args("user-login-name", &args, 1)?;
+    if let Some(uid_arg) = args.first() {
+        if uid_arg.is_nil() {
+            let current = login_name_from_env()
+                .or_else(|| lookup_login_by_uid(current_uid()))
+                .unwrap_or_else(|| "unknown".to_string());
+            return Ok(Value::string(current));
+        }
+        let uid = expect_uid_arg(uid_arg)?;
+        return Ok(match lookup_login_by_uid(uid) {
+            Some(name) => Value::string(name),
+            None => Value::Nil,
+        });
+    }
+
+    let current = login_name_from_env()
+        .or_else(|| lookup_login_by_uid(current_uid()))
+        .unwrap_or_else(|| "unknown".to_string());
+    Ok(Value::string(current))
 }
 
 /// `(user-real-login-name)` -> string.
 pub(crate) fn builtin_user_real_login_name(args: Vec<Value>) -> EvalResult {
-    builtin_user_login_name(args)
+    expect_args("user-real-login-name", &args, 0)?;
+    let name = lookup_login_by_uid(real_uid())
+        .or_else(login_name_from_env)
+        .unwrap_or_else(|| "unknown".to_string());
+    Ok(Value::string(name))
 }
 
-/// `(user-full-name)` -> string.
+/// `(user-full-name &optional UID-OR-LOGIN)` -> string or nil.
 pub(crate) fn builtin_user_full_name(args: Vec<Value>) -> EvalResult {
-    let _ = args;
-    let name = std::env::var("NAME")
-        .unwrap_or_else(|_| std::env::var("USER").unwrap_or_else(|_| "Unknown".to_string()));
-    Ok(Value::string(name))
+    expect_max_args("user-full-name", &args, 1)?;
+    if let Some(target) = args.first() {
+        if target.is_nil() {
+            if let Ok(name) = std::env::var("NAME") {
+                if !name.is_empty() {
+                    return Ok(Value::string(name));
+                }
+            }
+            let fallback = lookup_full_name_by_uid(current_uid())
+                .or_else(|| {
+                    login_name_from_env()
+                        .as_deref()
+                        .and_then(lookup_full_name_by_login)
+                })
+                .or_else(login_name_from_env)
+                .unwrap_or_else(|| "unknown".to_string());
+            return Ok(Value::string(fallback));
+        }
+
+        return Ok(match target {
+            Value::Int(uid) => lookup_full_name_by_uid(*uid)
+                .map(Value::string)
+                .unwrap_or(Value::Nil),
+            Value::Str(login) => lookup_full_name_by_login(login)
+                .map(Value::string)
+                .unwrap_or(Value::Nil),
+            other => {
+                return Err(signal(
+                    "wrong-type-argument",
+                    vec![Value::symbol("stringp"), other.clone()],
+                ))
+            }
+        });
+    }
+
+    if let Ok(name) = std::env::var("NAME") {
+        if !name.is_empty() {
+            return Ok(Value::string(name));
+        }
+    }
+
+    let fallback = lookup_full_name_by_uid(current_uid())
+        .or_else(|| {
+            login_name_from_env()
+                .as_deref()
+                .and_then(lookup_full_name_by_login)
+        })
+        .or_else(login_name_from_env)
+        .unwrap_or_else(|| "unknown".to_string());
+    Ok(Value::string(fallback))
 }
 
 /// `(system-name)` -> string.
@@ -632,8 +804,60 @@ mod tests {
     fn user_info() {
         // These should not panic, just return strings.
         assert!(builtin_user_login_name(vec![]).unwrap().is_string());
+        assert!(builtin_user_real_login_name(vec![]).unwrap().is_string());
+        assert!(builtin_user_full_name(vec![]).unwrap().is_string());
         assert!(builtin_system_name(vec![]).unwrap().is_string());
         assert!(builtin_emacs_version(vec![]).unwrap().is_string());
+    }
+
+    #[test]
+    fn user_identity_optional_args() {
+        let login_for_uid = builtin_user_login_name(vec![Value::Int(current_uid())]).unwrap();
+        assert!(login_for_uid.is_nil() || login_for_uid.is_string());
+
+        let by_uid = builtin_user_full_name(vec![Value::Int(current_uid())]).unwrap();
+        assert!(by_uid.is_nil() || by_uid.is_string());
+
+        let login = builtin_user_login_name(vec![]).unwrap();
+        let by_login = builtin_user_full_name(vec![login]).unwrap();
+        assert!(by_login.is_nil() || by_login.is_string());
+    }
+
+    #[test]
+    fn user_identity_arity_contracts() {
+        let login_name_err =
+            builtin_user_login_name(vec![Value::Int(1), Value::Int(2)]).unwrap_err();
+        match login_name_err {
+            Flow::Signal(sig) => assert_eq!(sig.symbol, "wrong-number-of-arguments"),
+            other => panic!("expected signal, got {other:?}"),
+        }
+
+        let real_login_err = builtin_user_real_login_name(vec![Value::Int(1)]).unwrap_err();
+        match real_login_err {
+            Flow::Signal(sig) => assert_eq!(sig.symbol, "wrong-number-of-arguments"),
+            other => panic!("expected signal, got {other:?}"),
+        }
+
+        let full_name_err = builtin_user_full_name(vec![Value::Int(1), Value::Int(2)]).unwrap_err();
+        match full_name_err {
+            Flow::Signal(sig) => assert_eq!(sig.symbol, "wrong-number-of-arguments"),
+            other => panic!("expected signal, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn user_identity_type_contracts() {
+        let login_name_err = builtin_user_login_name(vec![Value::string("root")]).unwrap_err();
+        match login_name_err {
+            Flow::Signal(sig) => assert_eq!(sig.symbol, "wrong-type-argument"),
+            other => panic!("expected signal, got {other:?}"),
+        }
+
+        let full_name_err = builtin_user_full_name(vec![Value::list(vec![Value::Int(1)])]).unwrap_err();
+        match full_name_err {
+            Flow::Signal(sig) => assert_eq!(sig.symbol, "wrong-type-argument"),
+            other => panic!("expected signal, got {other:?}"),
+        }
     }
 
     #[test]
