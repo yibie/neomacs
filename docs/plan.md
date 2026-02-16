@@ -19,6 +19,27 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Exposed `cl-remove-if` and `cl-remove-if-not` as callable CL helpers:
+  - updated:
+    - `rust/neovm-core/src/elisp/cl_lib.rs`
+      - added eval-dependent predicate filtering builtins for both remove and keep semantics.
+      - added focused unit coverage for both filtering paths.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - evaluator-dependent dispatch now routes `cl-remove-if` and `cl-remove-if-not`.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - added `cl-remove-if` and `cl-remove-if-not` to builtin registry.
+    - `test/neovm/vm-compat/cases/cl-helper-availability.forms`
+      - switched helper probes to callable forms:
+        - `(cl-remove-if #'numberp '(1 "x" 2))`
+        - `(cl-remove-if-not #'numberp '(1 "x" 2))`
+    - `test/neovm/vm-compat/cases/cl-helper-availability.expected.tsv`
+      - updated expectations from missing helpers to callable behavior (`("x")` and `(1 2)`).
+  - verified:
+    - `cargo test cl_remove_if --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `cargo test cl_remove_if_not --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/cl-helper-availability` (pass, 86/86)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Exposed `cl-sort` and `cl-stable-sort` as callable CL helpers:
   - updated:
     - `rust/neovm-core/src/elisp/cl_lib.rs`
