@@ -358,6 +358,9 @@ fn subr_arity_value(name: &str) -> Value {
         }
         "fboundp" | "func-arity" | "symbol-function" | "symbol-value" | "fmakunbound"
         | "makunbound" => arity_cons(1, Some(1)),
+        "make-symbol" | "symbol-name" | "symbol-plist" => arity_cons(1, Some(1)),
+        "intern" | "intern-soft" | "indirect-function" | "unintern" => arity_cons(1, Some(2)),
+        "symbol-file" => arity_cons(1, Some(3)),
         "fset" | "set" | "get" => arity_cons(2, Some(2)),
         "put" => arity_cons(3, Some(3)),
         "hash-table-p" | "clrhash" | "hash-table-count" => arity_cons(1, Some(1)),
@@ -1438,6 +1441,18 @@ mod tests {
         assert_subr_arity("put", 3, Some(3));
         assert_subr_arity("symbol-function", 1, Some(1));
         assert_subr_arity("symbol-value", 1, Some(1));
+    }
+
+    #[test]
+    fn subr_arity_symbol_obarray_primitives_match_oracle() {
+        assert_subr_arity("intern", 1, Some(2));
+        assert_subr_arity("intern-soft", 1, Some(2));
+        assert_subr_arity("make-symbol", 1, Some(1));
+        assert_subr_arity("symbol-name", 1, Some(1));
+        assert_subr_arity("symbol-plist", 1, Some(1));
+        assert_subr_arity("unintern", 1, Some(2));
+        assert_subr_arity("indirect-function", 1, Some(2));
+        assert_subr_arity("symbol-file", 1, Some(3));
     }
 
     #[test]
