@@ -196,6 +196,7 @@ cases/recursive-top-level-arity-semantics
 cases/minibuffer-contents-no-properties-semantics
 cases/transient-mark-mode-semantics
 cases/input-batch-readers
+cases/input-pending-semantics
 cases/input-unread-command-events-dynamic-semantics
 cases/thing-at-point-core-semantics
 cases/thing-at-point-line-semantics

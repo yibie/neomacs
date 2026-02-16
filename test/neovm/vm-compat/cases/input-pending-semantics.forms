@@ -1,0 +1,13 @@
+; input-pending-p should reflect unread-command-events shape without consuming it.
+(input-pending-p)
+(let ((unread-command-events (list 97))) (input-pending-p))
+(let ((unread-command-events (list 'foo))) (input-pending-p))
+(let ((unread-command-events nil)) (input-pending-p))
+(let ((unread-command-events 7)) (input-pending-p))
+(let ((unread-command-events (cons nil 7))) (input-pending-p))
+(let ((unread-command-events (list 97 98)))
+  (list (input-pending-p) unread-command-events))
+(let ((unread-command-events (list 97)))
+  (list (input-pending-p t) unread-command-events))
+(let ((unread-command-events (list 97))) (input-pending-p 'check))
+(condition-case err (input-pending-p nil nil) (list (car err) (cdr err)))
