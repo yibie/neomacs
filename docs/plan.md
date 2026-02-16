@@ -51,6 +51,7 @@ Last updated: 2026-02-16
 - Keep newly landed `set-buffer` deleted-buffer parity stable while expanding remaining buffer designator/runtime drifts.
 - Keep newly landed `get-buffer` designator parity stable while expanding remaining buffer lookup/runtime drifts.
 - Keep newly landed buffer creation helper arity-guard parity stable while expanding remaining buffer lifecycle/helper drifts.
+- Keep newly landed deleted-buffer default parity for `buffer-size`/`buffer-modified-p` stable while expanding remaining buffer metadata drifts.
 - Keep newly landed window missing-buffer/designator parity slice stable while expanding remaining window lifecycle/helper drifts.
 
 ## Next
@@ -65,6 +66,21 @@ Last updated: 2026-02-16
 8. Resolve the last startup wrapper-shape drift (`neovm-precompile-file`) with an explicit extension-vs-oracle policy and lock-in corpus note.
 
 ## Done
+
+- Aligned deleted-buffer defaults for `buffer-size`/`buffer-modified-p` with GNU Emacs and added oracle lock-in:
+  - updated runtime semantics:
+    - `rust/neovm-core/src/elisp/builtins.rs`
+    - `buffer-size` now returns `0` for deleted buffer objects instead of signaling `No such buffer`
+    - `buffer-modified-p` now returns `nil` for deleted buffer objects instead of signaling `No such buffer`
+  - added evaluator regression:
+    - `buffer_size_and_modified_p_return_defaults_for_deleted_buffer_objects`
+  - added oracle corpus case:
+    - `test/neovm/vm-compat/cases/buffer-size-modified-deleted-buffer-semantics.{forms,expected.tsv}`
+    - wired into:
+      - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml buffer_size_and_modified_p_return_defaults_for_deleted_buffer_objects -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/buffer-size-modified-deleted-buffer-semantics` (pass)
 
 - Fixed buffer creation helper missing-arg panics and added oracle lock-in:
   - updated runtime argument guards:
