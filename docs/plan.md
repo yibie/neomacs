@@ -19,6 +19,25 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Exposed `register-to-string` as a real register helper builtin:
+  - updated:
+    - `rust/neovm-core/src/elisp/register.rs`
+      - added `register-to-string` builtin (arity `1`) returning text register contents as string.
+      - rectangle register contents are joined with newline; non-text registers return `nil`.
+      - added focused unit coverage for empty and text register paths.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - register evaluator dispatch now routes `register-to-string`.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - added `register-to-string` to builtin registry.
+    - `test/neovm/vm-compat/cases/residual-helper-availability.forms`
+      - switched helper probe to a concrete set+read flow using register `"r"`.
+    - `test/neovm/vm-compat/cases/residual-helper-availability.expected.tsv`
+      - updated expectations from `void-function` to callable helper behavior (`"abc"`).
+  - verified:
+    - `cargo test register_to_string --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/residual-helper-availability` (pass, 26/26)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Exposed `display-line-numbers-update-width` as a callable misc helper:
   - updated:
     - `rust/neovm-core/src/elisp/misc.rs`
