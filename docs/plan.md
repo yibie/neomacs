@@ -19,6 +19,22 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Exposed `string-pad` as a callable subr-x string helper:
+  - updated:
+    - `rust/neovm-core/src/elisp/format.rs`
+      - added `string-pad` builtin (arity `2..=4`) with target-length, optional padding char, and left-pad flag support.
+      - added focused unit coverage for right/left padding, no-op behavior, and type validation.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - format/string utility dispatch now routes `string-pad`.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - added `string-pad` to builtin registry.
+    - `test/neovm/vm-compat/cases/subr-x-string-helper-availability.expected.tsv`
+      - updated expectations from missing helper to callable behavior (`"x "`).
+  - verified:
+    - `cargo test string_pad --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/subr-x-string-helper-availability` (pass, 8/8)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Exposed `string-chop-newline` as a callable subr-x string helper:
   - updated:
     - `rust/neovm-core/src/elisp/format.rs`
