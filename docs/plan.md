@@ -20,6 +20,9 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Re-ran full `vm-compat` gate after token-boundary extraction fix:
+  - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+
 - Fixed token-boundary extraction compatibility for `thing-at-point` wrappers:
   - updated:
     - `rust/neovm-core/src/elisp/interactive.rs`
