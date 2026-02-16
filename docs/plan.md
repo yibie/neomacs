@@ -53,6 +53,7 @@ Last updated: 2026-02-16
 - Keep newly landed buffer creation helper arity-guard parity stable while expanding remaining buffer lifecycle/helper drifts.
 - Keep newly landed deleted-buffer default parity for `buffer-size`/`buffer-modified-p` stable while expanding remaining buffer metadata drifts.
 - Keep newly landed buffer undo helper designator parity stable while expanding remaining buffer lifecycle/error-path drifts.
+- Keep newly landed window designator bootstrap/type-error parity stable while expanding remaining window geometry/runtime drifts.
 - Keep newly landed window missing-buffer/designator parity slice stable while expanding remaining window lifecycle/helper drifts.
 
 ## Next
@@ -67,6 +68,27 @@ Last updated: 2026-02-16
 8. Resolve the last startup wrapper-shape drift (`neovm-precompile-file`) with an explicit extension-vs-oracle policy and lock-in corpus note.
 
 ## Done
+
+- Aligned window designator bootstrap and invalid-handle error semantics with GNU Emacs:
+  - updated runtime behavior:
+    - `rust/neovm-core/src/elisp/window_cmds.rs`
+    - nil window designators for `window-start` / `window-point` / `window-buffer` / `window-end` / `set-window-start` / `set-window-point` now bootstrap and target the selected window in batch mode.
+    - invalid window handles now signal GNU Emacs-compatible predicates:
+      - `window-buffer` => `(wrong-type-argument windowp VALUE)`
+      - other window-handle entry points => `(wrong-type-argument window-live-p VALUE)`
+    - `window-end` now clamps to buffer end, so empty buffers report `1` in batch bootstrap parity scenarios.
+  - added evaluator regression:
+    - `window_designators_bootstrap_nil_and_validate_invalid_window_handles`
+  - added oracle corpus case:
+    - `test/neovm/vm-compat/cases/window-designator-bootstrap-semantics.{forms,expected.tsv}`
+    - wired into:
+      - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml window_designators_bootstrap_nil_and_validate_invalid_window_handles -- --nocapture` (pass)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml elisp::window_cmds::tests:: -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/window-designator-bootstrap-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/window-buffer-designator-errors-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/window-buffer-missing-designator-semantics` (pass)
 
 - Aligned buffer undo helper designator semantics with GNU Emacs and added oracle lock-in:
   - updated runtime behavior:
