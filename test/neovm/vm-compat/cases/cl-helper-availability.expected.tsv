@@ -44,8 +44,8 @@
 44	(condition-case err (cl-oddp 3) (error err))	OK t
 45	(fboundp 'cl-plusp)	OK t
 46	(condition-case err (cl-plusp 1) (error err))	OK t
-47	(fboundp 'cl-position)	OK nil
-48	(condition-case err (cl-position) (error err))	OK (void-function cl-position)
+47	(fboundp 'cl-position)	OK t
+48	(condition-case err (cl-position 'b '(a b c)) (error err))	OK 1
 49	(fboundp 'cl-reduce)	OK nil
 50	(condition-case err (cl-reduce) (error err))	OK (void-function cl-reduce)
 51	(fboundp 'cl-remove)	OK t

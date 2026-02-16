@@ -180,6 +180,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "cl-ninth",
     "cl-oddp",
     "cl-plusp",
+    "cl-position",
     "cl-remove",
     "cl-remove-duplicates",
     "cl-rest",

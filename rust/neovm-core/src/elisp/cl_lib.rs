@@ -681,6 +681,21 @@ pub(crate) fn builtin_seq_position(eval: &mut super::eval::Evaluator, args: Vec<
     Ok(Value::Nil)
 }
 
+/// `(cl-position ITEM SEQ &optional TESTFN)` -- CL argument order wrapper.
+pub(crate) fn builtin_cl_position(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_min_args("cl-position", &args, 2)?;
+    expect_max_args("cl-position", &args, 3)?;
+
+    let mut forwarded = Vec::with_capacity(args.len());
+    forwarded.push(args[1].clone());
+    forwarded.push(args[0].clone());
+    if args.len() == 3 {
+        forwarded.push(args[2].clone());
+    }
+
+    builtin_seq_position(eval, forwarded)
+}
+
 /// `(seq-contains-p SEQ ELT &optional TESTFN)` — membership test for sequence.
 pub(crate) fn builtin_seq_contains_p(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     if !(2..=3).contains(&args.len()) {
@@ -1403,5 +1418,19 @@ mod tests {
         let seq = Value::list(vec![Value::Int(1), Value::string("a"), Value::Int(2)]);
         let result = builtin_seq_count(&mut evaluator, vec![func, seq]).unwrap();
         assert_eq!(result.as_int(), Some(2));
+    }
+
+    #[test]
+    fn cl_position_with_eval() {
+        let mut evaluator = super::super::eval::Evaluator::new();
+        let seq = Value::list(vec![Value::symbol("a"), Value::symbol("b"), Value::symbol("c")]);
+        let result = builtin_cl_position(&mut evaluator, vec![Value::symbol("b"), seq]).unwrap();
+        assert_eq!(result.as_int(), Some(1));
+    }
+
+    #[test]
+    fn cl_position_wrong_arity() {
+        let mut evaluator = super::super::eval::Evaluator::new();
+        assert!(builtin_cl_position(&mut evaluator, vec![Value::symbol("a")]).is_err());
     }
 }

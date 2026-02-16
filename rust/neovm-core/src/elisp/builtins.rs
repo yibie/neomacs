@@ -6935,6 +6935,7 @@ pub(crate) fn dispatch_builtin(
         }
 
         "seq-position" => return Some(super::cl_lib::builtin_seq_position(eval, args)),
+        "cl-position" => return Some(super::cl_lib::builtin_cl_position(eval, args)),
         "seq-contains-p" => return Some(super::cl_lib::builtin_seq_contains_p(eval, args)),
         "seq-mapn" => return Some(super::cl_lib::builtin_seq_mapn(eval, args)),
         "seq-do" => return Some(super::cl_lib::builtin_seq_do(eval, args)),
