@@ -75,6 +75,9 @@ Last updated: 2026-02-16
   - verified:
     - `make -C test/neovm/vm-compat check-builtin-registry-function-kind` (pass)
     - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
+  - follow-up:
+    - reduced strict log noise by printing full allowlisted drift rows only when
+      `SHOW_ALLOWLISTED_DRIFTS=1`.
 
 - Added oracle corpus lock-in for batch prompt-reader error semantics:
   - added case:
