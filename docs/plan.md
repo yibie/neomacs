@@ -19,6 +19,21 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Enforced zero-arity buffer state helper semantics:
+  - updated:
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - `erase-buffer`, `widen`, and `current-time` now reject extra args with
+        `wrong-number-of-arguments`.
+    - added corpus:
+      - `test/neovm/vm-compat/cases/buffer-state-arity-semantics.{forms,expected.tsv}`
+        - locks mutation behavior and over-arity signaling for the updated builtins.
+    - `test/neovm/vm-compat/cases/default.list`
+      - added `cases/buffer-state-arity-semantics`.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/buffer-state-arity-semantics` (pass, 9/9)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass, full default + neovm-only corpus)
+
 - Enforced buffer/point helper arity compatibility:
   - updated:
     - `rust/neovm-core/src/elisp/builtins.rs`
