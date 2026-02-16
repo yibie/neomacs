@@ -11,6 +11,7 @@ Last updated: 2026-02-16
 - Keep `.elc` reader/exec compatibility corpora explicitly non-default while `.elc` binary compatibility remains disabled.
 - Keep recent coding-system compatibility slices stable while shifting primary focus to display/font/input stubs.
 - Keep low-risk list/alist primitive semantics aligned while shifting compatibility slices to remaining high-impact display/font/input stubs.
+- Keep newly landed `kbd` parser/encoding compatibility stable while running recurring vm-compat gates.
 
 ## Next
 
@@ -18,8 +19,34 @@ Last updated: 2026-02-16
 2. Land the next evaluator-backed stub replacement outside `rect` (prefer display/input path with high package impact).
 3. Continue expanding oracle corpora for remaining high-risk stub areas (search/input/minibuffer/display/font edge paths) and keep list/alist primitive semantics locked in.
 4. Keep Rust backend behind compile-time switch and preserve Emacs C core as default backend.
+5. Expand `kbd` edge corpus around uncommon modifier composition and align non-`kbd` key-description consumers with the new parser semantics where needed.
 
 ## Done
+
+- Aligned builtin `kbd` runtime semantics with oracle-compatible parser/encoding behavior and added dedicated corpus lock-in:
+  - updated:
+    - `rust/neovm-core/src/elisp/kbd.rs`
+      - added dedicated `kbd` parser/encoder module with:
+        - plain-token character expansion (`"f1"` => `"f1"`),
+        - modifier-prefix handling (`C-`/`M-`/`S-`/`s-`) and oracle-aligned modifier error payloads,
+        - angle-bracket symbolic event parsing (`<f1>`, `C-<f1>`, `<return>`, ...),
+        - Emacs-style return shape (`string` when all events are plain chars, else `vector`),
+        - control-resolution subset for single-character `C-` forms (`C-a`, `C-x`, `C-@`, etc.).
+      - added focused unit coverage for core parser/encoding and error-path behavior.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - routed builtin `kbd` to the new `kbd` module and preserved Emacs-compatible type/error signaling.
+    - `rust/neovm-core/src/elisp/mod.rs`
+      - exported new `kbd` module.
+    - `test/neovm/vm-compat/cases/kbd-string-encoding-semantics.forms`
+      - added oracle probes for `kbd` vector/string shapes, modifier encodings, angle events, and modifier error payloads.
+    - `test/neovm/vm-compat/cases/kbd-string-encoding-semantics.expected.tsv`
+      - recorded oracle baseline outputs for the new `kbd` semantics case.
+    - `test/neovm/vm-compat/cases/default.list`
+      - added `cases/kbd-string-encoding-semantics` to recurring default compatibility execution.
+  - verified:
+    - `cargo test kbd_ --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/kbd-string-encoding-semantics` (pass, 18/18)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 
 - Added oracle lock-in corpus for keymap parent relationships:
   - updated:
