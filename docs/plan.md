@@ -9,7 +9,7 @@ Last updated: 2026-02-16
 - Run targeted vm-compat checks after each behavior-affecting slice.
 - Keep recurring full-corpus `check-all-neovm` gates after each compatibility batch.
 - Keep `.elc` reader/exec compatibility corpora explicitly non-default while `.elc` binary compatibility remains disabled.
-- Continue targeted coding-system follow-ups for remaining corner cases while the new runtime/designator corpora stay green.
+- Keep recent coding-system compatibility slices stable while shifting primary focus to display/font/input stubs.
 - Shift compatibility slices to remaining high-impact display/font/input stubs.
 
 ## Next
@@ -20,6 +20,22 @@ Last updated: 2026-02-16
 4. Keep Rust backend behind compile-time switch and preserve Emacs C core as default backend.
 
 ## Done
+
+- Expanded coding-system derived designator compatibility for `utf-8-auto` / `prefer-utf-8` variants and locked corpus coverage:
+  - updated:
+    - `rust/neovm-core/src/elisp/coding.rs`
+      - allowed derived `utf-8-auto-*` and `prefer-utf-8-*` designators in `check-coding-system`.
+      - aligned keyboard setter rejection paths for those derived variants to oracle `error` payload behavior.
+      - expanded focused unit coverage for derived-suitability edge paths.
+    - `test/neovm/vm-compat/cases/coding-system-designator-semantics.forms`
+      - added derived `utf-8-auto` / `prefer-utf-8` and `undecided` probe paths for `check-coding-system`, keyboard setter, and terminal setter behavior.
+    - `test/neovm/vm-compat/cases/coding-system-designator-semantics.expected.tsv`
+      - refreshed oracle baseline outputs for expanded derived designator coverage.
+  - verified:
+    - `cargo test coding_system_ --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/coding-system-designator-semantics` (pass, 24/24)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
 
 - Aligned coding-system designator handling and keyboard suitability behavior with oracle; added dedicated designator corpus lock-in:
   - updated:
