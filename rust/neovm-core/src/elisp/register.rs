@@ -428,6 +428,22 @@ pub(crate) fn builtin_get_register(
     }
 }
 
+/// (register-to-string REGISTER) -> string or nil
+///
+/// Return textual content from REGISTER when available.
+pub(crate) fn builtin_register_to_string(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_args("register-to-string", &args, 1)?;
+    let reg = expect_register(&args[0])?;
+    match eval.registers.get(reg) {
+        Some(RegisterContent::Text(s)) => Ok(Value::string(s.clone())),
+        Some(RegisterContent::Rectangle(lines)) => Ok(Value::string(lines.join("\n"))),
+        _ => Ok(Value::Nil),
+    }
+}
+
 /// (set-register REGISTER VALUE) -> nil
 ///
 /// Low-level: store an arbitrary Lisp value.  Strings become Text,
@@ -723,6 +739,22 @@ mod tests {
         assert!(result.is_ok());
         let desc = result.unwrap();
         assert!(desc.as_str().unwrap().contains("99"));
+    }
+
+    #[test]
+    fn test_builtin_register_to_string() {
+        use super::super::eval::Evaluator;
+
+        let mut eval = Evaluator::new();
+
+        // Empty register => nil
+        let empty = builtin_register_to_string(&mut eval, vec![Value::Char('r')]).unwrap();
+        assert!(empty.is_nil());
+
+        // Text register => string
+        builtin_set_register(&mut eval, vec![Value::Char('r'), Value::string("abc")]).unwrap();
+        let text = builtin_register_to_string(&mut eval, vec![Value::Char('r')]).unwrap();
+        assert_eq!(text.as_str(), Some("abc"));
     }
 
     #[test]

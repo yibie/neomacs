@@ -6199,6 +6199,7 @@ pub(crate) fn dispatch_builtin(
         }
         "view-register" => return Some(super::register::builtin_view_register(eval, args)),
         "get-register" => return Some(super::register::builtin_get_register(eval, args)),
+        "register-to-string" => return Some(super::register::builtin_register_to_string(eval, args)),
         "set-register" => return Some(super::register::builtin_set_register(eval, args)),
         // Keyboard macro operations (evaluator-dependent)
         "start-kbd-macro" => return Some(super::kmacro::builtin_start_kbd_macro(eval, args)),

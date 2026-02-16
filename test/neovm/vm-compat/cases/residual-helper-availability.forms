@@ -15,7 +15,7 @@
 (fboundp 'hash-table-values)
 (condition-case err (hash-table-values (make-hash-table)) (error err))
 (fboundp 'register-to-string)
-(condition-case err (register-to-string) (error err))
+(condition-case err (let ((_ (set-register "r" "abc"))) (register-to-string "r")) (error err))
 (fboundp 'selected-terminal)
 (condition-case err (selected-terminal) (error err))
 (fboundp 'string-repeat)

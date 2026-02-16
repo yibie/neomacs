@@ -385,6 +385,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "get-char-property",
     "get-load-suffixes",
     "get-register",
+    "register-to-string",
     "get-text-property",
     "get-unused-category",
     "getenv",
