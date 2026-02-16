@@ -302,6 +302,130 @@ fn builtin_command_name(name: &str) -> bool {
             | "end-of-line"
             | "move-beginning-of-line"
             | "move-end-of-line"
+            | "abbrev-mode"
+            | "abort-recursive-edit"
+            | "add-name-to-file"
+            | "advice-remove"
+            | "auto-composition-mode"
+            | "back-to-indentation"
+            | "backward-sexp"
+            | "backward-word"
+            | "beginning-of-buffer"
+            | "bookmark-delete"
+            | "bookmark-jump"
+            | "bookmark-load"
+            | "bookmark-rename"
+            | "bookmark-save"
+            | "bookmark-set"
+            | "buffer-disable-undo"
+            | "buffer-enable-undo"
+            | "call-last-kbd-macro"
+            | "clear-rectangle"
+            | "copy-file"
+            | "copy-to-register"
+            | "count-matches"
+            | "defining-kbd-macro"
+            | "delete-directory"
+            | "delete-file"
+            | "delete-frame"
+            | "delete-other-windows"
+            | "delete-process"
+            | "delete-rectangle"
+            | "delete-region"
+            | "delete-window"
+            | "describe-function"
+            | "describe-key-briefly"
+            | "describe-variable"
+            | "display-buffer"
+            | "emacs-version"
+            | "end-kbd-macro"
+            | "end-of-buffer"
+            | "erase-buffer"
+            | "eval-buffer"
+            | "eval-region"
+            | "exchange-point-and-mark"
+            | "exit-minibuffer"
+            | "exit-recursive-edit"
+            | "expand-abbrev"
+            | "fit-window-to-buffer"
+            | "flush-lines"
+            | "forward-line"
+            | "forward-sexp"
+            | "forward-word"
+            | "garbage-collect"
+            | "getenv"
+            | "global-set-key"
+            | "goto-char"
+            | "goto-line"
+            | "how-many"
+            | "increment-register"
+            | "indent-according-to-mode"
+            | "indent-region"
+            | "indent-rigidly"
+            | "indent-to"
+            | "insert-kbd-macro"
+            | "insert-register"
+            | "isearch-backward"
+            | "isearch-forward"
+            | "kbd-macro-query"
+            | "keep-lines"
+            | "kill-buffer"
+            | "kill-local-variable"
+            | "kill-rectangle"
+            | "load-file"
+            | "local-set-key"
+            | "make-directory"
+            | "make-frame"
+            | "make-local-variable"
+            | "make-symbolic-link"
+            | "make-variable-buffer-local"
+            | "modify-syntax-entry"
+            | "move-to-column"
+            | "move-to-window-line"
+            | "name-last-kbd-macro"
+            | "narrow-to-region"
+            | "newline-and-indent"
+            | "number-to-register"
+            | "open-rectangle"
+            | "open-termscript"
+            | "point-to-register"
+            | "pop-to-buffer"
+            | "posix-search-backward"
+            | "posix-search-forward"
+            | "query-replace"
+            | "query-replace-regexp"
+            | "re-search-backward"
+            | "re-search-forward"
+            | "recursive-edit"
+            | "reindent-then-newline-and-indent"
+            | "remove-hook"
+            | "rename-file"
+            | "replace-regexp"
+            | "replace-string"
+            | "replace-rectangle"
+            | "redraw-display"
+            | "run-at-time"
+            | "run-with-idle-timer"
+            | "run-with-timer"
+            | "search-backward"
+            | "search-forward"
+            | "set-file-modes"
+            | "set-keyboard-coding-system"
+            | "set-terminal-coding-system"
+            | "setenv"
+            | "start-kbd-macro"
+            | "string-rectangle"
+            | "tab-to-tab-stop"
+            | "top-level"
+            | "transient-mark-mode"
+            | "undo"
+            | "upcase-char"
+            | "view-register"
+            | "widen"
+            | "word-search-backward"
+            | "word-search-forward"
+            | "write-region"
+            | "yank-rectangle"
     )
 }
 
@@ -2587,6 +2711,33 @@ mod tests {
             "recenter-top-bottom",
             "move-beginning-of-line",
             "move-end-of-line",
+        ] {
+            let result = builtin_commandp_interactive(&mut ev, vec![Value::symbol(name)])
+                .expect("commandp call");
+            assert!(result.is_truthy(), "expected commandp true for {name}");
+        }
+    }
+
+    #[test]
+    fn commandp_true_for_additional_builtin_commands() {
+        let mut ev = Evaluator::new();
+        for name in [
+            "abbrev-mode",
+            "bookmark-jump",
+            "describe-function",
+            "display-buffer",
+            "eval-buffer",
+            "forward-sexp",
+            "goto-char",
+            "indent-region",
+            "isearch-forward",
+            "make-directory",
+            "query-replace",
+            "re-search-forward",
+            "setenv",
+            "top-level",
+            "write-region",
+            "yank-rectangle",
         ] {
             let result = builtin_commandp_interactive(&mut ev, vec![Value::symbol(name)])
                 .expect("commandp call");

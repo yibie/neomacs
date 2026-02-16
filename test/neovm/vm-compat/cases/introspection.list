@@ -24,6 +24,7 @@ cases/documentation-property-semantics
 cases/documentation-semantics
 cases/commandp-semantics
 cases/commandp-builtin-command-matrix
+cases/commandp-core-command-matrix-extra
 cases/command-dispatch-semantics
 cases/command-dispatch-default-arg-semantics
 cases/transpose-words-semantics
