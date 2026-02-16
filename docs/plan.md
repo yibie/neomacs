@@ -77,6 +77,19 @@ Last updated: 2026-02-16
     - `make -C test/neovm/vm-compat validate-case-lists` (pass)
     - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
 
+- Expanded autoload object error parity lock-in from `funcall` to `apply`:
+  - added evaluator regression:
+    - `apply_autoload_object_signals_wrong_type_argument_symbolp`
+  - expanded oracle corpus case:
+    - `test/neovm/vm-compat/cases/autoload-funcall-error-semantics.forms`
+    - `test/neovm/vm-compat/cases/autoload-funcall-error-semantics.expected.tsv`
+    - now covers both direct and symbol-function-sourced autoload objects through both `funcall` and `apply`.
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml autoload_object_signals_wrong_type_argument_symbolp -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/autoload-funcall-error-semantics` (pass)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
+
 - Aligned remaining core startup autoload wrapper shapes (`rect/help-fns/macros/subr-x`) with GNU Emacs:
   - seeded startup autoload wrapper function cells for:
     - `clear-rectangle`, `delete-extract-rectangle`, `delete-rectangle`, `extract-rectangle`
