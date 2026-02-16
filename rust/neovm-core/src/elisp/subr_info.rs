@@ -351,6 +351,7 @@ fn subr_arity_value(name: &str) -> Value {
             arity_cons(1, Some(1))
         }
         "get-byte" => arity_cons(0, Some(2)),
+        "get-register" => arity_cons(1, Some(1)),
         "get-buffer" | "get-file-buffer" => arity_cons(1, Some(1)),
         "get-buffer-create" | "generate-new-buffer-name" | "generate-new-buffer" => {
             arity_cons(1, Some(2))
@@ -389,6 +390,9 @@ fn subr_arity_value(name: &str) -> Value {
         "put" => arity_cons(3, Some(3)),
         "set-mark" | "set-mark-command" => arity_cons(1, Some(1)),
         "set-marker" => arity_cons(2, Some(3)),
+        "increment-register" | "number-to-register" | "set-register" | "register-ccl-program"
+        | "register-code-conversion-map" => arity_cons(2, Some(2)),
+        "insert-register" | "point-to-register" => arity_cons(1, Some(2)),
         "hash-table-p" | "clrhash" | "hash-table-count" => arity_cons(1, Some(1)),
         "gethash" => arity_cons(2, Some(3)),
         "puthash" => arity_cons(3, Some(3)),
@@ -1115,6 +1119,18 @@ mod tests {
         assert_subr_arity("set-mark-command", 1, Some(1));
         assert_subr_arity("set-marker", 2, Some(3));
         assert_subr_arity("set-marker-insertion-type", 2, Some(2));
+    }
+
+    #[test]
+    fn subr_arity_register_helper_primitives_match_oracle() {
+        assert_subr_arity("get-register", 1, Some(1));
+        assert_subr_arity("increment-register", 2, Some(2));
+        assert_subr_arity("insert-register", 1, Some(2));
+        assert_subr_arity("number-to-register", 2, Some(2));
+        assert_subr_arity("point-to-register", 1, Some(2));
+        assert_subr_arity("set-register", 2, Some(2));
+        assert_subr_arity("register-ccl-program", 2, Some(2));
+        assert_subr_arity("register-code-conversion-map", 2, Some(2));
     }
 
     #[test]
