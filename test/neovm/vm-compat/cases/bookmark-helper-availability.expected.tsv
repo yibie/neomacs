@@ -1,5 +1,5 @@
-1	(fboundp 'bookmark-all-names)	OK nil
-2	(condition-case err (bookmark-all-names) (error err))	OK (void-function bookmark-all-names)
+1	(fboundp 'bookmark-all-names)	OK t
+2	(condition-case err (bookmark-all-names) (error err))	OK nil
 3	(fboundp 'bookmark-get-filename)	OK nil
 4	(condition-case err (bookmark-get-filename "x") (error err))	OK (void-function bookmark-get-filename)
 5	(fboundp 'bookmark-get-position)	OK nil

@@ -58,6 +58,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "bignump",
     "bobp",
     "bolp",
+    "bookmark-all-names",
     "bookmark-delete",
     "bookmark-jump",
     "bookmark-load",

@@ -404,6 +404,21 @@ pub(crate) fn builtin_bookmark_rename(
     }
 }
 
+/// (bookmark-all-names) -> list of bookmark names (sorted)
+pub(crate) fn builtin_bookmark_all_names(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_args("bookmark-all-names", &args, 0)?;
+    let names: Vec<Value> = eval
+        .bookmarks
+        .all_names()
+        .into_iter()
+        .map(|name| Value::string(name.to_string()))
+        .collect();
+    Ok(Value::list(names))
+}
+
 /// (bookmark-save) -> string
 ///
 /// Serialize all bookmarks and return the string.  In a real Emacs this
@@ -748,6 +763,21 @@ mod tests {
         // Old name gone, new name exists.
         assert!(eval.bookmarks.get("old-name").is_none());
         assert!(eval.bookmarks.get("new-name").is_some());
+    }
+
+    #[test]
+    fn test_builtin_bookmark_all_names() {
+        use super::super::eval::Evaluator;
+
+        let mut eval = Evaluator::new();
+        builtin_bookmark_set(&mut eval, vec![Value::string("z-bookmark")]).unwrap();
+        builtin_bookmark_set(&mut eval, vec![Value::string("a-bookmark")]).unwrap();
+
+        let result = builtin_bookmark_all_names(&mut eval, vec![]).unwrap();
+        let names = super::super::value::list_to_vec(&result).unwrap();
+        assert_eq!(names.len(), 2);
+        assert_eq!(names[0].as_str(), Some("a-bookmark"));
+        assert_eq!(names[1].as_str(), Some("z-bookmark"));
     }
 
     #[test]
