@@ -1,4 +1,7 @@
 (locale-info 'codeset)
+(locale-info 'days)
+(locale-info 'months)
+(locale-info 'paper)
 (locale-info "codeset")
 (locale-info nil)
 (locale-info t)
