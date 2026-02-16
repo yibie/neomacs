@@ -55,6 +55,7 @@ Last updated: 2026-02-16
 - Keep newly landed buffer undo helper designator parity stable while expanding remaining buffer lifecycle/error-path drifts.
 - Keep newly landed window designator bootstrap/type-error parity stable while expanding remaining window geometry/runtime drifts.
 - Keep newly landed window size-query default/predicate parity stable while expanding remaining window/frame-list drifts.
+- Keep newly landed `window-list` bootstrap/frame-arg parity stable while expanding remaining window object-representation drifts.
 - Keep newly landed window missing-buffer/designator parity slice stable while expanding remaining window lifecycle/helper drifts.
 
 ## Next
@@ -69,6 +70,22 @@ Last updated: 2026-02-16
 8. Resolve the last startup wrapper-shape drift (`neovm-precompile-file`) with an explicit extension-vs-oracle policy and lock-in corpus note.
 
 ## Done
+
+- Aligned `window-list` bootstrap and non-nil frame-argument error semantics with GNU Emacs:
+  - updated runtime behavior:
+    - `rust/neovm-core/src/elisp/window_cmds.rs`
+    - `window-list` now bootstraps an initial selected frame in batch mode (via `ensure_selected_frame_id`).
+    - non-nil first argument now signals `(error "Window is on a different frame")` for current NeoVM handle model parity.
+    - explicit max-arity guard added (`0..3`) for `window-list`.
+  - added evaluator regression:
+    - `window_list_bootstraps_and_rejects_non_nil_frame_designators`
+  - added oracle corpus case:
+    - `test/neovm/vm-compat/cases/window-list-frame-designator-semantics.{forms,expected.tsv}`
+    - wired into:
+      - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml window_list_bootstraps_and_rejects_non_nil_frame_designators -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/window-list-frame-designator-semantics` (pass)
 
 - Aligned window size-query defaults and invalid-handle predicates with GNU Emacs:
   - updated runtime behavior:
