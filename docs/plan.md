@@ -53,6 +53,10 @@ Last updated: 2026-02-16
   - updated runners:
     - `test/neovm/vm-compat/run-oracle.sh`
     - `test/neovm/vm-compat/run-ert-allowlist.sh`
+  - added guard script and strict-gate wiring:
+    - `test/neovm/vm-compat/check-oracle-default-path.sh`
+    - `make -C test/neovm/vm-compat check-all-neovm-strict` now includes
+      `check-oracle-default-path`
   - updated harness docs:
     - `test/neovm/vm-compat/README.md`
   - verified:
