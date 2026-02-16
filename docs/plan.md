@@ -19,6 +19,27 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Exposed `cl-notany` and `cl-notevery` as callable CL helpers:
+  - updated:
+    - `rust/neovm-core/src/elisp/cl_lib.rs`
+      - added eval-dependent `cl-notany` builtin as negation over `seq-some`.
+      - added eval-dependent `cl-notevery` builtin as negation over `seq-every-p`.
+      - added focused unit coverage for both truthy negation paths.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - evaluator-dependent dispatch now routes `cl-notany` and `cl-notevery`.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - added `cl-notany` and `cl-notevery` to builtin registry.
+    - `test/neovm/vm-compat/cases/cl-helper-availability.forms`
+      - switched probes to callable forms:
+        - `(cl-notany #'numberp '("x" "y"))`
+        - `(cl-notevery #'numberp '(1 "x"))`
+    - `test/neovm/vm-compat/cases/cl-helper-availability.expected.tsv`
+      - updated expectations from missing helpers to callable behavior (`t`/`t`).
+  - verified:
+    - `cargo test cl_not --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/cl-helper-availability` (pass, 86/86)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Exposed `cl-every` as a callable CL helper:
   - updated:
     - `rust/neovm-core/src/elisp/cl_lib.rs`
