@@ -14,6 +14,7 @@ use std::sync::Arc;
 
 thread_local! {
     static STANDARD_CATEGORY_TABLE: RefCell<Option<Value>> = const { RefCell::new(None) };
+    static PURE_CATEGORY_MANAGER: RefCell<CategoryManager> = RefCell::new(CategoryManager::new());
 }
 
 const CATEGORY_TABLE_PROPERTY: &str = "category-table";
@@ -344,32 +345,49 @@ pub(crate) fn builtin_define_category(args: Vec<Value>) -> EvalResult {
         ));
     }
 
-    let _ = docstring;
+    // TABLE (arg 2) is currently ignored; category tables are not first-class.
+    PURE_CATEGORY_MANAGER.with(|slot| {
+        slot.borrow_mut()
+            .current_mut()
+            .define_category(cat, &docstring)
+            .map_err(|msg| signal("error", vec![Value::string(msg)]))
+    })?;
+
     Ok(Value::Nil)
 }
 
 /// `(category-docstring CATEGORY &optional TABLE)`
 ///
-/// Return the docstring of CATEGORY.  Stub: returns nil since we lack
-/// evaluator access in pure builtins.
+/// Return the docstring of CATEGORY from the pure category manager.
 pub(crate) fn builtin_category_docstring(args: Vec<Value>) -> EvalResult {
     expect_min_args("category-docstring", &args, 1)?;
     expect_max_args("category-docstring", &args, 2)?;
 
-    let _cat = extract_char(&args[0], "category-docstring")?;
-    // Without evaluator access, return nil.
-    Ok(Value::Nil)
+    let cat = extract_char(&args[0], "category-docstring")?;
+    // TABLE (arg 1) is currently ignored; category tables are not first-class.
+    let _ = args.get(1);
+
+    PURE_CATEGORY_MANAGER.with(|slot| {
+        let doc = slot.borrow();
+        match doc.current().category_docstring(cat) {
+            Some(text) => Ok(Value::string(text)),
+            None => Ok(Value::Nil),
+        }
+    })
 }
 
 /// `(get-unused-category &optional TABLE)`
 ///
 /// Return an unused category letter, or nil if all 52 are used.
-/// Stub: returns ?a since pure builtins cannot access the manager.
 pub(crate) fn builtin_get_unused_category(args: Vec<Value>) -> EvalResult {
     expect_max_args("get-unused-category", &args, 1)?;
-    // Without evaluator access we cannot inspect the actual table.
-    // Return ?a as a best-effort placeholder.
-    Ok(Value::Char('a'))
+    // TABLE (arg 0) is currently ignored; category tables are not first-class.
+    let _ = args.first();
+
+    PURE_CATEGORY_MANAGER.with(|slot| match slot.borrow().current().get_unused_category() {
+        Some(cat) => Ok(Value::Char(cat)),
+        None => Ok(Value::Nil),
+    })
 }
 
 /// `(category-table-p OBJ)`
@@ -676,6 +694,12 @@ pub(crate) fn builtin_set_category_table_eval(
 mod tests {
     use super::*;
 
+    fn reset_pure_category_manager_for_tests() {
+        PURE_CATEGORY_MANAGER.with(|slot| {
+            *slot.borrow_mut() = CategoryManager::new();
+        });
+    }
+
     // -----------------------------------------------------------------------
     // CategoryTable
     // -----------------------------------------------------------------------
@@ -839,6 +863,7 @@ mod tests {
 
     #[test]
     fn builtin_define_category_basic() {
+        reset_pure_category_manager_for_tests();
         let result =
             builtin_define_category(vec![Value::Char('a'), Value::string("ASCII letters")]);
         assert!(result.is_ok());
@@ -873,10 +898,11 @@ mod tests {
 
     #[test]
     fn builtin_category_docstring_basic() {
+        reset_pure_category_manager_for_tests();
+        builtin_define_category(vec![Value::Char('a'), Value::string("ASCII letters")]).unwrap();
         let result = builtin_category_docstring(vec![Value::Char('a')]);
         assert!(result.is_ok());
-        // Pure builtin returns nil without evaluator.
-        assert!(result.unwrap().is_nil());
+        assert_eq!(result.unwrap().as_str(), Some("ASCII letters"));
     }
 
     #[test]
@@ -889,6 +915,7 @@ mod tests {
 
     #[test]
     fn builtin_get_unused_category_returns_char() {
+        reset_pure_category_manager_for_tests();
         let result = builtin_get_unused_category(vec![]).unwrap();
         assert!(matches!(result, Value::Char(_)));
     }
