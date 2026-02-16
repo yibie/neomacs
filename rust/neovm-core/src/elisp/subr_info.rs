@@ -299,10 +299,10 @@ fn subr_arity_value(name: &str) -> Value {
         "discard-input" => arity_cons(0, Some(0)),
         "current-input-mode" => arity_cons(0, Some(0)),
         "set-input-mode" => arity_cons(3, Some(4)),
-        "set-input-interrupt-mode"
-        | "set-input-meta-mode"
-        | "set-output-flow-control"
-        | "set-quit-char" => arity_cons(1, Some(1)),
+        "set-input-interrupt-mode" | "set-input-meta-mode" | "set-quit-char" => {
+            arity_cons(1, Some(1))
+        }
+        "set-output-flow-control" => arity_cons(1, Some(2)),
         "waiting-for-user-input-p" => arity_cons(0, Some(0)),
         "event-apply-modifier" => arity_cons(4, Some(4)),
         // Threading primitives

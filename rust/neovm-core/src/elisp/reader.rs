@@ -917,7 +917,8 @@ pub(crate) fn builtin_set_input_meta_mode(args: Vec<Value>) -> EvalResult {
 ///
 /// Batch-compatible behavior: accepts one argument and returns nil.
 pub(crate) fn builtin_set_output_flow_control(args: Vec<Value>) -> EvalResult {
-    expect_args("set-output-flow-control", &args, 1)?;
+    expect_min_args("set-output-flow-control", &args, 1)?;
+    expect_max_args("set-output-flow-control", &args, 2)?;
     Ok(Value::Nil)
 }
 
@@ -2010,8 +2011,14 @@ mod tests {
     }
 
     #[test]
+    fn set_output_flow_control_accepts_two_args_and_returns_nil() {
+        let result = builtin_set_output_flow_control(vec![Value::True, Value::Nil]).unwrap();
+        assert!(result.is_nil());
+    }
+
+    #[test]
     fn set_output_flow_control_rejects_wrong_arity() {
-        let result = builtin_set_output_flow_control(vec![Value::Nil, Value::Nil]);
+        let result = builtin_set_output_flow_control(vec![]);
         assert!(matches!(
             result,
             Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"
