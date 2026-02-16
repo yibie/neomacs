@@ -19,6 +19,29 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Added a dedicated neovm-only corpus for CL set/list helper semantics:
+  - updated:
+    - `test/neovm/vm-compat/cases/cl-setops-semantics.forms`
+      - added focused probes for:
+        - `cl-intersection`
+        - `cl-set-difference`
+        - `cl-union`
+        - `cl-subsetp`
+        - `cl-substitute`
+        - `cl-remove-if`
+        - `cl-remove-if-not`
+        - `cl-map` (`list`/`vector`)
+        - `cl-sort`
+        - `cl-stable-sort`
+    - `test/neovm/vm-compat/cases/cl-setops-semantics.expected.tsv`
+      - recorded neovm baseline outputs for the new corpus.
+    - `test/neovm/vm-compat/cases/neovm-only.list`
+      - added `cases/cl-setops-semantics` to recurring neovm-only execution.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/cl-setops-semantics` (pass, 12/12)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+
 - Exposed `cl-map` as a callable CL helper:
   - updated:
     - `rust/neovm-core/src/elisp/cl_lib.rs`
