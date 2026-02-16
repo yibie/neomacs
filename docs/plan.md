@@ -38,6 +38,17 @@ Last updated: 2026-02-16
     - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/core` (pass, 15/15)
     - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/input-batch-readers` (pass, 70/70)
 
+- Refactored vm-compat case-line filtering into a shared runner helper:
+  - added:
+    - `test/neovm/vm-compat/filter-case-lines.awk`
+  - updated:
+    - `test/neovm/vm-compat/run-oracle.sh`
+    - `test/neovm/vm-compat/run-neovm.sh`
+      - both runners now use the same prefix-filter path (`__NEOVM_CASE__\t`) to reduce protocol drift between oracle and neovm execution.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/core` (pass, 15/15)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/read-passwd-batch-semantics` (pass, 8/8)
+
 - Added oracle lock-in corpus for `read-passwd` batch semantics:
   - added and enabled:
     - `test/neovm/vm-compat/cases/read-passwd-batch-semantics.forms`
