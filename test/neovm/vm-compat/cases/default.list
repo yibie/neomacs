@@ -333,6 +333,7 @@ cases/terminal-handle-printing
 cases/frame-batch-semantics
 cases/window-buffer-switch-semantics
 cases/window-buffer-designator-errors-semantics
+cases/window-buffer-missing-designator-semantics
 cases/other-buffer-semantics
 cases/kill-buffer-runtime-semantics
 cases/set-buffer-dead-buffer-semantics

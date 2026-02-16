@@ -726,18 +726,73 @@ pub(crate) fn builtin_set_window_buffer(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("set-window-buffer", &args, 2)?;
-    let wid_val = expect_int(&args[0])? as u64;
-    let buf_id = resolve_buffer_id(eval, &args[1])?;
-
     let fid = eval
         .frames
         .selected_frame()
         .map(|f| f.id)
         .ok_or_else(|| signal("error", vec![Value::string("No selected frame")]))?;
+    let selected_wid = eval
+        .frames
+        .get(fid)
+        .map(|f| f.selected_window)
+        .ok_or_else(|| signal("error", vec![Value::string("No selected window")]))?;
+    let wid = match &args[0] {
+        Value::Nil => selected_wid,
+        other => {
+            let id = match other.as_int() {
+                Some(n) => WindowId(n as u64),
+                None => {
+                    return Err(signal(
+                        "wrong-type-argument",
+                        vec![Value::symbol("window-live-p"), other.clone()],
+                    ))
+                }
+            };
+            let live = eval
+                .frames
+                .get(fid)
+                .and_then(|f| f.find_window(id))
+                .is_some();
+            if !live {
+                return Err(signal(
+                    "wrong-type-argument",
+                    vec![Value::symbol("window-live-p"), other.clone()],
+                ));
+            }
+            id
+        }
+    };
+    let buf_id = match &args[1] {
+        Value::Buffer(id) => {
+            if eval.buffers.get(*id).is_none() {
+                return Err(signal(
+                    "error",
+                    vec![Value::string("Attempt to display deleted buffer")],
+                ));
+            }
+            *id
+        }
+        Value::Str(name) => match eval.buffers.find_buffer_by_name(name) {
+            Some(id) => id,
+            None => {
+                return Err(signal(
+                    "wrong-type-argument",
+                    vec![Value::symbol("bufferp"), Value::Nil],
+                ))
+            }
+        },
+        other => {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("stringp"), other.clone()],
+            ))
+        }
+    };
+
     if let Some(w) = eval
         .frames
         .get_mut(fid)
-        .and_then(|f| f.find_window_mut(WindowId(wid_val)))
+        .and_then(|f| f.find_window_mut(wid))
     {
         w.set_buffer(buf_id);
     }
@@ -751,7 +806,27 @@ pub(crate) fn builtin_switch_to_buffer(
 ) -> EvalResult {
     expect_min_args("switch-to-buffer", &args, 1)?;
     expect_max_args("switch-to-buffer", &args, 3)?;
-    let buf_id = resolve_buffer_id(eval, &args[0])?;
+    let buf_id = match &args[0] {
+        Value::Buffer(id) => {
+            if eval.buffers.get(*id).is_none() {
+                return Err(signal(
+                    "error",
+                    vec![Value::string("Attempt to display deleted buffer")],
+                ));
+            }
+            *id
+        }
+        Value::Str(name) => match eval.buffers.find_buffer_by_name(name) {
+            Some(id) => id,
+            None => eval.buffers.create_buffer(name),
+        },
+        other => {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("stringp"), other.clone()],
+            ))
+        }
+    };
 
     // Set the selected window's buffer.
     let fid = ensure_selected_frame_id(eval);
@@ -781,7 +856,24 @@ pub(crate) fn builtin_display_buffer(
 ) -> EvalResult {
     expect_min_args("display-buffer", &args, 1)?;
     expect_max_args("display-buffer", &args, 3)?;
-    let buf_id = resolve_buffer_id(eval, &args[0])?;
+    let buf_id = match &args[0] {
+        Value::Buffer(id) => {
+            if eval.buffers.get(*id).is_none() {
+                return Err(signal("error", vec![Value::string("Invalid buffer")]));
+            }
+            *id
+        }
+        Value::Str(name) => match eval.buffers.find_buffer_by_name(name) {
+            Some(id) => id,
+            None => return Err(signal("error", vec![Value::string("Invalid buffer")])),
+        },
+        other => {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("stringp"), other.clone()],
+            ))
+        }
+    };
 
     let fid = ensure_selected_frame_id(eval);
     let sel_wid = eval
@@ -809,7 +901,24 @@ pub(crate) fn builtin_pop_to_buffer(
 ) -> EvalResult {
     expect_min_args("pop-to-buffer", &args, 1)?;
     expect_max_args("pop-to-buffer", &args, 3)?;
-    let buf_id = resolve_buffer_id(eval, &args[0])?;
+    let buf_id = match &args[0] {
+        Value::Buffer(id) => {
+            if eval.buffers.get(*id).is_none() {
+                return Err(signal("error", vec![Value::string("Invalid buffer")]));
+            }
+            *id
+        }
+        Value::Str(name) => match eval.buffers.find_buffer_by_name(name) {
+            Some(id) => id,
+            None => eval.buffers.create_buffer(name),
+        },
+        other => {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("stringp"), other.clone()],
+            ))
+        }
+    };
 
     let fid = ensure_selected_frame_id(eval);
     let sel_wid = eval
@@ -1656,5 +1765,53 @@ mod tests {
         assert_eq!(results[1], "OK (wrong-type-argument stringp 1)");
         assert_eq!(results[2], "OK (wrong-type-argument stringp 1)");
         assert_eq!(results[3], "OK (wrong-type-argument stringp 1)");
+    }
+
+    #[test]
+    fn switch_and_pop_create_missing_named_buffers() {
+        let results = eval_with_frame(
+            "(save-current-buffer (bufferp (switch-to-buffer \"sw-auto-create\")))
+             (buffer-live-p (get-buffer \"sw-auto-create\"))
+             (kill-buffer \"sw-auto-create\")
+             (save-current-buffer (bufferp (pop-to-buffer \"pop-auto-create\")))
+             (buffer-live-p (get-buffer \"pop-auto-create\"))
+             (kill-buffer \"pop-auto-create\")",
+        );
+        assert_eq!(results[0], "OK t");
+        assert_eq!(results[1], "OK t");
+        assert_eq!(results[2], "OK t");
+        assert_eq!(results[3], "OK t");
+        assert_eq!(results[4], "OK t");
+        assert_eq!(results[5], "OK t");
+    }
+
+    #[test]
+    fn display_buffer_missing_or_dead_signals_invalid_buffer() {
+        let results = eval_with_frame(
+            "(condition-case err (display-buffer \"db-missing\") (error err))
+             (let ((b (generate-new-buffer \"db-dead\")))
+               (kill-buffer b)
+               (condition-case err (display-buffer b) (error err)))",
+        );
+        assert_eq!(results[0], "OK (error \"Invalid buffer\")");
+        assert_eq!(results[1], "OK (error \"Invalid buffer\")");
+    }
+
+    #[test]
+    fn set_window_buffer_matches_window_and_buffer_designator_errors() {
+        let results = eval_with_frame(
+            "(condition-case err (set-window-buffer nil \"*scratch*\") (error err))
+             (condition-case err (set-window-buffer nil \"swb-missing\") (error err))
+             (let ((b (generate-new-buffer \"swb-dead\")))
+               (kill-buffer b)
+               (condition-case err (set-window-buffer nil b) (error err)))
+             (condition-case err (set-window-buffer 999999 \"*scratch*\") (error err))
+             (condition-case err (set-window-buffer 'foo \"*scratch*\") (error err))",
+        );
+        assert_eq!(results[0], "OK nil");
+        assert_eq!(results[1], "OK (wrong-type-argument bufferp nil)");
+        assert_eq!(results[2], "OK (error \"Attempt to display deleted buffer\")");
+        assert_eq!(results[3], "OK (wrong-type-argument window-live-p 999999)");
+        assert_eq!(results[4], "OK (wrong-type-argument window-live-p foo)");
     }
 }
