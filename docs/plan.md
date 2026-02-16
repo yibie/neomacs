@@ -25,6 +25,30 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Aligned display control/TTY/X helper `subr-arity` metadata with GNU Emacs:
+  - updated:
+    - `rust/neovm-core/src/elisp/subr_info.rs`
+      - added explicit arity overrides:
+        - `(0 . 1)`: `ding`, `redraw-frame`, `internal-show-cursor-p`, `controlling-tty-p`, `suspend-tty`, `resume-tty`, `terminal-coding-system`
+        - `(0 . 0)`: `redraw-display`
+        - `(1 . 1)`: `open-termscript`, `x-close-connection`
+        - `(1 . 2)`: `send-string-to-terminal`, `display-supports-face-attributes-p`
+        - `(1 . 3)`: `x-open-connection`
+        - `(2 . 2)`: `internal-show-cursor`
+      - extended display/terminal subr-arity unit matrix coverage for the above names.
+    - `test/neovm/vm-compat/cases/display-control-subr-arity-semantics.forms`
+    - `test/neovm/vm-compat/cases/display-control-subr-arity-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+      - added oracle lock-in case for display control/TTY/X helper arity payloads.
+  - recorded with official GNU Emacs:
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat record FORMS=cases/display-control-subr-arity-semantics.forms EXPECTED=cases/display-control-subr-arity-semantics.expected.tsv` (pass)
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml subr_arity_display_terminal_primitives_match_oracle -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/display-control-subr-arity-semantics` (pass, 14/14)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/display-stub-semantics` (pass, 34/34)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/tty-batch-semantics` (pass, 29/29)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass)
+
 - Aligned process primitive `subr-arity` metadata with GNU Emacs:
   - updated:
     - `rust/neovm-core/src/elisp/subr_info.rs`
