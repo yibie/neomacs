@@ -9,18 +9,41 @@ Last updated: 2026-02-16
 - Run targeted vm-compat checks after each behavior-affecting slice.
 - Keep recurring full-corpus `check-all-neovm` gates after each compatibility batch.
 - Keep `.elc` reader/exec compatibility corpora explicitly non-default while `.elc` binary compatibility remains disabled.
-- Continue closing coding-system runtime behavior gaps (setter return values and nil semantics) after arity/default lock-in.
+- Continue closing coding-system runtime behavior gaps around designator acceptance (`check-coding-system`/derived variants) and unsuitable coding rejections.
 - Shift next compatibility slices to remaining high-impact display/font/input stubs.
 
 ## Next
 
 1. Keep `check-all-neovm` as a recurring post-slice gate to catch regressions early.
-2. Lock oracle corpus for coding-system setter runtime semantics (`set-keyboard-coding-system` / `set-terminal-coding-system`) and align behavior.
+2. Expand coding-system compatibility around derived designators and keyboard suitability checks (`utf-8-auto`-style rejection paths).
 3. Continue expanding oracle corpora for remaining high-risk stub areas (search/input/minibuffer/display/font edge paths).
 4. Land the next evaluator-backed stub replacement outside `rect` (prefer display/input path with high package impact).
 5. Keep Rust backend behind compile-time switch and preserve Emacs C core as default backend.
 
 ## Done
+
+- Aligned coding-system setter runtime semantics with oracle and added dedicated runtime corpus lock-in:
+  - updated:
+    - `rust/neovm-core/src/elisp/coding.rs`
+      - enforced symbol-only coding-system setter designators (`wrong-type-argument symbolp` on non-symbol).
+      - aligned unknown designator handling to `coding-system-error`.
+      - aligned nil semantics:
+        - `set-keyboard-coding-system nil` => stores `no-conversion`
+        - `set-terminal-coding-system nil` => stores `nil`
+      - aligned keyboard setter return/value behavior for common runtime paths (unix-normalized keyboard coding return values).
+      - added focused unit coverage for runtime setter behavior and error paths.
+    - `test/neovm/vm-compat/cases/coding-system-io-runtime-semantics.forms`
+      - added oracle probes for keyboard/terminal setter runtime transitions, type/unknown errors, and post-set getter state.
+    - `test/neovm/vm-compat/cases/coding-system-io-runtime-semantics.expected.tsv`
+      - recorded oracle baseline outputs for coding-system I/O runtime semantics.
+    - `test/neovm/vm-compat/cases/default.list`
+      - added `cases/coding-system-io-runtime-semantics` to recurring default compatibility execution.
+  - verified:
+    - `cargo test coding_system_ --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/coding-system-io-runtime-semantics` (pass, 24/24)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/coding-system-io-arity-semantics` (pass, 17/17)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
 
 - Aligned coding-system I/O builtin arity and default getter semantics with oracle; added dedicated corpus lock-in:
   - updated:
