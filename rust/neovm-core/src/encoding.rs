@@ -260,6 +260,13 @@ pub(crate) fn builtin_multibyte_string_p(args: Vec<Value>) -> EvalResult {
     Ok(Value::bool(is_multibyte_string(&s)))
 }
 
+/// `(unibyte-string-p STRING)` -> t or nil
+pub(crate) fn builtin_unibyte_string_p(args: Vec<Value>) -> EvalResult {
+    expect_args("unibyte-string-p", &args, 1)?;
+    let s = expect_string(&args[0])?;
+    Ok(Value::bool(!is_multibyte_string(&s)))
+}
+
 /// `(encode-coding-string STRING CODING-SYSTEM)` -> string
 pub(crate) fn builtin_encode_coding_string(args: Vec<Value>) -> EvalResult {
     expect_min_args("encode-coding-string", &args, 2)?;
@@ -394,6 +401,24 @@ mod tests {
         assert!(!is_multibyte_string("hello"));
         assert!(is_multibyte_string("héllo"));
         assert!(is_multibyte_string("中文"));
+    }
+
+    #[test]
+    fn builtin_unibyte_string_p_basics() {
+        assert_eq!(
+            builtin_unibyte_string_p(vec![Value::string("hello")]).unwrap(),
+            Value::True
+        );
+        assert_eq!(
+            builtin_unibyte_string_p(vec![Value::string("héllo")]).unwrap(),
+            Value::Nil
+        );
+    }
+
+    #[test]
+    fn builtin_unibyte_string_p_errors() {
+        assert!(builtin_unibyte_string_p(vec![]).is_err());
+        assert!(builtin_unibyte_string_p(vec![Value::Int(1)]).is_err());
     }
 
     #[test]

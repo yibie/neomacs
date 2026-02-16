@@ -871,6 +871,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "undo-boundary",
     "universal-argument",
     "unibyte-char-to-multibyte",
+    "unibyte-string-p",
     "unibyte-string",
     "unintern",
     "upcase-char",

@@ -20,7 +20,7 @@
 20	(condition-case err (selected-terminal) (error err))	OK #<terminal 0 on initial_terminal>
 21	(fboundp 'string-repeat)	OK nil
 22	(condition-case err (string-repeat) (error err))	OK (void-function string-repeat)
-23	(fboundp 'unibyte-string-p)	OK nil
-24	(condition-case err (unibyte-string-p) (error err))	OK (void-function unibyte-string-p)
+23	(fboundp 'unibyte-string-p)	OK t
+24	(condition-case err (unibyte-string-p "abc") (error err))	OK t
 25	(fboundp 'word-at-point)	OK t
 26	(condition-case err (word-at-point) (error err))	OK nil
