@@ -25,6 +25,36 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Implemented input-mode helper setter compatibility (`set-input-interrupt-mode`, `set-input-meta-mode`, `set-output-flow-control`, `set-quit-char`) and locked oracle coverage:
+  - updated:
+    - `rust/neovm-core/src/elisp/reader.rs`
+      - added batch-compatible helper builtins:
+        - `set-input-interrupt-mode` (updates interrupt state; arity `(1 . 1)`),
+        - `set-input-meta-mode` (no-op in batch; arity `(1 . 1)`),
+        - `set-output-flow-control` (no-op in batch; arity `(1 . 2)`),
+        - `set-quit-char` (no-op in batch; arity `(1 . 1)`).
+      - added focused unit coverage for return values, state mutation (`set-input-interrupt-mode`), and arity paths.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - wired helper setters into evaluator dispatch.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - added helper setter names to dispatch registry.
+    - `rust/neovm-core/src/elisp/subr_info.rs`
+      - added arity metadata:
+        - `set-input-interrupt-mode`, `set-input-meta-mode`, `set-quit-char` -> `(1 . 1)`
+        - `set-output-flow-control` -> `(1 . 2)`
+    - `test/neovm/vm-compat/cases/input-mode-helper-setters-semantics.forms`
+    - `test/neovm/vm-compat/cases/input-mode-helper-setters-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+      - added oracle lock-in for helper return values, interrupt-state transitions, and helper arity payloads.
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml set_input_interrupt_mode -- --nocapture` (pass)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml set_input_meta_mode -- --nocapture` (pass)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml set_output_flow_control -- --nocapture` (pass)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml set_quit_char -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/input-mode-helper-setters-semantics` (pass, 15/15)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Implemented `waiting-for-user-input-p` batch compatibility and locked oracle coverage:
   - updated:
     - `rust/neovm-core/src/elisp/reader.rs`
