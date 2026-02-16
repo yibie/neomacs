@@ -787,6 +787,7 @@ fn command_name_display(value: &Value) -> String {
 /// Return the binding for KEY in the current keymaps.
 pub(crate) fn builtin_key_binding(eval: &mut Evaluator, args: Vec<Value>) -> EvalResult {
     expect_min_args("key-binding", &args, 1)?;
+    let string_designator = args[0].is_string();
 
     let events = match super::kbd::key_events_from_designator(&args[0]) {
         Ok(events) => events,
@@ -801,6 +802,9 @@ pub(crate) fn builtin_key_binding(eval: &mut Evaluator, args: Vec<Value>) -> Eva
         }
     };
     if events.is_empty() {
+        if !string_designator {
+            return Ok(Value::Nil);
+        }
         let global_id = ensure_global_keymap(eval);
         let mut maps = Vec::new();
         if let Some(local_id) = eval.current_local_map {
@@ -2582,6 +2586,11 @@ mod tests {
             eval_one(r#"(let ((m (key-binding ""))) (and (consp m) (keymapp (car m))))"#),
             "OK t"
         );
+    }
+
+    #[test]
+    fn key_binding_empty_vector_is_nil() {
+        assert_eq!(eval_one(r#"(key-binding [])"#), "OK nil");
     }
 
     #[test]
