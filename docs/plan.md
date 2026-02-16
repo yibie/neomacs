@@ -65,12 +65,13 @@ Last updated: 2026-02-16
 - Keep newly landed `delete-window` / `delete-other-windows` max-arity parity stable while expanding remaining window lifecycle/helper drifts.
 - Keep newly landed `split-window` max-arity parity stable while expanding remaining window lifecycle/helper drifts.
 - Keep newly landed `other-window` max-arity parity stable while expanding remaining window lifecycle/helper drifts.
+- Keep newly landed window accessor max-arity parity stable while expanding remaining window lifecycle/helper drifts.
 - Keep newly landed window missing-buffer/designator parity slice stable while expanding remaining window lifecycle/helper drifts.
 
 ## Next
 
 1. Keep `check-all-neovm` as a recurring post-slice gate to catch regressions early.
-2. Land the next evaluator-backed stub replacement after the `other-window` max-arity parity slice (prefer high-impact buffer/window lifecycle helper paths).
+2. Land the next evaluator-backed stub replacement after the window accessor max-arity parity slice (prefer high-impact buffer/window lifecycle helper paths).
 3. Continue expanding oracle corpora for remaining high-risk stub areas (search/input/minibuffer/display/font edge paths) and keep list/alist primitive semantics locked in.
 4. Keep Rust backend behind compile-time switch and preserve Emacs C core as default backend.
 5. Expand `kbd` edge corpus around uncommon modifier composition and align non-`kbd` key-description consumers with the new parser semantics where needed.
@@ -79,6 +80,22 @@ Last updated: 2026-02-16
 8. Resolve the last startup wrapper-shape drift (`neovm-precompile-file`) with an explicit extension-vs-oracle policy and lock-in corpus note.
 
 ## Done
+
+- Aligned window accessor max-arity runtime behavior with GNU Emacs and added oracle lock-in:
+  - updated runtime behavior:
+    - `rust/neovm-core/src/elisp/window_cmds.rs`
+    - `window-buffer`, `window-start`, `window-end`, `window-point`, and `window-dedicated-p` now enforce their max arity contracts.
+    - `set-window-start` now enforces max arity `3` in addition to its required minimum arity.
+  - added evaluator regression:
+    - `window_accessors_enforce_max_arity`
+  - added oracle corpus case:
+    - `test/neovm/vm-compat/cases/window-accessor-arity-semantics.{forms,expected.tsv}`
+    - wired into:
+      - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml window_accessors_enforce_max_arity` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/window-accessor-arity-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
 
 - Aligned `other-window` max-arity runtime behavior with GNU Emacs and added oracle lock-in:
   - updated runtime behavior:
