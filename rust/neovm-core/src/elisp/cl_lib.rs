@@ -148,6 +148,12 @@ pub(crate) fn builtin_cl_ninth(args: Vec<Value>) -> EvalResult {
     cl_list_nth(&args[0], 8)
 }
 
+/// `(cl-tenth LIST)` -- return the tenth element of LIST.
+pub(crate) fn builtin_cl_tenth(args: Vec<Value>) -> EvalResult {
+    expect_args("cl-tenth", &args, 1)?;
+    cl_list_nth(&args[0], 9)
+}
+
 fn seq_position_list_elements(seq: &Value) -> Result<Vec<Value>, Flow> {
     let mut elements = Vec::new();
     let mut cursor = seq.clone();
@@ -948,6 +954,35 @@ mod tests {
     #[test]
     fn cl_ninth_wrong_type() {
         assert!(builtin_cl_ninth(vec![Value::Int(1)]).is_err());
+    }
+
+    #[test]
+    fn cl_tenth_list() {
+        let list = Value::list(vec![
+            Value::symbol("a"),
+            Value::symbol("b"),
+            Value::symbol("c"),
+            Value::symbol("d"),
+            Value::symbol("e"),
+            Value::symbol("f"),
+            Value::symbol("g"),
+            Value::symbol("h"),
+            Value::symbol("i"),
+            Value::symbol("j"),
+        ]);
+        let result = builtin_cl_tenth(vec![list]).unwrap();
+        assert!(matches!(result, Value::Symbol(s) if s == "j"));
+    }
+
+    #[test]
+    fn cl_tenth_nil() {
+        let result = builtin_cl_tenth(vec![Value::Nil]).unwrap();
+        assert!(result.is_nil());
+    }
+
+    #[test]
+    fn cl_tenth_wrong_type() {
+        assert!(builtin_cl_tenth(vec![Value::Int(1)]).is_err());
     }
 
     #[test]

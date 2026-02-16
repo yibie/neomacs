@@ -79,7 +79,7 @@
 (fboundp 'cl-substitute)
 (condition-case err (cl-substitute) (error err))
 (fboundp 'cl-tenth)
-(condition-case err (cl-tenth) (error err))
+(condition-case err (cl-tenth '(a b c d e f g h i j)) (error err))
 (fboundp 'cl-third)
 (condition-case err (cl-third '(a b c)) (error err))
 (fboundp 'cl-union)

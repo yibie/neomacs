@@ -175,6 +175,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "cl-second",
     "cl-seventh",
     "cl-sixth",
+    "cl-tenth",
     "cl-third",
     "closurep",
     "coding-system-aliases",
