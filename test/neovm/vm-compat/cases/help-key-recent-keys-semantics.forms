@@ -1,4 +1,7 @@
 (fboundp 'help-key-description)
+(subr-arity (symbol-function 'help-key-description))
+(help-function-arglist 'help-key-description)
+(help-function-arglist 'help-key-description t)
 (condition-case err (help-key-description) (error (car err)))
 (condition-case err (help-key-description "a") (error (car err)))
 (condition-case err (help-key-description "a" nil nil) (error (car err)))
@@ -20,6 +23,9 @@
 (string= (help-key-description "" "a") " (translated from a)")
 
 (fboundp 'recent-keys)
+(subr-arity (symbol-function 'recent-keys))
+(help-function-arglist 'recent-keys)
+(help-function-arglist 'recent-keys t)
 (type-of (recent-keys))
 (length (recent-keys))
 (append (recent-keys) nil)

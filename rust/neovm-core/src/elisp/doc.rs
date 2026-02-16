@@ -436,6 +436,22 @@ fn help_arglist_from_subr_name(name: &str, preserve_names: bool) -> Option<Value
             vec![],
         ),
         "thread-yield" => (vec![], vec![]),
+        "help-key-description" => (
+            if preserve_names {
+                vec!["key", "untranslated"]
+            } else {
+                vec!["arg1", "arg2"]
+            },
+            vec![],
+        ),
+        "recent-keys" => (
+            vec![],
+            if preserve_names {
+                vec!["include-cmds"]
+            } else {
+                vec!["arg1"]
+            },
+        ),
         "thread-name" => (
             if preserve_names {
                 vec!["thread"]
