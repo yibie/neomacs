@@ -23,6 +23,28 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Aligned `describe-key-briefly` / `substitute-command-keys` argument and return-shape edges with oracle and added dedicated corpus lock-in:
+  - updated:
+    - `rust/neovm-core/src/elisp/interactive.rs`
+      - `substitute-command-keys` now accepts 1..3 args and ignores optional extras.
+      - `describe-key-briefly` now accepts 0..3 args:
+        - no args => empty string in batch.
+        - non-nil `INSERT` arg => nil return.
+      - kept existing basic description behavior for explicit key argument.
+      - updated test wiring to use shared key-designator decoding in bound-key coverage.
+    - `test/neovm/vm-compat/cases/describe-substitute-command-semantics.forms`
+      - added oracle probes for arity edges and return-shape predicates of both builtins.
+    - `test/neovm/vm-compat/cases/describe-substitute-command-semantics.expected.tsv`
+      - recorded oracle baseline outputs for this compatibility slice.
+    - `test/neovm/vm-compat/cases/default.list`
+      - added `cases/describe-substitute-command-semantics` to recurring default compatibility execution.
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml describe_key_briefly_` (pass)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml substitute_command_keys_accepts_optional_args` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/describe-substitute-command-semantics.forms EXPECTED=cases/describe-substitute-command-semantics.expected.tsv` (pass, 8/8)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/describe-substitute-command-semantics` (pass, 8/8)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Aligned `key-binding` / `global-key-binding` / `local-key-binding` arity caps with oracle and added dedicated corpus lock-in:
   - updated:
     - `rust/neovm-core/src/elisp/interactive.rs`
