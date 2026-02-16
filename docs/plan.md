@@ -19,6 +19,24 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Exposed `kmacro-set-counter` as a real helper builtin:
+  - updated:
+    - `rust/neovm-core/src/elisp/kmacro.rs`
+      - added `kmacro-set-counter` with arity range `1..=2`.
+      - updates runtime keyboard macro counter state from integer payload.
+      - added focused unit coverage for arity/type/state paths.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - evaluator dispatch now routes `kmacro-set-counter`.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - added `kmacro-set-counter` to dispatch builtin registry.
+    - `test/neovm/vm-compat/cases/kmacro-helper-availability.expected.tsv`
+      - updated expectations from `void-function` to callable helper behavior.
+  - verified:
+    - `cargo test kmacro::tests::test_kmacro_set_counter_builtin --manifest-path rust/neovm-core/Cargo.toml -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/kmacro-helper-availability` (pass, 14/14)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass, full default + neovm-only corpus)
+
 - Exposed `kmacro-p` as a real helper predicate builtin:
   - updated:
     - `rust/neovm-core/src/elisp/kmacro.rs`
