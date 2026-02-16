@@ -6024,6 +6024,7 @@ fn builtin_event_apply_modifier(args: Vec<Value>) -> EvalResult {
             32 => 33,
             64 => 65,
             96 => 97,
+            126 => 127,
             97..=122 => code - 32,
             _ => code,
         };

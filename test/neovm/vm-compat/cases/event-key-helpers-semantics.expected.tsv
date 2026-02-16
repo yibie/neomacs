@@ -36,45 +36,46 @@
 36	(help-function-arglist 'event-apply-modifier t)	OK (event symbol lshiftby prefix)
 37	(event-apply-modifier 97 'control 0 nil)	OK 1
 38	(event-apply-modifier 97 'shift 0 nil)	OK 65
-39	(event-apply-modifier 32 'control 0 nil)	OK 33
-40	(event-apply-modifier 63 'control 0 nil)	OK 63
-41	(event-apply-modifier 96 'control 0 nil)	OK 97
-42	(event-apply-modifier 126 'control 0 nil)	OK 127
-43	(event-apply-modifier 97 'foo 23 nil)	OK 8388705
-44	(event-apply-modifier 97 'foo 0 nil)	OK 97
-45	(event-apply-modifier 'return 'control 0 nil)	OK return
-46	(event-apply-modifier '(mouse-1) 'control 0 nil)	OK (mouse-1)
-47	(condition-case err (event-apply-modifier [97] 'control 0 nil) (error (car err)))	OK wrong-type-argument
-48	(condition-case err (event-apply-modifier 97 'foo "x" nil) (error (car err)))	OK wrong-type-argument
-49	(condition-case err (event-apply-modifier) (error (car err)))	OK wrong-number-of-arguments
-50	(condition-case err (event-apply-modifier 97 'control) (error (car err)))	OK wrong-number-of-arguments
-51	(condition-case err (event-apply-modifier 97 'foo 1) (error (car err)))	OK wrong-number-of-arguments
-52	(fboundp 'listify-key-sequence)	OK t
-53	(listify-key-sequence "")	OK nil
-54	(listify-key-sequence "a")	OK (97)
-55	(listify-key-sequence "ab")	OK (97 98)
-56	(listify-key-sequence [97])	OK (97)
-57	(listify-key-sequence [97 98])	OK (97 98)
-58	(listify-key-sequence (vector 'f1 97 1))	OK (f1 97 1)
-59	(listify-key-sequence nil)	OK nil
-60	(listify-key-sequence '(97 98))	OK (97 98)
-61	(condition-case err (listify-key-sequence '(f1 97 1)) (error (car err)))	OK wrong-type-argument
-62	(condition-case err (listify-key-sequence) (error (car err)))	OK wrong-number-of-arguments
-63	(condition-case err (listify-key-sequence "a" nil) (error (car err)))	OK wrong-number-of-arguments
-64	(condition-case err (listify-key-sequence 1) (error (car err)))	OK wrong-type-argument
-65	(fboundp 'key-valid-p)	OK t
-66	(key-valid-p "a")	OK t
-67	(key-valid-p "C-a")	OK t
-68	(key-valid-p "M-x")	OK t
-69	(key-valid-p "C-M-a")	OK t
-70	(key-valid-p "C-x C-f")	OK t
-71	(key-valid-p "<f1>")	OK t
-72	(key-valid-p "RET")	OK t
-73	(key-valid-p "C-")	OK nil
-74	(key-valid-p "f1")	OK nil
-75	(key-valid-p "abc")	OK nil
-76	(key-valid-p [97])	OK nil
-77	(key-valid-p nil)	OK nil
-78	(key-valid-p 1)	OK nil
-79	(condition-case err (key-valid-p) (error (car err)))	OK wrong-number-of-arguments
-80	(condition-case err (key-valid-p "a" nil) (error (car err)))	OK wrong-number-of-arguments
+39	(event-apply-modifier 126 'shift 0 nil)	OK 127
+40	(event-apply-modifier 32 'control 0 nil)	OK 33
+41	(event-apply-modifier 63 'control 0 nil)	OK 63
+42	(event-apply-modifier 96 'control 0 nil)	OK 97
+43	(event-apply-modifier 126 'control 0 nil)	OK 127
+44	(event-apply-modifier 97 'foo 23 nil)	OK 8388705
+45	(event-apply-modifier 97 'foo 0 nil)	OK 97
+46	(event-apply-modifier 'return 'control 0 nil)	OK return
+47	(event-apply-modifier '(mouse-1) 'control 0 nil)	OK (mouse-1)
+48	(condition-case err (event-apply-modifier [97] 'control 0 nil) (error (car err)))	OK wrong-type-argument
+49	(condition-case err (event-apply-modifier 97 'foo "x" nil) (error (car err)))	OK wrong-type-argument
+50	(condition-case err (event-apply-modifier) (error (car err)))	OK wrong-number-of-arguments
+51	(condition-case err (event-apply-modifier 97 'control) (error (car err)))	OK wrong-number-of-arguments
+52	(condition-case err (event-apply-modifier 97 'foo 1) (error (car err)))	OK wrong-number-of-arguments
+53	(fboundp 'listify-key-sequence)	OK t
+54	(listify-key-sequence "")	OK nil
+55	(listify-key-sequence "a")	OK (97)
+56	(listify-key-sequence "ab")	OK (97 98)
+57	(listify-key-sequence [97])	OK (97)
+58	(listify-key-sequence [97 98])	OK (97 98)
+59	(listify-key-sequence (vector 'f1 97 1))	OK (f1 97 1)
+60	(listify-key-sequence nil)	OK nil
+61	(listify-key-sequence '(97 98))	OK (97 98)
+62	(condition-case err (listify-key-sequence '(f1 97 1)) (error (car err)))	OK wrong-type-argument
+63	(condition-case err (listify-key-sequence) (error (car err)))	OK wrong-number-of-arguments
+64	(condition-case err (listify-key-sequence "a" nil) (error (car err)))	OK wrong-number-of-arguments
+65	(condition-case err (listify-key-sequence 1) (error (car err)))	OK wrong-type-argument
+66	(fboundp 'key-valid-p)	OK t
+67	(key-valid-p "a")	OK t
+68	(key-valid-p "C-a")	OK t
+69	(key-valid-p "M-x")	OK t
+70	(key-valid-p "C-M-a")	OK t
+71	(key-valid-p "C-x C-f")	OK t
+72	(key-valid-p "<f1>")	OK t
+73	(key-valid-p "RET")	OK t
+74	(key-valid-p "C-")	OK nil
+75	(key-valid-p "f1")	OK nil
+76	(key-valid-p "abc")	OK nil
+77	(key-valid-p [97])	OK nil
+78	(key-valid-p nil)	OK nil
+79	(key-valid-p 1)	OK nil
+80	(condition-case err (key-valid-p) (error (car err)))	OK wrong-number-of-arguments
+81	(condition-case err (key-valid-p "a" nil) (error (car err)))	OK wrong-number-of-arguments

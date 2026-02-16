@@ -38,6 +38,7 @@
 (help-function-arglist 'event-apply-modifier t)
 (event-apply-modifier ?a 'control 0 nil)
 (event-apply-modifier ?a 'shift 0 nil)
+(event-apply-modifier 126 'shift 0 nil)
 (event-apply-modifier 32 'control 0 nil)
 (event-apply-modifier 63 'control 0 nil)
 (event-apply-modifier 96 'control 0 nil)
