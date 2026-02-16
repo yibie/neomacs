@@ -743,6 +743,8 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "set-default-file-modes",
     "set-file-modes",
     "set-file-times",
+    "set-input-interrupt-mode",
+    "set-input-meta-mode",
     "set-input-mode",
     "set-keyboard-coding-system",
     "set-keymap-parent",
@@ -751,6 +753,8 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "set-marker",
     "set-marker-insertion-type",
     "set-match-data",
+    "set-output-flow-control",
+    "set-quit-char",
     "set-register",
     "set-standard-case-table",
     "set-syntax-table",
@@ -952,6 +956,10 @@ mod tests {
         assert!(is_dispatch_builtin_name("discard-input"));
         assert!(is_dispatch_builtin_name("current-input-mode"));
         assert!(is_dispatch_builtin_name("set-input-mode"));
+        assert!(is_dispatch_builtin_name("set-input-interrupt-mode"));
+        assert!(is_dispatch_builtin_name("set-input-meta-mode"));
+        assert!(is_dispatch_builtin_name("set-output-flow-control"));
+        assert!(is_dispatch_builtin_name("set-quit-char"));
         assert!(is_dispatch_builtin_name("waiting-for-user-input-p"));
         assert!(is_dispatch_builtin_name("minibuffer-prompt"));
         assert!(is_dispatch_builtin_name("minibuffer-contents"));

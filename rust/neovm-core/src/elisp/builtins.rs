@@ -7578,6 +7578,14 @@ pub(crate) fn dispatch_builtin(
         "discard-input" => return Some(super::reader::builtin_discard_input(eval, args)),
         "current-input-mode" => return Some(super::reader::builtin_current_input_mode(eval, args)),
         "set-input-mode" => return Some(super::reader::builtin_set_input_mode(eval, args)),
+        "set-input-interrupt-mode" => {
+            return Some(super::reader::builtin_set_input_interrupt_mode(eval, args))
+        }
+        "set-input-meta-mode" => return Some(super::reader::builtin_set_input_meta_mode(args)),
+        "set-output-flow-control" => {
+            return Some(super::reader::builtin_set_output_flow_control(args))
+        }
+        "set-quit-char" => return Some(super::reader::builtin_set_quit_char(args)),
         "waiting-for-user-input-p" => {
             return Some(super::reader::builtin_waiting_for_user_input_p(args))
         }

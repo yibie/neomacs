@@ -892,7 +892,45 @@ pub(crate) fn builtin_set_input_mode(
 }
 
 // ---------------------------------------------------------------------------
-// 12. waiting-for-user-input-p
+// 12. input mode helper setters
+// ---------------------------------------------------------------------------
+
+/// `(set-input-interrupt-mode INTERRUPT)`
+pub(crate) fn builtin_set_input_interrupt_mode(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_args("set-input-interrupt-mode", &args, 1)?;
+    eval.set_input_mode_interrupt(args[0].is_truthy());
+    Ok(Value::Nil)
+}
+
+/// `(set-input-meta-mode META)`
+///
+/// Batch-compatible behavior: accepts one argument and returns nil.
+pub(crate) fn builtin_set_input_meta_mode(args: Vec<Value>) -> EvalResult {
+    expect_args("set-input-meta-mode", &args, 1)?;
+    Ok(Value::Nil)
+}
+
+/// `(set-output-flow-control FLOW)`
+///
+/// Batch-compatible behavior: accepts one argument and returns nil.
+pub(crate) fn builtin_set_output_flow_control(args: Vec<Value>) -> EvalResult {
+    expect_args("set-output-flow-control", &args, 1)?;
+    Ok(Value::Nil)
+}
+
+/// `(set-quit-char CHAR)`
+///
+/// Batch-compatible behavior: accepts one argument and returns nil.
+pub(crate) fn builtin_set_quit_char(args: Vec<Value>) -> EvalResult {
+    expect_args("set-quit-char", &args, 1)?;
+    Ok(Value::Nil)
+}
+
+// ---------------------------------------------------------------------------
+// 13. waiting-for-user-input-p
 // ---------------------------------------------------------------------------
 
 /// `(waiting-for-user-input-p)`
@@ -904,7 +942,7 @@ pub(crate) fn builtin_waiting_for_user_input_p(args: Vec<Value>) -> EvalResult {
 }
 
 // ---------------------------------------------------------------------------
-// 13. y-or-n-p (stub)
+// 14. y-or-n-p (stub)
 // ---------------------------------------------------------------------------
 
 /// `(y-or-n-p PROMPT)`
@@ -928,7 +966,7 @@ pub(crate) fn builtin_y_or_n_p(args: Vec<Value>) -> EvalResult {
 }
 
 // ---------------------------------------------------------------------------
-// 14. yes-or-no-p (stub)
+// 15. yes-or-no-p (stub)
 // ---------------------------------------------------------------------------
 
 /// `(yes-or-no-p PROMPT)`
@@ -944,7 +982,7 @@ pub(crate) fn builtin_yes_or_no_p(args: Vec<Value>) -> EvalResult {
 }
 
 // ---------------------------------------------------------------------------
-// 15. read-char (stub)
+// 16. read-char (stub)
 // ---------------------------------------------------------------------------
 
 /// `(read-char &optional PROMPT ...)`
@@ -999,7 +1037,7 @@ pub(crate) fn builtin_read_key(
 }
 
 // ---------------------------------------------------------------------------
-// 16. read-key-sequence (stub)
+// 17. read-key-sequence (stub)
 // ---------------------------------------------------------------------------
 
 /// `(read-key-sequence PROMPT)`
@@ -1923,6 +1961,76 @@ mod tests {
             builtin_current_input_mode(&mut ev, vec![]).unwrap(),
             Value::list(vec![Value::Nil, Value::Nil, Value::True, Value::Int(7)])
         );
+    }
+
+    #[test]
+    fn set_input_interrupt_mode_toggles_interrupt_state() {
+        let mut ev = Evaluator::new();
+        let _ = builtin_set_input_interrupt_mode(&mut ev, vec![Value::Nil]).unwrap();
+        assert_eq!(
+            builtin_current_input_mode(&mut ev, vec![]).unwrap(),
+            Value::list(vec![Value::Nil, Value::Nil, Value::True, Value::Int(7)])
+        );
+        let _ = builtin_set_input_interrupt_mode(&mut ev, vec![Value::symbol("x")]).unwrap();
+        assert_eq!(
+            builtin_current_input_mode(&mut ev, vec![]).unwrap(),
+            Value::list(vec![Value::True, Value::Nil, Value::True, Value::Int(7)])
+        );
+    }
+
+    #[test]
+    fn set_input_interrupt_mode_rejects_wrong_arity() {
+        let mut ev = Evaluator::new();
+        let result = builtin_set_input_interrupt_mode(&mut ev, vec![Value::Nil, Value::Nil]);
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"
+        ));
+    }
+
+    #[test]
+    fn set_input_meta_mode_accepts_one_arg_and_returns_nil() {
+        let result = builtin_set_input_meta_mode(vec![Value::Nil]).unwrap();
+        assert!(result.is_nil());
+    }
+
+    #[test]
+    fn set_input_meta_mode_rejects_wrong_arity() {
+        let result = builtin_set_input_meta_mode(vec![]);
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"
+        ));
+    }
+
+    #[test]
+    fn set_output_flow_control_accepts_one_arg_and_returns_nil() {
+        let result = builtin_set_output_flow_control(vec![Value::True]).unwrap();
+        assert!(result.is_nil());
+    }
+
+    #[test]
+    fn set_output_flow_control_rejects_wrong_arity() {
+        let result = builtin_set_output_flow_control(vec![Value::Nil, Value::Nil]);
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"
+        ));
+    }
+
+    #[test]
+    fn set_quit_char_accepts_one_arg_and_returns_nil() {
+        let result = builtin_set_quit_char(vec![Value::Int(65)]).unwrap();
+        assert!(result.is_nil());
+    }
+
+    #[test]
+    fn set_quit_char_rejects_wrong_arity() {
+        let result = builtin_set_quit_char(vec![]);
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"
+        ));
     }
 
     #[test]
