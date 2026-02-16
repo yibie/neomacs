@@ -14,6 +14,7 @@ Last updated: 2026-02-16
 - Keep newly landed `kbd` parser/encoding compatibility stable while running recurring vm-compat gates.
 - Keep newly landed `help-key-description` / `recent-keys` compatibility slice stable while expanding input/help coverage.
 - Keep newly landed `command-execute` / `compare-strings` / `completing-read` `subr-arity` parity stable while expanding the remaining command/input matrix.
+- Keep newly landed kmacro/command-loop `subr-arity` parity stable while expanding edit-command arity lock-ins.
 
 ## Next
 
@@ -25,6 +26,27 @@ Last updated: 2026-02-16
 6. Expand `recent-keys` capture beyond `read*` consumers to eventual command-loop event publication.
 
 ## Done
+
+- Aligned kmacro/command-loop primitive `subr-arity` metadata with GNU Emacs:
+  - updated:
+    - `rust/neovm-core/src/elisp/subr_info.rs`
+      - added explicit arity overrides:
+        - `(1 . 2)`: `start-kbd-macro`
+        - `(0 . 2)`: `end-kbd-macro`, `call-last-kbd-macro`
+        - `(1 . 3)`: `execute-kbd-macro`, `execute-extended-command`
+        - `(0 . 3)`: `describe-key-briefly`
+      - added unit matrix `subr_arity_kmacro_command_primitives_match_oracle`.
+    - `test/neovm/vm-compat/cases/kmacro-command-subr-arity-semantics.forms`
+    - `test/neovm/vm-compat/cases/kmacro-command-subr-arity-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+      - added oracle lock-in case for kmacro/command-loop arity payloads.
+  - recorded with official GNU Emacs:
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat record FORMS=cases/kmacro-command-subr-arity-semantics.forms EXPECTED=cases/kmacro-command-subr-arity-semantics.expected.tsv` (pass)
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml subr_arity_kmacro_command_primitives_match_oracle -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/kmacro-command-subr-arity-semantics` (pass, 6/6)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass; allowlisted drift only: `neovm-precompile-file`)
 
 - Aligned command/read primitive `subr-arity` metadata with GNU Emacs:
   - updated:
