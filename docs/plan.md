@@ -25,6 +25,25 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Aligned `event-apply-modifier` control-edge character semantics with oracle:
+  - updated:
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - refined control branch for integer events to match oracle fallback behavior on unresolved control mappings.
+      - fixed control-edge outputs for key codes:
+        - `32` -> `33`
+        - `63` -> `63`
+        - `96` -> `97`
+        - `126` -> `127`
+      - preserved previously landed uppercase/control parity and introspection parity.
+    - `test/neovm/vm-compat/cases/event-key-helpers-semantics.forms`
+      - expanded `event-apply-modifier` probes with control-edge integer code paths (`32`, `63`, `96`, `126`).
+    - `test/neovm/vm-compat/cases/event-key-helpers-semantics.expected.tsv`
+      - refreshed oracle baseline for expanded control-edge matrix.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/event-key-helpers-semantics` (pass, 80/80)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass; only allowlisted `neovm-precompile-file` drift)
+
 - Extended `event-convert-list` control-modifier parity for `C-SPC`/`C-?` paths:
   - updated:
     - `rust/neovm-core/src/elisp/builtins.rs`
