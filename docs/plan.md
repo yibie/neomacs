@@ -79,6 +79,21 @@ Last updated: 2026-02-16
     - reduced strict log noise by printing full allowlisted drift rows only when
       `SHOW_ALLOWLISTED_DRIFTS=1`.
 
+- Added aggregated builtin-registry strict target for faster focused parity runs:
+  - added `check-builtin-registry-all` in:
+    - `test/neovm/vm-compat/Makefile`
+  - bundles:
+    - `check-builtin-registry-fboundp`
+    - `check-builtin-registry-function-cell`
+    - `check-builtin-registry-function-kind`
+    - `check-builtin-registry-commandp`
+    - `check-builtin-registry-extension-policy`
+  - updated strict gate to reuse the aggregate target:
+    - `check-all-neovm-strict` now calls `check-builtin-registry-all`
+  - verified:
+    - `make -C test/neovm/vm-compat check-builtin-registry-all` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
+
 - Added oracle corpus lock-in for batch prompt-reader error semantics:
   - added case:
     - `test/neovm/vm-compat/cases/reader-prompt-batch-error-semantics.{forms,expected.tsv}`
