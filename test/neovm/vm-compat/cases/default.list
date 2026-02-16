@@ -162,6 +162,7 @@ cases/undo-result-semantics
 cases/minibuffer-batch
 cases/minibufferp-semantics
 cases/exit-recursive-edit-semantics
+cases/recursive-top-level-arity-semantics
 cases/minibuffer-contents-no-properties-semantics
 cases/transient-mark-mode-semantics
 cases/input-batch-readers
