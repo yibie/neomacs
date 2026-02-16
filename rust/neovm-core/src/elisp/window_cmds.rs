@@ -809,42 +809,7 @@ pub(crate) fn builtin_set_window_buffer(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("set-window-buffer", &args, 2)?;
-    let fid = eval
-        .frames
-        .selected_frame()
-        .map(|f| f.id)
-        .ok_or_else(|| signal("error", vec![Value::string("No selected frame")]))?;
-    let selected_wid = eval
-        .frames
-        .get(fid)
-        .map(|f| f.selected_window)
-        .ok_or_else(|| signal("error", vec![Value::string("No selected window")]))?;
-    let wid = match &args[0] {
-        Value::Nil => selected_wid,
-        other => {
-            let id = match other.as_int() {
-                Some(n) => WindowId(n as u64),
-                None => {
-                    return Err(signal(
-                        "wrong-type-argument",
-                        vec![Value::symbol("window-live-p"), other.clone()],
-                    ))
-                }
-            };
-            let live = eval
-                .frames
-                .get(fid)
-                .and_then(|f| f.find_window(id))
-                .is_some();
-            if !live {
-                return Err(signal(
-                    "wrong-type-argument",
-                    vec![Value::symbol("window-live-p"), other.clone()],
-                ));
-            }
-            id
-        }
-    };
+    let (fid, wid) = resolve_window_id(eval, args.first())?;
     let buf_id = match &args[1] {
         Value::Buffer(id) => {
             if eval.buffers.get(*id).is_none() {
@@ -1459,7 +1424,7 @@ mod tests {
         assert!(r.starts_with("OK "));
         let val: i64 = r.strip_prefix("OK ").unwrap().trim().parse().unwrap();
         // Batch mode returns character rows.
-        assert_eq!(val, 37);
+        assert_eq!(val, 36);
     }
 
     #[test]
@@ -1986,5 +1951,30 @@ mod tests {
         assert_eq!(results[2], "OK (error \"Attempt to display deleted buffer\")");
         assert_eq!(results[3], "OK (wrong-type-argument window-live-p 999999)");
         assert_eq!(results[4], "OK (wrong-type-argument window-live-p foo)");
+    }
+
+    #[test]
+    fn set_window_buffer_bootstraps_initial_frame_for_nil_window_designator() {
+        let forms = parse_forms(
+            "(condition-case err
+                 (let ((b (get-buffer-create \"swb-bootstrap\")))
+                   (set-buffer b)
+                   (erase-buffer)
+                   (insert \"abcdef\")
+                   (goto-char 1)
+                   (set-window-buffer nil b)
+                   (list (buffer-name (window-buffer nil))
+                         (window-start nil)
+                         (window-end nil)))
+               (error err))",
+        )
+        .expect("parse");
+        let mut ev = Evaluator::new();
+        let out = ev
+            .eval_forms(&forms)
+            .iter()
+            .map(format_eval_result)
+            .collect::<Vec<_>>();
+        assert_eq!(out[0], "OK (\"swb-bootstrap\" 1 7)");
     }
 }

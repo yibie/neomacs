@@ -180,8 +180,10 @@ impl Window {
         } = self
         {
             *buffer_id = new_id;
-            *window_start = 0;
-            *point = 0;
+            // Emacs positions are 1-based; switching the displayed buffer resets
+            // window-start/point to point-min.
+            *window_start = 1;
+            *point = 1;
         }
     }
 
