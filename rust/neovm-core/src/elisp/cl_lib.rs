@@ -790,6 +790,20 @@ pub(crate) fn builtin_cl_find_if(
     Ok(Value::Nil)
 }
 
+/// `(cl-subsetp LIST1 LIST2)` -- return t if every element of LIST1 appears in LIST2.
+pub(crate) fn builtin_cl_subsetp(args: Vec<Value>) -> EvalResult {
+    expect_args("cl-subsetp", &args, 2)?;
+    let left = seq_position_elements(&args[0])?;
+    let right = seq_position_elements(&args[1])?;
+
+    for item in left {
+        if !right.iter().any(|candidate| equal_value(&item, candidate, 0)) {
+            return Ok(Value::Nil);
+        }
+    }
+    Ok(Value::True)
+}
+
 /// `(seq-contains-p SEQ ELT &optional TESTFN)` — membership test for sequence.
 pub(crate) fn builtin_seq_contains_p(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     if !(2..=3).contains(&args.len()) {
@@ -1657,5 +1671,30 @@ mod tests {
     fn cl_find_if_wrong_arity() {
         let mut evaluator = super::super::eval::Evaluator::new();
         assert!(builtin_cl_find_if(&mut evaluator, vec![Value::Subr("numberp".to_string())]).is_err());
+    }
+
+    #[test]
+    fn cl_subsetp_true() {
+        let result = builtin_cl_subsetp(vec![
+            Value::list(vec![Value::symbol("a"), Value::symbol("b")]),
+            Value::list(vec![Value::symbol("b"), Value::symbol("a"), Value::symbol("c")]),
+        ])
+        .unwrap();
+        assert!(result.is_truthy());
+    }
+
+    #[test]
+    fn cl_subsetp_false() {
+        let result = builtin_cl_subsetp(vec![
+            Value::list(vec![Value::symbol("a"), Value::symbol("z")]),
+            Value::list(vec![Value::symbol("a"), Value::symbol("b")]),
+        ])
+        .unwrap();
+        assert!(result.is_nil());
+    }
+
+    #[test]
+    fn cl_subsetp_wrong_arity() {
+        assert!(builtin_cl_subsetp(vec![Value::Nil]).is_err());
     }
 }

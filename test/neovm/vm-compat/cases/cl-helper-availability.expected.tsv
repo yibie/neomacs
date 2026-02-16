@@ -74,8 +74,8 @@
 74	(condition-case err (cl-stable-sort) (error err))	OK (void-function cl-stable-sort)
 75	(fboundp 'cl-subseq)	OK t
 76	(condition-case err (cl-subseq '(a b c d) 1 3) (error err))	OK (b c)
-77	(fboundp 'cl-subsetp)	OK nil
-78	(condition-case err (cl-subsetp) (error err))	OK (void-function cl-subsetp)
+77	(fboundp 'cl-subsetp)	OK t
+78	(condition-case err (cl-subsetp '(a b) '(b a c)) (error err))	OK t
 79	(fboundp 'cl-substitute)	OK nil
 80	(condition-case err (cl-substitute) (error err))	OK (void-function cl-substitute)
 81	(fboundp 'cl-tenth)	OK t
