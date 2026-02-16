@@ -47,6 +47,22 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Aligned file/load helper primitive `subr-arity` metadata with GNU Emacs:
+  - added explicit arity lock-ins for:
+    - `(1 . 2)`: `find-file`
+    - `(1 . 4)`: `find-file-noselect`
+    - `(1 . 5)`: `insert-file-contents`, `load`
+    - `(1 . 1)`: `load-file`
+    - `(2 . 4)`: `locate-file`, `locate-file-internal`
+  - added oracle corpus lock-in case:
+    - `test/neovm/vm-compat/cases/file-load-subr-arity-semantics`
+  - wired into default vm-compat suite:
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml subr_arity_file_load_primitives_match_oracle -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/file-load-subr-arity-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
+
 - Aligned kill/edit helper primitive `subr-arity` metadata with GNU Emacs:
   - added explicit arity lock-ins for:
     - `(2 . 3)`: `downcase-region`, `kill-region`, `kill-ring-save`
