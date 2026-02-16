@@ -247,6 +247,11 @@ pub(crate) fn builtin_cl_remove(args: Vec<Value>) -> EvalResult {
     super::builtins_extra::builtin_remove(args)
 }
 
+/// `(cl-remove-duplicates SEQ)` -- CL alias for `seq-uniq`.
+pub(crate) fn builtin_cl_remove_duplicates(args: Vec<Value>) -> EvalResult {
+    super::builtins_extra::builtin_seq_uniq(args)
+}
+
 fn seq_position_list_elements(seq: &Value) -> Result<Vec<Value>, Flow> {
     let mut elements = Vec::new();
     let mut cursor = seq.clone();
@@ -1287,6 +1292,27 @@ mod tests {
     #[test]
     fn cl_remove_wrong_arity() {
         assert!(builtin_cl_remove(vec![Value::symbol("a")]).is_err());
+    }
+
+    #[test]
+    fn cl_remove_duplicates_list() {
+        let result = builtin_cl_remove_duplicates(vec![Value::list(vec![
+            Value::symbol("a"),
+            Value::symbol("b"),
+            Value::symbol("a"),
+            Value::symbol("c"),
+            Value::symbol("b"),
+        ])])
+        .unwrap();
+        assert_eq!(
+            result,
+            Value::list(vec![Value::symbol("a"), Value::symbol("b"), Value::symbol("c")])
+        );
+    }
+
+    #[test]
+    fn cl_remove_duplicates_wrong_arity() {
+        assert!(builtin_cl_remove_duplicates(vec![Value::Nil, Value::Nil]).is_err());
     }
 
     #[test]

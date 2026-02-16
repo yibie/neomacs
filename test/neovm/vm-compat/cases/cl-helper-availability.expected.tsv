@@ -50,8 +50,8 @@
 50	(condition-case err (cl-reduce) (error err))	OK (void-function cl-reduce)
 51	(fboundp 'cl-remove)	OK t
 52	(condition-case err (cl-remove 'a '(a b a)) (error err))	OK (b)
-53	(fboundp 'cl-remove-duplicates)	OK nil
-54	(condition-case err (cl-remove-duplicates) (error err))	OK (void-function cl-remove-duplicates)
+53	(fboundp 'cl-remove-duplicates)	OK t
+54	(condition-case err (cl-remove-duplicates '(a b a c b)) (error err))	OK (a b c)
 55	(fboundp 'cl-remove-if)	OK nil
 56	(condition-case err (cl-remove-if) (error err))	OK (void-function cl-remove-if)
 57	(fboundp 'cl-remove-if-not)	OK nil

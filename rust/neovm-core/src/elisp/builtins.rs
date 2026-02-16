@@ -7615,6 +7615,7 @@ pub(crate) fn dispatch_builtin(
         "cl-oddp" => super::cl_lib::builtin_cl_oddp(args),
         "cl-plusp" => super::cl_lib::builtin_cl_plusp(args),
         "cl-remove" => super::cl_lib::builtin_cl_remove(args),
+        "cl-remove-duplicates" => super::cl_lib::builtin_cl_remove_duplicates(args),
         "cl-tenth" => super::cl_lib::builtin_cl_tenth(args),
         "cl-rest" => super::cl_lib::builtin_cl_rest(args),
         "seq-reverse" => super::cl_lib::builtin_seq_reverse(args),
