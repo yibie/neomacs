@@ -20,6 +20,9 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Re-ran full `vm-compat` gate after adding line corpus lock-in:
+  - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+
 - Added dedicated `thing-at-point 'line` oracle corpus coverage:
   - updated:
     - `test/neovm/vm-compat/cases/thing-at-point-line-semantics.forms`
