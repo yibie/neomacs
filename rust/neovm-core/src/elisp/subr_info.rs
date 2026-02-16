@@ -477,7 +477,10 @@ fn subr_arity_value(name: &str) -> Value {
             arity_cons(1, Some(1))
         }
         "internal-set-lisp-face-attribute" => arity_cons(3, Some(4)),
+        "merge-face-attribute" => arity_cons(3, Some(3)),
         "put-image" => arity_cons(2, Some(4)),
+        "insert-image" => arity_cons(1, Some(5)),
+        "lookup-image-map" => arity_cons(3, Some(3)),
         "query-replace" | "query-replace-regexp" => arity_cons(2, Some(7)),
         "quoted-insert" => arity_cons(1, Some(1)),
         "looking-at" => arity_cons(1, Some(2)),
@@ -502,10 +505,12 @@ fn subr_arity_value(name: &str) -> Value {
         | "skip-chars-forward" | "skip-syntax-backward" | "skip-syntax-forward"
         | "transpose-sexps" => arity_cons(1, Some(2)),
         "shell-command-to-string" | "special-form-p" | "store-kbd-macro-event"
-        | "unibyte-char-to-multibyte" | "upcase-initials" | "upcase-word"
-        | "use-global-map" | "use-local-map" | "view-register" => arity_cons(1, Some(1)),
+        | "unibyte-char-to-multibyte" | "multibyte-char-to-unibyte" | "multibyte-string-p"
+        | "upcase-initials" | "upcase-word" | "use-global-map" | "use-local-map"
+        | "view-register" => arity_cons(1, Some(1)),
         "subr-arity" | "subr-name" | "subrp" => arity_cons(1, Some(1)),
         "signal" | "take" => arity_cons(2, Some(2)),
+        "secure-hash" => arity_cons(2, Some(5)),
         "split-window" => arity_cons(0, Some(4)),
         "switch-to-buffer" => arity_cons(1, Some(3)),
         "this-command-keys" | "this-command-keys-vector" | "undo-boundary"
@@ -524,7 +529,8 @@ fn subr_arity_value(name: &str) -> Value {
         "syntax-ppss" => arity_cons(0, Some(1)),
         "syntax-table" | "standard-case-table" | "standard-category-table"
         | "standard-syntax-table" => arity_cons(0, Some(0)),
-        "zlib-available-p" => arity_cons(0, Some(0)),
+        "libxml-available-p" | "zlib-available-p" => arity_cons(0, Some(0)),
+        "libxml-parse-html-region" | "libxml-parse-xml-region" => arity_cons(0, Some(4)),
         "zlib-decompress-region" => arity_cons(2, Some(3)),
         "search-forward" | "search-backward" | "re-search-forward" | "re-search-backward"
         | "posix-search-forward" | "posix-search-backward" | "word-search-forward"
@@ -555,6 +561,7 @@ fn subr_arity_value(name: &str) -> Value {
         "encode-char" => arity_cons(2, Some(2)),
         "encode-time" => arity_cons(1, None),
         "format-time-string" => arity_cons(1, Some(3)),
+        "format-mode-line" => arity_cons(1, Some(4)),
         "indent-according-to-mode" | "indent-for-tab-command" => arity_cons(0, Some(1)),
         "indent-line-to" => arity_cons(1, Some(1)),
         "indent-region" => arity_cons(2, Some(3)),
@@ -565,8 +572,10 @@ fn subr_arity_value(name: &str) -> Value {
         "run-hook-with-args" => arity_cons(1, None),
         "base64-decode-string" => arity_cons(1, Some(3)),
         "base64-encode-string" | "base64url-encode-string" => arity_cons(1, Some(2)),
+        "md5" => arity_cons(1, Some(5)),
         "bool-vector-p" | "bool-vector-count-population" => arity_cons(1, Some(1)),
         "bool-vector-subsetp" => arity_cons(2, Some(2)),
+        "make-bool-vector" => arity_cons(2, Some(2)),
         "bool-vector-exclusive-or" | "bool-vector-intersection" | "bool-vector-union" => {
             arity_cons(2, Some(3))
         }
@@ -576,6 +585,7 @@ fn subr_arity_value(name: &str) -> Value {
         "compose-region-internal" => arity_cons(2, Some(4)),
         "compose-string-internal" => arity_cons(3, Some(5)),
         "composition-get-gstring" => arity_cons(4, Some(4)),
+        "find-composition-internal" => arity_cons(4, Some(4)),
         "call-interactively" => arity_cons(1, Some(3)),
         "command-execute" => arity_cons(1, Some(4)),
         "compare-strings" => arity_cons(6, Some(7)),
@@ -594,6 +604,7 @@ fn subr_arity_value(name: &str) -> Value {
         "read-from-minibuffer" => arity_cons(1, Some(7)),
         "read-key-sequence" | "read-key-sequence-vector" => arity_cons(1, Some(6)),
         "read-non-nil-coding-system" => arity_cons(1, Some(1)),
+        "json-insert" | "json-parse-string" | "json-serialize" => arity_cons(1, None),
         "kbd" | "key-valid-p" | "keymap-parent" | "keymapp" | "listify-key-sequence" => {
             arity_cons(1, Some(1))
         }
@@ -636,7 +647,7 @@ fn subr_arity_value(name: &str) -> Value {
             arity_cons(0, Some(1))
         }
         "line-number-at-pos" => arity_cons(0, Some(2)),
-        "line-pixel-height" => arity_cons(0, Some(0)),
+        "line-pixel-height" | "long-line-optimizations-p" => arity_cons(0, Some(0)),
         "recenter-top-bottom" => arity_cons(0, Some(1)),
         "recursion-depth" | "region-beginning" | "region-end" => arity_cons(0, Some(0)),
         "delete-frame" | "delete-other-windows" => arity_cons(0, Some(2)),
@@ -655,6 +666,7 @@ fn subr_arity_value(name: &str) -> Value {
         "modify-syntax-entry" | "plist-get" => arity_cons(2, Some(3)),
         "plist-put" => arity_cons(3, Some(4)),
         "parse-partial-sexp" => arity_cons(2, Some(6)),
+        "matching-paren" => arity_cons(1, Some(1)),
         "forward-sexp" => arity_cons(0, Some(2)),
         "file-attributes-lessp" => arity_cons(2, Some(2)),
         "called-interactively-p" | "float-time" => arity_cons(0, Some(1)),
@@ -666,6 +678,8 @@ fn subr_arity_value(name: &str) -> Value {
         "sleep-for" | "sit-for" => arity_cons(1, Some(2)),
         "current-time" => arity_cons(0, Some(0)),
         "category-table" | "clear-charset-maps" => arity_cons(0, Some(0)),
+        "find-charset-region" => arity_cons(2, Some(3)),
+        "find-charset-string" => arity_cons(1, Some(2)),
         "case-table-p" | "category-table-p" | "ccl-program-p" | "check-coding-system"
         | "clear-abbrev-table" => arity_cons(1, Some(1)),
         "coding-system-aliases" | "coding-system-base" | "coding-system-eol-type"
@@ -685,6 +699,7 @@ fn subr_arity_value(name: &str) -> Value {
         "define-abbrev" => arity_cons(3, None),
         "define-abbrev-table" => arity_cons(2, None),
         "expand-abbrev" => arity_cons(0, Some(0)),
+        "insert-abbrev-table-description" => arity_cons(1, Some(2)),
         "if" => Value::cons(Value::Int(2), Value::symbol("unevalled")),
         "defining-kbd-macro" => arity_cons(1, Some(2)),
         "start-kbd-macro" => arity_cons(1, Some(2)),
@@ -704,6 +719,7 @@ fn subr_arity_value(name: &str) -> Value {
         "directory-files" => arity_cons(1, Some(5)),
         "directory-files-and-attributes" => arity_cons(1, Some(6)),
         "define-category" => arity_cons(2, Some(3)),
+        "define-charset-internal" => arity_cons(17, None),
         "define-coding-system-alias" => arity_cons(2, Some(2)),
         "define-key" => arity_cons(3, Some(4)),
         "expand-file-name" => arity_cons(1, Some(2)),
@@ -2091,6 +2107,33 @@ mod tests {
         assert_subr_arity("widget-get", 2, Some(2));
         assert_subr_arity("widget-put", 3, Some(3));
         assert_subr_arity("write-region", 3, Some(7));
+    }
+
+    #[test]
+    fn subr_arity_charset_json_libxml_display_helpers_match_oracle() {
+        assert_subr_arity("define-charset-internal", 17, None);
+        assert_subr_arity("find-charset-region", 2, Some(3));
+        assert_subr_arity("find-charset-string", 1, Some(2));
+        assert_subr_arity("find-composition-internal", 4, Some(4));
+        assert_subr_arity("format-mode-line", 1, Some(4));
+        assert_subr_arity("insert-abbrev-table-description", 1, Some(2));
+        assert_subr_arity("insert-image", 1, Some(5));
+        assert_subr_arity("json-insert", 1, None);
+        assert_subr_arity("json-parse-string", 1, None);
+        assert_subr_arity("json-serialize", 1, None);
+        assert_subr_arity("libxml-available-p", 0, Some(0));
+        assert_subr_arity("libxml-parse-html-region", 0, Some(4));
+        assert_subr_arity("libxml-parse-xml-region", 0, Some(4));
+        assert_subr_arity("line-pixel-height", 0, Some(0));
+        assert_subr_arity("long-line-optimizations-p", 0, Some(0));
+        assert_subr_arity("lookup-image-map", 3, Some(3));
+        assert_subr_arity("make-bool-vector", 2, Some(2));
+        assert_subr_arity("matching-paren", 1, Some(1));
+        assert_subr_arity("md5", 1, Some(5));
+        assert_subr_arity("merge-face-attribute", 3, Some(3));
+        assert_subr_arity("multibyte-char-to-unibyte", 1, Some(1));
+        assert_subr_arity("multibyte-string-p", 1, Some(1));
+        assert_subr_arity("secure-hash", 2, Some(5));
     }
 
     #[test]
