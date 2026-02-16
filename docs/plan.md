@@ -55,6 +55,18 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Expanded `minor-mode-key-binding` emulation error-path lock-in:
+  - added explicit coverage that active emulation entries with invalid keymap ids signal `wrong-type-argument keymapp ...`.
+  - expanded corpus:
+    - `test/neovm/vm-compat/cases/minor-mode-key-binding-semantics.forms`
+    - `test/neovm/vm-compat/cases/minor-mode-key-binding-semantics.expected.tsv`
+  - added unit coverage:
+    - `minor_mode_key_binding_invalid_emulation_keymap_id_errors`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml minor_mode_key_binding -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/minor-mode-key-binding-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
+
 - Expanded `minor-mode-key-binding` oracle lock-in for overriding-map precedence:
   - added explicit coverage that `minor-mode-overriding-map-alist` wins over `minor-mode-map-alist` for the same active mode.
   - expanded corpus:
