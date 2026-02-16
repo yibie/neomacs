@@ -60,6 +60,22 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Added builtin registry function-kind parity guard to strict vm-compat:
+  - added strict checker:
+    - `test/neovm/vm-compat/check-builtin-registry-function-kind.sh`
+    - compares GNU Emacs vs NeoVM over core dispatch registry names for
+      non-subr function-cell kind parity:
+      - `subr` / `symbol` / cons-head tag / `type-of` fallback
+  - added allowlist for intentional source-only policy drifts:
+    - `test/neovm/vm-compat/cases/builtin-registry-function-kind-allowlist.txt`
+    - currently pins `28` names where GNU Emacs reports `byte-code-function`
+      and NeoVM intentionally reports source `function`.
+  - wired into strict gate:
+    - `test/neovm/vm-compat/Makefile` (`check-all-neovm-strict`)
+  - verified:
+    - `make -C test/neovm/vm-compat check-builtin-registry-function-kind` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
+
 - Added oracle corpus lock-in for batch prompt-reader error semantics:
   - added case:
     - `test/neovm/vm-compat/cases/reader-prompt-batch-error-semantics.{forms,expected.tsv}`
