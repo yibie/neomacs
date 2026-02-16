@@ -41,6 +41,7 @@ cases/point-navigation-subr-arity-semantics
 cases/buffer-point-subr-arity-semantics
 cases/char-charset-subr-arity-semantics
 cases/assoc-predicate-subr-arity-semantics
+cases/navigation-case-subr-arity-semantics
 cases/help-key-recent-keys-semantics
 cases/this-command-keys-readers-semantics
 cases/event-builtins-semantics

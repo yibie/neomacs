@@ -327,6 +327,12 @@ fn subr_arity_value(name: &str) -> Value {
         "assq" | "member" | "memq" | "rassoc" | "rassq" => arity_cons(2, Some(2)),
         "assoc" => arity_cons(2, Some(3)),
         "assoc-default" => arity_cons(2, Some(4)),
+        "back-to-indentation" | "backward-prefix-chars" => arity_cons(0, Some(0)),
+        "backward-sexp" => arity_cons(0, Some(2)),
+        "backward-kill-word" | "move-beginning-of-line" | "capitalize" | "capitalize-word" => {
+            arity_cons(1, Some(1))
+        }
+        "capitalize-region" => arity_cons(2, Some(3)),
         "if" => Value::cons(Value::Int(2), Value::symbol("unevalled")),
         "defining-kbd-macro" => arity_cons(1, Some(2)),
         "help-key-description" => arity_cons(2, Some(2)),
@@ -857,6 +863,18 @@ mod tests {
         assert_subr_arity("byte-code-function-p", 1, Some(1));
         assert_subr_arity("car-safe", 1, Some(1));
         assert_subr_arity("cdr-safe", 1, Some(1));
+    }
+
+    #[test]
+    fn subr_arity_navigation_case_primitives_match_oracle() {
+        assert_subr_arity("back-to-indentation", 0, Some(0));
+        assert_subr_arity("backward-prefix-chars", 0, Some(0));
+        assert_subr_arity("backward-sexp", 0, Some(2));
+        assert_subr_arity("backward-kill-word", 1, Some(1));
+        assert_subr_arity("move-beginning-of-line", 1, Some(1));
+        assert_subr_arity("capitalize", 1, Some(1));
+        assert_subr_arity("capitalize-word", 1, Some(1));
+        assert_subr_arity("capitalize-region", 2, Some(3));
     }
 
     #[test]
