@@ -481,6 +481,13 @@ fn subr_arity_value(name: &str) -> Value {
         "command-execute" => arity_cons(1, Some(4)),
         "compare-strings" => arity_cons(6, Some(7)),
         "completing-read" => arity_cons(2, Some(8)),
+        "read" => arity_cons(0, Some(1)),
+        "read-char" | "read-char-exclusive" | "read-event" => arity_cons(0, Some(3)),
+        "read-key" => arity_cons(0, Some(2)),
+        "read-number" => arity_cons(1, Some(3)),
+        "read-string" => arity_cons(1, Some(5)),
+        "read-variable" | "read-command" => arity_cons(1, Some(2)),
+        "read-from-string" => arity_cons(1, Some(3)),
         "kbd" | "key-valid-p" | "keymap-parent" | "keymapp" | "listify-key-sequence" => {
             arity_cons(1, Some(1))
         }
@@ -1333,6 +1340,20 @@ mod tests {
         assert_subr_arity("command-execute", 1, Some(4));
         assert_subr_arity("compare-strings", 6, Some(7));
         assert_subr_arity("completing-read", 2, Some(8));
+    }
+
+    #[test]
+    fn subr_arity_read_core_primitives_match_oracle() {
+        assert_subr_arity("read", 0, Some(1));
+        assert_subr_arity("read-char", 0, Some(3));
+        assert_subr_arity("read-char-exclusive", 0, Some(3));
+        assert_subr_arity("read-event", 0, Some(3));
+        assert_subr_arity("read-key", 0, Some(2));
+        assert_subr_arity("read-number", 1, Some(3));
+        assert_subr_arity("read-string", 1, Some(5));
+        assert_subr_arity("read-variable", 1, Some(2));
+        assert_subr_arity("read-from-string", 1, Some(3));
+        assert_subr_arity("read-command", 1, Some(2));
     }
 
     #[test]
