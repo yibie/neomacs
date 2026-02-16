@@ -7,10 +7,9 @@
 //! - `clear-rectangle`, `string-rectangle`, `replace-rectangle`
 //! - `delete-extract-rectangle`
 //!
-//! These are stub implementations that register the correct function
-//! signatures so Elisp code can reference them.  Full column-aware
-//! buffer operations will be added when the buffer model supports
-//! column tracking.
+//! These implement compatibility-focused rectangle behavior used by
+//! vm-compat batches. Remaining edge drift is tracked and locked by
+//! oracle corpora.
 
 use super::error::{signal, EvalResult, Flow};
 use super::value::*;
@@ -566,8 +565,6 @@ pub(crate) fn builtin_insert_rectangle(
 
 /// `(open-rectangle START END)` -- insert blank space to fill the rectangle
 /// defined by START and END, pushing existing text to the right.
-///
-/// Stub: returns nil.
 pub(crate) fn builtin_open_rectangle(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
