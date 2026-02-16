@@ -46,6 +46,17 @@ fn expect_min_args(name: &str, args: &[Value], min: usize) -> Result<(), Flow> {
     }
 }
 
+fn expect_max_args(name: &str, args: &[Value], max: usize) -> Result<(), Flow> {
+    if args.len() > max {
+        Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol(name), Value::Int(args.len() as i64)],
+        ))
+    } else {
+        Ok(())
+    }
+}
+
 /// Extract a coding system name from a symbol or string argument.
 fn coding_system_name(val: &Value) -> Result<String, Flow> {
     match val {
@@ -183,8 +194,8 @@ impl CodingSystemManager {
             systems: HashMap::new(),
             aliases: HashMap::new(),
             priority: Vec::new(),
-            keyboard_coding: "utf-8".to_string(),
-            terminal_coding: "utf-8".to_string(),
+            keyboard_coding: "utf-8-unix".to_string(),
+            terminal_coding: "utf-8-unix".to_string(),
         };
 
         // Register standard coding systems
@@ -809,7 +820,7 @@ pub(crate) fn builtin_keyboard_coding_system(
     mgr: &CodingSystemManager,
     args: Vec<Value>,
 ) -> EvalResult {
-    let _ = args;
+    expect_max_args("keyboard-coding-system", &args, 1)?;
     Ok(Value::symbol(&mgr.keyboard_coding))
 }
 
@@ -819,7 +830,7 @@ pub(crate) fn builtin_terminal_coding_system(
     mgr: &CodingSystemManager,
     args: Vec<Value>,
 ) -> EvalResult {
-    let _ = args;
+    expect_max_args("terminal-coding-system", &args, 1)?;
     Ok(Value::symbol(&mgr.terminal_coding))
 }
 
@@ -830,9 +841,10 @@ pub(crate) fn builtin_set_keyboard_coding_system(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("set-keyboard-coding-system", &args, 1)?;
+    expect_max_args("set-keyboard-coding-system", &args, 2)?;
     let name = coding_system_name(&args[0])?;
     if name == "nil" || args[0].is_nil() {
-        mgr.keyboard_coding = "utf-8".to_string();
+        mgr.keyboard_coding = "utf-8-unix".to_string();
     } else {
         mgr.keyboard_coding = name;
     }
@@ -846,9 +858,10 @@ pub(crate) fn builtin_set_terminal_coding_system(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("set-terminal-coding-system", &args, 1)?;
+    expect_max_args("set-terminal-coding-system", &args, 3)?;
     let name = coding_system_name(&args[0])?;
     if name == "nil" || args[0].is_nil() {
-        mgr.terminal_coding = "utf-8".to_string();
+        mgr.terminal_coding = "utf-8-unix".to_string();
     } else {
         mgr.terminal_coding = name;
     }
@@ -1321,14 +1334,23 @@ mod tests {
     fn keyboard_coding_system_default() {
         let m = mgr();
         let result = builtin_keyboard_coding_system(&m, vec![]).unwrap();
-        assert!(matches!(result, Value::Symbol(s) if s == "utf-8"));
+        assert!(matches!(result, Value::Symbol(s) if s == "utf-8-unix"));
     }
 
     #[test]
     fn terminal_coding_system_default() {
         let m = mgr();
         let result = builtin_terminal_coding_system(&m, vec![]).unwrap();
-        assert!(matches!(result, Value::Symbol(s) if s == "utf-8"));
+        assert!(matches!(result, Value::Symbol(s) if s == "utf-8-unix"));
+    }
+
+    #[test]
+    fn coding_system_getters_validate_max_arity() {
+        let m = mgr();
+        assert!(builtin_keyboard_coding_system(&m, vec![Value::Nil]).is_ok());
+        assert!(builtin_terminal_coding_system(&m, vec![Value::Nil]).is_ok());
+        assert!(builtin_keyboard_coding_system(&m, vec![Value::Nil, Value::Nil]).is_err());
+        assert!(builtin_terminal_coding_system(&m, vec![Value::Nil, Value::Nil]).is_err());
     }
 
     #[test]
@@ -1348,12 +1370,42 @@ mod tests {
     }
 
     #[test]
-    fn set_keyboard_coding_nil_resets_to_utf8() {
+    fn set_keyboard_coding_nil_resets_to_utf8_unix() {
         let mut m = mgr();
         builtin_set_keyboard_coding_system(&mut m, vec![Value::symbol("latin-1")]).unwrap();
         builtin_set_keyboard_coding_system(&mut m, vec![Value::Nil]).unwrap();
         let result = builtin_keyboard_coding_system(&m, vec![]).unwrap();
-        assert!(matches!(result, Value::Symbol(s) if s == "utf-8"));
+        assert!(matches!(result, Value::Symbol(s) if s == "utf-8-unix"));
+    }
+
+    #[test]
+    fn coding_system_setters_validate_arity_edges() {
+        let mut m = mgr();
+        assert!(
+            builtin_set_keyboard_coding_system(&mut m, vec![Value::Nil, Value::Nil]).is_ok()
+        );
+        assert!(
+            builtin_set_keyboard_coding_system(&mut m, vec![Value::Nil, Value::Nil, Value::Nil])
+                .is_err()
+        );
+
+        assert!(
+            builtin_set_terminal_coding_system(&mut m, vec![Value::Nil, Value::Nil]).is_ok()
+        );
+        assert!(
+            builtin_set_terminal_coding_system(
+                &mut m,
+                vec![Value::Nil, Value::Nil, Value::Nil]
+            )
+            .is_ok()
+        );
+        assert!(
+            builtin_set_terminal_coding_system(
+                &mut m,
+                vec![Value::Nil, Value::Nil, Value::Nil, Value::Nil]
+            )
+            .is_err()
+        );
     }
 
     // ----- coding-system-priority-list -----
