@@ -920,15 +920,80 @@ pub(crate) fn builtin_global_key_binding(eval: &mut Evaluator, args: Vec<Value>)
     Ok(Value::Nil)
 }
 
+fn minor_mode_map_entry(entry: &Value) -> Option<(String, Value)> {
+    let Value::Cons(cell) = entry else {
+        return None;
+    };
+
+    let (mode, cdr) = {
+        let pair = cell.lock().expect("poisoned");
+        (pair.car.clone(), pair.cdr.clone())
+    };
+    let mode_name = mode.as_symbol_name()?.to_string();
+    let map_value = match cdr {
+        Value::Cons(rest) => {
+            let pair = rest.lock().expect("poisoned");
+            pair.car.clone()
+        }
+        Value::Nil => return None,
+        other => other,
+    };
+    Some((mode_name, map_value))
+}
+
+fn resolve_minor_mode_keymap_id(eval: &Evaluator, map_value: &Value) -> Result<Option<u64>, Flow> {
+    match map_value {
+        Value::Int(_) => expect_keymap_id(eval, map_value).map(Some),
+        _ => Ok(None),
+    }
+}
+
 /// `(minor-mode-key-binding KEY &optional ACCEPT-DEFAULTS)`
 /// Look up KEY in active minor mode keymaps.
-/// Stub: returns nil since minor mode keymaps are not yet wired.
 pub(crate) fn builtin_minor_mode_key_binding(
-    _eval: &mut Evaluator,
+    eval: &mut Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("minor-mode-key-binding", &args, 1)?;
     expect_max_args("minor-mode-key-binding", &args, 2)?;
+
+    // Emacs returns nil (not a type error) for non-array key designators here.
+    let events = match super::kbd::key_events_from_designator(&args[0]) {
+        Ok(events) => events,
+        Err(_) => return Ok(Value::Nil),
+    };
+
+    for alist_name in ["minor-mode-overriding-map-alist", "minor-mode-map-alist"] {
+        let Some(alist_value) = dynamic_or_global_symbol_value(eval, alist_name) else {
+            continue;
+        };
+        let Some(entries) = list_to_vec(&alist_value) else {
+            continue;
+        };
+
+        for entry in entries {
+            let Some((mode_name, map_value)) = minor_mode_map_entry(&entry) else {
+                continue;
+            };
+            if !dynamic_or_global_symbol_value(eval, &mode_name).is_some_and(|v| v.is_truthy()) {
+                continue;
+            }
+
+            let Some(map_id) = resolve_minor_mode_keymap_id(eval, &map_value)? else {
+                continue;
+            };
+            let binding = lookup_keymap_with_partial(eval, map_id, &events);
+            if binding.is_nil() {
+                continue;
+            }
+
+            return Ok(Value::list(vec![Value::cons(
+                Value::symbol(mode_name),
+                binding,
+            )]));
+        }
+    }
+
     Ok(Value::Nil)
 }
 
@@ -2831,10 +2896,42 @@ mod tests {
     }
 
     #[test]
-    fn minor_mode_key_binding_returns_nil() {
+    fn minor_mode_key_binding_returns_nil_when_no_modes_are_active() {
         let mut ev = Evaluator::new();
         let result = builtin_minor_mode_key_binding(&mut ev, vec![Value::string("C-c")]).unwrap();
         assert!(result.is_nil());
+    }
+
+    #[test]
+    fn minor_mode_key_binding_returns_first_matching_mode_binding() {
+        assert_eq!(
+            eval_one(
+                r#"(let* ((m1 (make-sparse-keymap))
+                          (m2 (make-sparse-keymap)))
+                     (define-key m1 (kbd "C-a") 'ignore)
+                     (define-key m2 (kbd "C-a") 'forward-char)
+                     (let ((minor-mode-map-alist (list (cons 'mode1 m1)
+                                                       (cons 'mode2 m2)))
+                           (mode1 t)
+                           (mode2 t))
+                       (minor-mode-key-binding (kbd "C-a"))))"#
+            ),
+            "OK ((mode1 . ignore))"
+        );
+    }
+
+    #[test]
+    fn minor_mode_key_binding_invalid_keymap_id_errors_for_active_mode() {
+        assert_eq!(
+            eval_one(
+                r#"(let ((minor-mode-map-alist '((demo-mode . 999999)))
+                         (demo-mode t))
+                     (condition-case err
+                         (minor-mode-key-binding (kbd "C-a"))
+                       (error err)))"#
+            ),
+            "OK (wrong-type-argument keymapp 999999)"
+        );
     }
 
     #[test]
