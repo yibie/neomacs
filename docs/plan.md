@@ -12,6 +12,7 @@ Last updated: 2026-02-16
 - Keep recent coding-system compatibility slices stable while shifting primary focus to display/font/input stubs.
 - Keep low-risk list/alist primitive semantics aligned while shifting compatibility slices to remaining high-impact display/font/input stubs.
 - Keep newly landed `kbd` parser/encoding compatibility stable while running recurring vm-compat gates.
+- Keep newly landed `help-key-description` / `recent-keys` compatibility slice stable while expanding input/help coverage.
 
 ## Next
 
@@ -20,8 +21,31 @@ Last updated: 2026-02-16
 3. Continue expanding oracle corpora for remaining high-risk stub areas (search/input/minibuffer/display/font edge paths) and keep list/alist primitive semantics locked in.
 4. Keep Rust backend behind compile-time switch and preserve Emacs C core as default backend.
 5. Expand `kbd` edge corpus around uncommon modifier composition and align non-`kbd` key-description consumers with the new parser semantics where needed.
+6. Evolve `recent-keys` from empty-vector compatibility baseline to evaluator-backed key history once command-loop event capture is wired.
 
 ## Done
+
+- Implemented `help-key-description` / `recent-keys` builtins and locked oracle parity with a dedicated corpus:
+  - updated:
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - added pure builtins:
+        - `help-key-description` (2-arg contract; sequence/array type guards; translation suffix path; nil-untranslated path)
+        - `recent-keys` (0..1 args; vector return shape compatibility baseline)
+      - wired both names into pure builtin dispatch paths.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - added startup builtin registry entries for:
+        - `help-key-description`
+        - `recent-keys`
+    - `test/neovm/vm-compat/cases/help-key-recent-keys-semantics.forms`
+      - new oracle corpus covering arity/type edges and baseline semantic behavior for both builtins.
+    - `test/neovm/vm-compat/cases/help-key-recent-keys-semantics.expected.tsv`
+      - recorded oracle baseline outputs for the new case.
+    - `test/neovm/vm-compat/cases/default.list`
+      - added `cases/help-key-recent-keys-semantics` to recurring default compatibility execution.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/help-key-recent-keys-semantics` (pass, 31/31)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass; only allowlisted `neovm-precompile-file` drift)
 
 - Implemented additional input/key helper builtins and locked oracle parity:
   - updated:
