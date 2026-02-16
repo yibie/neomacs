@@ -25,6 +25,24 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Fixed dynamic `unread-command-events` consumption semantics for input readers and locked oracle coverage:
+  - updated:
+    - `rust/neovm-core/src/elisp/eval.rs`
+      - `pop_unread_command_event` now reads/writes `unread-command-events` through evaluator scope rules (dynamic/lexical-aware) instead of raw obarray-only access.
+      - added `peek_unread_command_event` helper for non-consuming read-char checks.
+    - `rust/neovm-core/src/elisp/reader.rs`
+      - `read-char` now peeks first event; for non-character events it signals `Non-character input-event`, truncates unread queue to offending event, and records that event in `recent-keys` without consuming tail entries.
+      - added unit coverage for non-character unread-tail truncation behavior.
+    - `test/neovm/vm-compat/cases/input-unread-command-events-dynamic-semantics.forms`
+    - `test/neovm/vm-compat/cases/input-unread-command-events-dynamic-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+      - added oracle lock-in for let-bound unread queue mutation across `read-key`, `read-key-sequence`, `read-event`, `read-char-exclusive`, and `read-char` error paths plus `recent-keys` deltas.
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml read_char_non_character_truncates_unread_tail_to_offending_event -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/input-unread-command-events-dynamic-semantics` (pass, 8/8)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/input-batch-readers` (pass, 70/70)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Aligned `this-command-keys` / `this-command-keys-vector` with read-key reader paths and locked oracle coverage:
   - updated:
     - `rust/neovm-core/src/elisp/eval.rs`
