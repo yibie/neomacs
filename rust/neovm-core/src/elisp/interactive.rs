@@ -1014,13 +1014,46 @@ pub(crate) fn builtin_describe_key_briefly(eval: &mut Evaluator, args: Vec<Value
         return Ok(Value::string(""));
     }
 
+    let events = match super::kbd::key_events_from_designator(&args[0]) {
+        Ok(events) => events,
+        Err(super::kbd::KeyDesignatorError::WrongType(other)) => {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("sequencep"), other],
+            ));
+        }
+        Err(super::kbd::KeyDesignatorError::Parse(_)) => return Ok(Value::Nil),
+    };
+    if events.is_empty() {
+        return Err(signal(
+            "args-out-of-range",
+            vec![args[0].clone(), Value::Int(-1)],
+        ));
+    }
+
     let key_desc = match args[0].as_str() {
         Some(s) => s.to_string(),
-        None => return Ok(Value::Nil),
+        None => KeymapManager::format_key_sequence(&events),
     };
 
     // Look up the binding
-    let binding_val = builtin_key_binding(eval, vec![args[0].clone()])?;
+    let global_map_missing = eval.keymaps.global_map().is_none();
+    let mut binding_val = builtin_key_binding(eval, vec![args[0].clone()])?;
+    if binding_val.is_nil() && global_map_missing && events.len() == 1 {
+        if let KeyEvent::Char {
+            code,
+            ctrl: false,
+            meta: false,
+            shift: false,
+            super_: false,
+        } = events[0]
+        {
+            // Emacs default map self-inserts printable characters in batch.
+            if !code.is_control() && code != '\u{7f}' {
+                binding_val = Value::symbol("self-insert-command");
+            }
+        }
+    }
     let description = if binding_val.is_nil() {
         format!("{} is undefined", key_desc)
     } else if let Some(name) = binding_val.as_symbol_name() {
@@ -2792,6 +2825,28 @@ mod tests {
         let result =
             builtin_describe_key_briefly(&mut ev, vec![Value::string("C-z"), Value::True]).unwrap();
         assert!(result.is_nil());
+    }
+
+    #[test]
+    fn describe_key_briefly_non_sequence_errors() {
+        let mut ev = Evaluator::new();
+        let result = builtin_describe_key_briefly(&mut ev, vec![Value::Int(1)]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn describe_key_briefly_empty_sequence_errors() {
+        let mut ev = Evaluator::new();
+        assert!(builtin_describe_key_briefly(&mut ev, vec![Value::string("")]).is_err());
+        assert!(builtin_describe_key_briefly(&mut ev, vec![Value::vector(vec![])]).is_err());
+    }
+
+    #[test]
+    fn describe_key_briefly_default_plain_char_reports_self_insert() {
+        let mut ev = Evaluator::new();
+        let result = builtin_describe_key_briefly(&mut ev, vec![Value::string("a")]).unwrap();
+        let s = result.as_str().unwrap();
+        assert!(s.contains("self-insert-command"));
     }
 
     // -------------------------------------------------------------------
