@@ -55,9 +55,29 @@ Last updated: 2026-02-16
 5. Expand `kbd` edge corpus around uncommon modifier composition and align non-`kbd` key-description consumers with the new parser semantics where needed.
 6. Expand `recent-keys` capture beyond `read*` consumers to eventual command-loop event publication.
 7. Continue subr-arity registry drift reduction from `59` remaining mismatches using batched oracle lock-ins.
-8. Continue startup `symbol-function` wrapper-shape parity from `35` remaining drifts (prefer low-risk wrappers not exercised by runtime behavior suites).
+8. Continue startup `symbol-function` wrapper-shape parity for remaining drifts (prefer low-risk wrappers not exercised by runtime behavior suites).
 
 ## Done
+
+- Fixed startup wrapper recursion in evaluator `Subr` dispatch and expanded wrapper-shape parity corpus:
+  - fixed `Value::Subr` application to dispatch directly to builtin/evaluator/special-form paths instead of re-entering symbol-function lookup through obarray.
+  - added evaluator regression test:
+    - `funcall_subr_object_ignores_symbol_function_rebinding`
+  - expanded startup lambda-wrapper set and lock-in corpus coverage for:
+    - `autoloadp`
+    - `seq-concatenate`, `seq-contains-p`, `seq-drop`, `seq-empty-p`, `seq-into`, `seq-length`, `seq-max`, `seq-min`, `seq-position`, `seq-reverse`, `seq-subseq`, `seq-take`, `seq-uniq`
+    - `looking-at-p`, `string-match-p`
+  - updated:
+    - `rust/neovm-core/src/elisp/eval.rs`
+    - `rust/neovm-core/src/elisp/builtins.rs`
+    - `test/neovm/vm-compat/cases/function-wrapper-shape-semantics.{forms,expected.tsv}`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml funcall_subr_object_ignores_symbol_function_rebinding -- --nocapture` (pass)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml symbol_function_resolves_builtin_and_special_names -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/looking-at-p-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/seq-more` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/function-wrapper-shape-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
 
 - Aligned additional startup Lisp function-wrapper shapes with GNU Emacs:
   - seeded startup lambda wrappers (delegating to hidden subr aliases via `apply`) for:
