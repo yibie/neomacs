@@ -49,6 +49,14 @@ Last updated: 2026-02-16
     - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/core` (pass, 15/15)
     - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/read-passwd-batch-semantics` (pass, 8/8)
 
+- Added fail-fast protection for empty vm-compat runner output:
+  - updated:
+    - `test/neovm/vm-compat/filter-case-lines.awk`
+      - now errors when no prefixed case lines are emitted (`__NEOVM_CASE__\t`), unless `NEOVM_ALLOW_EMPTY_CASE_OUTPUT=1` is set.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/core` (pass, 15/15)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/read-passwd-batch-semantics` (pass, 8/8)
+
 - Added oracle lock-in corpus for `read-passwd` batch semantics:
   - added and enabled:
     - `test/neovm/vm-compat/cases/read-passwd-batch-semantics.forms`
