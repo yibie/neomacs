@@ -3,7 +3,15 @@
 (subr-arity (symbol-function 'display-color-p))
 (subr-arity (symbol-function 'display-pixel-width))
 (subr-arity (symbol-function 'display-pixel-height))
+(subr-arity (symbol-function 'display-mm-width))
+(subr-arity (symbol-function 'display-mm-height))
+(subr-arity (symbol-function 'display-screens))
 (subr-arity (symbol-function 'display-color-cells))
+(subr-arity (symbol-function 'display-planes))
+(subr-arity (symbol-function 'display-visual-class))
+(subr-arity (symbol-function 'display-backing-store))
+(subr-arity (symbol-function 'display-monitor-attributes-list))
+(subr-arity (symbol-function 'frame-monitor-attributes))
 
 (subr-arity (symbol-function 'terminal-name))
 (subr-arity (symbol-function 'terminal-list))
@@ -18,5 +26,6 @@
 (subrp (symbol-function 'x-display-color-p))
 (condition-case err (subr-arity (symbol-function 'x-display-color-p)) (error err))
 
+(subr-arity (symbol-function 'x-display-list))
 (subr-arity (symbol-function 'x-display-pixel-width))
 (subr-arity (symbol-function 'x-display-pixel-height))
