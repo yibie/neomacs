@@ -10690,6 +10690,19 @@ mod tests {
             .expect("symbol-function should resolve window-width alias");
         assert_eq!(window_width, Value::symbol("window-body-width"));
 
+        let count_matches = builtin_symbol_function(&mut eval, vec![Value::symbol("count-matches")])
+            .expect("symbol-function should resolve count-matches alias");
+        assert_eq!(count_matches, Value::symbol("how-many"));
+
+        let replace_rectangle =
+            builtin_symbol_function(&mut eval, vec![Value::symbol("replace-rectangle")])
+                .expect("symbol-function should resolve replace-rectangle alias");
+        assert_eq!(replace_rectangle, Value::symbol("string-rectangle"));
+
+        let wholenump = builtin_symbol_function(&mut eval, vec![Value::symbol("wholenump")])
+            .expect("symbol-function should resolve wholenump alias");
+        assert_eq!(wholenump, Value::symbol("natnump"));
+
         let throw_fn = builtin_symbol_function(&mut eval, vec![Value::symbol("throw")])
             .expect("symbol-function should resolve throw as callable subr");
         assert_eq!(throw_fn, Value::Subr("throw".to_string()));
