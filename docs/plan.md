@@ -23,6 +23,26 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Aligned `describe-key-briefly` sequence/type edge behavior with oracle and added dedicated corpus lock-in:
+  - updated:
+    - `rust/neovm-core/src/elisp/interactive.rs`
+      - non-sequence key arguments now signal `(wrong-type-argument sequencep ARG)`.
+      - empty sequence designators (`""`, `[]`) now signal `(args-out-of-range KEY -1)`.
+      - vector key designators now flow through key designator decoding and produce string descriptions.
+      - default-map fallback in batch now reports `self-insert-command` for printable plain-char keys when no explicit global map exists.
+      - added focused unit coverage for type, empty-sequence, and default self-insert paths.
+    - `test/neovm/vm-compat/cases/describe-key-briefly-sequence-semantics.forms`
+      - added oracle probes for non-sequence errors, empty-sequence errors, vector designator acceptance, default self-insert fallback, and sparse-map no-fallback behavior.
+    - `test/neovm/vm-compat/cases/describe-key-briefly-sequence-semantics.expected.tsv`
+      - recorded oracle baseline outputs for describe-key-briefly sequence edges.
+    - `test/neovm/vm-compat/cases/default.list`
+      - added `cases/describe-key-briefly-sequence-semantics` to recurring default compatibility execution.
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml describe_key_briefly_` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/describe-key-briefly-sequence-semantics.forms EXPECTED=cases/describe-key-briefly-sequence-semantics.expected.tsv` (pass, 7/7)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/describe-key-briefly-sequence-semantics` (pass, 7/7)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Aligned `describe-key-briefly` / `substitute-command-keys` argument and return-shape edges with oracle and added dedicated corpus lock-in:
   - updated:
     - `rust/neovm-core/src/elisp/interactive.rs`
