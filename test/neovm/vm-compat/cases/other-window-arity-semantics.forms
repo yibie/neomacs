@@ -1,0 +1,2 @@
+(condition-case err (other-window 1 nil nil nil) (error (car err)))
+(let ((w1 (selected-window))) (split-window) (other-window 1 nil nil) (not (eq (selected-window) w1)))

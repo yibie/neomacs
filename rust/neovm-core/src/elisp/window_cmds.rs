@@ -758,6 +758,7 @@ pub(crate) fn builtin_other_window(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
+    expect_max_args("other-window", &args, 3)?;
     let count = if args.is_empty() || args[0].is_nil() {
         1
     } else {
@@ -1801,6 +1802,28 @@ mod tests {
                (/= (selected-window) w1))",
         );
         assert_eq!(results[0], "OK t");
+    }
+
+    #[test]
+    fn other_window_enforces_max_arity() {
+        let forms = parse_forms(
+            "(condition-case err (other-window 1 nil nil nil) (error (car err)))
+             (condition-case err
+                 (let ((w1 (selected-window)))
+                   (split-window)
+                   (other-window 1 nil nil)
+                   (not (eq (selected-window) w1)))
+               (error err))",
+        )
+        .expect("parse");
+        let mut ev = Evaluator::new();
+        let out = ev
+            .eval_forms(&forms)
+            .iter()
+            .map(format_eval_result)
+            .collect::<Vec<_>>();
+        assert_eq!(out[0], "OK wrong-number-of-arguments");
+        assert_eq!(out[1], "OK t");
     }
 
     #[test]

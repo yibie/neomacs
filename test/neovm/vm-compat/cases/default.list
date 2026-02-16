@@ -343,6 +343,7 @@ cases/delete-window-current-buffer-semantics
 cases/delete-other-windows-current-buffer-semantics
 cases/delete-window-arity-semantics
 cases/split-window-arity-semantics
+cases/other-window-arity-semantics
 cases/window-designator-bootstrap-semantics
 cases/window-size-query-semantics
 cases/window-list-frame-designator-semantics
