@@ -25,6 +25,22 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Aligned font color API device-argument validation and `defined-colors` shape with oracle:
+  - updated:
+    - `rust/neovm-core/src/elisp/font.rs`
+      - `color-defined-p`, `color-values`, and `defined-colors` now validate optional display/frame designator arguments and signal the `get-device-terminal` error class for invalid device/window-like args.
+      - `defined-colors` now returns batch-compatible 8-color list ordering (`black red green yellow blue magenta cyan white`).
+      - added unit coverage for optional device-arg validation and `defined-colors` cardinality.
+    - `rust/neovm-core/src/window.rs`
+      - exported `FRAME_ID_BASE` at crate scope for shared frame/window-domain-aware designator validation.
+    - `test/neovm/vm-compat/cases/font-color-semantics.forms`
+    - `test/neovm/vm-compat/cases/font-color-semantics.expected.tsv`
+      - expanded oracle lock-in for optional frame arg and invalid device arg behavior across color APIs.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/font-color-semantics` (pass, 35/35)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/font-batch-semantics` (pass, 21/21)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml color_ -- --nocapture` (pass)
+
 - Aligned `color-values` / `color-defined-p` batch TTY semantics with oracle and expanded font-color corpus:
   - updated:
     - `rust/neovm-core/src/elisp/font.rs`
