@@ -20,6 +20,24 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Implemented `thing-at-point` URL/email extraction semantics and locked oracle corpus coverage:
+  - updated:
+    - `rust/neovm-core/src/elisp/interactive.rs`
+      - replaced URL/email nil stubs in `thing-at-point` with regex-backed extraction.
+      - added URL/email support in `bounds-of-thing-at-point`.
+      - aligned URL boundary behavior to oracle split: punctuation-trimmed when point is inside token, punctuation-inclusive when point is immediately after trailing punctuation.
+      - added focused unit coverage for URL/email extraction and bounds semantics.
+    - `test/neovm/vm-compat/cases/thing-at-point-url-email-semantics.forms`
+      - added oracle probes for URL/email extraction, bounds shape, and boundary edge behavior.
+    - `test/neovm/vm-compat/cases/thing-at-point-url-email-semantics.expected.tsv`
+      - recorded oracle baseline outputs for URL/email thing-at-point behavior.
+    - `test/neovm/vm-compat/cases/default.list`
+      - added `cases/thing-at-point-url-email-semantics` to recurring compatibility execution.
+  - verified:
+    - `cargo test thing_at_point_url_and_email --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/thing-at-point-url-email-semantics` (pass, 6/6)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Removed pure category placeholder behavior and aligned pure builtins with real stateful semantics:
   - updated:
     - `rust/neovm-core/src/elisp/category.rs`
