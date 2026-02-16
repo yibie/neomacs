@@ -7905,6 +7905,24 @@ Last updated: 2026-02-16
     - `make -C test/neovm/vm-compat check-neovm CASE=cases/encoding-bool-vector-subr-arity-semantics` (pass, 15/15)
     - `make -C test/neovm/vm-compat validate-case-lists` (pass)
     - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass, 1 allowlisted drift)
+- Aligned command/timer/time primitive `subr-arity` metadata with GNU Emacs and locked parity in corpus:
+  - added arity overrides:
+    - `(1 . 3)`: `call-interactively`
+    - `(0 . 1)`: `called-interactively-p`, `float-time`
+    - `(1 . 2)`: `commandp`
+    - `(1 . 1)`: `cancel-timer`, `timerp`
+    - `(3 . many)`: `run-at-time`
+    - `(0 . 0)`: `current-time`
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/command-timer-subr-arity-semantics.forms`
+    - `test/neovm/vm-compat/cases/command-timer-subr-arity-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat record FORMS=cases/command-timer-subr-arity-semantics.forms EXPECTED=cases/command-timer-subr-arity-semantics.expected.tsv` (pass)
+    - `cargo test subr_arity_command_timer_primitives_match_oracle -- --nocapture` in `rust/neovm-core` (pass)
+    - `make -C test/neovm/vm-compat check-neovm CASE=cases/command-timer-subr-arity-semantics` (pass, 15/15)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass, 1 allowlisted drift)
 
 ## Doing
 
