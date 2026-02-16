@@ -19,6 +19,22 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Exposed `bookmark-all-names` as a callable bookmark helper:
+  - updated:
+    - `rust/neovm-core/src/elisp/bookmark.rs`
+      - added `bookmark-all-names` builtin (arity `0`) returning sorted bookmark name list.
+      - added focused unit coverage for sorted return payload behavior.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - bookmark evaluator dispatch now routes `bookmark-all-names`.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - added `bookmark-all-names` to builtin registry.
+    - `test/neovm/vm-compat/cases/bookmark-helper-availability.expected.tsv`
+      - updated expectations from missing helper to callable behavior (`nil` on empty store).
+  - verified:
+    - `cargo test bookmark_all_names --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/bookmark-helper-availability` (pass, 10/10)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Exposed `string-limit` as a callable subr-x string helper:
   - updated:
     - `rust/neovm-core/src/elisp/format.rs`
