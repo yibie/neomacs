@@ -332,21 +332,17 @@ pub(crate) fn builtin_define_abbrev(
     Ok(Value::Nil)
 }
 
-/// (expand-abbrev TABLE WORD) -> string or nil
+/// (expand-abbrev) -> string or nil
 ///
-/// Look up WORD in TABLE and return the expansion, or nil if not found.
-/// Increments the abbrev's usage count.
+/// NeoVM currently provides a batch-compatible surface: the callable arity
+/// matches GNU Emacs and the primitive returns nil in non-interactive use.
+/// Full buffer-context expansion is tracked separately.
 pub(crate) fn builtin_expand_abbrev(
-    eval: &mut super::eval::Evaluator,
+    _eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    expect_args("expand-abbrev", &args, 2)?;
-    let table = expect_string(&args[0])?;
-    let word = expect_string(&args[1])?;
-    match eval.abbrevs.expand_abbrev(&table, &word) {
-        Some(expansion) => Ok(Value::string(expansion)),
-        None => Ok(Value::Nil),
-    }
+    expect_args("expand-abbrev", &args, 0)?;
+    Ok(Value::Nil)
 }
 
 /// (abbrev-mode &optional ARG) -> t or nil
@@ -381,19 +377,25 @@ pub(crate) fn builtin_abbrev_mode(
     }
 }
 
-/// (define-abbrev-table NAME &optional PARENT) -> nil
+/// (define-abbrev-table NAME DEFS &rest PROPS) -> nil
 ///
-/// Create a new abbrev table with the given NAME.  If PARENT is given,
-/// set it as the parent table for inheritance.
+/// Create a new abbrev table with the given NAME.
+///
+/// For compatibility we require at least NAME+DEFS arity, but still accept
+/// NeoVM's legacy string/symbol parent shorthand in DEFS.
 pub(crate) fn builtin_define_abbrev_table(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    expect_min_args("define-abbrev-table", &args, 1)?;
+    expect_min_args("define-abbrev-table", &args, 2)?;
     let name = expect_string(&args[0])?;
     let tbl = eval.abbrevs.create_table(&name);
-    if args.len() > 1 && !args[1].is_nil() {
-        tbl.parent = Some(expect_string(&args[1])?);
+    if let Some(parent) = args.get(1).and_then(|value| match value {
+        Value::Str(s) => Some((**s).clone()),
+        Value::Symbol(s) => Some(s.clone()),
+        _ => None,
+    }) {
+        tbl.parent = Some(parent);
     }
     Ok(Value::Nil)
 }
@@ -707,21 +709,13 @@ mod tests {
         assert!(result.is_ok());
         assert!(result.unwrap().is_nil());
 
-        // expand-abbrev
-        let result = builtin_expand_abbrev(
-            &mut eval,
-            vec![Value::string("global-abbrev-table"), Value::string("btw")],
-        );
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap().as_str(), Some("by the way"));
+        // Manager expansion behavior is exercised directly.
+        let expanded = eval.abbrevs.expand_abbrev("global-abbrev-table", "btw");
+        assert_eq!(expanded.as_deref(), Some("by the way"));
 
         // expand nonexistent
-        let result = builtin_expand_abbrev(
-            &mut eval,
-            vec![Value::string("global-abbrev-table"), Value::string("xyz")],
-        );
-        assert!(result.is_ok());
-        assert!(result.unwrap().is_nil());
+        let expanded = eval.abbrevs.expand_abbrev("global-abbrev-table", "xyz");
+        assert!(expanded.is_none());
     }
 
     #[test]
@@ -763,8 +757,10 @@ mod tests {
         let mut eval = Evaluator::new();
 
         // Create a table without parent
-        let result =
-            builtin_define_abbrev_table(&mut eval, vec![Value::string("my-mode-abbrev-table")]);
+        let result = builtin_define_abbrev_table(
+            &mut eval,
+            vec![Value::string("my-mode-abbrev-table"), Value::Nil],
+        );
         assert!(result.is_ok());
         assert!(eval.abbrevs.get_table("my-mode-abbrev-table").is_some());
 
@@ -779,6 +775,20 @@ mod tests {
         assert!(result.is_ok());
         let child = eval.abbrevs.get_table("child-table").unwrap();
         assert_eq!(child.parent.as_deref(), Some("my-mode-abbrev-table"));
+
+        // DEFS list form should be accepted for compatibility (currently ignored).
+        let result = builtin_define_abbrev_table(
+            &mut eval,
+            vec![
+                Value::string("defs-table"),
+                Value::list(vec![Value::list(vec![
+                    Value::string("hw"),
+                    Value::string("hello world"),
+                ])]),
+            ],
+        );
+        assert!(result.is_ok());
+        assert!(eval.abbrevs.get_table("defs-table").is_some());
     }
 
     #[test]
@@ -917,9 +927,16 @@ mod tests {
         let result = builtin_define_abbrev(&mut eval, vec![Value::string("t"), Value::string("a")]);
         assert!(result.is_err());
 
-        // expand-abbrev needs exactly 2 args
+        // define-abbrev-table needs at least 2 args
+        let result = builtin_define_abbrev_table(&mut eval, vec![Value::string("my-table")]);
+        assert!(result.is_err());
+
+        // expand-abbrev needs exactly 0 args
         let result = builtin_expand_abbrev(&mut eval, vec![Value::string("t")]);
         assert!(result.is_err());
+        let result = builtin_expand_abbrev(&mut eval, vec![]);
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_nil());
 
         // clear-abbrev-table needs exactly 1
         let result = builtin_clear_abbrev_table(&mut eval, vec![]);

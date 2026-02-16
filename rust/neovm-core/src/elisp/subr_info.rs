@@ -360,6 +360,9 @@ fn subr_arity_value(name: &str) -> Value {
         "abbrev-mode" => arity_cons(0, Some(1)),
         "abbrev-expansion" => arity_cons(1, Some(2)),
         "abbrev-table-p" => arity_cons(1, Some(1)),
+        "define-abbrev" => arity_cons(3, None),
+        "define-abbrev-table" => arity_cons(2, None),
+        "expand-abbrev" => arity_cons(0, Some(0)),
         "if" => Value::cons(Value::Int(2), Value::symbol("unevalled")),
         "defining-kbd-macro" => arity_cons(1, Some(2)),
         "help-key-description" => arity_cons(2, Some(2)),
@@ -958,6 +961,9 @@ mod tests {
         assert_subr_arity("abbrev-mode", 0, Some(1));
         assert_subr_arity("abbrev-expansion", 1, Some(2));
         assert_subr_arity("abbrev-table-p", 1, Some(1));
+        assert_subr_arity("define-abbrev", 3, None);
+        assert_subr_arity("define-abbrev-table", 2, None);
+        assert_subr_arity("expand-abbrev", 0, Some(0));
     }
 
     #[test]
