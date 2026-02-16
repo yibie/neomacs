@@ -50,11 +50,12 @@ Last updated: 2026-02-16
 - Keep newly landed `kill-buffer` runtime parity stable while expanding remaining buffer lifecycle/helper drifts.
 - Keep newly landed `set-buffer` deleted-buffer parity stable while expanding remaining buffer designator/runtime drifts.
 - Keep newly landed `get-buffer` designator parity stable while expanding remaining buffer lookup/runtime drifts.
+- Keep newly landed window missing-buffer/designator parity slice stable while expanding remaining window lifecycle/helper drifts.
 
 ## Next
 
 1. Keep `check-all-neovm` as a recurring post-slice gate to catch regressions early.
-2. Land the next evaluator-backed stub replacement after `other-buffer` (prefer a high-impact buffer/window helper path).
+2. Land the next evaluator-backed stub replacement after the window designator slice (prefer a high-impact buffer/window lifecycle helper path).
 3. Continue expanding oracle corpora for remaining high-risk stub areas (search/input/minibuffer/display/font edge paths) and keep list/alist primitive semantics locked in.
 4. Keep Rust backend behind compile-time switch and preserve Emacs C core as default backend.
 5. Expand `kbd` edge corpus around uncommon modifier composition and align non-`kbd` key-description consumers with the new parser semantics where needed.
@@ -63,6 +64,37 @@ Last updated: 2026-02-16
 8. Resolve the last startup wrapper-shape drift (`neovm-precompile-file`) with an explicit extension-vs-oracle policy and lock-in corpus note.
 
 ## Done
+
+- Aligned window buffer command missing-buffer/designator semantics with GNU Emacs and added oracle lock-in:
+  - updated runtime semantics:
+    - `rust/neovm-core/src/elisp/window_cmds.rs`
+    - `switch-to-buffer`:
+      - string designators auto-create missing buffers
+      - deleted buffer objects signal `(error "Attempt to display deleted buffer")`
+    - `pop-to-buffer`:
+      - string designators auto-create missing buffers
+      - deleted buffer objects signal `(error "Invalid buffer")`
+    - `display-buffer`:
+      - missing/deleted buffers signal `(error "Invalid buffer")`
+    - `set-window-buffer`:
+      - `nil` window designator targets selected window
+      - invalid/non-live window designators signal `(wrong-type-argument window-live-p VALUE)`
+      - missing string buffer designator signals `(wrong-type-argument bufferp nil)`
+      - deleted buffer objects signal `(error "Attempt to display deleted buffer")`
+      - non-string/non-buffer designators signal `(wrong-type-argument stringp VALUE)`
+  - added evaluator regressions:
+    - `switch_and_pop_create_missing_named_buffers`
+    - `display_buffer_missing_or_dead_signals_invalid_buffer`
+    - `set_window_buffer_matches_window_and_buffer_designator_errors`
+  - added oracle corpus case:
+    - `test/neovm/vm-compat/cases/window-buffer-missing-designator-semantics.{forms,expected.tsv}`
+    - wired into:
+      - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml switch_and_pop_create_missing_named_buffers -- --nocapture` (pass)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml display_buffer_missing_or_dead_signals_invalid_buffer -- --nocapture` (pass)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml set_window_buffer_matches_window_and_buffer_designator_errors -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/window-buffer-missing-designator-semantics` (pass)
 
 - Aligned `get-buffer` designator semantics with GNU Emacs and added oracle lock-in:
   - updated builtin runtime behavior:
