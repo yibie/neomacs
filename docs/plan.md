@@ -55,8 +55,30 @@ Last updated: 2026-02-16
 5. Expand `kbd` edge corpus around uncommon modifier composition and align non-`kbd` key-description consumers with the new parser semantics where needed.
 6. Expand `recent-keys` capture beyond `read*` consumers to eventual command-loop event publication.
 7. Continue subr-arity registry drift reduction from `59` remaining mismatches using batched oracle lock-ins.
+8. Continue startup `symbol-function` wrapper-shape parity from `46` remaining drifts (prefer low-risk autoload wrappers not exercised by runtime behavior suites).
 
 ## Done
+
+- Aligned additional startup `autoload` wrapper shapes with GNU Emacs:
+  - seeded startup function cells as autoload values:
+    - `format-seconds` -> `time-date`
+    - `format-spec` -> `format-spec`
+    - `string-clean-whitespace` -> `subr-x`
+    - `string-glyph-split` -> `subr-x`
+    - `upcase-char` -> `misc`
+  - extended unit assertions in:
+    - `symbol_function_resolves_builtin_and_special_names`
+  - added oracle corpus lock-in case:
+    - `test/neovm/vm-compat/cases/format-subrx-autoload-wrapper-semantics.{forms,expected.tsv}`
+    - wired into default and introspection suites:
+      - `test/neovm/vm-compat/cases/default.list`
+      - `test/neovm/vm-compat/cases/introspection.list`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml symbol_function_resolves_builtin_and_special_names -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/format-subrx-autoload-wrapper-semantics` (pass)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
+    - wrapper-shape drift scan status: `symbol-function-shape-drifts=46` (down from 51)
 
 - Aligned startup bookmark command wrapper shape with GNU Emacs:
   - seeded startup function cells as autoload values:
