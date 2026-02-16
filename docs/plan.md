@@ -29,6 +29,7 @@ Last updated: 2026-02-16
 - Keep newly landed file stat/predicate `subr-arity` parity stable while expanding remaining filesystem introspection drifts.
 - Keep newly landed runtime identity (`emacs-version`/`system-name`) runtime+`subr-arity` parity stable while expanding remaining identity drifts.
 - Keep newly landed file-name helper `subr-arity` parity stable while expanding remaining filesystem/path introspection drifts.
+- Keep newly landed `setenv` runtime+`subr-arity` parity stable while expanding remaining process/env drifts.
 
 ## Next
 
@@ -40,6 +41,40 @@ Last updated: 2026-02-16
 6. Expand `recent-keys` capture beyond `read*` consumers to eventual command-loop event publication.
 
 ## Done
+
+- Aligned `setenv`/`getenv` process-environment behavior and `subr-arity` metadata with GNU Emacs:
+  - updated:
+    - `rust/neovm-core/src/elisp/process.rs`
+      - `getenv` now enforces strict string variable name type (`stringp`) for arg 1.
+      - `setenv` now enforces strict string variable name type (`stringp`) for arg 1.
+      - `setenv` now enforces max arity `(1 . 3)` and signals on 4+ args.
+      - `setenv` now accepts sequence values (string/vector/list of character codes) when 3rd arg is nil/omitted.
+      - `setenv` now mirrors Emacs `SUBSTITUTE` flag behavior:
+        - when 3rd arg is non-nil, value is treated as string input to `substitute-in-file-name`
+        - non-string values with non-nil `SUBSTITUTE` signal `wrong-type-argument stringp`.
+      - added regression tests:
+        - `getenv_name_must_be_string`
+        - `setenv_name_must_be_string`
+        - `setenv_accepts_sequence_value_and_sets_environment`
+        - `setenv_substitute_flag_controls_expansion_and_requires_string`
+        - `setenv_rejects_non_sequence_value`
+        - `setenv_rejects_too_many_args`
+    - `rust/neovm-core/src/elisp/subr_info.rs`
+      - added explicit arity override:
+        - `(1 . 3)`: `setenv`
+      - extended `subr_arity_process_primitives_match_oracle`.
+    - `test/neovm/vm-compat/cases/setenv-sequence-semantics.forms`
+    - `test/neovm/vm-compat/cases/setenv-sequence-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+      - added oracle lock-in case for `setenv` sequence/substitute/arity behavior.
+  - recorded with official GNU Emacs:
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat record FORMS=cases/setenv-sequence-semantics.forms EXPECTED=cases/setenv-sequence-semantics.expected.tsv` (pass)
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml setenv_substitute_flag_controls_expansion_and_requires_string -- --nocapture` (pass)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml subr_arity_process_primitives_match_oracle -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/setenv-sequence-semantics` (pass, 10/10)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass; allowlisted drift only: `neovm-precompile-file`)
 
 - Aligned file-name helper primitive `subr-arity` metadata with GNU Emacs:
   - updated:
