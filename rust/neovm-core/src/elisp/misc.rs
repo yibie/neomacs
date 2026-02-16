@@ -56,17 +56,6 @@ fn expect_max_args(name: &str, args: &[Value], max: usize) -> Result<(), Flow> {
     }
 }
 
-fn expect_int(val: &Value) -> Result<i64, Flow> {
-    match val {
-        Value::Int(n) => Ok(*n),
-        Value::Char(c) => Ok(*c as i64),
-        other => Err(signal(
-            "wrong-type-argument",
-            vec![Value::symbol("integerp"), other.clone()],
-        )),
-    }
-}
-
 fn expect_wholenump(val: &Value) -> Result<i64, Flow> {
     match val {
         Value::Int(n) if *n >= 0 => Ok(*n),
@@ -303,35 +292,46 @@ pub(crate) fn builtin_rassq(args: Vec<Value>) -> EvalResult {
 }
 
 /// `(assoc-default KEY ALIST &optional TEST DEFAULT)` -- find KEY in ALIST,
-/// return the cdr of the matching entry (or DEFAULT if not found).
-/// TEST defaults to `equal`.
+/// return the cdr of the matching entry (nil if not found).
+/// TEST defaults to `equal`; only `eq` and `equal` are accepted in pure mode.
 pub(crate) fn builtin_assoc_default(args: Vec<Value>) -> EvalResult {
     expect_min_args("assoc-default", &args, 2)?;
     let key = &args[0];
     let alist = &args[1];
-    let use_eq = if args.len() > 2 {
-        // If test is 'eq, use eq; otherwise use equal
-        match &args[2] {
-            Value::Symbol(s) if s == "eq" => true,
-            _ => false,
+    if !alist.is_list() {
+        return Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("listp"), alist.clone()],
+        ));
+    }
+
+    enum AssocMatcher {
+        Eq,
+        Equal,
+    }
+
+    let matcher = if let Some(test) = args.get(2) {
+        match test {
+            Value::Nil => AssocMatcher::Equal,
+            Value::Symbol(s) if s == "eq" => AssocMatcher::Eq,
+            Value::Symbol(s) if s == "equal" => AssocMatcher::Equal,
+            other => return Err(signal("invalid-function", vec![other.clone()])),
         }
     } else {
-        false
+        AssocMatcher::Equal
     };
-    let default = args.get(3).cloned().unwrap_or(Value::Nil);
 
     let mut cursor = alist.clone();
     loop {
         match cursor {
-            Value::Nil => return Ok(default),
+            Value::Nil => return Ok(Value::Nil),
             Value::Cons(cell) => {
                 let pair = cell.lock().expect("poisoned");
                 if let Value::Cons(inner) = &pair.car {
                     let inner_pair = inner.lock().expect("poisoned");
-                    let matches = if use_eq {
-                        eq_value(&inner_pair.car, key)
-                    } else {
-                        equal_value(&inner_pair.car, key, 0)
+                    let matches = match matcher {
+                        AssocMatcher::Eq => eq_value(&inner_pair.car, key),
+                        AssocMatcher::Equal => equal_value(&inner_pair.car, key, 0),
                     };
                     if matches {
                         return Ok(inner_pair.cdr.clone());
@@ -339,7 +339,7 @@ pub(crate) fn builtin_assoc_default(args: Vec<Value>) -> EvalResult {
                 }
                 cursor = pair.cdr.clone();
             }
-            _ => return Ok(default),
+            _ => return Ok(Value::Nil),
         }
     }
 }
@@ -347,13 +347,7 @@ pub(crate) fn builtin_assoc_default(args: Vec<Value>) -> EvalResult {
 /// `(make-list LENGTH INIT)` -- create a list of LENGTH elements, each INIT.
 pub(crate) fn builtin_make_list(args: Vec<Value>) -> EvalResult {
     expect_args("make-list", &args, 2)?;
-    let length = expect_int(&args[0])?;
-    if length < 0 {
-        return Err(signal(
-            "wrong-type-argument",
-            vec![Value::symbol("natnump"), args[0].clone()],
-        ));
-    }
+    let length = expect_wholenump(&args[0])?;
     let init = &args[1];
     let items: Vec<Value> = (0..length as usize).map(|_| init.clone()).collect();
     Ok(Value::list(items))
@@ -734,7 +728,7 @@ mod tests {
     }
 
     #[test]
-    fn assoc_default_not_found_uses_default() {
+    fn assoc_default_not_found_returns_nil_even_with_default_arg() {
         let alist = Value::list(vec![Value::cons(Value::string("key"), Value::Int(42))]);
         let result = builtin_assoc_default(vec![
             Value::string("missing"),
@@ -743,7 +737,7 @@ mod tests {
             Value::Int(-1),
         ])
         .unwrap();
-        assert!(eq_value(&result, &Value::Int(-1)));
+        assert!(result.is_nil());
     }
 
     #[test]
@@ -752,6 +746,31 @@ mod tests {
         let result =
             builtin_assoc_default(vec![Value::symbol("foo"), alist, Value::symbol("eq")]).unwrap();
         assert!(eq_value(&result, &Value::Int(10)));
+    }
+
+    #[test]
+    fn assoc_default_non_list_alist_signals_listp() {
+        let result = builtin_assoc_default(vec![Value::symbol("foo"), Value::Int(1)]);
+        match result {
+            Err(Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "wrong-type-argument");
+                assert_eq!(sig.data, vec![Value::symbol("listp"), Value::Int(1)]);
+            }
+            other => panic!("expected wrong-type-argument signal, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn assoc_default_invalid_test_signals_invalid_function() {
+        let alist = Value::list(vec![Value::cons(Value::symbol("foo"), Value::Int(10))]);
+        let result = builtin_assoc_default(vec![Value::symbol("foo"), alist, Value::Int(1)]);
+        match result {
+            Err(Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "invalid-function");
+                assert_eq!(sig.data, vec![Value::Int(1)]);
+            }
+            other => panic!("expected invalid-function signal, got {other:?}"),
+        }
     }
 
     // ----- make-list -----
@@ -773,9 +792,23 @@ mod tests {
     }
 
     #[test]
-    fn make_list_negative_errors() {
-        let result = builtin_make_list(vec![Value::Int(-1), Value::Int(1)]);
-        assert!(result.is_err());
+    fn make_list_validates_wholenump_length() {
+        let negative = builtin_make_list(vec![Value::Int(-1), Value::Int(1)]).unwrap_err();
+        let float = builtin_make_list(vec![Value::Float(3.2), Value::Int(1)]).unwrap_err();
+        match negative {
+            Flow::Signal(sig) => {
+                assert_eq!(sig.symbol, "wrong-type-argument");
+                assert_eq!(sig.data, vec![Value::symbol("wholenump"), Value::Int(-1)]);
+            }
+            other => panic!("expected wrong-type-argument signal, got {other:?}"),
+        }
+        match float {
+            Flow::Signal(sig) => {
+                assert_eq!(sig.symbol, "wrong-type-argument");
+                assert_eq!(sig.data, vec![Value::symbol("wholenump"), Value::Float(3.2)]);
+            }
+            other => panic!("expected wrong-type-argument signal, got {other:?}"),
+        }
     }
 
     #[test]
