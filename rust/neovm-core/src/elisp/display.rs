@@ -121,13 +121,15 @@ fn expect_terminal_designator(value: &Value) -> Result<(), Flow> {
 }
 
 fn expect_frame_designator(value: &Value) -> Result<(), Flow> {
-    if value.is_nil() {
-        Ok(())
-    } else {
+    match value {
+        Value::Int(id) if *id >= 0 => Ok(()),
+        v if v.is_nil() => Ok(()),
+        _ => {
         Err(signal(
             "wrong-type-argument",
             vec![Value::symbol("frame-live-p"), value.clone()],
         ))
+        }
     }
 }
 
@@ -1659,8 +1661,17 @@ mod tests {
 
     #[test]
     fn frame_terminal_rejects_non_frame_designator() {
-        let result = builtin_frame_terminal(vec![Value::Int(1)]);
+        let result = builtin_frame_terminal(vec![Value::string("not-a-frame")]);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn frame_terminal_accepts_frame_id() {
+        let result = builtin_frame_terminal(vec![Value::Int(1)]);
+        assert!(result.is_ok());
+        let handle = result.unwrap();
+        let live = builtin_terminal_live_p(vec![handle]).unwrap();
+        assert_eq!(live, Value::True);
     }
 
     #[test]
@@ -1693,7 +1704,7 @@ mod tests {
 
     #[test]
     fn redraw_frame_rejects_non_frame_designator() {
-        let result = builtin_redraw_frame(vec![Value::Int(1)]);
+        let result = builtin_redraw_frame(vec![Value::string("not-a-frame")]);
         assert!(result.is_err());
     }
 
