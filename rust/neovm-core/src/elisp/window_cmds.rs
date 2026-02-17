@@ -108,6 +108,28 @@ fn resolve_window_id(
     resolve_window_id_with_pred(eval, arg, "window-live-p")
 }
 
+/// Resolve a window designator for mutation-style window ops.
+///
+/// GNU Emacs uses generic `error` signaling for invalid designators in some
+/// split/delete window builtins, rather than `wrong-type-argument`.
+fn resolve_window_id_or_error(
+    eval: &mut super::eval::Evaluator,
+    arg: Option<&Value>,
+) -> Result<(FrameId, WindowId), Flow> {
+    match arg {
+        None | Some(Value::Nil) => resolve_window_id(eval, arg),
+        Some(Value::Int(n)) => {
+            let wid = WindowId(*n as u64);
+            if let Some(fid) = eval.frames.find_window_frame_id(wid) {
+                Ok((fid, wid))
+            } else {
+                Err(signal("error", vec![Value::string("Invalid window")]))
+            }
+        }
+        Some(_) => Err(signal("error", vec![Value::string("Invalid window")])),
+    }
+}
+
 /// Resolve a frame designator, signaling predicate-shaped type errors.
 ///
 /// When ARG is nil/omitted, GNU Emacs resolves against the selected frame.
@@ -708,7 +730,7 @@ pub(crate) fn builtin_split_window(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_max_args("split-window", &args, 4)?;
-    let (fid, wid) = resolve_window_id(eval, args.first())?;
+    let (fid, wid) = resolve_window_id_or_error(eval, args.first())?;
 
     // Determine split direction from SIDE argument.
     let direction = match args.get(2) {
@@ -735,7 +757,7 @@ pub(crate) fn builtin_delete_window(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_max_args("delete-window", &args, 1)?;
-    let (fid, wid) = resolve_window_id(eval, args.first())?;
+    let (fid, wid) = resolve_window_id_or_error(eval, args.first())?;
     if !eval.frames.delete_window(fid, wid) {
         return Err(signal(
             "error",
@@ -761,7 +783,7 @@ pub(crate) fn builtin_delete_other_windows(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_max_args("delete-other-windows", &args, 2)?;
-    let (fid, keep_wid) = resolve_window_id(eval, args.first())?;
+    let (fid, keep_wid) = resolve_window_id_or_error(eval, args.first())?;
     let frame = eval
         .frames
         .get(fid)
@@ -1920,6 +1942,24 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(out[0], "OK wrong-number-of-arguments");
         assert_eq!(out[1], "OK t");
+    }
+
+    #[test]
+    fn split_delete_window_invalid_designators_signal_error() {
+        let results = eval_with_frame(
+            "(condition-case err (split-window 999999) (error (car err)))
+             (condition-case err (split-window 'foo) (error (car err)))
+             (condition-case err (delete-window 999999) (error (car err)))
+             (condition-case err (delete-window 'foo) (error (car err)))
+             (condition-case err (delete-other-windows 999999) (error (car err)))
+             (condition-case err (delete-other-windows 'foo) (error (car err)))",
+        );
+        assert_eq!(results[0], "OK error");
+        assert_eq!(results[1], "OK error");
+        assert_eq!(results[2], "OK error");
+        assert_eq!(results[3], "OK error");
+        assert_eq!(results[4], "OK error");
+        assert_eq!(results[5], "OK error");
     }
 
     #[test]
