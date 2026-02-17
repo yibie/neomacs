@@ -2367,6 +2367,21 @@ mod tests {
     }
 
     #[test]
+    fn read_char_consumes_character_event_and_preserves_tail() {
+        let mut ev = Evaluator::new();
+        ev.obarray.set_symbol_value(
+            "unread-command-events",
+            Value::list(vec![Value::Int(97), Value::symbol("foo")]),
+        );
+        let result = builtin_read_char(&mut ev, vec![]).unwrap();
+        assert_eq!(result.as_int(), Some(97));
+        assert_eq!(
+            ev.obarray.symbol_value("unread-command-events"),
+            Some(&Value::list(vec![Value::symbol("foo")]))
+        );
+    }
+
+    #[test]
     fn read_char_rejects_more_than_three_args() {
         let mut ev = Evaluator::new();
         let result = builtin_read_char(
@@ -2450,6 +2465,18 @@ mod tests {
     }
 
     #[test]
+    fn read_key_consumes_character_event_and_preserves_tail() {
+        let mut ev = Evaluator::new();
+        let event = Value::symbol("foo");
+        ev.obarray
+            .set_symbol_value("unread-command-events", Value::list(vec![Value::Int(97), event.clone()]));
+        let result = builtin_read_key(&mut ev, vec![Value::string("key: ")]).unwrap();
+        assert_eq!(result.as_int(), Some(97));
+        assert_eq!(ev.read_command_keys(), &[Value::Int(97)]);
+        assert_eq!(ev.obarray.symbol_value("unread-command-events"), Some(&Value::list(vec![event])));
+    }
+
+    #[test]
     fn read_key_sequence_returns_empty_string() {
         let mut ev = Evaluator::new();
         let result = builtin_read_key_sequence(&mut ev, vec![Value::string("key: ")]).unwrap();
@@ -2501,6 +2528,18 @@ mod tests {
         }
         assert_eq!(ev.read_command_keys(), std::slice::from_ref(&event));
         assert_eq!(ev.obarray.symbol_value("unread-command-events"), Some(&Value::list(vec![Value::Int(97)])));
+    }
+
+    #[test]
+    fn read_key_sequence_consumes_character_and_preserves_tail() {
+        let mut ev = Evaluator::new();
+        let event = Value::symbol("foo");
+        ev.obarray
+            .set_symbol_value("unread-command-events", Value::list(vec![Value::Int(97), event.clone()]));
+        let result = builtin_read_key_sequence(&mut ev, vec![Value::string("key: ")]).unwrap();
+        assert!(matches!(result, Value::Str(s) if s.as_str() == "a"));
+        assert_eq!(ev.read_command_keys(), &[Value::Int(97)]);
+        assert_eq!(ev.obarray.symbol_value("unread-command-events"), Some(&Value::list(vec![event])));
     }
 
     #[test]
@@ -2600,6 +2639,26 @@ mod tests {
         }
         assert_eq!(ev.read_command_keys(), std::slice::from_ref(&event));
         assert_eq!(ev.obarray.symbol_value("unread-command-events"), Some(&Value::list(vec![Value::Int(97)])));
+    }
+
+    #[test]
+    fn read_key_sequence_vector_consumes_character_and_preserves_tail() {
+        let mut ev = Evaluator::new();
+        let event = Value::symbol("bar");
+        ev.obarray
+            .set_symbol_value("unread-command-events", Value::list(vec![Value::Int(97), event.clone()]));
+        let result = builtin_read_key_sequence_vector(&mut ev, vec![Value::string("key: ")])
+            .unwrap();
+        match result {
+            Value::Vector(v) => {
+                let items = v.lock().expect("poisoned");
+                assert_eq!(items.len(), 1);
+                assert_eq!(items[0].as_int(), Some(97));
+            }
+            other => panic!("expected vector, got {other:?}"),
+        }
+        assert_eq!(ev.read_command_keys(), &[Value::Int(97)]);
+        assert_eq!(ev.obarray.symbol_value("unread-command-events"), Some(&Value::list(vec![event])));
     }
 
     #[test]
