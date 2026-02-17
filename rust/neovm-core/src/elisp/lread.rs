@@ -697,6 +697,31 @@ mod tests {
     }
 
     #[test]
+    fn read_event_consumes_character_event() {
+        let mut ev = Evaluator::new();
+        ev.obarray
+            .set_symbol_value("unread-command-events", Value::list(vec![Value::Char('a')]));
+        let result = builtin_read_event(&mut ev, vec![]).unwrap();
+        assert_eq!(result.as_int(), Some(97));
+        assert_eq!(ev.obarray.symbol_value("unread-command-events"), Some(&Value::Nil));
+    }
+
+    #[test]
+    fn read_event_preserves_trailing_events_after_non_character() {
+        let mut ev = Evaluator::new();
+        ev.obarray.set_symbol_value(
+            "unread-command-events",
+            Value::list(vec![Value::symbol("foo"), Value::Char('a')]),
+        );
+        let result = builtin_read_event(&mut ev, vec![]).unwrap();
+        assert_eq!(result, Value::symbol("foo"));
+        assert_eq!(
+            ev.obarray.symbol_value("unread-command-events"),
+            Some(&Value::list(vec![Value::Char('a')]))
+        );
+    }
+
+    #[test]
     fn read_event_rejects_more_than_three_args() {
         let mut ev = Evaluator::new();
         let result = builtin_read_event(
