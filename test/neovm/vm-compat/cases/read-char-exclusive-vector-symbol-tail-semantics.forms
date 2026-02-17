@@ -1,0 +1,5 @@
+(condition-case err
+    (progn
+      (setq unread-command-events (list [foo]))
+      (read-char-exclusive nil nil 0))
+  (error (list (car err) unread-command-events)))
