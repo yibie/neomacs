@@ -1124,7 +1124,7 @@ pub(crate) fn builtin_read_char(
 
 /// `(read-key &optional PROMPT)`
 ///
-/// Batch stub: return next `unread-command-events` event when present, else nil.
+/// Batch-mode: return next `unread-command-events` event when present, else nil.
 pub(crate) fn builtin_read_key(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
