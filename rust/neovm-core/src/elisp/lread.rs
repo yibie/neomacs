@@ -771,6 +771,19 @@ mod tests {
     }
 
     #[test]
+    fn read_char_exclusive_skips_non_character_and_empty_tail() {
+        let mut ev = Evaluator::new();
+        ev.obarray
+            .set_symbol_value("unread-command-events", Value::list(vec![Value::symbol("foo"), Value::Int(97)]));
+        let result = builtin_read_char_exclusive(&mut ev, vec![Value::Nil, Value::Nil, Value::Int(0)]).unwrap();
+        assert_eq!(result.as_int(), Some(97));
+        assert_eq!(
+            ev.obarray.symbol_value("unread-command-events"),
+            Some(&Value::Nil),
+        );
+    }
+
+    #[test]
     fn get_load_suffixes_returns_list() {
         let result = builtin_get_load_suffixes(vec![]).unwrap();
         let items = list_to_vec(&result).unwrap();
