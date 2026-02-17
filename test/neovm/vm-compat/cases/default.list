@@ -77,6 +77,7 @@ cases/read-char-exclusive-symbol-tail-semantics
 cases/read-event-non-character-tail-semantics
 cases/read-event-vector-tail-semantics
 cases/read-event-vector-symbol-tail-semantics
+cases/read-event-vector-vector-tail-semantics
 cases/read-event-symbol-tail-semantics
 cases/read-key-non-character-tail-semantics
 cases/read-key-symbol-tail-semantics
