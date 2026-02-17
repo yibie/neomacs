@@ -71,8 +71,11 @@ cases/read-char-non-character-vector-tail-semantics
 cases/read-char-exclusive-non-character-tail-semantics
 cases/read-event-non-character-tail-semantics
 cases/read-key-non-character-tail-semantics
+cases/read-key-vector-tail-semantics
 cases/read-key-sequence-non-character-tail-semantics
+cases/read-key-sequence-vector-tail-semantics
 cases/read-key-sequence-vector-non-character-tail-semantics
+cases/read-key-sequence-vector-vector-tail-semantics
 cases/read-region-helper-subr-arity-semantics
 cases/input-mode-subr-arity-semantics
 cases/keymap-keyboard-subr-arity-semantics

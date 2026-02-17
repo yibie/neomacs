@@ -1,0 +1,4 @@
+(let ((unread-command-events (list 97 [mouse-1])))
+  (progn
+    (read-key "")
+    unread-command-events))
