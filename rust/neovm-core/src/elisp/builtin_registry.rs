@@ -925,6 +925,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "window-dedicated-p",
     "window-end",
     "window-height",
+    "window-frame",
     "window-list",
     "window-live-p",
     "window-point",

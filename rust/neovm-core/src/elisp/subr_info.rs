@@ -797,7 +797,7 @@ fn subr_arity_value(name: &str) -> Value {
         | "x-display-pixel-height" | "x-server-version" | "x-server-max-request-size"
         | "x-display-grayscale-p" | "redraw-frame" | "ding" | "internal-show-cursor-p"
         | "controlling-tty-p" | "suspend-tty" | "resume-tty" | "terminal-coding-system"
-        | "frame-parameters" | "frame-selected-window" | "window-buffer"
+        | "frame-parameters" | "frame-selected-window" | "window-buffer" | "window-frame"
         | "window-dedicated-p" | "window-point" | "window-start" => {
             arity_cons(0, Some(1))
         }
@@ -2232,6 +2232,7 @@ mod tests {
         assert_subr_arity("set-window-buffer", 2, Some(3));
         assert_subr_arity("set-window-point", 2, Some(2));
         assert_subr_arity("set-window-start", 2, Some(3));
+        assert_subr_arity("window-frame", 0, Some(1));
         assert_subr_arity("window-body-height", 0, Some(2));
         assert_subr_arity("window-body-width", 0, Some(2));
         assert_subr_arity("window-buffer", 0, Some(1));

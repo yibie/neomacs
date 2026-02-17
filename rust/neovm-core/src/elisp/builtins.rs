@@ -7555,6 +7555,7 @@ pub(crate) fn dispatch_builtin(
         "frame-live-p" => return Some(super::window_cmds::builtin_frame_live_p(eval, args)),
         "windowp" => return Some(super::window_cmds::builtin_windowp(eval, args)),
         "framep" => return Some(super::window_cmds::builtin_framep(eval, args)),
+        "window-frame" => return Some(super::window_cmds::builtin_window_frame(eval, args)),
         "frame-selected-window" => {
             return Some(super::window_cmds::builtin_frame_selected_window(eval, args))
         }

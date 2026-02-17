@@ -235,6 +235,16 @@ pub(crate) fn builtin_frame_selected_window(
     Ok(Value::Int(frame.selected_window.0 as i64))
 }
 
+/// `(window-frame &optional WINDOW)` -> frame of WINDOW.
+pub(crate) fn builtin_window_frame(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_max_args("window-frame", &args, 1)?;
+    let (fid, _wid) = resolve_window_id_with_pred(eval, args.first(), "window-valid-p")?;
+    Ok(Value::Int(fid.0 as i64))
+}
+
 /// `(window-buffer &optional WINDOW)` -> buffer object.
 pub(crate) fn builtin_window_buffer(
     eval: &mut super::eval::Evaluator,
@@ -1493,6 +1503,31 @@ mod tests {
         assert_eq!(out[2], "OK t");
         assert_eq!(out[3], "OK (wrong-type-argument frame-live-p \"x\")");
         assert_eq!(out[4], "OK (wrong-type-argument frame-live-p 999999)");
+        assert_eq!(out[5], "OK wrong-number-of-arguments");
+    }
+
+    #[test]
+    fn window_frame_arity_and_designators() {
+        let forms = parse_forms(
+            "(framep (window-frame))
+             (framep (window-frame nil))
+             (framep (window-frame (selected-window)))
+             (condition-case err (window-frame \"x\") (error err))
+             (condition-case err (window-frame 999999) (error err))
+             (condition-case err (window-frame nil nil) (error (car err)))",
+        )
+        .expect("parse");
+        let mut ev = Evaluator::new();
+        let out = ev
+            .eval_forms(&forms)
+            .iter()
+            .map(format_eval_result)
+            .collect::<Vec<_>>();
+        assert_eq!(out[0], "OK t");
+        assert_eq!(out[1], "OK t");
+        assert_eq!(out[2], "OK t");
+        assert_eq!(out[3], "OK (wrong-type-argument window-valid-p \"x\")");
+        assert_eq!(out[4], "OK (wrong-type-argument window-valid-p 999999)");
         assert_eq!(out[5], "OK wrong-number-of-arguments");
     }
 
