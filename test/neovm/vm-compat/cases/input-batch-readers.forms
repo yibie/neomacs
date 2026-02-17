@@ -103,3 +103,15 @@
 (progn
   (setq unread-command-events (list 97 'foo))
   (cons (read-key-sequence-vector "") unread-command-events))
+(progn
+  (setq unread-command-events (list 97))
+  (read-coding-system "Coding: "))
+(progn
+  (setq unread-command-events (list (list 1 2)))
+  (read-coding-system "Coding: "))
+(progn
+  (setq unread-command-events (list (vector 1 2)))
+  (read-non-nil-coding-system "Coding: "))
+(progn
+  (setq unread-command-events (list 'foo))
+  (read-non-nil-coding-system "Coding: "))
