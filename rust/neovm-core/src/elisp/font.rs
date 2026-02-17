@@ -1898,6 +1898,11 @@ mod tests {
     }
 
     #[test]
+    fn clear_font_cache_rejects_arity() {
+        assert!(builtin_clear_font_cache(vec![Value::Nil]).is_err());
+    }
+
+    #[test]
     fn clear_font_cache_resets_face_caches() {
         let face = Value::symbol("__neovm_clear_font_cache_unit_test");
         let _ = builtin_internal_make_lisp_face(vec![face.clone()]).unwrap();
