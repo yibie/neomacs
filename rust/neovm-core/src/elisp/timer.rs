@@ -1028,6 +1028,26 @@ mod tests {
             1.5
         );
         assert_eq!(
+            parse_run_at_time_delay(&Value::string("1e-1 sec"))
+                .expect("1e-1 sec should parse"),
+            0.1
+        );
+        assert_eq!(
+            parse_run_at_time_delay(&Value::string(".5e2sec"))
+                .expect(".5e2sec should parse"),
+            50.0
+        );
+        assert_eq!(
+            parse_run_at_time_delay(&Value::string("1e+1 sec"))
+                .expect("1e+1 sec should parse"),
+            10.0
+        );
+        assert_eq!(
+            parse_run_at_time_delay(&Value::string("1e+ 1 sec"))
+                .expect("1e+ 1 sec should parse"),
+            10.0
+        );
+        assert_eq!(
             parse_run_at_time_delay(&Value::string(" \t+ 2 day \t"))
                 .expect("whitespace + 2 day should parse"),
             172_800.0
@@ -1057,6 +1077,10 @@ mod tests {
         assert!(matches!(parse_run_at_time_delay(&Value::string("-")), Err(_)));
         assert!(matches!(parse_run_at_time_delay(&Value::string("+ 2")), Err(_)));
         assert!(matches!(parse_run_at_time_delay(&Value::string("- 2")), Err(_)));
+        assert!(matches!(
+            parse_run_at_time_delay(&Value::string("1e+ sec")),
+            Err(_)
+        ));
         assert!(matches!(
             parse_run_at_time_delay(&Value::string("+ 1 5")),
             Err(_)
