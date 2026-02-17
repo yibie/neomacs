@@ -111,7 +111,7 @@ jobs:
       - name: Run ERT allowlist oracle check
         working-directory: test/neovm/vm-compat
         env:
-          NEOVM_ORACLE_EMACS: /usr/bin/emacs
+          NEOVM_FORCE_ORACLE_PATH: /usr/bin/emacs
         run: |
           make check-ert-allowlist
 
@@ -130,7 +130,7 @@ jobs:
       - name: Verify oracle baselines
         working-directory: test/neovm/vm-compat
         env:
-          NEOVM_ORACLE_EMACS: /usr/bin/emacs
+          NEOVM_FORCE_ORACLE_PATH: /usr/bin/emacs
         run: |
           make check-all
 
@@ -152,7 +152,7 @@ jobs:
       - name: Check builtin registry fboundp parity
         working-directory: test/neovm/vm-compat
         env:
-          NEOVM_ORACLE_EMACS: /usr/bin/emacs
+          NEOVM_FORCE_ORACLE_PATH: /usr/bin/emacs
         run: |
           make check-builtin-registry-fboundp
 
