@@ -180,6 +180,15 @@ fn expect_optional_command_keys_vector(keys: Option<&Value>) -> Result<(), Flow>
     Ok(())
 }
 
+fn record_optional_command_keys(eval: &mut Evaluator, keys: Option<&Value>) {
+    if let Some(Value::Vector(vec)) = keys {
+        let guard = vec.lock().expect("poisoned");
+        for event in guard.iter() {
+            eval.record_input_event(event.clone());
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Built-in functions (evaluator-dependent)
 // ---------------------------------------------------------------------------
@@ -191,6 +200,8 @@ pub(crate) fn builtin_call_interactively(eval: &mut Evaluator, args: Vec<Value>)
     expect_min_args("call-interactively", &args, 1)?;
     expect_max_args("call-interactively", &args, 3)?;
     expect_optional_command_keys_vector(args.get(2))?;
+
+    record_optional_command_keys(eval, args.get(2));
 
     let func_val = &args[0];
     if !command_designator_p(eval, func_val) {
@@ -3726,7 +3737,11 @@ mod tests {
         let mut ev = Evaluator::new();
         let result = builtin_command_execute(
             &mut ev,
-            vec![Value::symbol("ignore"), Value::Nil, Value::vector(vec![Value::Int(97)])],
+            vec![
+                Value::symbol("ignore"),
+                Value::Nil,
+                Value::vector(vec![Value::Int(97)]),
+            ],
         )
         .expect("command-execute should accept vector keys argument");
         assert!(result.is_nil());
@@ -3824,7 +3839,11 @@ mod tests {
         let mut ev = Evaluator::new();
         let result = builtin_call_interactively(
             &mut ev,
-            vec![Value::symbol("ignore"), Value::Nil, Value::vector(vec![Value::Int(98)])],
+            vec![
+                Value::symbol("ignore"),
+                Value::Nil,
+                Value::vector(vec![Value::Int(98)]),
+            ],
         )
         .expect("call-interactively should accept vector keys argument");
         assert!(result.is_nil());
@@ -3835,12 +3854,7 @@ mod tests {
         let mut ev = Evaluator::new();
         let result = builtin_call_interactively(
             &mut ev,
-            vec![
-                Value::symbol("ignore"),
-                Value::Nil,
-                Value::Nil,
-                Value::Nil,
-            ],
+            vec![Value::symbol("ignore"), Value::Nil, Value::Nil, Value::Nil],
         )
         .expect_err("call-interactively should reject too many arguments");
         match result {
