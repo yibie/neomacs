@@ -8,6 +8,9 @@ Last updated: 2026-02-16
   - `y-or-n-p` and `yes-or-no-p` now consume `unread-command-events` and signal meaningful prompt-type/signaling behavior in batch mode.
   - Added unit coverage for `y-or-n-p`/`yes-or-no-p` event consumption and invalid reply signaling.
   - Cleaned `reader.rs` interactive-input section comments to reflect implemented behavior.
+- Added input batch compatibility lock-in for `y-or-n-p`/`yes-or-no-p` queue semantics:
+  - Aligned implementation with Oracle: batch-mode `y-or-n-p` and `yes-or-no-p` now return `end-of-file` without consuming `unread-command-events`.
+  - Updated unit tests and added `input-batch-readers` oracle cases for queue behavior + nil prompt handling (`yes-or-no-p` rejects `nil`).
 - Continue compatibility-first maintenance with small commit slices.
 - Keep builtin dispatch surface and registry in lock-step for `fboundp`/introspection parity.
 - Run targeted vm-compat checks after each behavior-affecting slice.
@@ -76,10 +79,10 @@ Last updated: 2026-02-16
 - Keep newly landed window missing-buffer/designator parity slice stable while expanding remaining window lifecycle/helper drifts.
 
 ## Next
-
-1. Keep input-event queue edge cases for `read-char`/`read-key`/`read-key-sequence` aligned against oracle corpus (`invalid-event` and queue-empty paths).
-2. Keep `check-all-neovm` as a recurring post-slice gate to catch regressions early.
-3. Land the next evaluator-backed stub replacement after the `set-window-buffer` max-arity parity slice (prefer high-impact buffer/window lifecycle helper paths).
+1. Expand queue-edge coverage for remaining prompt/input builtins (`read-key-sequence*`, `read-event`) against non-character and stale queue payloads.
+2. Keep input-event queue edge cases for `read-char`/`read-key`/`read-key-sequence` aligned against oracle corpus (`invalid-event` and queue-empty paths).
+3. Keep `check-all-neovm` as a recurring post-slice gate to catch regressions early.
+4. Land the next evaluator-backed stub replacement after the `set-window-buffer` max-arity parity slice (prefer high-impact buffer/window lifecycle helper paths).
 4. Continue expanding oracle corpora for remaining high-risk stub areas (search/input/minibuffer/display/font edge paths) and keep list/alist primitive semantics locked in.
 5. Keep Rust backend behind compile-time switch and preserve Emacs C core as default backend.
 6. Expand `kbd` edge corpus around uncommon modifier composition and align non-`kbd` key-description consumers with the new parser semantics where needed.

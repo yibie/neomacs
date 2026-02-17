@@ -1022,10 +1022,9 @@ pub(crate) fn builtin_waiting_for_user_input_p(args: Vec<Value>) -> EvalResult {
 // 15. y-or-n-p
 // ---------------------------------------------------------------------------
 
-/// `(y-or-n-p PROMPT)` consumes a character reply from
-/// `unread-command-events` or signals EOF when no input is available.
+/// `(y-or-n-p PROMPT)` currently returns EOF in batch mode.
 pub(crate) fn builtin_y_or_n_p(
-    eval: &mut super::eval::Evaluator,
+    _eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
     expect_args("y-or-n-p", &args, 1)?;
@@ -1038,58 +1037,32 @@ pub(crate) fn builtin_y_or_n_p(
             ))
         }
     }
-    let event = match eval.peek_unread_command_event() {
-        Some(ev) => ev,
-        None => {
-            return Err(signal(
-                "end-of-file",
-                vec![Value::string("Error reading from stdin")],
-            ))
-        }
-    };
-    let _ = eval.pop_unread_command_event();
-    match event_to_char(&event) {
-        Some('y') | Some('Y') => Ok(Value::True),
-        Some('n') | Some('N') => Ok(Value::Nil),
-        Some(_) => Err(signal("error", vec![Value::string("Invalid y-or-n-p response")])),
-        None => Err(non_character_input_event_error()),
-    }
+    Err(signal(
+        "end-of-file",
+        vec![Value::string("Error reading from stdin")],
+    ))
 }
 
 // ---------------------------------------------------------------------------
 // 16. yes-or-no-p
 // ---------------------------------------------------------------------------
 
-/// `(yes-or-no-p PROMPT)` consumes a character reply from
-/// `unread-command-events` or signals EOF when no input is available.
+/// `(yes-or-no-p PROMPT)` currently returns EOF in batch mode.
 pub(crate) fn builtin_yes_or_no_p(
-    eval: &mut super::eval::Evaluator,
+    _eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
     expect_args("yes-or-no-p", &args, 1)?;
-    if let Value::Str(_) | Value::Nil = args[0] {
-    } else {
+    if !matches!(args[0], Value::Str(_)) {
         return Err(signal(
             "wrong-type-argument",
             vec![Value::symbol("stringp"), args[0].clone()],
         ));
     }
-    let event = match eval.peek_unread_command_event() {
-        Some(ev) => ev,
-        None => {
-            return Err(signal(
-                "end-of-file",
-                vec![Value::string("Error reading from stdin")],
-            ))
-        }
-    };
-    let _ = eval.pop_unread_command_event();
-    match event_to_char(&event) {
-        Some('y') | Some('Y') => Ok(Value::True),
-        Some('n') | Some('N') => Ok(Value::Nil),
-        Some(_) => Err(signal("error", vec![Value::string("Invalid yes-or-no-p response")])),
-        None => Err(non_character_input_event_error()),
-    }
+    Err(signal(
+        "end-of-file",
+        vec![Value::string("Error reading from stdin")],
+    ))
 }
 
 // ---------------------------------------------------------------------------
@@ -1936,23 +1909,35 @@ mod tests {
     }
 
     #[test]
-    fn y_or_n_p_consumes_unread_event_yes() {
+    fn y_or_n_p_ignores_unread_events_and_eofs() {
         let mut ev = Evaluator::new();
         ev.obarray
             .set_symbol_value("unread-command-events", Value::list(vec![Value::Int(121)]));
         let result = builtin_y_or_n_p(&mut ev, vec![Value::string("Continue? ")]);
-        assert_eq!(result.unwrap(), Value::True);
-        assert_eq!(ev.obarray.symbol_value("unread-command-events"), Some(&Value::Nil));
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "end-of-file"
+        ));
+        assert_eq!(
+            ev.obarray.symbol_value("unread-command-events"),
+            Some(&Value::list(vec![Value::Int(121)]))
+        );
     }
 
     #[test]
-    fn y_or_n_p_consumes_unread_event_no() {
+    fn y_or_n_p_unread_events_do_not_change() {
         let mut ev = Evaluator::new();
         ev.obarray
             .set_symbol_value("unread-command-events", Value::list(vec![Value::Int(110)]));
         let result = builtin_y_or_n_p(&mut ev, vec![Value::string("Continue? ")]);
-        assert_eq!(result.unwrap(), Value::Nil);
-        assert_eq!(ev.obarray.symbol_value("unread-command-events"), Some(&Value::Nil));
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "end-of-file"
+        ));
+        assert_eq!(
+            ev.obarray.symbol_value("unread-command-events"),
+            Some(&Value::list(vec![Value::Int(110)]))
+        );
     }
 
     #[test]
@@ -1961,7 +1946,11 @@ mod tests {
         ev.obarray
             .set_symbol_value("unread-command-events", Value::list(vec![Value::Int(48)]));
         let result = builtin_y_or_n_p(&mut ev, vec![Value::string("Continue? ")]);
-        assert!(matches!(result, Err(Flow::Signal(sig)) if sig.symbol == "error"));
+        assert!(matches!(result, Err(Flow::Signal(sig)) if sig.symbol == "end-of-file"));
+        assert_eq!(
+            ev.obarray.symbol_value("unread-command-events"),
+            Some(&Value::list(vec![Value::Int(48)]))
+        );
     }
 
     #[test]
@@ -1989,23 +1978,35 @@ mod tests {
     }
 
     #[test]
-    fn yes_or_no_p_consumes_unread_event_yes() {
+    fn yes_or_no_p_ignores_unread_events_and_eofs() {
         let mut ev = Evaluator::new();
         ev.obarray
             .set_symbol_value("unread-command-events", Value::list(vec![Value::Int(89)]));
         let result = builtin_yes_or_no_p(&mut ev, vec![Value::string("Confirm? ")]);
-        assert_eq!(result.unwrap(), Value::True);
-        assert_eq!(ev.obarray.symbol_value("unread-command-events"), Some(&Value::Nil));
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "end-of-file"
+        ));
+        assert_eq!(
+            ev.obarray.symbol_value("unread-command-events"),
+            Some(&Value::list(vec![Value::Int(89)]))
+        );
     }
 
     #[test]
-    fn yes_or_no_p_consumes_unread_event_no() {
+    fn yes_or_no_p_unread_events_do_not_change() {
         let mut ev = Evaluator::new();
         ev.obarray
             .set_symbol_value("unread-command-events", Value::list(vec![Value::Int(110)]));
         let result = builtin_yes_or_no_p(&mut ev, vec![Value::string("Confirm? ")]);
-        assert_eq!(result.unwrap(), Value::Nil);
-        assert_eq!(ev.obarray.symbol_value("unread-command-events"), Some(&Value::Nil));
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "end-of-file"
+        ));
+        assert_eq!(
+            ev.obarray.symbol_value("unread-command-events"),
+            Some(&Value::list(vec![Value::Int(110)]))
+        );
     }
 
     #[test]
@@ -2014,7 +2015,21 @@ mod tests {
         ev.obarray
             .set_symbol_value("unread-command-events", Value::list(vec![Value::Int(48)]));
         let result = builtin_yes_or_no_p(&mut ev, vec![Value::string("Confirm? ")]);
-        assert!(matches!(result, Err(Flow::Signal(sig)) if sig.symbol == "error"));
+        assert!(matches!(result, Err(Flow::Signal(sig)) if sig.symbol == "end-of-file"));
+        assert_eq!(
+            ev.obarray.symbol_value("unread-command-events"),
+            Some(&Value::list(vec![Value::Int(48)]))
+        );
+    }
+
+    #[test]
+    fn yes_or_no_p_rejects_nil_prompt() {
+        let mut ev = Evaluator::new();
+        let result = builtin_yes_or_no_p(&mut ev, vec![Value::Nil]);
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "wrong-type-argument"
+        ));
     }
 
     #[test]
