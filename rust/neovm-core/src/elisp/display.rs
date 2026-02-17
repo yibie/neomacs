@@ -1886,14 +1886,55 @@ mod tests {
     }
 
     #[test]
+    fn x_open_connection_arity_errors() {
+        let x_open_none = builtin_x_open_connection(vec![]);
+        let x_open_four = builtin_x_open_connection(vec![
+            Value::string("foo"),
+            Value::string("xrm"),
+            Value::t(),
+            Value::Nil,
+        ]);
+        assert!(x_open_none.is_err());
+        assert!(x_open_four.is_err());
+        match x_open_none {
+            Err(Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "wrong-number-of-arguments");
+            }
+            other => panic!("expected wrong-number-of-arguments signal, got {other:?}"),
+        }
+        match x_open_four {
+            Err(Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "wrong-number-of-arguments");
+            }
+            other => panic!("expected wrong-number-of-arguments signal, got {other:?}"),
+        }
+    }
+
+    #[test]
     fn x_close_connection_argument_shape_errors() {
         let x_nil = builtin_x_close_connection(vec![Value::Nil]);
         let x_int = builtin_x_close_connection(vec![Value::Int(1)]);
         let x_str = builtin_x_close_connection(vec![Value::string("")]);
         let x_term = builtin_x_close_connection(vec![terminal_handle_value()]);
+        let x_close_none = builtin_x_close_connection(vec![]);
+        let x_close_two = builtin_x_close_connection(vec![Value::string("foo"), Value::Nil]);
         assert!(x_nil.is_err());
         assert!(x_int.is_err());
         assert!(x_str.is_err());
+        assert!(x_close_none.is_err());
+        assert!(x_close_two.is_err());
+        match x_close_none {
+            Err(Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "wrong-number-of-arguments");
+            }
+            other => panic!("expected wrong-number-of-arguments signal, got {other:?}"),
+        }
+        match x_close_two {
+            Err(Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "wrong-number-of-arguments");
+            }
+            other => panic!("expected wrong-number-of-arguments signal, got {other:?}"),
+        }
         match x_term {
             Err(Flow::Signal(sig)) => {
                 assert_eq!(sig.symbol, "error");
