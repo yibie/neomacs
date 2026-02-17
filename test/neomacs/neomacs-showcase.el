@@ -454,21 +454,23 @@ The future of text editing is here.  It's called Neomacs.
     (switch-to-buffer buf)
     (let ((inhibit-read-only t))
       (erase-buffer)
-      (insert "\n\n\n\n\n\n\n")
-      ;; Logo
+      (insert "\n\n")
+      ;; Marker for typing NEOMACS at the top
       (insert "  ")
-      (when (and showcase--logo-path (file-exists-p showcase--logo-path))
-        (condition-case nil
-            (let ((img (create-image showcase--logo-path nil nil
-                                     :max-width 128 :max-height 128)))
-              (when img (insert-image img "[logo]")))
-          (error nil))
-        (insert " "))
-      ;; Marker for typing NEOMACS
       (let ((marker (point-marker)))
         (set-marker-insertion-type marker t)
         (insert "\n\n")
-        ;; Insert rest of content
+        ;; Logo
+        (insert "  ")
+        (when (and showcase--logo-path (file-exists-p showcase--logo-path))
+          (condition-case nil
+              (let ((img (create-image showcase--logo-path nil nil
+                                       :max-width 128 :max-height 128)))
+                (when img (insert-image img "[logo]")))
+            (error nil))
+          (insert "\n"))
+        (insert "\n")
+        ;; Subtitle content
         (let ((start (point)))
           (insert "    Rust-powered GPU rendering. Aiming for multi-threaded Elisp.\n")
           (put-text-property start (point) 'face
@@ -483,7 +485,8 @@ The future of text editing is here.  It's called Neomacs.
           (put-text-property start (point) 'face
                              '(:height 1.5 :foreground "#FF6633" :weight bold)))
         (insert "\n")
-        ;; GitHub avatar
+        ;; GitHub avatar + link on same line
+        (insert "    ")
         (let ((avatar-path "/tmp/eval-exec-avatar.jpg"))
           (if (file-exists-p avatar-path)
               (condition-case err
@@ -491,14 +494,13 @@ The future of text editing is here.  It's called Neomacs.
                                            :max-width 200 :max-height 200)))
                     (if img
                         (progn
-                          (insert "    ")
                           (insert-image img "[avatar]")
-                          (insert "\n"))
+                          (insert " "))
                       (showcase--log "  title avatar: create-image returned nil")))
                 (error (showcase--log "  title avatar error: %S" err)))
             (showcase--log "  title avatar: file not found at %s" avatar-path)))
         (let ((start (point)))
-          (insert "    https://github.com/eval-exec/neomacs\n")
+          (insert "https://github.com/eval-exec/neomacs\n")
           (put-text-property start (point) 'face
                              '(:height 1.2 :foreground "#4D99FF")))
         (goto-char (point-min))
@@ -545,7 +547,7 @@ The future of text editing is here.  It's called Neomacs.
     (redisplay t)
     ;; Enable smooth cursor + glow + line highlight
     (when (fboundp 'neomacs-set-animation-config)
-      (neomacs-set-animation-config t 12.0 'spring 200 t 200 150))
+      (neomacs-set-animation-config t 12.0 'spring 200 t 200 t 150))
     (when (fboundp 'neomacs-set-cursor-glow)
       (neomacs-set-cursor-glow t "#4D99FF" 40))
     (when (fboundp 'neomacs-set-line-highlight)
@@ -625,7 +627,7 @@ The future of text editing is here.  It's called Neomacs.
           (lambda ()
             (showcase--log "  scroll effect: %s" effect)
             (when (fboundp 'neomacs-set-animation-config)
-              (neomacs-set-animation-config t 12.0 'spring 200 t 200 250
+              (neomacs-set-animation-config t 12.0 'spring 200 t 200 t 250
                                             effect 'ease-out-quad 0.7))))
         (showcase--schedule (+ delay 0.2)
           (lambda ()
@@ -650,7 +652,7 @@ The future of text editing is here.  It's called Neomacs.
     (recenter)
     (redisplay t)
     (when (fboundp 'neomacs-set-animation-config)
-      (neomacs-set-animation-config t 12.0 'spring 200 t 200 150))
+      (neomacs-set-animation-config t 12.0 'spring 200 t 200 t 150))
     ;; Cursor effects sequence
     (let ((effects '(("Firework" neomacs-set-cursor-firework (t))
                      ("Tornado" neomacs-set-cursor-tornado (t))
@@ -916,7 +918,7 @@ The future of text editing is here.  It's called Neomacs.
   (showcase--reset-all-effects)
   ;; Configure animation
   (when (fboundp 'neomacs-set-animation-config)
-    (neomacs-set-animation-config t 12.0 'spring 200 t 200 300
+    (neomacs-set-animation-config t 12.0 'spring 200 t 200 t 300
                                   'slide 'ease-out-quad 0.7 'crossfade))
   (let ((buf-rust (showcase--insert-rust-buffer))
         (buf-elisp (showcase--insert-elisp-buffer))
@@ -1228,20 +1230,23 @@ The future of text editing is here.  It's called Neomacs.
     (switch-to-buffer buf)
     (let ((inhibit-read-only t))
       (erase-buffer)
-      (insert "\n\n\n\n\n\n\n")
-      ;; Logo
+      (insert "\n\n")
+      ;; Marker for typing NEOMACS at the top
       (insert "  ")
-      (when (and showcase--logo-path (file-exists-p showcase--logo-path))
-        (condition-case err
-            (let ((img (create-image showcase--logo-path nil nil
-                                     :max-width 128 :max-height 128)))
-              (when img (insert-image img "[logo]")))
-          (error (showcase--log "  finale logo error: %S" err)))
-        (insert " "))
-      ;; Marker for typing NEOMACS
       (let ((marker (point-marker)))
         (set-marker-insertion-type marker t)
         (insert "\n\n")
+        ;; Logo
+        (insert "  ")
+        (when (and showcase--logo-path (file-exists-p showcase--logo-path))
+          (condition-case err
+              (let ((img (create-image showcase--logo-path nil nil
+                                       :max-width 128 :max-height 128)))
+                (when img (insert-image img "[logo]")))
+            (error (showcase--log "  finale logo error: %S" err)))
+          (insert "\n"))
+        (insert "\n")
+        ;; Subtitle content
         (let ((start (point)))
           (insert "    Rust-powered GPU rendering. Aiming for multi-threaded Elisp.\n")
           (put-text-property start (point) 'face
@@ -1256,7 +1261,8 @@ The future of text editing is here.  It's called Neomacs.
           (put-text-property start (point) 'face
                              '(:height 1.5 :foreground "#FF6633" :weight bold)))
         (insert "\n")
-        ;; GitHub avatar
+        ;; GitHub avatar + link on same line
+        (insert "    ")
         (let ((avatar-path "/tmp/eval-exec-avatar.jpg"))
           (if (file-exists-p avatar-path)
               (condition-case err
@@ -1264,14 +1270,13 @@ The future of text editing is here.  It's called Neomacs.
                                            :max-width 200 :max-height 200)))
                     (if img
                         (progn
-                          (insert "    ")
                           (insert-image img "[avatar]")
-                          (insert "\n"))
+                          (insert " "))
                       (showcase--log "  finale avatar: create-image returned nil")))
                 (error (showcase--log "  finale avatar error: %S" err)))
             (showcase--log "  finale avatar: file not found at %s" avatar-path)))
         (let ((start (point)))
-          (insert "    https://github.com/eval-exec/neomacs\n")
+          (insert "https://github.com/eval-exec/neomacs\n")
           (put-text-property start (point) 'face
                              '(:height 1.2 :foreground "#4D99FF")))
         (goto-char (point-min))
@@ -1337,7 +1342,7 @@ The future of text editing is here.  It's called Neomacs.
         (showcase--log "  scheduling section %d [%s]: title-card at +%ds, content at +%ds (duration %ds)"
                        i name title-time content-time duration)
         ;; Title card
-        (let ((idx i) (n name) (dur duration))
+        (let ((idx i) (n name))
           (push (run-at-time title-time nil
                   (lambda ()
                     (showcase--log "--- SEQ title-card fire: section %d [%s]" idx n)
@@ -1428,7 +1433,7 @@ The future of text editing is here.  It's called Neomacs.
   (setq showcase--original-mode-line-format (default-value 'mode-line-format))
   (set-frame-size (selected-frame) 120 45)
   (set-frame-position (selected-frame) 100 50)
-  (set-frame-parameter nil 'alpha-background t)
+  (set-frame-parameter nil 'alpha-background 100)
   ;; Download GitHub avatar if not cached
   (unless (file-exists-p "/tmp/eval-exec-avatar.jpg")
     (ignore-errors
