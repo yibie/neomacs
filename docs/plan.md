@@ -18,7 +18,7 @@ Last updated: 2026-02-17
 12. [x] Expand `window` and `frame` lifecycle cases around stale buffer references.
 13. [x] Extend `timer` unit handling to integer/float edge payloads already in parser.
 14. [x] Add dedicated `font`/`face` batch-mode argument validation corpus for no-op paths.
-15. [ ] Add `subr-primitive-p` parity slice if function-kind policy changes.
+15. [x] Add `subr-primitive-p` parity slice if function-kind policy changes.
 16. [x] Keep `compat-stub-index` JSON snapshots committed for dashboard ingestion (`test/neovm/vm-compat/compat-stub-index.json`).
 17. [x] Expand `seq`/`alist` matrix for improper argument paths while preserving existing arity lock-ins.
 18. [x] Add regression case for `backtrace-frame` documentation introspection with stale function-cell handles.

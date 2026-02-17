@@ -13,6 +13,7 @@ cases/thingatpt-time-auth-autoload-wrapper-semantics
 cases/rect-help-macros-subrx-autoload-wrapper-semantics
 cases/function-wrapper-shape-semantics
 cases/subr-primitive-wrapper-semantics
+cases/subr-primitive-edge-semantics
 cases/subr-native-elisp-alias-semantics
 cases/autoload-funcall-error-semantics
 cases/symbol-function-error-paths
