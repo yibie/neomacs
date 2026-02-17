@@ -21,12 +21,17 @@ Last updated: 2026-02-17
 15. [ ] Add `subr-primitive-p` parity slice if function-kind policy changes.
 16. [x] Keep `compat-stub-index` JSON snapshots committed for dashboard ingestion (`test/neovm/vm-compat/compat-stub-index.json`).
 17. [x] Expand `seq`/`alist` matrix for improper argument paths while preserving existing arity lock-ins.
-18. [ ] Add regression case for `backtrace-frame` documentation introspection with stale function-cell handles.
-19. [ ] Expand `image` stubs with validated `t`/`nil` behavior for optional args.
-20. [x] Add periodic `make compat-progress` output diff check in PR review templates.
+18. [x] Add regression case for `backtrace-frame` documentation introspection with stale function-cell handles.
+19. [x] Expand `image` stubs with validated `t`/`nil` behavior for optional args.
+20. [ ] Continue reducing image-frame designator edge drift for `image-transforms-p` and related builtins.
+21. [x] Add periodic `make compat-progress` output diff check in PR review templates.
 
 ## Doing
 
+- Completed image compatibility slice:
+  - Updated `rust/neovm-core/src/elisp/image.rs` to validate `(optional FRAME)` in `image-transforms-p` with `frame-live-p` type checks and return `nil` in Emacs-compatible cases.
+  - Added `test/neovm/vm-compat/cases/image-transforms-semantics.{forms,expected.tsv}` and wired it into `cases/default.list`.
+  - Validated with `check-one-neovm` and `check-all-neovm-strict`.
 - Completed small compatibility slice: timer delay parsing for unit suffixes (`sec`/`min`/`hour`/`day`/`week`) in `run-at-time` and related tests.
   - Updated `rust/neovm-core/src/elisp/timer.rs` with unit-aware parser logic and added `test_parse_run_at_time_delay_units`.
   - Validated via `make -C test/neovm/vm-compat check-one-neovm CASE=cases/timer-semantics`.
