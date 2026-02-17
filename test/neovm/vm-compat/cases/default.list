@@ -19,6 +19,7 @@ cases/symbol-function-error-paths
 cases/indirect-function-core
 cases/indirect-function-alias-chains
 cases/condition-case-unwind-introspection
+cases/backtrace-frame-semantics
 cases/subr-introspection-core
 cases/macro-special-introspection-core
 cases/function-special-form-edges
@@ -598,7 +599,6 @@ cases/bytecode-literal-default-policy
 cases/reader-hash
 cases/read-from-string-edges
 cases/read-stream-semantics
-cases/backtrace-frame-semantics
 cases/eval-buffer-region-semantics
 cases/hash-basics
 cases/hash-make-table-options-semantics
