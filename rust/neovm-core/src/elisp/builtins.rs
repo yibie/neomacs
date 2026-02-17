@@ -11375,7 +11375,7 @@ mod tests {
         ] {
             let value = builtin_symbol_function(&mut eval, vec![Value::symbol(name)])
                 .unwrap_or_else(|_| panic!("symbol-function should resolve {name} wrapper"));
-            assert!(matches!(value, Value::Lambda(_)));
+            assert!(matches!(value, Value::Lambda(_) | Value::ByteCode(_)));
         }
 
         let throw_fn = builtin_symbol_function(&mut eval, vec![Value::symbol("throw")])

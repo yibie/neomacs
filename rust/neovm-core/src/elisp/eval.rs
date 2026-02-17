@@ -1,12 +1,14 @@
 //! Evaluator — special forms, function application, and dispatch.
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use super::abbrev::AbbrevManager;
 use super::advice::{AdviceManager, VariableWatcherList};
 use super::autoload::AutoloadManager;
 use super::bookmark::BookmarkManager;
 use super::builtins;
+use super::bytecode::Compiler;
 use super::category::CategoryManager;
 use super::coding::CodingSystemManager;
 use super::custom::CustomManager;
@@ -354,30 +356,26 @@ impl Evaluator {
             "Insert the last killed rectangle with its upper left corner at point.",
         );
         // Some startup helpers are Lisp functions that delegate to primitives.
-        // Seed lightweight wrappers so `symbol-function` shape matches GNU Emacs.
+        // Seed lightweight bytecode wrappers so `symbol-function` shape matches GNU Emacs.
         let mut seed_function_wrapper = |name: &str| {
             let wrapper = format!("neovm--startup-subr-wrapper-{name}");
             obarray.set_symbol_function(&wrapper, Value::Subr(name.to_string()));
-            obarray.set_symbol_function(
-                name,
-                Value::Lambda(std::sync::Arc::new(LambdaData {
-                    params: LambdaParams {
-                        required: vec![],
-                        optional: vec![],
-                        rest: Some("args".to_string()),
-                    },
-                    body: vec![Expr::List(vec![
-                        Expr::Symbol("apply".to_string()),
-                        Expr::List(vec![
-                            Expr::Symbol("quote".to_string()),
-                            Expr::Symbol(wrapper),
-                        ]),
-                        Expr::Symbol("args".to_string()),
-                    ])],
-                    env: None,
-                    docstring: None,
-                })),
-            );
+
+            let params = LambdaParams {
+                required: vec![],
+                optional: vec![],
+                rest: Some("args".to_string()),
+            };
+            let body = vec![Expr::List(vec![
+                Expr::Symbol("apply".to_string()),
+                Expr::List(vec![
+                    Expr::Symbol("quote".to_string()),
+                    Expr::Symbol(wrapper),
+                ]),
+                Expr::Symbol("args".to_string()),
+            ])];
+            let bc = Compiler::new(false).compile_lambda(&params, &body);
+            obarray.set_symbol_function(name, Value::ByteCode(Arc::new(bc)));
         };
         for name in [
             "autoloadp",
