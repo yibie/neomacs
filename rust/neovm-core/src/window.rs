@@ -187,6 +187,25 @@ impl Window {
         }
     }
 
+    /// Replace a displayed buffer id in all leaf windows under this node.
+    ///
+    /// This is used when a buffer is killed; any window still attached to the
+    /// dead buffer is moved back to a replacement buffer (typically `*scratch*`).
+    pub fn replace_buffer_id(&mut self, old_id: BufferId, new_id: BufferId) {
+        match self {
+            Window::Leaf { buffer_id, .. } => {
+                if *buffer_id == old_id {
+                    self.set_buffer(new_id);
+                }
+            }
+            Window::Internal { children, .. } => {
+                for child in children {
+                    child.replace_buffer_id(old_id, new_id);
+                }
+            }
+        }
+    }
+
     /// Find a leaf window by ID in this subtree.
     pub fn find(&self, target: WindowId) -> Option<&Window> {
         if self.id() == target {
@@ -342,6 +361,11 @@ impl Frame {
     /// Get a mutable reference to the selected window.
     pub fn selected_window_mut(&mut self) -> Option<&mut Window> {
         self.root_window.find_mut(self.selected_window)
+    }
+
+    /// Replace all leaf window buffer bindings for `old_id` with `new_id`.
+    pub fn replace_buffer_bindings(&mut self, old_id: BufferId, new_id: BufferId) {
+        self.root_window.replace_buffer_id(old_id, new_id);
     }
 
     /// Select a window by ID.
@@ -539,6 +563,13 @@ impl FrameManager {
         let id = WindowId(self.next_window_id);
         self.next_window_id += 1;
         id
+    }
+
+    /// Replace dead-buffer bindings in every live frame.
+    pub fn replace_buffer_in_windows(&mut self, old_id: BufferId, new_id: BufferId) {
+        for frame in self.frames.values_mut() {
+            frame.replace_buffer_bindings(old_id, new_id);
+        }
     }
 }
 

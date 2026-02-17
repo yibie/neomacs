@@ -4587,6 +4587,13 @@ pub(crate) fn builtin_kill_buffer(
         return Ok(Value::Nil);
     }
 
+    // Ensure dead-buffer windows continue to point at a live fallback buffer.
+    let scratch = eval
+        .buffers
+        .find_buffer_by_name("*scratch*")
+        .unwrap_or_else(|| eval.buffers.create_buffer("*scratch*"));
+    eval.frames.replace_buffer_in_windows(id, scratch);
+
     if was_current {
         if let Some(next) = replacement {
             if eval.buffers.get(next).is_some() {
@@ -4596,6 +4603,8 @@ pub(crate) fn builtin_kill_buffer(
         if eval.buffers.current_buffer().is_none() {
             if let Some(next) = eval.buffers.buffer_list().into_iter().next() {
                 eval.buffers.set_current(next);
+            } else {
+                eval.buffers.set_current(scratch);
             }
         }
     }

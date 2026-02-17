@@ -129,6 +129,10 @@ pub fn format_eval_result(result: &Result<Value, EvalError>) -> String {
 
 /// Render a value with evaluator-context-aware opaque handle formatting.
 pub fn print_value_with_eval(eval: &super::eval::Evaluator, value: &Value) -> String {
+    format_value_with_eval(eval, value)
+}
+
+fn format_value_with_eval(eval: &super::eval::Evaluator, value: &Value) -> String {
     if let Some(handle) = super::display::print_terminal_handle(value) {
         return handle;
     }
@@ -141,7 +145,93 @@ pub fn print_value_with_eval(eval: &super::eval::Evaluator, value: &Value) -> St
     if let Some(id) = eval.threads.condition_variable_id_from_handle(value) {
         return format!("#<condvar {id}>");
     }
-    super::print::print_value(value)
+    if let Value::Buffer(id) = value {
+        if let Some(buf) = eval.buffers.get(*id) {
+            return format!("#<buffer {}>", buf.name);
+        }
+    }
+    match value {
+        super::value::Value::Cons(_) | super::value::Value::Vector(_) => {
+            format_value_with_eval_slow(eval, value)
+        }
+        _ => super::print::print_value(value),
+    }
+}
+
+fn format_value_with_eval_slow(eval: &super::eval::Evaluator, value: &Value) -> String {
+    match value {
+        Value::Cons(_) => {
+            if let Some(shorthand) = format_list_shorthand_with_eval(eval, value) {
+                return shorthand;
+            }
+            let mut out = String::from("(");
+            format_cons_with_eval(eval, value, &mut out);
+            out.push(')');
+            out
+        }
+        Value::Vector(vec) => {
+            let mut out = String::from("[");
+            let items = vec.lock().expect("poisoned");
+            for (idx, item) in items.iter().enumerate() {
+                if idx > 0 {
+                    out.push(' ');
+                }
+                out.push_str(&format_value_with_eval(eval, item));
+            }
+            out.push(']');
+            out
+        }
+        _ => super::print::print_value(value),
+    }
+}
+
+fn format_list_shorthand_with_eval(eval: &super::eval::Evaluator, value: &Value) -> Option<String> {
+    let items = super::value::list_to_vec(value)?;
+    if items.len() != 2 {
+        return None;
+    }
+
+    let head = match &items[0] {
+        Value::Symbol(name) => name.as_str(),
+        _ => return None,
+    };
+
+    let (prefix, quoted) = match head {
+        "quote" => Some(("'", &items[1])),
+        "function" => Some(("#'", &items[1])),
+        "\\`" => Some(("`", &items[1])),
+        "\\," => Some((",", &items[1])),
+        "\\,@" => Some((",@", &items[1])),
+        _ => None,
+    }?;
+
+    Some(format!("{prefix}{}", format_value_with_eval(eval, quoted)))
+}
+
+fn format_cons_with_eval(eval: &super::eval::Evaluator, value: &Value, out: &mut String) {
+    let mut cursor = value.clone();
+    let mut first = true;
+    loop {
+        match cursor {
+            Value::Cons(cell) => {
+                if !first {
+                    out.push(' ');
+                }
+                let pair = cell.lock().expect("poisoned");
+                out.push_str(&format_value_with_eval(eval, &pair.car));
+                cursor = pair.cdr.clone();
+                first = false;
+            }
+            Value::Nil => return,
+            other => {
+                if !first {
+                    out.push_str(" . ");
+                }
+                out.push_str(&format_value_with_eval(eval, &other));
+                return;
+            }
+        }
+    }
 }
 
 /// Render a value as bytes with evaluator-context-aware opaque handle formatting.
@@ -158,7 +248,107 @@ pub fn print_value_bytes_with_eval(eval: &super::eval::Evaluator, value: &Value)
     if let Some(id) = eval.threads.condition_variable_id_from_handle(value) {
         return format!("#<condvar {id}>").into_bytes();
     }
-    super::print::print_value_bytes(value)
+    if let Value::Buffer(id) = value {
+        if let Some(buf) = eval.buffers.get(*id) {
+            return format!("#<buffer {}>", buf.name).into_bytes();
+        }
+    }
+    format_value_bytes_with_eval(eval, value)
+}
+
+fn format_value_bytes_with_eval(eval: &super::eval::Evaluator, value: &Value) -> Vec<u8> {
+    match value {
+        Value::Cons(_) => format_cons_bytes_with_eval(eval, value),
+        Value::Vector(_) => format_vector_bytes_with_eval(eval, value),
+        _ => super::print::print_value_bytes(value),
+    }
+}
+
+fn format_cons_bytes_with_eval(eval: &super::eval::Evaluator, value: &Value) -> Vec<u8> {
+    if let Some(shorthand) = format_list_shorthand_bytes_with_eval(eval, value) {
+        return shorthand;
+    }
+    let mut out = Vec::new();
+    out.push(b'(');
+    append_cons_bytes_with_eval(eval, value, &mut out);
+    out.push(b')');
+    out
+}
+
+fn format_vector_bytes_with_eval(eval: &super::eval::Evaluator, value: &Value) -> Vec<u8> {
+    let mut out = Vec::new();
+    out.push(b'[');
+    let Value::Vector(items) = value else {
+        return out;
+    };
+    let values = items.lock().expect("poisoned");
+    for (idx, item) in values.iter().enumerate() {
+        if idx > 0 {
+            out.push(b' ');
+        }
+        out.extend(print_value_bytes_with_eval(eval, item));
+    }
+    out.push(b']');
+    out
+}
+
+fn format_list_shorthand_bytes_with_eval(
+    eval: &super::eval::Evaluator,
+    value: &Value,
+) -> Option<Vec<u8>> {
+    let items = super::value::list_to_vec(value)?;
+    if items.len() != 2 {
+        return None;
+    }
+
+    let head = match &items[0] {
+        Value::Symbol(name) => name.as_str(),
+        _ => return None,
+    };
+
+    let (prefix, quoted) = match head {
+        "quote" => Some((b"'" as &[u8], &items[1])),
+        "function" => Some((b"#'" as &[u8], &items[1])),
+        "\\`" => Some((b"`" as &[u8], &items[1])),
+        "\\," => Some((b"," as &[u8], &items[1])),
+        "\\,@" => Some((b",@" as &[u8], &items[1])),
+        _ => None,
+    }?;
+
+    let mut out = Vec::new();
+    out.extend_from_slice(prefix);
+    out.extend(print_value_bytes_with_eval(eval, quoted));
+    Some(out)
+}
+
+fn append_cons_bytes_with_eval(
+    eval: &super::eval::Evaluator,
+    value: &Value,
+    out: &mut Vec<u8>,
+) {
+    let mut cursor = value.clone();
+    let mut first = true;
+    loop {
+        match cursor {
+            Value::Cons(cell) => {
+                if !first {
+                    out.push(b' ');
+                }
+                let pair = cell.lock().expect("poisoned");
+                out.extend(print_value_bytes_with_eval(eval, &pair.car));
+                cursor = pair.cdr.clone();
+                first = false;
+            }
+            Value::Nil => return,
+            other => {
+                if !first {
+                    out.extend_from_slice(b" . ");
+                }
+                out.extend(print_value_bytes_with_eval(eval, &other));
+                return;
+            }
+        }
+    }
 }
 
 fn print_data_payload_with_eval(eval: &super::eval::Evaluator, data: &[Value]) -> String {
@@ -245,4 +435,44 @@ pub fn format_eval_result_bytes_with_eval(
         }
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::EvalError;
+    use crate::elisp::{
+        parse_forms, print_value_bytes_with_eval, print_value_with_eval, Evaluator, Value,
+    };
+
+    #[test]
+    fn list_prints_buffers_with_names_in_eval_context() -> Result<(), EvalError> {
+        let forms = parse_forms(
+            "(let ((b (generate-new-buffer \"stale-win-buf\") )
+               (w (selected-window)))
+  (set-window-buffer nil b)
+  (kill-buffer b)
+  (list (window-buffer) (window-start) (window-point)))",
+        )
+        .map_err(|err| EvalError::Signal {
+            symbol: "parse-error".to_string(),
+            data: vec![Value::string(err.to_string())],
+        })?;
+
+        let mut eval = Evaluator::new();
+        let mut value = Value::Nil;
+        for form in &forms {
+            value = eval.eval_expr(form).expect("evaluation should succeed");
+        }
+
+        assert_eq!(
+            print_value_with_eval(&eval, &value),
+            "(#<buffer *scratch*> 1 1)"
+        );
+        assert_eq!(
+            String::from_utf8(print_value_bytes_with_eval(&eval, &value)).unwrap(),
+            "(#<buffer *scratch*> 1 1)"
+        );
+
+        Ok(())
+    }
 }
