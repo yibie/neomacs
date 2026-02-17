@@ -2,7 +2,28 @@
 
 use std::collections::HashMap;
 use std::fmt;
-use std::sync::{Arc, Mutex};
+use std::sync::{
+    atomic::{AtomicU64, Ordering},
+    Arc, Mutex,
+};
+
+const ZERO_COUNT: u64 = 0;
+
+static CONS_CELLS_CONSED: AtomicU64 = AtomicU64::new(ZERO_COUNT);
+static FLOATS_CONSED: AtomicU64 = AtomicU64::new(ZERO_COUNT);
+static VECTOR_CELLS_CONSED: AtomicU64 = AtomicU64::new(ZERO_COUNT);
+static SYMBOLS_CONSED: AtomicU64 = AtomicU64::new(ZERO_COUNT);
+static STRING_CHARS_CONSED: AtomicU64 = AtomicU64::new(ZERO_COUNT);
+static INTERVALS_CONSED: AtomicU64 = AtomicU64::new(ZERO_COUNT);
+static STRINGS_CONSED: AtomicU64 = AtomicU64::new(ZERO_COUNT);
+
+fn add_wrapping(counter: &AtomicU64, delta: u64) {
+    counter.fetch_add(delta, Ordering::Relaxed);
+}
+
+fn as_neovm_int(value: u64) -> i64 {
+    value as i64
+}
 
 // ---------------------------------------------------------------------------
 // Core value types
@@ -180,19 +201,25 @@ impl Value {
         } else if s == "t" {
             Value::True
         } else {
+            add_wrapping(&SYMBOLS_CONSED, 1);
             Value::Symbol(s)
         }
     }
 
     pub fn keyword(s: impl Into<String>) -> Self {
+        add_wrapping(&SYMBOLS_CONSED, 1);
         Value::Keyword(s.into())
     }
 
     pub fn string(s: impl Into<String>) -> Self {
-        Value::Str(Arc::new(s.into()))
+        let s = s.into();
+        add_wrapping(&STRINGS_CONSED, 1);
+        add_wrapping(&STRING_CHARS_CONSED, s.len() as u64);
+        Value::Str(Arc::new(s))
     }
 
     pub fn cons(car: Value, cdr: Value) -> Self {
+        add_wrapping(&CONS_CELLS_CONSED, 1);
         Value::Cons(Arc::new(Mutex::new(ConsCell { car, cdr })))
     }
 
@@ -204,10 +231,12 @@ impl Value {
     }
 
     pub fn vector(values: Vec<Value>) -> Self {
+        add_wrapping(&VECTOR_CELLS_CONSED, values.len() as u64);
         Value::Vector(Arc::new(Mutex::new(values)))
     }
 
     pub fn hash_table(test: HashTableTest) -> Self {
+        add_wrapping(&VECTOR_CELLS_CONSED, 1);
         Value::HashTable(Arc::new(Mutex::new(LispHashTable::new(test))))
     }
 
@@ -218,6 +247,7 @@ impl Value {
         rehash_size: f64,
         rehash_threshold: f64,
     ) -> Self {
+        add_wrapping(&VECTOR_CELLS_CONSED, 1);
         Value::HashTable(Arc::new(Mutex::new(LispHashTable::new_with_options(
             test,
             size,
@@ -225,6 +255,18 @@ impl Value {
             rehash_size,
             rehash_threshold,
         ))))
+    }
+
+    pub(crate) fn memory_use_counts_snapshot() -> [i64; 7] {
+        [
+            as_neovm_int(CONS_CELLS_CONSED.load(Ordering::Relaxed)),
+            as_neovm_int(FLOATS_CONSED.load(Ordering::Relaxed)),
+            as_neovm_int(VECTOR_CELLS_CONSED.load(Ordering::Relaxed)),
+            as_neovm_int(SYMBOLS_CONSED.load(Ordering::Relaxed)),
+            as_neovm_int(STRING_CHARS_CONSED.load(Ordering::Relaxed)),
+            as_neovm_int(INTERVALS_CONSED.load(Ordering::Relaxed)),
+            as_neovm_int(STRINGS_CONSED.load(Ordering::Relaxed)),
+        ]
     }
 
     pub fn is_nil(&self) -> bool {

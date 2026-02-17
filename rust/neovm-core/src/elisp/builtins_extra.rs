@@ -649,10 +649,14 @@ pub(crate) fn builtin_garbage_collect(args: Vec<Value>) -> EvalResult {
     ]))
 }
 
-/// `(memory-use-counts)` -> list of integers (stub).
+/// `(memory-use-counts)` -> list of runtime allocation counters:
+/// `(CONS FLOATS VECTOR-CELLS SYMBOLS STRING-CHARS INTERVALS STRINGS)`.
 pub(crate) fn builtin_memory_use_counts(args: Vec<Value>) -> EvalResult {
     expect_args("memory-use-counts", &args, 0)?;
-    Ok(Value::list(vec![Value::Int(0); 7]))
+    let counts = Value::memory_use_counts_snapshot();
+    Ok(Value::list(
+        counts.iter().map(|count| Value::Int(*count)).collect(),
+    ))
 }
 
 // ===========================================================================
