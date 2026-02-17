@@ -1101,7 +1101,7 @@ pub(crate) fn builtin_terminal_live_p_eval(
     Ok(Value::bool(terminal_designator_eval_p(eval, &args[0])))
 }
 
-/// (terminal-parameter TERMINAL PARAMETER) -> nil (stub)
+/// (terminal-parameter TERMINAL PARAMETER) -> value
 pub(crate) fn builtin_terminal_parameter(args: Vec<Value>) -> EvalResult {
     expect_args("terminal-parameter", &args, 2)?;
     expect_terminal_designator(&args[0])?;

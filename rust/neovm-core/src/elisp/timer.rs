@@ -6,7 +6,7 @@
 //! - `cancel-timer` — deactivate a timer
 //! - `timerp` — type predicate
 //! - `timer-activate` — reactivate a timer
-//! - `sit-for` — sleep/yield (stub)
+//! - `sit-for` — sleep/yield
 
 use std::time::{Duration, Instant};
 

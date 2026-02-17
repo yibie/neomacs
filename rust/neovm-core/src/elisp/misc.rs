@@ -1217,7 +1217,7 @@ mod tests {
         assert_eq!(ev.buffers.current_buffer().unwrap().id, buf_id);
     }
 
-    // ----- special form: track-mouse (stub) -----
+    // ----- special form: track-mouse -----
 
     #[test]
     fn sf_track_mouse_evaluates_body() {
