@@ -2458,6 +2458,21 @@ mod tests {
     }
 
     #[test]
+    fn recent_input_events_are_bounded() {
+        let mut ev = Evaluator::new();
+        for i in 0..(RECENT_INPUT_EVENT_LIMIT + 1) {
+            ev.record_input_event(Value::Int(i as i64));
+        }
+        let recent = ev.recent_input_events();
+        assert_eq!(recent.len(), RECENT_INPUT_EVENT_LIMIT);
+        assert_eq!(recent[0], Value::Int(1));
+        assert_eq!(
+            recent.last(),
+            Some(&Value::Int(RECENT_INPUT_EVENT_LIMIT as i64))
+        );
+    }
+
+    #[test]
     fn float_arithmetic() {
         assert_eq!(eval_one("(+ 1.0 2.0)"), "OK 3.0");
         assert_eq!(eval_one("(+ 1 2.0)"), "OK 3.0"); // int promoted to float
