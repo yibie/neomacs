@@ -304,13 +304,30 @@ fn parse_spaced_run_at_time_delay(tokens: &[&str]) -> Option<f64> {
         return None;
     }
 
+    let is_fragment = |token: &str| {
+        token == "+"
+            || token == "-"
+            || token
+                .chars()
+                .all(|c| matches!(c, '0'..='9' | '.' | '+' | '-' | 'e' | 'E'))
+    };
+
+    let mut parsed_delay = None;
+
     for token in number_tokens.iter().rev() {
         if let Ok(delay) = token.parse::<f64>() {
-            return Some(delay * multiplier);
+            if parsed_delay.is_none() {
+                parsed_delay = Some(delay);
+            }
+            continue;
+        }
+
+        if !is_fragment(token) {
+            return None;
         }
     }
 
-    None
+    parsed_delay.map(|delay| delay * multiplier)
 }
 
 fn parse_run_at_time_delay(value: &Value) -> Result<f64, Flow> {
@@ -1111,6 +1128,10 @@ mod tests {
         assert!(matches!(parse_run_at_time_delay(&Value::string("-")), Err(_)));
         assert!(matches!(parse_run_at_time_delay(&Value::string("+ 2")), Err(_)));
         assert!(matches!(parse_run_at_time_delay(&Value::string("- 2")), Err(_)));
+        assert!(matches!(
+            parse_run_at_time_delay(&Value::string("1 + foo sec")),
+            Err(_)
+        ));
         assert!(matches!(
             parse_run_at_time_delay(&Value::string("1e+ sec")),
             Err(_)
