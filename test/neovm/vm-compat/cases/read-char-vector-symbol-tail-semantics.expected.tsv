@@ -1,0 +1,1 @@
+1	(let ((unread-command-events (list [foo] 97))) (progn (read-char nil nil 0) unread-command-events))	ERR (error ("Non-character input-event"))

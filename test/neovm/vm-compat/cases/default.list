@@ -69,6 +69,7 @@ cases/read-core-subr-arity-semantics
 cases/read-char-non-character-tail-semantics
 cases/read-char-symbol-tail-semantics
 cases/read-char-exclusive-vector-tail-semantics
+cases/read-char-vector-symbol-tail-semantics
 cases/read-char-non-character-vector-tail-semantics
 cases/read-char-exclusive-vector-symbol-tail-semantics
 cases/read-char-exclusive-non-character-tail-semantics
