@@ -107,16 +107,69 @@ impl WgpuRenderer {
                     }
                 }
 
-                // --- Background fill ---
-                {
-                    let mut bg_verts: Vec<RectVertex> = Vec::new();
-                    let bg = Color::new(
-                        child.background.r,
-                        child.background.g,
-                        child.background.b,
-                        bg_alpha,
+            }
+            // --- Background fill (rounded rect when corner_radius > 0) ---
+            // Uses the SDF rounded_rect_pipeline with border_width=0 (filled mode)
+            // and alpha blending, so corners blend properly with parent content
+            // instead of leaving rectangular artifacts.
+            {
+                let bg = Color::new(
+                    child.background.r,
+                    child.background.g,
+                    child.background.b,
+                    bg_alpha,
+                );
+                if corner_radius > 0.0 {
+                    let mut bg_verts: Vec<RoundedRectVertex> = Vec::new();
+                    self.add_rounded_rect(
+                        &mut bg_verts,
+                        offset_x, offset_y, frame_w, frame_h,
+                        0.0,            // border_width=0 → filled mode
+                        corner_radius,
+                        &bg,
                     );
+                    if !bg_verts.is_empty() {
+                        let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                            label: Some("Child Frame BG Pass"),
+                            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                                view,
+                                resolve_target: None,
+                                ops: wgpu::Operations {
+                                    load: wgpu::LoadOp::Load,
+                                    store: wgpu::StoreOp::Store,
+                                },
+                            })],
+                            depth_stencil_attachment: None,
+                            timestamp_writes: None,
+                            occlusion_query_set: None,
+                        });
+                        let buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                            label: Some("Child Frame BG Buffer"),
+                            contents: bytemuck::cast_slice(&bg_verts),
+                            usage: wgpu::BufferUsages::VERTEX,
+                        });
+                        pass.set_pipeline(&self.rounded_rect_pipeline);
+                        pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                        pass.set_vertex_buffer(0, buffer.slice(..));
+                        pass.draw(0..bg_verts.len() as u32, 0..1);
+                    }
+                } else {
+                    let mut bg_verts: Vec<RectVertex> = Vec::new();
                     self.add_rect(&mut bg_verts, offset_x, offset_y, frame_w, frame_h, &bg);
+                    let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                        label: Some("Child Frame BG Pass"),
+                        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                            view,
+                            resolve_target: None,
+                            ops: wgpu::Operations {
+                                load: wgpu::LoadOp::Load,
+                                store: wgpu::StoreOp::Store,
+                            },
+                        })],
+                        depth_stencil_attachment: None,
+                        timestamp_writes: None,
+                        occlusion_query_set: None,
+                    });
                     let buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                         label: Some("Child Frame BG Buffer"),
                         contents: bytemuck::cast_slice(&bg_verts),
@@ -185,67 +238,11 @@ impl WgpuRenderer {
             cursor_visible, animated_cursor,
         );
 
-        // === Rounded corner clipping ===
-        // After all content is rendered, apply a corner mask that zeros out
-        // pixels outside the rounded rect. Uses dst = dst * src_alpha blend
-        // mode: alpha=1 inside the rounded rect (preserved), alpha=0 in the
-        // corners (erased). The mask covers the full frame+border area.
-        if corner_radius > 0.0 {
-            use wgpu::util::DeviceExt;
-
-            let effective_bw = if bw > 0.0 { bw } else { 0.0 };
-            let mask_x = offset_x - effective_bw;
-            let mask_y = offset_y - effective_bw;
-            let mask_w = frame_w + 2.0 * effective_bw;
-            let mask_h = frame_h + 2.0 * effective_bw;
-
-            let mut vertices: Vec<RoundedRectVertex> = Vec::new();
-            self.add_rounded_rect(
-                &mut vertices,
-                mask_x, mask_y, mask_w, mask_h,
-                0.0,            // border_width=0 → filled mode in SDF shader
-                corner_radius,
-                &Color::new(1.0, 1.0, 1.0, 1.0),
-            );
-
-            if !vertices.is_empty() {
-                let buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("Child Frame Corner Mask Buffer"),
-                    contents: bytemuck::cast_slice(&vertices),
-                    usage: wgpu::BufferUsages::VERTEX,
-                });
-
-                let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("Child Frame Corner Mask Encoder"),
-                });
-                {
-                    let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                        label: Some("Child Frame Corner Mask Pass"),
-                        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                            view,
-                            resolve_target: None,
-                            ops: wgpu::Operations {
-                                load: wgpu::LoadOp::Load,
-                                store: wgpu::StoreOp::Store,
-                            },
-                        })],
-                        depth_stencil_attachment: None,
-                        timestamp_writes: None,
-                        occlusion_query_set: None,
-                    });
-                    pass.set_pipeline(&self.corner_mask_pipeline);
-                    pass.set_bind_group(0, &self.uniform_bind_group, &[]);
-                    pass.set_vertex_buffer(0, buffer.slice(..));
-                    pass.draw(0..vertices.len() as u32, 0..1);
-                }
-                self.queue.submit(Some(encoder.finish()));
-            }
-
-            log::debug!(
-                "render_child_frame: corner mask applied at ({:.1},{:.1}) {:.0}x{:.0} radius={:.1}",
-                mask_x, mask_y, mask_w, mask_h, corner_radius,
-            );
-        }
+        // Note: No destructive corner mask here. The background is already a
+        // filled rounded rect (alpha-blended), so corners blend naturally with
+        // parent content. Content near corners may slightly overflow the rounded
+        // shape, but internal-border-width padding prevents this in practice.
+        // Full pixel-perfect clipping would require offscreen compositing.
     }
 
     /// Render floating videos from the scene.
