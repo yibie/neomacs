@@ -4,26 +4,26 @@ Last updated: 2026-02-17
 
 ## Execution Queue (next 20)
 
-1. Re-gate `check-all-neovm` and keep `stub-budget` in `compat-progress` output.
-2. Continue `xdisp`/display no-op surface audit with one behavior lock-in per commit.
-3. Expand `thread-` concurrency matrix coverage for argument errors and join edge-cases.
-4. Land next `font`/`font-lock` behavior lock-in slice with oracle-backed `font-spec` checks.
-5. Expand `input` queue edge cases for `read-key` and `read-event` with mixed payload tails.
-6. Add negative path cases for `terminal-parameter` argument validation and storage behavior.
-7. Tighten `indent` semantics around arity and read-only mutation boundaries in interactive buffer-mode.
-8. Sweep remaining `display` compatibility notes and convert comments from TODO/stub wording to explicit behavior.
-9. Add focused `make` target for `check-stub-budget` in CI dry-run dashboards.
-10. Expand `window` and `frame` lifecycle cases around stale buffer references.
-11. Extend `timer` unit handling to integer/float edge payloads already in parser.
-12. Add dedicated `font`/`face` batch-mode argument validation corpus for no-op return paths.
-13. Add `subr-primitive-p` parity slice if function-kind policy changes.
-14. Keep `compat-stub-index` JSON snapshots committed for dashboard ingestion.
-15. Expand `seq`/`alist` matrix for improper argument paths while preserving existing arity lock-ins.
-16. Add regression case for `backtrace-frame`/documentation introspection with stale function-cell handles.
-17. Expand `image` stubs with validated `t`/`nil` behavior for optional args.
-18. Document and verify compile-time backend switch coverage for feature-gated paths.
-19. Add periodic `make compat-progress` output diff check in PR review templates.
-20. Continue reducing non-subr wrapper drift list where feasible.
+1. [x] Add `thread-yield` behavior lock-in (`cases/thread-yield-semantics`) and baseline.
+2. [x] Add `thread-join` nil-handle argument error-path lock-in (`cases/thread-join-error-paths`).
+3. [ ] Re-gate `check-all-neovm` and keep `stub-budget` in `compat-progress` output.
+4. [ ] Continue `xdisp`/display no-op surface audit with one behavior lock-in per commit.
+5. [ ] Expand thread concurrency matrix coverage for argument errors and join edge-cases.
+6. [ ] Land next `font`/`font-lock` behavior lock-in slice with oracle-backed `font-spec` checks.
+7. [ ] Expand input queue edge cases for `read-key`/`read-event` mixed payload tails.
+8. [ ] Add negative path cases for `terminal-parameter` argument validation and storage behavior.
+9. [ ] Tighten `indent` semantics around arity and read-only mutation boundaries in interactive buffer-mode.
+10. [ ] Sweep remaining display compatibility notes and convert stub wording to explicit behavior.
+11. [ ] Add focused `make` target for `check-stub-budget` in CI dry-run dashboards.
+12. [ ] Expand `window` and `frame` lifecycle cases around stale buffer references.
+13. [ ] Extend `timer` unit handling to integer/float edge payloads already in parser.
+14. [ ] Add dedicated `font`/`face` batch-mode argument validation corpus for no-op paths.
+15. [ ] Add `subr-primitive-p` parity slice if function-kind policy changes.
+16. [ ] Keep `compat-stub-index` JSON snapshots committed for dashboard ingestion.
+17. [ ] Expand `seq`/`alist` matrix for improper argument paths while preserving existing arity lock-ins.
+18. [ ] Add regression case for `backtrace-frame` documentation introspection with stale function-cell handles.
+19. [ ] Expand `image` stubs with validated `t`/`nil` behavior for optional args.
+20. [ ] Add periodic `make compat-progress` output diff check in PR review templates.
 
 ## Doing
 
