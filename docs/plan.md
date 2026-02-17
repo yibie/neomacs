@@ -92,9 +92,10 @@ Last updated: 2026-02-16
 4. Completed: added `read-key-sequence-vector` non-character numeric-edge queue-tail check (`1.0`) for parity.
 5. Completed: added `read-char-exclusive` non-character numeric skip + tail-advance check (`1.0`) for parity.
 6. Completed: added `read-event` non-character numeric tail-edge check (`1.0`) for parity.
-7. Expand queue-edge coverage for remaining prompt/input builtins (`read-key-sequence*`, `read-event`) against non-character and stale queue payloads.
-8. Keep input-event queue edge cases for `read-char`/`read-key`/`read-key-sequence` aligned against oracle corpus (`invalid-event` and queue-empty paths).
-9. Keep `check-all-neovm` as a recurring post-slice gate to catch regressions early.
+7. Completed: added `read-char` non-character vector-tail (`[1 2]`) check for parity.
+8. Expand queue-edge coverage for remaining prompt/input builtins (`read-key-sequence*`, `read-event`) against non-character and stale queue payloads.
+9. Keep input-event queue edge cases for `read-char`/`read-key`/`read-key-sequence` aligned against oracle corpus (`invalid-event` and queue-empty paths).
+10. Keep `check-all-neovm` as a recurring post-slice gate to catch regressions early.
 4. Land the next evaluator-backed stub replacement after the `set-window-buffer` max-arity parity slice (prefer high-impact buffer/window lifecycle helper paths).
 4. Continue expanding oracle corpora for remaining high-risk stub areas (search/input/minibuffer/display/font edge paths) and keep list/alist primitive semantics locked in.
 5. Keep Rust backend behind compile-time switch and preserve Emacs C core as default backend.
