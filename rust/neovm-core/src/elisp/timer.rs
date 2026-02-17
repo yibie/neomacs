@@ -462,7 +462,8 @@ pub(crate) fn builtin_sleep_for(args: Vec<Value>) -> EvalResult {
 
 /// (sit-for SECONDS &optional NODISP) -> t
 ///
-/// Stub implementation: just returns t.
+/// Mirrors `sleep-for` timing behavior and always returns non-nil (`t`) unless an
+/// argument validation error is signaled.
 pub(crate) fn builtin_sit_for(args: Vec<Value>) -> EvalResult {
     expect_min_args("sit-for", &args, 1)?;
     if args.len() > 2 {
@@ -471,10 +472,10 @@ pub(crate) fn builtin_sit_for(args: Vec<Value>) -> EvalResult {
             vec![Value::symbol("sit-for"), Value::Int(args.len() as i64)],
         ));
     }
-    // Validate that the first arg is a number
-    let _secs = expect_number(&args[0])?;
-    // In a full implementation this would yield to the event loop.
-    // For now, just return t.
+    let secs = expect_number(&args[0])?;
+    if secs > 0.0 {
+        std::thread::sleep(Duration::from_secs_f64(secs));
+    }
     Ok(Value::True)
 }
 
