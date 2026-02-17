@@ -151,6 +151,10 @@ pub struct WgpuRenderer {
     pub(super) rain_last_spawn: std::time::Instant,
     pub(super) cursor_ripple_waves: Vec<RippleWaveEntry>,
     pub(super) aurora_start: std::time::Instant,
+    /// Start time for elapsed time calculation (used by fancy border effects)
+    pub(super) render_start_time: std::time::Instant,
+    /// Whether any fancy (animated) border styles are present in the current frame
+    pub has_animated_borders: bool,
 }
 
 /// Entry for an active scroll momentum indicator
@@ -383,7 +387,8 @@ impl WgpuRenderer {
         let logical_h = height as f32 / scale_factor;
         let uniforms = Uniforms {
             screen_size: [logical_w, logical_h],
-            _padding: [0.0, 0.0],
+            time: 0.0,
+            _padding: 0.0,
         };
         let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Uniform Buffer"),
@@ -396,7 +401,7 @@ impl WgpuRenderer {
             label: Some("Uniform Bind Group Layout"),
             entries: &[wgpu::BindGroupLayoutEntry {
                 binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX,
+                visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
                 ty: wgpu::BindingType::Buffer {
                     ty: wgpu::BufferBindingType::Uniform,
                     has_dynamic_offset: false,
@@ -870,6 +875,8 @@ impl WgpuRenderer {
             rain_last_spawn: std::time::Instant::now(),
             cursor_ripple_waves: Vec::new(),
             aurora_start: std::time::Instant::now(),
+            render_start_time: std::time::Instant::now(),
+            has_animated_borders: false,
         }
     }
 
@@ -946,7 +953,8 @@ impl WgpuRenderer {
         let logical_h = height as f32 / self.scale_factor;
         let uniforms = Uniforms {
             screen_size: [logical_w, logical_h],
-            _padding: [0.0, 0.0],
+            time: 0.0,
+            _padding: 0.0,
         };
         self.queue
             .write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
@@ -1292,10 +1300,7 @@ impl WgpuRenderer {
     }
 
     /// Emit a single rounded-rectangle border as 6 vertices (one oversized quad).
-    ///
-    /// The quad is padded by 1px on each side so the SDF fragment shader has
-    /// room for anti-aliased edges.  The shader carves out the interior, leaving
-    /// only the border ring with rounded corners.
+    /// Uses solid style (style_id=0). For fancy styles, use `add_rounded_rect_styled`.
     fn add_rounded_rect(
         &self,
         vertices: &mut Vec<RoundedRectVertex>,
@@ -1307,7 +1312,39 @@ impl WgpuRenderer {
         corner_radius: f32,
         color: &Color,
     ) {
-        let padding = 1.0; // extra pixels for SDF anti-aliasing fringe
+        self.add_rounded_rect_styled(
+            vertices, x, y, width, height,
+            border_width, corner_radius,
+            color, 0, 1.0, &Color::TRANSPARENT,
+        );
+    }
+
+    /// Emit a styled rounded-rectangle border as 6 vertices (one oversized quad).
+    ///
+    /// `style_id`: 0=solid, 1=rainbow, 2=animated-rainbow, 3=gradient, 4=glow,
+    ///             5=neon, 6=dashed, 7=comet, 8=iridescent, 9=fire, 10=heartbeat
+    /// `speed`: animation speed multiplier (1.0 = default)
+    /// `color2`: secondary color for gradient/neon effects
+    fn add_rounded_rect_styled(
+        &self,
+        vertices: &mut Vec<RoundedRectVertex>,
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+        border_width: f32,
+        corner_radius: f32,
+        color: &Color,
+        style_id: u32,
+        speed: f32,
+        color2: &Color,
+    ) {
+        // Extra padding: glow/neon effects need more room for falloff
+        let padding = match style_id {
+            4 | 5 => 12.0,
+            10 => border_width + 2.0, // heartbeat expands border
+            _ => 1.0,
+        };
         let x0 = x - padding;
         let y0 = y - padding;
         let x1 = x + width + padding;
@@ -1317,6 +1354,8 @@ impl WgpuRenderer {
         let rect_max = [x + width, y + height];
         let params = [border_width, corner_radius];
         let color_arr = [color.r, color.g, color.b, color.a];
+        let style_params = [style_id as f32, speed, 0.0, 0.0];
+        let color2_arr = [color2.r, color2.g, color2.b, color2.a];
 
         let v = |px: f32, py: f32| RoundedRectVertex {
             position: [px, py],
@@ -1324,6 +1363,8 @@ impl WgpuRenderer {
             rect_min,
             rect_max,
             params,
+            style_params,
+            color2: color2_arr,
         };
 
         // Two triangles forming the quad

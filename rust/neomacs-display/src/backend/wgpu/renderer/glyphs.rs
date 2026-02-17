@@ -81,6 +81,8 @@ impl WgpuRenderer {
 
         // Reset continuous redraw flag (will be set by dim fade or other animations)
         self.needs_continuous_redraw = false;
+        // Reset animated borders flag (set during box rendering if any fancy style is used)
+        self.has_animated_borders = false;
 
         // Clean up expired line animations
         self.active_line_anims.retain(|a| a.started.elapsed() < a.duration);
@@ -185,9 +187,11 @@ impl WgpuRenderer {
         // ensures glyph positions (which are relative to the frame) map correctly.
         let logical_w = if frame_glyphs.width > 0.0 { frame_glyphs.width } else { surface_width as f32 / self.scale_factor };
         let logical_h = if frame_glyphs.height > 0.0 { frame_glyphs.height } else { surface_height as f32 / self.scale_factor };
+        let elapsed = self.render_start_time.elapsed().as_secs_f32();
         let uniforms = Uniforms {
             screen_size: [logical_w, logical_h],
-            _padding: [0.0, 0.0],
+            time: elapsed,
+            _padding: 0.0,
         };
         self.queue
             .write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
@@ -1884,15 +1888,22 @@ impl WgpuRenderer {
                             let bw = face.box_line_width as f32;
 
                             if face.box_corner_radius > 0 {
-                                // Rounded border via SDF
+                                // Rounded border via SDF (with optional fancy style)
                                 let radius = (face.box_corner_radius as f32)
                                     .min(span.height * 0.45)
                                     .min(span.width * 0.45);
-                                self.add_rounded_rect(
+                                let color2 = face.box_color2.as_ref().unwrap_or(bx_color);
+                                self.add_rounded_rect_styled(
                                     &mut rounded_border_vertices,
                                     span.x, span.y, span.width, span.height,
                                     bw, radius, bx_color,
+                                    face.box_border_style,
+                                    face.box_border_speed,
+                                    color2,
                                 );
+                                if face.box_border_style > 0 {
+                                    self.has_animated_borders = true;
+                                }
                             } else {
                                 // Sharp border — for overlay spans (mode-line), suppress
                                 // internal left/right borders between adjacent spans for

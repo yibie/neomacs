@@ -600,6 +600,19 @@ typedef struct FaceDataFFI {
    */
   int boxCornerRadius;
   /**
+   * Fancy border style (0=solid, 1=rainbow, 2=animated-rainbow, 3=gradient,
+   * 4=glow, 5=neon, 6=dashed, 7=comet, 8=iridescent, 9=fire, 10=heartbeat)
+   */
+  int boxBorderStyle;
+  /**
+   * Animation speed multiplier (100 = 1.0x)
+   */
+  int boxBorderSpeed;
+  /**
+   * Secondary box color (sRGB pixel: 0x00RRGGBB)
+   */
+  uint32_t boxColor2;
+  /**
    * Signed box horizontal (top/bottom) line width.
    * >0: box adds height (borders drawn outside text area).
    * <0: box drawn within text area (no extra height).

@@ -601,6 +601,13 @@ pub struct FaceDataFFI {
     pub box_line_width: c_int,
     /// Box corner radius (0 = sharp corners)
     pub box_corner_radius: c_int,
+    /// Fancy border style (0=solid, 1=rainbow, 2=animated-rainbow, 3=gradient,
+    /// 4=glow, 5=neon, 6=dashed, 7=comet, 8=iridescent, 9=fire, 10=heartbeat)
+    pub box_border_style: c_int,
+    /// Animation speed multiplier (100 = 1.0x)
+    pub box_border_speed: c_int,
+    /// Secondary box color (sRGB pixel: 0x00RRGGBB)
+    pub box_color2: u32,
     /// Signed box horizontal (top/bottom) line width.
     /// >0: box adds height (borders drawn outside text area).
     /// <0: box drawn within text area (no extra height).

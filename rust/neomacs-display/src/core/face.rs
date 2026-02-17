@@ -90,6 +90,16 @@ pub struct Face {
     /// Box corner radius (0 = sharp corners)
     pub box_corner_radius: i32,
 
+    /// Fancy border style (0=solid, 1=rainbow, 2=animated-rainbow, 3=gradient,
+    /// 4=glow, 5=neon, 6=dashed, 7=comet, 8=iridescent, 9=fire, 10=heartbeat)
+    pub box_border_style: u32,
+
+    /// Animation speed multiplier for fancy border effects (default 1.0)
+    pub box_border_speed: f32,
+
+    /// Secondary box color (for gradient, neon, etc.)
+    pub box_color2: Option<Color>,
+
     /// Font metrics from Emacs's realized font
     /// Font ascent (FONT_BASE) in pixels
     pub font_ascent: i32,
@@ -119,6 +129,9 @@ impl Default for Face {
             box_type: BoxType::None,
             box_line_width: 0,
             box_corner_radius: 0,
+            box_border_style: 0,
+            box_border_speed: 1.0,
+            box_color2: None,
             font_ascent: 0,
             font_descent: 0,
             underline_position: 1,

@@ -2419,6 +2419,9 @@ struct FaceDataFFI {
   uint32_t box_color;
   int box_line_width;
   int box_corner_radius;
+  int boxBorderStyle;    /* Fancy border style 0-10 */
+  int boxBorderSpeed;    /* Animation speed multiplier (100 = 1.0x) */
+  uint32_t boxColor2;    /* Secondary box color (sRGB pixel: 0x00RRGGBB) */
   int box_h_line_width;  /* Signed box_horizontal_line_width: >0 adds height, <0 drawn within */
   int extend;
   float font_char_width;
@@ -2563,6 +2566,9 @@ fill_face_data (struct frame *f, struct face *face, struct FaceDataFFI *out)
   out->box_color = out->fg;
   out->box_line_width = 0;
   out->box_corner_radius = 0;
+  out->boxBorderStyle = 0;
+  out->boxBorderSpeed = 100;
+  out->boxColor2 = 0;
   out->box_h_line_width = 0;
   if (face->box != FACE_NO_BOX)
     {
@@ -2573,6 +2579,11 @@ fill_face_data (struct frame *f, struct face *face, struct FaceDataFFI *out)
                         (GREEN_FROM_ULONG (face->box_color) << 8) |
                         BLUE_FROM_ULONG (face->box_color));
       out->box_corner_radius = face->box_corner_radius;
+      out->boxBorderStyle = face->box_border_style;
+      out->boxBorderSpeed = face->box_border_speed;
+      out->boxColor2 = ((RED_FROM_ULONG (face->box_color2) << 16) |
+                         (GREEN_FROM_ULONG (face->box_color2) << 8) |
+                         BLUE_FROM_ULONG (face->box_color2));
       /* Signed horizontal line width: >0 means box adds height (top/bottom
          borders drawn outside text area), <0 means drawn within text area.
          Used by the Rust layout engine for mode-line text vertical inset. */

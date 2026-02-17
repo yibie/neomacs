@@ -401,12 +401,17 @@ impl WgpuRenderer {
                     let radius = (face.box_corner_radius as f32)
                         .min(span.height * 0.45)
                         .min(span.width * 0.45);
-                    self.add_rounded_rect(
+                    let color2 = face.box_color2.as_ref().unwrap_or(bx_color);
+                    self.add_rounded_rect_styled(
                         &mut rounded_border_vertices,
                         span.x + offset_x, span.y + offset_y,
                         span.width, span.height,
                         bw, radius, bx_color,
+                        face.box_border_style,
+                        face.box_border_speed,
+                        color2,
                     );
+                    // Note: animated border flag is set in render_frame_glyphs (glyphs.rs)
                 } else {
                     // Sharp border — check for neighbor suppression
                     let has_left_neighbor = idx > 0 && {

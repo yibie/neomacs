@@ -1835,6 +1835,17 @@ struct face
      corners; positive values give rounded corners.  */
   int box_corner_radius;
 
+  /* Fancy border style for the box border (neomacs extension).
+     0=solid, 1=rainbow, 2=animated-rainbow, 3=gradient, 4=glow,
+     5=neon, 6=dashed, 7=comet, 8=iridescent, 9=fire, 10=heartbeat. */
+  int box_border_style;
+
+  /* Animation speed for fancy border effects (100 = 1.0x, 200 = 2.0x). */
+  int box_border_speed;
+
+  /* Secondary color for gradient/neon border effects. */
+  unsigned long box_color2;
+
   /* The amount of pixels above the descent line the underline should
      be displayed.  It does not take effect unless
      `underline_at_descent_line_p` is t.  */

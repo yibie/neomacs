@@ -41,7 +41,8 @@ impl WgpuRenderer {
         let logical_h = surface_height as f32 / self.scale_factor;
         let uniforms = Uniforms {
             screen_size: [logical_w, logical_h],
-            _padding: [0.0, 0.0],
+            time: 0.0,
+            _padding: 0.0,
         };
         self.queue
             .write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
@@ -355,7 +356,8 @@ impl WgpuRenderer {
         let logical_h = surface_height as f32 / self.scale_factor;
         let uniforms = Uniforms {
             screen_size: [logical_w, logical_h],
-            _padding: [0.0, 0.0],
+            time: 0.0,
+            _padding: 0.0,
         };
         self.queue
             .write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
@@ -865,7 +867,8 @@ impl WgpuRenderer {
         let logical_h = surface_height as f32 / self.scale_factor;
         let uniforms = Uniforms {
             screen_size: [logical_w, logical_h],
-            _padding: [0.0, 0.0],
+            time: 0.0,
+            _padding: 0.0,
         };
         self.queue
             .write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
@@ -983,7 +986,8 @@ impl WgpuRenderer {
         let logical_h = surface_height as f32 / self.scale_factor;
         let uniforms = Uniforms {
             screen_size: [logical_w, logical_h],
-            _padding: [0.0, 0.0],
+            time: 0.0,
+            _padding: 0.0,
         };
         self.queue
             .write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
@@ -1167,7 +1171,8 @@ impl WgpuRenderer {
         let logical_h = surface_height as f32 / self.scale_factor;
         let uniforms = Uniforms {
             screen_size: [logical_w, logical_h],
-            _padding: [0.0, 0.0],
+            time: 0.0,
+            _padding: 0.0,
         };
         self.queue
             .write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
@@ -1287,7 +1292,8 @@ impl WgpuRenderer {
         let logical_h = surface_height as f32 / self.scale_factor;
         let uniforms = Uniforms {
             screen_size: [logical_w, logical_h],
-            _padding: [0.0, 0.0],
+            time: 0.0,
+            _padding: 0.0,
         };
         self.queue
             .write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
@@ -1381,7 +1387,8 @@ impl WgpuRenderer {
         let logical_h = surface_height as f32 / self.scale_factor;
         let uniforms = Uniforms {
             screen_size: [logical_w, logical_h],
-            _padding: [0.0, 0.0],
+            time: 0.0,
+            _padding: 0.0,
         };
         self.queue
             .write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
@@ -1800,7 +1807,8 @@ impl WgpuRenderer {
         let logical_h = surface_height as f32 / self.scale_factor;
         let uniforms = Uniforms {
             screen_size: [logical_w, logical_h],
-            _padding: [0.0, 0.0],
+            time: 0.0,
+            _padding: 0.0,
         };
         self.queue
             .write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
@@ -1892,7 +1900,8 @@ impl WgpuRenderer {
         let logical_h = surface_height as f32 / self.scale_factor;
         let uniforms = Uniforms {
             screen_size: [logical_w, logical_h],
-            _padding: [0.0, 0.0],
+            time: 0.0,
+            _padding: 0.0,
         };
         self.queue
             .write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
@@ -1953,7 +1962,8 @@ impl WgpuRenderer {
         let logical_h = surface_height as f32 / self.scale_factor;
         let uniforms = Uniforms {
             screen_size: [logical_w, logical_h],
-            _padding: [0.0, 0.0],
+            time: 0.0,
+            _padding: 0.0,
         };
         self.queue
             .write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
@@ -2074,7 +2084,8 @@ impl WgpuRenderer {
         let logical_h = surface_height as f32 / self.scale_factor;
         let uniforms = Uniforms {
             screen_size: [logical_w, logical_h],
-            _padding: [0.0, 0.0],
+            time: 0.0,
+            _padding: 0.0,
         };
         self.queue
             .write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));

@@ -3538,6 +3538,21 @@ FRAME 0 means change the face on all frames, and change the default
 		  if (!FIXNUMP (v) || XFIXNUM (v) < 0)
 		    break;
 		}
+	      else if (EQ (k, QCborder_style))
+		{
+		  if (!FIXNUMP (v) || XFIXNUM (v) < 0 || XFIXNUM (v) > 10)
+		    break;
+		}
+	      else if (EQ (k, QCborder_speed))
+		{
+		  if (!FIXNUMP (v) || XFIXNUM (v) <= 0)
+		    break;
+		}
+	      else if (EQ (k, QCcolor2))
+		{
+		  if (!STRINGP (v))
+		    break;
+		}
 	      else
 		break;
 
@@ -6446,6 +6461,9 @@ realize_gui_face (struct face_cache *cache, Lisp_Object attrs[LFACE_VECTOR_SIZE]
       face->box_color_defaulted_p = true;
       face->box_vertical_line_width = face->box_horizontal_line_width = 1;
       face->box_corner_radius = 0;
+      face->box_border_style = 0;
+      face->box_border_speed = 100;
+      face->box_color2 = face->foreground;
 
       while (CONSP (box))
 	{
@@ -6498,6 +6516,22 @@ realize_gui_face (struct face_cache *cache, Lisp_Object attrs[LFACE_VECTOR_SIZE]
 	    {
 	      if (FIXNUMP (value) && XFIXNUM (value) >= 0)
 		face->box_corner_radius = XFIXNUM (value);
+	    }
+	  else if (EQ (keyword, QCborder_style))
+	    {
+	      if (FIXNUMP (value) && XFIXNUM (value) >= 0)
+		face->box_border_style = XFIXNUM (value);
+	    }
+	  else if (EQ (keyword, QCborder_speed))
+	    {
+	      if (FIXNUMP (value) && XFIXNUM (value) > 0)
+		face->box_border_speed = XFIXNUM (value);
+	    }
+	  else if (EQ (keyword, QCcolor2))
+	    {
+	      if (STRINGP (value))
+		face->box_color2 = load_color (f, face, value,
+					       LFACE_BOX_INDEX);
 	    }
 	}
     }
@@ -7527,6 +7561,9 @@ syms_of_xfaces (void)
   DEFSYM (QCline_width, ":line-width");
   DEFSYM (QCstyle, ":style");
   DEFSYM (QCcorner_radius, ":corner-radius");
+  DEFSYM (QCborder_style, ":border-style");
+  DEFSYM (QCborder_speed, ":border-speed");
+  DEFSYM (QCcolor2, ":color2");
   DEFSYM (QCposition, ":position");
   DEFSYM (Qline, "line");
   DEFSYM (Qwave, "wave");

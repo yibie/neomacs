@@ -113,6 +113,10 @@ pub struct RoundedRectVertex {
     pub rect_max: [f32; 2],
     /// [border_width, corner_radius] in pixels
     pub params: [f32; 2],
+    /// [style_id, speed, _reserved1, _reserved2]
+    pub style_params: [f32; 4],
+    /// Secondary color (RGBA, linear) for gradient/neon effects
+    pub color2: [f32; 4],
 }
 
 impl RoundedRectVertex {
@@ -147,12 +151,27 @@ impl RoundedRectVertex {
                     shader_location: 3,
                     format: wgpu::VertexFormat::Float32x2,
                 },
-                // @location(4) params
+                // @location(4) params [border_width, corner_radius]
                 wgpu::VertexAttribute {
                     offset: (size_of::<[f32; 2]>() + size_of::<[f32; 4]>() + size_of::<[f32; 2]>()
                         + size_of::<[f32; 2]>()) as wgpu::BufferAddress,
                     shader_location: 4,
                     format: wgpu::VertexFormat::Float32x2,
+                },
+                // @location(5) style_params [style_id, speed, reserved, reserved]
+                wgpu::VertexAttribute {
+                    offset: (size_of::<[f32; 2]>() + size_of::<[f32; 4]>() + size_of::<[f32; 2]>()
+                        + size_of::<[f32; 2]>() + size_of::<[f32; 2]>()) as wgpu::BufferAddress,
+                    shader_location: 5,
+                    format: wgpu::VertexFormat::Float32x4,
+                },
+                // @location(6) color2 [r, g, b, a]
+                wgpu::VertexAttribute {
+                    offset: (size_of::<[f32; 2]>() + size_of::<[f32; 4]>() + size_of::<[f32; 2]>()
+                        + size_of::<[f32; 2]>() + size_of::<[f32; 2]>() + size_of::<[f32; 4]>())
+                        as wgpu::BufferAddress,
+                    shader_location: 6,
+                    format: wgpu::VertexFormat::Float32x4,
                 },
             ],
         }
@@ -164,7 +183,9 @@ impl RoundedRectVertex {
 #[derive(Copy, Clone, Debug, Pod, Zeroable)]
 pub struct Uniforms {
     pub screen_size: [f32; 2],
-    pub _padding: [f32; 2],
+    /// Elapsed time in seconds since renderer creation (for animated effects)
+    pub time: f32,
+    pub _padding: f32,
 }
 
 
@@ -196,8 +217,9 @@ mod tests {
     #[test]
     fn rounded_rect_vertex_size() {
         // position: [f32; 2] = 8, color: [f32; 4] = 16, rect_min: [f32; 2] = 8,
-        // rect_max: [f32; 2] = 8, params: [f32; 2] = 8 => 48 bytes
-        assert_eq!(size_of::<RoundedRectVertex>(), 48);
+        // rect_max: [f32; 2] = 8, params: [f32; 2] = 8,
+        // style_params: [f32; 4] = 16, color2: [f32; 4] = 16 => 80 bytes
+        assert_eq!(size_of::<RoundedRectVertex>(), 80);
     }
 
     #[test]
@@ -373,7 +395,7 @@ mod tests {
     #[test]
     fn rounded_rect_vertex_desc_attribute_count() {
         let desc = RoundedRectVertex::desc();
-        assert_eq!(desc.attributes.len(), 5);
+        assert_eq!(desc.attributes.len(), 7);
     }
 
     #[test]
@@ -628,13 +650,16 @@ mod tests {
         assert_eq!(v.rect_min, [0.0, 0.0]);
         assert_eq!(v.rect_max, [0.0, 0.0]);
         assert_eq!(v.params, [0.0, 0.0]);
+        assert_eq!(v.style_params, [0.0, 0.0, 0.0, 0.0]);
+        assert_eq!(v.color2, [0.0, 0.0, 0.0, 0.0]);
     }
 
     #[test]
     fn uniforms_zeroed_is_valid() {
         let u: Uniforms = bytemuck::Zeroable::zeroed();
         assert_eq!(u.screen_size, [0.0, 0.0]);
-        assert_eq!(u._padding, [0.0, 0.0]);
+        assert_eq!(u.time, 0.0);
+        assert_eq!(u._padding, 0.0);
     }
 
     // ---- Bytemuck cast round-trip: struct <-> byte slice ----
@@ -675,6 +700,8 @@ mod tests {
             rect_min: [0.0, 0.0],
             rect_max: [100.0, 50.0],
             params: [2.0, 8.0],
+            style_params: [2.0, 1.5, 0.0, 0.0],
+            color2: [0.5, 0.0, 1.0, 1.0],
         };
         let bytes: &[u8] = bytemuck::bytes_of(&v);
         assert_eq!(bytes.len(), size_of::<RoundedRectVertex>());
@@ -684,5 +711,7 @@ mod tests {
         assert_eq!(v2.rect_min, v.rect_min);
         assert_eq!(v2.rect_max, v.rect_max);
         assert_eq!(v2.params, v.params);
+        assert_eq!(v2.style_params, v.style_params);
+        assert_eq!(v2.color2, v.color2);
     }
 }

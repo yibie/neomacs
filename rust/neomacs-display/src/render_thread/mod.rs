@@ -3375,9 +3375,9 @@ impl ApplicationHandler for RenderApp {
             self.frame_dirty = true;
         }
 
-        // Keep dirty if renderer signals need for continuous redraws (dim fade)
+        // Keep dirty if renderer signals need for continuous redraws (dim fade, animated borders)
         if let Some(ref renderer) = self.renderer {
-            if renderer.needs_continuous_redraw {
+            if renderer.needs_continuous_redraw || renderer.has_animated_borders {
                 self.frame_dirty = true;
             }
         }
