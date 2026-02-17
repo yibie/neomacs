@@ -272,6 +272,8 @@ fn parse_time_unit_factor(unit: &str) -> Option<f64> {
 }
 
 fn parse_concatenated_time_delay_spec(spec: &str) -> Option<f64> {
+    let spec = spec.strip_prefix('+').unwrap_or(spec);
+
     let mut split = 0;
     for (idx, ch) in spec.char_indices() {
         if ch.is_ascii_digit() || ch == '.' {
@@ -935,6 +937,14 @@ mod tests {
         assert_eq!(
             parse_run_at_time_delay(&Value::string("2.5 day")).expect("2.5 day should parse"),
             216_000.0
+        );
+        assert_eq!(
+            parse_run_at_time_delay(&Value::string("+2day")).expect("+2day should parse"),
+            172_800.0
+        );
+        assert_eq!(
+            parse_run_at_time_delay(&Value::string("+2 day")).expect("+2 day should parse"),
+            172_800.0
         );
         assert!(matches!(
             parse_run_at_time_delay(&Value::string("4 foo")),
