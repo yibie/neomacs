@@ -16,7 +16,7 @@ Last updated: 2026-02-17
 10. [x] Sweep remaining display compatibility notes and convert stub wording to explicit behavior (`display-tty-x-helper-semantics` message assertions for open/close connection).
 11. [x] Add focused `check-stub-budget` step in vm-compat CI workflow for dashboard observability.
 12. [x] Expand `window` and `frame` lifecycle cases around stale buffer references.
-13. [ ] Extend `timer` unit handling to integer/float edge payloads already in parser.
+13. [x] Extend `timer` unit handling to integer/float edge payloads already in parser.
 14. [x] Add dedicated `font`/`face` batch-mode argument validation corpus for no-op paths.
 15. [ ] Add `subr-primitive-p` parity slice if function-kind policy changes.
 16. [x] Keep `compat-stub-index` JSON snapshots committed for dashboard ingestion (`test/neovm/vm-compat/compat-stub-index.json`).
@@ -33,6 +33,9 @@ Last updated: 2026-02-17
 - Completed global verification slice:
   - Added timer unit case to default corpus (`cases/timer-unit-delay-semantics`) and validated via `make -C test/neovm/vm-compat check-one-neovm`.
   - Ran `make -C test/neovm/vm-compat check-all-neovm-strict` and confirmed current compatibility set is green.
+- Completed timer integer/float edge slice:
+  - Added `cases/timer-float-int-edge-semantics` to lock in number parsing behavior for `run-at-time`/`run-with-timer` payloads.
+  - Validated via `make -C test/neovm/vm-compat check-one-neovm CASE=cases/timer-float-int-edge-semantics`.
 - Completed local search builtin hardening:
   - `looking-at-p` now has explicit arity and match-data-preservation tests in `rust/neovm-core/src/elisp/search.rs`.
   - Pure `looking-at`/`looking-at-p` docs updated and compatibility checks kept passing (`cases/looking-at-semantics`).
