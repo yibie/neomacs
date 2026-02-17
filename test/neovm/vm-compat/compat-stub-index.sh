@@ -19,6 +19,7 @@ emit_json() {
   local sites_text="$2"
   local count="$3"
   local file_count="$4"
+  local site_count="$5"
   local -a names=()
   local -a sites=()
   local i=0
@@ -33,6 +34,7 @@ emit_json() {
   printf '{\n'
   printf '  "explicitly_annotated_function_stubs": %s,\n' "$count"
   printf '  "files_with_stub_comments": %s,\n' "$file_count"
+  printf '  "stub_comment_call_sites": %s,\n' "$site_count"
   printf '  "functions": [\n'
   for i in "${!names[@]}"; do
     if [ "$i" -gt 0 ]; then
@@ -81,8 +83,8 @@ rg -n --no-heading -g '*.rs' -i 'stub' "${ELISP_DIR}" > "${stubs_tmp}" \
   || true
 
 if [ ! -s "${stubs_tmp}" ]; then
-if [ "${FORMAT}" = "json" ]; then
-  emit_json "" "" "0" "0"
+  if [ "${FORMAT}" = "json" ]; then
+  emit_json "" "" "0" "0" "0"
   else
     echo "explicitly annotated function stubs: 0"
   fi
@@ -99,7 +101,7 @@ done < "${stubs_tmp}"
 
 if [ "${#entries[@]}" -eq 0 ]; then
   if [ "${FORMAT}" = "json" ]; then
-    emit_json "" "" "0" "0"
+    emit_json "" "" "0" "0" "0"
   else
     echo "explicitly annotated function stubs: 0"
   fi
@@ -109,15 +111,16 @@ fi
 uniq_names="$(printf "%s\n" "${entries[@]}" | cut -d'|' -f1 | sort -u)"
 count="$(printf "%s\n" "${uniq_names}" | wc -l | tr -d ' ')"
 file_count="$(printf "%s\n" "${entries[@]}" | cut -d'|' -f2 | cut -d: -f1 | sort -u | wc -l | tr -d ' ')"
+site_count="$(printf "%s\n" "${entries[@]}" | wc -l | tr -d ' ')"
 sorted_sites="$(printf "%s\n" "${entries[@]}" | sort -u)"
 
 if [ "${FORMAT}" = "json" ]; then
-  emit_json "${uniq_names}" "${sorted_sites}" "${count}" "${file_count}"
+  emit_json "${uniq_names}" "${sorted_sites}" "${count}" "${file_count}" "${site_count}"
   exit 0
 fi
 
 echo "explicitly annotated function stubs: ${count}"
-printf "across %s files\n" "$file_count"
+printf "across %s files, %s comment call-sites\n" "$file_count" "$site_count"
 printf "%s\n" "${uniq_names}"
 printf "\n"
 printf "stub call-sites:"
