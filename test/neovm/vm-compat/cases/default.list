@@ -639,5 +639,6 @@ cases/thread-join-error-paths
 cases/thread-signal-semantics
 cases/thread-signal-last-error
 cases/thread-last-error-publication
+cases/thread-last-error-semantics
 cases/thread-last-error-clear-flag
 cases/condition-variable-mutex-ownership
