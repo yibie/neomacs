@@ -186,6 +186,7 @@ check-list:
 		echo "== $$case =="; \
 		$(MAKE) --no-print-directory check FORMS="$$case.forms" EXPECTED="$$case.expected.tsv"; \
 	done
+	$(MAKE) --no-print-directory case-inventory
 
 check-neovm-list:
 	@set -e; \
@@ -197,6 +198,7 @@ check-neovm-list:
 		echo "== $$case =="; \
 		$(MAKE) --no-print-directory check-neovm FORMS="$$case.forms" EXPECTED="$$case.expected.tsv"; \
 	done
+	$(MAKE) --no-print-directory case-inventory
 
 check-one-neovm:
 	@if [ -z "$(CASE)" ]; then \
