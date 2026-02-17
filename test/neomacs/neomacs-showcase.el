@@ -81,9 +81,9 @@ Each line is prefixed with a relative timestamp from showcase start."
     ("Rounded Box Faces"         7  showcase--section-box-faces)
     ("Window Transitions"        7  showcase--section-window-trans)
     ("Inline Media"             13  showcase--section-media)
-    ("Child Frames"             12  showcase--section-child-frames)
-    ("Retro / Visual Madness"    4  showcase--section-retro)
-    ("Grand Finale"              4  showcase--section-finale))
+    ("Child Frames"             16  showcase--section-child-frames)
+    ("Retro / Visual Madness"    8  showcase--section-retro)
+    ("Grand Finale"              8  showcase--section-finale))
   "Alist of (NAME DURATION-SECS FUNCTION).")
 
 (defvar showcase--rust-code
@@ -1148,8 +1148,8 @@ The future of text editing is here.  It's called Neomacs.
           (when (buffer-live-p (get-buffer "*showcase-cf-vid*"))
             (set-buffer "*showcase-cf-vid*"))))))
 
-  ;; Child frame 3: Documentation popup (after 6s)
-  (showcase--schedule 6.0
+  ;; Child frame 3: Documentation popup (after 3s)
+  (showcase--schedule 3.0
     (lambda ()
       (showcase--log "  child-frames: showing doc popup")
       (let ((f (showcase--make-child "cf-doc" 200 320 50 10
@@ -1173,8 +1173,8 @@ The future of text editing is here.  It's called Neomacs.
               (set-buffer "*showcase-cf-doc*"))))
         (raise-frame f))))
 
-  ;; Child frame 4: WebKit browser (after 8s)
-  (showcase--schedule 8.0
+  ;; Child frame 4: WebKit browser (after 5s)
+  (showcase--schedule 5.0
     (lambda ()
       (showcase--log "  child-frames: showing WebKit child frame")
       (let ((f (showcase--make-child "cf-web" 150 100 82 30
