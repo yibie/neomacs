@@ -180,21 +180,26 @@ impl RenderApp {
         let now = std::time::Instant::now();
 
         for info in &frame.window_infos {
+            // Minibuffer (echo area) never participates in per-window
+            // transitions.  It rapidly alternates between echo_area_buffer[0]
+            // and [1] on every message() call, and its char_height changes
+            // when the default face changes (theme loading).  Crossfading
+            // these blends old/new text at slightly different glyph positions
+            // (due to cache rebuild), creating visible text doubling.
+            if info.is_minibuffer {
+                continue;
+            }
             if let Some(prev) = self.transitions.prev_window_infos.get(&info.window_id) {
                 if prev.buffer_id != 0 && info.buffer_id != 0 {
                     if prev.buffer_id != info.buffer_id {
                         // Text fade-in on buffer switch
-                        if self.effects.text_fade_in.enabled && !info.is_minibuffer {
+                        if self.effects.text_fade_in.enabled {
                             if let Some(renderer) = self.renderer.as_mut() {
                                 renderer.trigger_text_fade_in(info.window_id, info.bounds, now);
                             }
                         }
-                        // Buffer switch → crossfade
-                        // Suppress for minibuffer: echo area alternates between
-                        // echo_area_buffer[0] and [1] on every message() call,
-                        // causing rapid buffer_id changes.  Crossfading these
-                        // blends old and new text, creating overlapping text.
-                        if self.transitions.crossfade_enabled && !info.is_minibuffer && info.bounds.height >= 50.0 {
+                        // Buffer switch → crossfade (minibuffer already skipped above)
+                        if self.transitions.crossfade_enabled && info.bounds.height >= 50.0 {
                             // Cancel existing transition for this window
                             self.transitions.crossfades.remove(&info.window_id);
                             self.transitions.scroll_slides.remove(&info.window_id);
@@ -215,7 +220,7 @@ impl RenderApp {
                         }
                     } else if prev.window_start != info.window_start {
                         // Text fade-in on scroll
-                        if self.effects.text_fade_in.enabled && !info.is_minibuffer {
+                        if self.effects.text_fade_in.enabled {
                             if let Some(renderer) = self.renderer.as_mut() {
                                 renderer.trigger_text_fade_in(info.window_id, info.bounds, now);
                             }
@@ -228,14 +233,14 @@ impl RenderApp {
                             }
                         }
                         // Scroll momentum indicator
-                        if self.effects.scroll_momentum.enabled && !info.is_minibuffer {
+                        if self.effects.scroll_momentum.enabled {
                             let dir = if info.window_start > prev.window_start { 1 } else { -1 };
                             if let Some(renderer) = self.renderer.as_mut() {
                                 renderer.trigger_scroll_momentum(info.window_id, info.bounds, dir, now);
                             }
                         }
                         // Scroll velocity fade overlay
-                        if self.effects.scroll_velocity_fade.enabled && !info.is_minibuffer {
+                        if self.effects.scroll_velocity_fade.enabled {
                             let delta = (info.window_start - prev.window_start).unsigned_abs() as f32;
                             if let Some(renderer) = self.renderer.as_mut() {
                                 renderer.trigger_scroll_velocity_fade(info.window_id, info.bounds, delta, now);
@@ -307,7 +312,6 @@ impl RenderApp {
                         }
                     } else if self.effects.line_animation.enabled
                         && prev.buffer_size != info.buffer_size
-                        && !info.is_minibuffer
                     {
                         // Buffer size changed with same window_start → line insertion/deletion
                         // Find cursor Y from frame glyphs as the edit point
@@ -342,7 +346,7 @@ impl RenderApp {
                         || (prev.bounds.height - info.bounds.height).abs() > 2.0
                     {
                         // Window resized (balance-windows, divider drag) → crossfade
-                        if self.transitions.crossfade_enabled && !info.is_minibuffer {
+                        if self.transitions.crossfade_enabled {
                             self.transitions.crossfades.remove(&info.window_id);
                             self.transitions.scroll_slides.remove(&info.window_id);
 
@@ -442,7 +446,12 @@ impl RenderApp {
                 let db = (new_bg.2 - old_bg.2).abs();
                 // Threshold: any channel changed by more than ~2% means theme switch
                 if dr > 0.02 || dg > 0.02 || db > 0.02 {
-                    let full_bounds = Rect::new(0.0, 0.0, frame.width, frame.height);
+                    // Exclude minibuffer to prevent echo area text overlap
+                    // during theme changes (glyph cache rebuild shifts positions).
+                    let full_h = frame.window_infos.iter()
+                        .find(|w| w.is_minibuffer)
+                        .map_or(frame.height, |w| w.bounds.y);
+                    let full_bounds = Rect::new(0.0, 0.0, frame.width, full_h);
                     if !self.transitions.crossfades.contains_key(&-1) {
                         if let Some((tex, view, bg_group)) = self.snapshot_prev_texture() {
                             log::debug!("Starting theme transition crossfade (bg changed)");
