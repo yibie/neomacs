@@ -272,10 +272,27 @@ fn parse_time_unit_factor(unit: &str) -> Option<f64> {
 }
 
 fn parse_concatenated_time_delay_spec(spec: &str) -> Option<f64> {
-    let spec = spec.strip_prefix('+').unwrap_or(spec);
+    if spec.is_empty() {
+        return None;
+    }
 
     let mut split = 0;
+    let mut seen_number = false;
     for (idx, ch) in spec.char_indices() {
+        if idx == 0 && (ch == '+' || ch == '-') {
+            split = idx + ch.len_utf8();
+            continue;
+        }
+
+        if !seen_number {
+            if ch.is_ascii_digit() || ch == '.' {
+                seen_number = true;
+                split = idx + ch.len_utf8();
+                continue;
+            }
+            return None;
+        }
+
         if ch.is_ascii_digit() || ch == '.' {
             split = idx + ch.len_utf8();
             continue;
@@ -323,6 +340,13 @@ fn parse_run_at_time_delay(value: &Value) -> Result<f64, Flow> {
 
             let tokens: Vec<&str> = spec.split_whitespace().collect();
             if tokens.len() == 2 {
+                if tokens[0] == "+" || tokens[0] == "-" {
+                    let token = format!("{}{}", tokens[0], tokens[1]);
+                    if let Some(delay) = parse_concatenated_time_delay_spec(&token) {
+                        return Ok(delay);
+                    }
+                }
+
                 if let Ok(delay) = tokens[0].parse::<f64>() {
                     let factor = parse_time_unit_factor(tokens[1]);
                     if let Some(multiplier) = factor {
@@ -333,6 +357,21 @@ fn parse_run_at_time_delay(value: &Value) -> Result<f64, Flow> {
                         "error",
                         vec![Value::string("Invalid time specification")],
                     ));
+                }
+            } else if tokens.len() == 3 {
+                if tokens[0] == "+" || tokens[0] == "-" {
+                    if let Ok(delay) = tokens[1].parse::<f64>() {
+                        let factor = parse_time_unit_factor(tokens[2]);
+                        if let Some(multiplier) = factor {
+                            let sign = if tokens[0] == "+" { 1.0 } else { -1.0 };
+                            return Ok(delay * sign * multiplier);
+                        }
+
+                        return Err(signal(
+                            "error",
+                            vec![Value::string("Invalid time specification")],
+                        ));
+                    }
                 }
             }
 
@@ -945,6 +984,30 @@ mod tests {
         assert_eq!(
             parse_run_at_time_delay(&Value::string("+2 day")).expect("+2 day should parse"),
             172_800.0
+        );
+        assert_eq!(
+            parse_run_at_time_delay(&Value::string("+ 2 day"))
+                .expect("+ 2 day should parse"),
+            172_800.0
+        );
+        assert_eq!(
+            parse_run_at_time_delay(&Value::string("- 2 day"))
+                .expect("- 2 day should parse"),
+            -172_800.0
+        );
+        assert_eq!(
+            parse_run_at_time_delay(&Value::string("+ .5day"))
+                .expect("+ .5day should parse"),
+            43_200.0
+        );
+        assert_eq!(
+            parse_run_at_time_delay(&Value::string("- .5 day"))
+                .expect("- .5 day should parse"),
+            -43_200.0
+        );
+        assert_eq!(
+            parse_run_at_time_delay(&Value::string("+ .5 day")).expect("+ .5 day should parse"),
+            43_200.0
         );
         assert!(matches!(
             parse_run_at_time_delay(&Value::string("4 foo")),
