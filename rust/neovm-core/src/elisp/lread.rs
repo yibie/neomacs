@@ -186,7 +186,8 @@ fn expect_optional_prompt_string(args: &[Value]) -> Result<(), Flow> {
 
 /// `(read-event &optional PROMPT INHERIT-INPUT-METHOD SECONDS)`
 ///
-/// Stub: returns nil (no event input available in batch mode).
+/// In batch mode, first reads from `unread-command-events`, consuming
+/// character events and returning non-character events unchanged.
 pub(crate) fn builtin_read_event(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
@@ -209,7 +210,8 @@ pub(crate) fn builtin_read_event(
 
 /// `(read-char-exclusive &optional PROMPT INHERIT-INPUT-METHOD SECONDS)`
 ///
-/// Batch stub: returns nil (no terminal input available).
+/// In batch mode, consumes unread command events until a character event is found,
+/// returning nil when no character is queued.
 pub(crate) fn builtin_read_char_exclusive(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
