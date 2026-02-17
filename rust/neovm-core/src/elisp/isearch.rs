@@ -2014,7 +2014,8 @@ pub(crate) fn builtin_count_matches_eval(
     Ok(Value::Int(count))
 }
 
-/// `(isearch-forward)` — stub: initiates forward incremental search.
+/// `(isearch-forward)` — interactive command; returns batch-mode error in
+/// non-interactive contexts.
 pub(crate) fn builtin_isearch_forward(args: Vec<Value>) -> EvalResult {
     expect_min_max_args("isearch-forward", &args, 0, 2)?;
     Err(signal(
@@ -2025,7 +2026,8 @@ pub(crate) fn builtin_isearch_forward(args: Vec<Value>) -> EvalResult {
     ))
 }
 
-/// `(isearch-backward)` — stub: initiates backward incremental search.
+/// `(isearch-backward)` — interactive command; returns batch-mode error in
+/// non-interactive contexts.
 pub(crate) fn builtin_isearch_backward(args: Vec<Value>) -> EvalResult {
     expect_min_max_args("isearch-backward", &args, 0, 2)?;
     Err(signal(
