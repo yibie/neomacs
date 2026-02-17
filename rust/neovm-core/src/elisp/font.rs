@@ -118,6 +118,202 @@ fn font_spec_get(vec_elems: &[Value], prop: &Value) -> Value {
     Value::Nil
 }
 
+/// Get a property from a font-spec while accepting both `family` and `:family`
+/// style keys, and both keyword and symbol keys.
+fn font_spec_get_flexible(vec_elems: &[Value], prop: &str) -> Option<Value> {
+    let prop_norm = prop.trim_start_matches(':');
+    let mut i = 1;
+    while i + 1 < vec_elems.len() {
+        let key = &vec_elems[i];
+        let key_text = match key {
+            Value::Keyword(k) => k.as_str(),
+            Value::Symbol(k) => k.as_str(),
+            _ => {
+                i += 2;
+                continue;
+            }
+        };
+        let key_norm = key_text.trim_start_matches(':');
+        if key_norm == prop_norm {
+            return Some(vec_elems[i + 1].clone());
+        }
+        i += 2;
+    }
+    None
+}
+
+fn font_spec_field_to_string(value: &Value) -> String {
+    match value {
+        Value::Str(s) => (**s).clone(),
+        Value::Symbol(s) | Value::Keyword(s) => s.clone(),
+        _ => "*".to_string(),
+    }
+}
+
+fn xlfd_size_field(size_val: &Value) -> Option<String> {
+    match size_val {
+        Value::Int(size) => {
+            if *size > 0 {
+                Some(format!("{}-*", size))
+            } else {
+                Some("*-*".to_string())
+            }
+        }
+        Value::Float(size) => {
+            let scaled = size * 10.0;
+            if scaled.is_finite() {
+                Some(format!("*-{}", scaled.round() as i64))
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
+fn fold_xlfd_wildcards(mut name: String) -> String {
+    while let Some(pos) = name.find("-*-*") {
+        name.replace_range(pos + 1..pos + 3, "");
+    }
+    name
+}
+
+fn normalize_registry_field(value: &Option<Value>) -> String {
+    match value {
+        None => "*-*".to_string(),
+        Some(Value::Str(s)) => {
+            if !s.contains('-') {
+                format!("{}-*", s)
+            } else {
+                (**s).clone()
+            }
+        }
+        Some(Value::Symbol(s)) | Some(Value::Keyword(s)) => {
+            if !s.contains('-') {
+                format!("{}-*", s)
+            } else {
+                s.clone()
+            }
+        }
+        _ => "*-*".to_string(),
+    }
+}
+
+fn sanitize_style_field(value: &Value) -> String {
+    match value {
+        Value::Symbol(s) => s
+            .chars()
+            .filter(|ch| *ch != '-' && *ch != '?' && *ch != ',' && *ch != '"')
+            .collect(),
+        Value::Keyword(s) => s
+            .chars()
+            .filter(|ch| *ch != '-' && *ch != '?' && *ch != ',' && *ch != '"')
+            .collect(),
+        Value::Str(s) => s
+            .chars()
+            .filter(|ch| *ch != '-' && *ch != '?' && *ch != ',' && *ch != '"')
+            .collect(),
+        _ => "*".to_string(),
+    }
+}
+
+fn spacing_field(value: Option<&Value>) -> String {
+    match value {
+        None => "*".to_string(),
+        Some(Value::Int(spacing)) => {
+            let value = *spacing;
+            if value <= 0 {
+                "p".to_string()
+            } else if value <= 1 {
+                "d".to_string()
+            } else if value <= 2 {
+                "m".to_string()
+            } else {
+                "c".to_string()
+            }
+        }
+        Some(value) => sanitize_style_field(value),
+    }
+}
+
+fn avg_width_field(value: Option<&Value>) -> String {
+    match value {
+        Some(Value::Int(n)) => n.to_string(),
+        Some(Value::Str(s)) => (**s).clone(),
+        Some(Value::Symbol(s)) | Some(Value::Keyword(s)) => s.clone(),
+        _ => "*".to_string(),
+    }
+}
+
+fn xlfd_pixel_field(size: Option<&Value>) -> String {
+    match size {
+        Some(value) => xlfd_size_field(value).unwrap_or("*-*".to_string()),
+        None => "*-*".to_string(),
+    }
+}
+
+fn xlfd_resolution_field(dpi: Option<&Value>) -> String {
+    match dpi {
+        Some(Value::Int(size)) => format!("{}-{}", size, size),
+        _ => "*-*".to_string(),
+    }
+}
+
+fn xlfd_fields_from_font_spec(
+    v: &[Value],
+) -> (
+    String,
+    String,
+    String,
+    String,
+    String,
+    String,
+    String,
+    String,
+    String,
+    String,
+    String,
+) {
+    let foundry = font_spec_get_flexible(v, "foundry")
+        .map(|value| font_spec_field_to_string(&value))
+        .unwrap_or_else(|| "*".to_string());
+    let family = font_spec_get_flexible(v, "family")
+        .map(|value| font_spec_field_to_string(&value))
+        .unwrap_or_else(|| "*".to_string());
+    let weight = font_spec_get_flexible(v, "weight")
+        .map(|value| sanitize_style_field(&value))
+        .unwrap_or_else(|| "*".to_string());
+    let slant = font_spec_get_flexible(v, "slant")
+        .map(|value| sanitize_style_field(&value))
+        .unwrap_or_else(|| "*".to_string());
+    let set_width = font_spec_get_flexible(v, "set-width")
+        .or_else(|| font_spec_get_flexible(v, "setwidth"))
+        .map(|value| font_spec_field_to_string(&value))
+        .unwrap_or_else(|| "*".to_string());
+    let adstyle = font_spec_get_flexible(v, "adstyle")
+        .map(|value| font_spec_field_to_string(&value))
+        .unwrap_or_else(|| "*".to_string());
+
+    let size = font_spec_get_flexible(v, "size");
+    let dpi = font_spec_get_flexible(v, "dpi");
+    let spacing = font_spec_get_flexible(v, "spacing");
+    let avg_width = font_spec_get_flexible(v, "average_width")
+        .or_else(|| font_spec_get_flexible(v, "avg_width"))
+        .or_else(|| font_spec_get_flexible(v, "avg-width"));
+    let registry = font_spec_get_flexible(v, "registry");
+
+    let pixel = xlfd_pixel_field(size.as_ref());
+    let resx = xlfd_resolution_field(dpi.as_ref());
+    let spacing = spacing_field(spacing.as_ref());
+    let avg_width = avg_width_field(avg_width.as_ref());
+    let registry = normalize_registry_field(&registry);
+
+    (
+        foundry, family, weight, slant, set_width, adstyle, pixel, resx, spacing, avg_width,
+        registry,
+    )
+}
+
 /// Set (or add) a property in a font-spec in place.
 fn font_spec_put(vec_elems: &mut Vec<Value>, prop: &Value, val: &Value) {
     let mut i = 1;
@@ -331,34 +527,70 @@ pub(crate) fn builtin_font_xlfd_name(args: Vec<Value>) -> EvalResult {
         ));
     }
 
-    let mut family: Option<String> = None;
-    if let Value::Vector(v) = &args[0] {
-        let elems = v.lock().expect("poisoned");
-        let mut i = 1;
-        while i + 1 < elems.len() {
-            let family_key = match &elems[i] {
-                Value::Keyword(k) | Value::Symbol(k) => k == "family" || k == ":family",
-                _ => false,
-            };
-            if family_key {
-                family = match &elems[i + 1] {
-                    Value::Str(s) => Some((**s).clone()),
-                    Value::Symbol(s) => Some(s.clone()),
-                    Value::Keyword(s) => Some(s.clone()),
-                    _ => None,
-                };
-                break;
-            }
-            i += 2;
+    let fields = match &args[0] {
+        Value::Vector(v) => {
+            let elems = v.lock().expect("poisoned");
+            xlfd_fields_from_font_spec(&elems)
         }
-    }
+        _ => (
+            "*".to_string(),
+            "*".to_string(),
+            "*".to_string(),
+            "*".to_string(),
+            "*".to_string(),
+            "*".to_string(),
+            "*-*".to_string(),
+            "*-*".to_string(),
+            "*".to_string(),
+            "*".to_string(),
+            "*-*".to_string(),
+        ),
+    };
 
-    let fold_wildcards = args.get(1).is_some_and(Value::is_truthy);
-    let rendered = match (family, fold_wildcards) {
-        (Some(name), true) => format!("-*-{name}-*"),
-        (None, true) => "-*".to_string(),
-        (Some(name), false) => format!("-*-{name}-*-*-*-*-*-*-*-*-*-*-*-*"),
-        (None, false) => "-*-*-*-*-*-*-*-*-*-*-*-*-*-*".to_string(),
+    let (
+        foundry,
+        family,
+        weight,
+        slant,
+        set_width,
+        adstyle,
+        pixel,
+        resx,
+        spacing,
+        avg_width,
+        registry,
+    ) = fields;
+    let rendered = if args.get(1).is_some_and(Value::is_truthy) {
+        let name = format!(
+            "-{}-{}-{}-{}-{}-{}-{}-{}-{}-{}-{}",
+            foundry,
+            family,
+            weight,
+            slant,
+            set_width,
+            adstyle,
+            pixel,
+            resx,
+            spacing,
+            avg_width,
+            registry
+        );
+        fold_xlfd_wildcards(name)
+    } else {
+        format!(
+            "-{}-{}-{}-{}-{}-{}-{}-{}-{}-{}-{}",
+            foundry,
+            family,
+            weight,
+            slant,
+            set_width,
+            adstyle,
+            pixel,
+            resx,
+            spacing,
+            avg_width,
+            registry
+        )
     };
     Ok(Value::string(rendered))
 }

@@ -357,6 +357,7 @@ cases/image-insert-put-semantics
 cases/tty-batch-semantics
 cases/font-batch-semantics
 cases/font-xlfd-arity-semantics
+cases/font-xlfd-semantics
 cases/font-color-semantics
 cases/font-object-semantics
 cases/font-face-helper-semantics

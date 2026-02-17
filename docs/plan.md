@@ -107,6 +107,17 @@ Last updated: 2026-02-17
 
 ## Done
 
+- Aligned `font-xlfd-name` non-folded and fold-wildcard behavior with GNU Emacs XLFD rules:
+  - `rust/neovm-core/src/elisp/font.rs`
+    - Implemented full XLFD field mapping for font-spec keys (`foundry`, `family`, `weight`, `slant`, `set-width`, `adstyle`, `size`, `dpi`, `spacing`, `avg-width`, `registry`).
+    - Added wildcard folding behavior matching Emacs `-*-*` collapsing semantics for `font-xlfd-name` when `FOLD-WILDCARDS` is non-nil.
+  - Added compatibility corpus lock-in:
+    - `test/neovm/vm-compat/cases/font-xlfd-semantics.{forms,expected.tsv}`
+    - wired into `test/neovm/vm-compat/cases/default.list`
+  - Verification:
+    - `cargo test -p neovm-core font_xlfd_name_`
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/font-xlfd-semantics`
+
 - Aligned `frame-selected-window` runtime+`subr-arity` behavior with GNU Emacs and added oracle lock-in:
   - updated runtime behavior:
     - `rust/neovm-core/src/elisp/window_cmds.rs`
