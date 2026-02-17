@@ -7,6 +7,7 @@ registry_file="$repo_root/rust/neovm-core/src/elisp/builtin_registry.rs"
 allowlist_file="$script_dir/cases/builtin-registry-fboundp-allowlist.txt"
 function_kind_allowlist_file="$script_dir/cases/builtin-registry-function-kind-allowlist.txt"
 function_kind_check_script="$script_dir/check-builtin-registry-function-kind.sh"
+fboundp_check_script="$script_dir/check-builtin-registry-fboundp.sh"
 source "$script_dir/lib/builtin-registry.sh"
 compat_stub_index_script="$script_dir/compat-stub-index.sh"
 
@@ -33,6 +34,7 @@ tmp_expected_basenames="$(mktemp)"
 tmp_expected_only="$(mktemp)"
 tmp_forms_only="$(mktemp)"
 tmp_function_kind_check="$(mktemp)"
+tmp_fboundp_check="$(mktemp)"
 cleanup() {
   rm -f \
     "$tmp_all" \
@@ -42,7 +44,8 @@ cleanup() {
     "$tmp_expected_basenames" \
     "$tmp_expected_only" \
     "$tmp_forms_only" \
-    "$tmp_function_kind_check"
+    "$tmp_function_kind_check" \
+    "$tmp_fboundp_check"
 }
 trap cleanup EXIT
 
@@ -73,7 +76,11 @@ function_kind_allowlisted="$(awk 'NF && $1 !~ /^#/ { count++ } END { print count
 tracked_unique="$(sort -u "$tmp_tracker" | awk 'END { print NR+0 }')"
 
 SHOW_ALLOWLISTED_DRIFTS=1 "$function_kind_check_script" > "$tmp_function_kind_check"
+SHOW_ALLOWLISTED_DRIFTS=1 "$fboundp_check_script" > "$tmp_fboundp_check" || true
 function_kind_drift="$(awk '/oracle\/neovm function-kind drifts:/ { print $4 }' "$tmp_function_kind_check" | head -n 1)"
+fboundp_drift="$(awk '/oracle\/neovm fboundp drifts:/ { print $4 }' "$tmp_fboundp_check" | head -n 1)"
+function_kind_stale="$(awk '/stale allowlist entries with no current drift:/ { stale=1; next } stale==1 && /^[^ ]/ { print $0 }' "$tmp_function_kind_check" | wc -l | tr -d ' ')"
+fboundp_stale="$(awk '/stale allowlist entries with no current drift:/ { stale=1; next } stale==1 && /^[^ ]/ { print $0 }' "$tmp_fboundp_check" | wc -l | tr -d ' ')"
 
 printf 'compat progress snapshot\n'
 printf 'case lists (entries):\n'
@@ -116,7 +123,10 @@ printf '  total dispatch entries: %s\n' "$all_builtins"
 printf '  core-compat entries: %s\n' "$core_builtins"
 printf '  neovm extension entries: %s\n' "$extension_builtins"
 printf '  allowed fboundp drifts: %s\n' "$allowlisted"
+printf '  fboundp current drifts: %s\n' "${fboundp_drift:-0}"
+printf '  fboundp stale allowlist entries: %s\n' "${fboundp_stale:-0}"
 printf '  function-kind allowlisted drifts: %s\n' "$function_kind_allowlisted"
 printf '  function-kind current drifts: %s\n' "${function_kind_drift:-0}"
+printf '  function-kind stale allowlist entries: %s\n' "${function_kind_stale:-0}"
 
 echo "done"
