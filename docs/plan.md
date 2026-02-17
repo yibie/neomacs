@@ -4,6 +4,9 @@ Last updated: 2026-02-17
 
 ## Doing
 
+- Completed small compatibility slice: timer delay parsing for unit suffixes (`sec`/`min`/`hour`/`day`/`week`) in `run-at-time` and related tests.
+  - Updated `rust/neovm-core/src/elisp/timer.rs` with unit-aware parser logic and added `test_parse_run_at_time_delay_units`.
+  - Validated via `make -C test/neovm/vm-compat check-one-neovm CASE=cases/timer-semantics`.
 - Completed local search builtin hardening:
   - `looking-at-p` now has explicit arity and match-data-preservation tests in `rust/neovm-core/src/elisp/search.rs`.
   - Pure `looking-at`/`looking-at-p` docs updated and compatibility checks kept passing (`cases/looking-at-semantics`).
