@@ -714,8 +714,9 @@ pub(crate) fn builtin_read(eval: &mut super::eval::Evaluator, args: Vec<Value>) 
 
 /// `(read-from-minibuffer PROMPT ...)`
 ///
-/// In batch/non-interactive mode, consume a pending `unread-command-events`
-/// character event when available; otherwise signal `end-of-file`.
+/// In batch/non-interactive mode, if `unread-command-events` is non-empty,
+/// signal `end-of-file` and keep the event queue unchanged (Oracle-compatible
+/// behavior).
 pub(crate) fn builtin_read_from_minibuffer(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
@@ -726,12 +727,11 @@ pub(crate) fn builtin_read_from_minibuffer(
     if let Some(initial) = args.get(1) {
         expect_initial_input_stringish(initial)?;
     }
-    if let Some(event) = eval.peek_unread_command_event() {
-        if let Some(ch) = event_to_char(&event) {
-            let _ = eval.pop_unread_command_event();
-            return Ok(Value::string(ch.to_string()));
-        }
-        return Err(non_character_input_event_error());
+    if eval.peek_unread_command_event().is_some() {
+        return Err(signal(
+            "end-of-file",
+            vec![Value::string("Error reading from stdin")],
+        ));
     }
     Err(signal(
         "end-of-file",
@@ -745,8 +745,9 @@ pub(crate) fn builtin_read_from_minibuffer(
 
 /// `(read-string PROMPT ...)`
 ///
-/// In batch/non-interactive mode, consume a pending `unread-command-events`
-/// character event when available; otherwise signal `end-of-file`.
+/// In batch/non-interactive mode, if `unread-command-events` is non-empty,
+/// signal `end-of-file` and keep the event queue unchanged (Oracle-compatible
+/// behavior).
 pub(crate) fn builtin_read_string(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
@@ -757,12 +758,11 @@ pub(crate) fn builtin_read_string(
     if let Some(initial) = args.get(1) {
         expect_initial_input_stringish(initial)?;
     }
-    if let Some(event) = eval.peek_unread_command_event() {
-        if let Some(ch) = event_to_char(&event) {
-            let _ = eval.pop_unread_command_event();
-            return Ok(Value::string(ch.to_string()));
-        }
-        return Err(non_character_input_event_error());
+    if eval.peek_unread_command_event().is_some() {
+        return Err(signal(
+            "end-of-file",
+            vec![Value::string("Error reading from stdin")],
+        ));
     }
     Err(signal(
         "end-of-file",
@@ -776,8 +776,9 @@ pub(crate) fn builtin_read_string(
 
 /// `(read-number PROMPT &optional DEFAULT)`
 ///
-/// In batch mode, consume a pending numeric/readable event when available;
-/// otherwise signal `end-of-file`.
+/// In batch mode, if `unread-command-events` is non-empty, signal
+/// `end-of-file` and keep the event queue unchanged (Oracle-compatible
+/// behavior).
 pub(crate) fn builtin_read_number(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
@@ -790,28 +791,11 @@ pub(crate) fn builtin_read_number(
             let _ = expect_number(default)?;
         }
     }
-    if let Some(event) = eval.peek_unread_command_event() {
-        let _ = eval.pop_unread_command_event();
-        if let Value::Int(n) = event {
-            return Ok(Value::Int(n));
-        }
-        if let Value::Float(f) = event {
-            return Ok(Value::Float(f));
-        }
-        if let Some(ch) = event_to_char(&event) {
-            let token = ch.to_string();
-            if let Ok(n) = token.parse::<i64>() {
-                return Ok(Value::Int(n));
-            }
-            if let Ok(f) = token.parse::<f64>() {
-                return Ok(Value::Float(f));
-            }
-            return Err(signal(
-                "wrong-type-argument",
-                vec![Value::symbol("numberp"), Value::string(token)],
-            ));
-        }
-        return Err(non_character_input_event_error());
+    if eval.peek_unread_command_event().is_some() {
+        return Err(signal(
+            "end-of-file",
+            vec![Value::string("Error reading from stdin")],
+        ));
     }
     Err(signal(
         "end-of-file",
@@ -825,8 +809,9 @@ pub(crate) fn builtin_read_number(
 
 /// `(read-passwd PROMPT &optional CONFIRM DEFAULT)`
 ///
-/// In batch/non-interactive mode, consume a pending `unread-command-events`
-/// character event when available; otherwise signal `end-of-file`.
+/// In batch/non-interactive mode, if `unread-command-events` is non-empty,
+/// signal `end-of-file` and keep the event queue unchanged (Oracle-compatible
+/// behavior).
 pub(crate) fn builtin_read_passwd(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
@@ -834,12 +819,11 @@ pub(crate) fn builtin_read_passwd(
     expect_min_args("read-passwd", &args, 1)?;
     expect_max_args("read-passwd", &args, 3)?;
     let _prompt = expect_string(&args[0])?;
-    if let Some(event) = eval.peek_unread_command_event() {
-        if let Some(ch) = event_to_char(&event) {
-            let _ = eval.pop_unread_command_event();
-            return Ok(Value::string(ch.to_string()));
-        }
-        return Err(non_character_input_event_error());
+    if eval.peek_unread_command_event().is_some() {
+        return Err(signal(
+            "end-of-file",
+            vec![Value::string("Error reading from stdin")],
+        ));
     }
     Err(signal(
         "end-of-file",
@@ -853,8 +837,9 @@ pub(crate) fn builtin_read_passwd(
 
 /// `(completing-read PROMPT COLLECTION ...)`
 ///
-/// In batch/non-interactive mode, consume a pending `unread-command-events`
-/// character event when available; otherwise signal `end-of-file`.
+/// In batch/non-interactive mode, if `unread-command-events` is non-empty,
+/// signal `end-of-file` and keep the event queue unchanged (Oracle-compatible
+/// behavior).
 pub(crate) fn builtin_completing_read(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
@@ -865,12 +850,11 @@ pub(crate) fn builtin_completing_read(
     if let Some(initial) = args.get(4) {
         expect_completing_read_initial_input(initial)?;
     }
-    if let Some(event) = eval.peek_unread_command_event() {
-        if let Some(ch) = event_to_char(&event) {
-            let _ = eval.pop_unread_command_event();
-            return Ok(Value::string(ch.to_string()));
-        }
-        return Err(non_character_input_event_error());
+    if eval.peek_unread_command_event().is_some() {
+        return Err(signal(
+            "end-of-file",
+            vec![Value::string("Error reading from stdin")],
+        ));
     }
     Err(signal(
         "end-of-file",
@@ -1500,6 +1484,20 @@ mod tests {
     }
 
     #[test]
+    fn read_from_minibuffer_non_character_event_stays_queued_and_signals_end_of_file() {
+        let mut ev = Evaluator::new();
+        ev.obarray
+            .set_symbol_value("unread-command-events", Value::list(vec![Value::symbol("foo")]));
+        let result = builtin_read_from_minibuffer(&mut ev, vec![Value::string("Prompt: ")]);
+        assert!(matches!(result, Err(Flow::Signal(sig)) if sig.symbol == "end-of-file"));
+        assert_eq!(
+            ev.obarray
+                .symbol_value("unread-command-events"),
+            Some(&Value::list(vec![Value::symbol("foo")]))
+        );
+    }
+
+    #[test]
     fn read_from_minibuffer_ignores_initial_and_signals_end_of_file() {
         let mut ev = Evaluator::new();
         let result = builtin_read_from_minibuffer(
@@ -1562,6 +1560,20 @@ mod tests {
     }
 
     #[test]
+    fn read_string_non_character_event_stays_queued_and_signals_end_of_file() {
+        let mut ev = Evaluator::new();
+        ev.obarray
+            .set_symbol_value("unread-command-events", Value::list(vec![Value::symbol("foo")]));
+        let result = builtin_read_string(&mut ev, vec![Value::string("Prompt: ")]);
+        assert!(matches!(result, Err(Flow::Signal(sig)) if sig.symbol == "end-of-file"));
+        assert_eq!(
+            ev.obarray
+                .symbol_value("unread-command-events"),
+            Some(&Value::list(vec![Value::symbol("foo")]))
+        );
+    }
+
+    #[test]
     fn read_string_ignores_initial_and_signals_end_of_file() {
         let mut ev = Evaluator::new();
         let result = builtin_read_string(
@@ -1617,6 +1629,20 @@ mod tests {
         let mut ev = Evaluator::new();
         let result = builtin_read_number(&mut ev, vec![Value::string("Number: "), Value::Int(42)]);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn read_number_non_character_event_stays_queued_and_signals_end_of_file() {
+        let mut ev = Evaluator::new();
+        ev.obarray
+            .set_symbol_value("unread-command-events", Value::list(vec![Value::symbol("foo")]));
+        let result = builtin_read_number(&mut ev, vec![Value::string("Number: ")]);
+        assert!(matches!(result, Err(Flow::Signal(sig)) if sig.symbol == "end-of-file"));
+        assert_eq!(
+            ev.obarray
+                .symbol_value("unread-command-events"),
+            Some(&Value::list(vec![Value::symbol("foo")]))
+        );
     }
 
     #[test]
@@ -1687,6 +1713,20 @@ mod tests {
     }
 
     #[test]
+    fn read_passwd_non_character_event_stays_queued_and_signals_end_of_file() {
+        let mut ev = Evaluator::new();
+        ev.obarray
+            .set_symbol_value("unread-command-events", Value::list(vec![Value::symbol("foo")]));
+        let result = builtin_read_passwd(&mut ev, vec![Value::string("Passwd: ")]);
+        assert!(matches!(result, Err(Flow::Signal(sig)) if sig.symbol == "end-of-file"));
+        assert_eq!(
+            ev.obarray
+                .symbol_value("unread-command-events"),
+            Some(&Value::list(vec![Value::symbol("foo")]))
+        );
+    }
+
+    #[test]
     fn read_passwd_accepts_optional_args_and_signals_end_of_file() {
         let mut ev = Evaluator::new();
         let result = builtin_read_passwd(
@@ -1733,6 +1773,21 @@ mod tests {
         let mut ev = Evaluator::new();
         let result = builtin_completing_read(&mut ev, vec![Value::string("Choose: "), Value::Nil]);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn completing_read_non_character_event_stays_queued_and_signals_end_of_file() {
+        let mut ev = Evaluator::new();
+        ev.obarray
+            .set_symbol_value("unread-command-events", Value::list(vec![Value::symbol("foo")]));
+        let result =
+            builtin_completing_read(&mut ev, vec![Value::string("Choose: "), Value::Nil]);
+        assert!(matches!(result, Err(Flow::Signal(sig)) if sig.symbol == "end-of-file"));
+        assert_eq!(
+            ev.obarray
+                .symbol_value("unread-command-events"),
+            Some(&Value::list(vec![Value::symbol("foo")]))
+        );
     }
 
     #[test]

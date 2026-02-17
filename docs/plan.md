@@ -28,6 +28,15 @@ Last updated: 2026-02-17
 
 ## Doing
 
+- Completed this slice: `read-batch-error` queue-edge behavior.
+  - Updated `rust/neovm-core/src/elisp/reader.rs` so batch-mode `read-number`,
+    `read-string`, `read-from-minibuffer`, `read-passwd`, and `completing-read`
+    now return `end-of-file` with unchanged `unread-command-events` for any
+    pending non-character payload (including symbols), matching Oracle behavior.
+  - Added unit tests for queue preservation and payload lock-in for each builtin.
+  - Added `cases/read-batch-error-payloads` coverage for stale queue behavior and
+    verified with `make -C test/neovm/vm-compat check-one-neovm CASE=cases/read-batch-error-payloads`.
+
 - Completed image compatibility slice:
   - Updated `rust/neovm-core/src/elisp/image.rs` to validate `(optional FRAME)` in `image-transforms-p` with `frame-live-p` type checks and return `nil` in Emacs-compatible cases.
   - Added `test/neovm/vm-compat/cases/image-transforms-semantics.{forms,expected.tsv}` and wired it into `cases/default.list`.
