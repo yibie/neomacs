@@ -384,6 +384,7 @@ cases/terminal-parameter-storage-edge-semantics
 cases/terminal-parameter-state-semantics
 cases/terminal-handle-printing
 cases/frame-batch-semantics
+cases/window-frame-stale-lifecycle-semantics
 cases/window-buffer-switch-semantics
 cases/window-buffer-designator-errors-semantics
 cases/window-buffer-missing-designator-semantics
