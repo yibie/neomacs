@@ -627,6 +627,7 @@ cases/thread-handle-identity
 cases/thread-handle-printing
 cases/thread-help-function-arglist
 cases/thread-subr-arity
+cases/thread-yield-semantics
 cases/thread-make-thread-name-validation
 cases/thread-mutex-error-payloads
 cases/thread-sync-error-payloads
