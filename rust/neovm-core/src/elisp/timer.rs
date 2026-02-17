@@ -293,11 +293,10 @@ fn parse_concatenated_time_delay_spec(spec: &str) -> Option<f64> {
 }
 
 fn parse_spaced_run_at_time_delay(tokens: &[&str]) -> Option<f64> {
-    let (unit_index, multiplier) = tokens
-        .iter()
-        .enumerate()
-        .rev()
-        .find_map(|(index, token)| parse_time_unit_factor(token).map(|factor| (index, factor)))?;
+    let (unit_index, multiplier) =
+        tokens.iter().enumerate().rev().find_map(|(index, token)| {
+            parse_time_unit_factor(token).map(|factor| (index, factor))
+        })?;
 
     let number_tokens = &tokens[..unit_index];
     if number_tokens.is_empty() {
@@ -974,23 +973,19 @@ mod tests {
             172_800.0
         );
         assert_eq!(
-            parse_run_at_time_delay(&Value::string("+ 2 day"))
-                .expect("+ 2 day should parse"),
+            parse_run_at_time_delay(&Value::string("+ 2 day")).expect("+ 2 day should parse"),
             172_800.0
         );
         assert_eq!(
-            parse_run_at_time_delay(&Value::string("- 2 day"))
-                .expect("- 2 day should parse"),
+            parse_run_at_time_delay(&Value::string("- 2 day")).expect("- 2 day should parse"),
             -172_800.0
         );
         assert_eq!(
-            parse_run_at_time_delay(&Value::string("+ .5day"))
-                .expect("+ .5day should parse"),
+            parse_run_at_time_delay(&Value::string("+ .5day")).expect("+ .5day should parse"),
             43_200.0
         );
         assert_eq!(
-            parse_run_at_time_delay(&Value::string("- .5 day"))
-                .expect("- .5 day should parse"),
+            parse_run_at_time_delay(&Value::string("- .5 day")).expect("- .5 day should parse"),
             -43_200.0
         );
         assert_eq!(
@@ -998,13 +993,11 @@ mod tests {
             43_200.0
         );
         assert_eq!(
-            parse_run_at_time_delay(&Value::string("1 2 min"))
-                .expect("1 2 min should parse"),
+            parse_run_at_time_delay(&Value::string("1 2 min")).expect("1 2 min should parse"),
             720.0
         );
         assert_eq!(
-            parse_run_at_time_delay(&Value::string("+ 1 5 sec"))
-                .expect("+ 1 5 sec should parse"),
+            parse_run_at_time_delay(&Value::string("+ 1 5 sec")).expect("+ 1 5 sec should parse"),
             15.0
         );
         assert_eq!(
@@ -1012,8 +1005,7 @@ mod tests {
             2.0
         );
         assert_eq!(
-            parse_run_at_time_delay(&Value::string("1 +2e3 sec"))
-                .expect("1 +2e3 sec should parse"),
+            parse_run_at_time_delay(&Value::string("1 +2e3 sec")).expect("1 +2e3 sec should parse"),
             2_000.0
         );
         assert_eq!(
@@ -1021,8 +1013,7 @@ mod tests {
             -2.0
         );
         assert_eq!(
-            parse_run_at_time_delay(&Value::string("1 -2e2 sec"))
-                .expect("1 -2e2 sec should parse"),
+            parse_run_at_time_delay(&Value::string("1 -2e2 sec")).expect("1 -2e2 sec should parse"),
             -200.0
         );
         assert_eq!(
@@ -1043,13 +1034,11 @@ mod tests {
             3.0
         );
         assert_eq!(
-            parse_run_at_time_delay(&Value::string("1 2 3 min"))
-                .expect("1 2 3 min should parse"),
+            parse_run_at_time_delay(&Value::string("1 2 3 min")).expect("1 2 3 min should parse"),
             7_380.0
         );
         assert_eq!(
-            parse_run_at_time_delay(&Value::string("1 2 e3 sec"))
-                .expect("1 2 e3 sec should parse"),
+            parse_run_at_time_delay(&Value::string("1 2 e3 sec")).expect("1 2 e3 sec should parse"),
             12_000.0
         );
         assert_eq!(
@@ -1069,33 +1058,27 @@ mod tests {
             1_200.0
         );
         assert_eq!(
-            parse_run_at_time_delay(&Value::string("1 .5sec"))
-                .expect("1 .5sec should parse"),
+            parse_run_at_time_delay(&Value::string("1 .5sec")).expect("1 .5sec should parse"),
             1.5
         );
         assert_eq!(
-            parse_run_at_time_delay(&Value::string("1 .5 sec"))
-                .expect("1 .5 sec should parse"),
+            parse_run_at_time_delay(&Value::string("1 .5 sec")).expect("1 .5 sec should parse"),
             1.5
         );
         assert_eq!(
-            parse_run_at_time_delay(&Value::string("1e-1 sec"))
-                .expect("1e-1 sec should parse"),
+            parse_run_at_time_delay(&Value::string("1e-1 sec")).expect("1e-1 sec should parse"),
             0.1
         );
         assert_eq!(
-            parse_run_at_time_delay(&Value::string(".5e2sec"))
-                .expect(".5e2sec should parse"),
+            parse_run_at_time_delay(&Value::string(".5e2sec")).expect(".5e2sec should parse"),
             50.0
         );
         assert_eq!(
-            parse_run_at_time_delay(&Value::string("1e+1 sec"))
-                .expect("1e+1 sec should parse"),
+            parse_run_at_time_delay(&Value::string("1e+1 sec")).expect("1e+1 sec should parse"),
             10.0
         );
         assert_eq!(
-            parse_run_at_time_delay(&Value::string("1e+ 1 sec"))
-                .expect("1e+ 1 sec should parse"),
+            parse_run_at_time_delay(&Value::string("1e+ 1 sec")).expect("1e+ 1 sec should parse"),
             10.0
         );
         assert_eq!(
@@ -1124,10 +1107,22 @@ mod tests {
             parse_run_at_time_delay(&Value::string("2 hr")),
             Err(_)
         ));
-        assert!(matches!(parse_run_at_time_delay(&Value::string("+")), Err(_)));
-        assert!(matches!(parse_run_at_time_delay(&Value::string("-")), Err(_)));
-        assert!(matches!(parse_run_at_time_delay(&Value::string("+ 2")), Err(_)));
-        assert!(matches!(parse_run_at_time_delay(&Value::string("- 2")), Err(_)));
+        assert!(matches!(
+            parse_run_at_time_delay(&Value::string("+")),
+            Err(_)
+        ));
+        assert!(matches!(
+            parse_run_at_time_delay(&Value::string("-")),
+            Err(_)
+        ));
+        assert!(matches!(
+            parse_run_at_time_delay(&Value::string("+ 2")),
+            Err(_)
+        ));
+        assert!(matches!(
+            parse_run_at_time_delay(&Value::string("- 2")),
+            Err(_)
+        ));
         assert!(matches!(
             parse_run_at_time_delay(&Value::string("1 + foo sec")),
             Err(_)

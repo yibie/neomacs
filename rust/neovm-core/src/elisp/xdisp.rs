@@ -581,15 +581,19 @@ mod tests {
             other => panic!("expected wrong-type-argument, got {:?}", other),
         }
 
-        let err =
-            builtin_lookup_image_map(vec![Value::symbol("image"), Value::Int(1), Value::symbol("y")])
-                .unwrap_err();
+        let err = builtin_lookup_image_map(vec![
+            Value::symbol("image"),
+            Value::Int(1),
+            Value::symbol("y"),
+        ])
+        .unwrap_err();
         match err {
             Flow::Signal(sig) => assert_eq!(sig.symbol, "wrong-type-argument"),
             other => panic!("expected wrong-type-argument, got {:?}", other),
         }
 
-        let result = builtin_lookup_image_map(vec![Value::Nil, Value::Int(1), Value::string("y")]).unwrap();
+        let result =
+            builtin_lookup_image_map(vec![Value::Nil, Value::Int(1), Value::string("y")]).unwrap();
         assert!(result.is_nil());
 
         let err = builtin_lookup_image_map(vec![]).unwrap_err();

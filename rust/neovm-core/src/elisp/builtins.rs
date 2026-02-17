@@ -11308,7 +11308,10 @@ mod tests {
         let subr_primitive =
             builtin_symbol_function(&mut eval, vec![Value::symbol("subr-primitive-p")])
                 .expect("symbol-function should resolve subr-primitive-p wrapper");
-        assert!(matches!(subr_primitive, Value::Lambda(_) | Value::ByteCode(_)));
+        assert!(matches!(
+            subr_primitive,
+            Value::Lambda(_) | Value::ByteCode(_)
+        ));
 
         let bookmark_delete =
             builtin_symbol_function(&mut eval, vec![Value::symbol("bookmark-delete")])
