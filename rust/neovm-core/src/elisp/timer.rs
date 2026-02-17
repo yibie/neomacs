@@ -272,9 +272,21 @@ fn parse_run_at_time_delay(value: &Value) -> Result<f64, Flow> {
                 return Ok(delay);
             }
 
-            if let Some(token) = spec.split_whitespace().next() {
-                if let Ok(delay) = token.parse::<f64>() {
-                    return Ok(delay);
+            let tokens: Vec<&str> = spec.split_whitespace().collect();
+            if tokens.len() >= 2 {
+                if let Ok(delay) = tokens[0].parse::<f64>() {
+                    let unit = tokens[1].to_ascii_lowercase();
+                    let factor = match unit.as_str() {
+                        "sec" | "secs" | "second" | "seconds" | "s" => Some(1.0),
+                        "min" | "mins" | "minute" | "minutes" | "m" => Some(60.0),
+                        "hr" | "hrs" | "hour" | "hours" | "h" => Some(3600.0),
+                        "day" | "days" | "d" => Some(86_400.0),
+                        "week" | "weeks" | "w" => Some(604_800.0),
+                        _ => None,
+                    };
+                    if let Some(multiplier) = factor {
+                        return Ok(delay * multiplier);
+                    }
                 }
             }
 
@@ -843,6 +855,30 @@ mod tests {
         )
         .expect("string time spec should be accepted");
         assert!(matches!(from_string, Value::Timer(_)));
+    }
+
+    #[test]
+    fn test_parse_run_at_time_delay_units() {
+        assert_eq!(
+            parse_run_at_time_delay(&Value::string("2 min")).expect("2 min should parse"),
+            120.0
+        );
+        assert_eq!(
+            parse_run_at_time_delay(&Value::string("1.5 hour")).expect("1.5 hour should parse"),
+            5400.0
+        );
+        assert_eq!(
+            parse_run_at_time_delay(&Value::string("3 day")).expect("3 day should parse"),
+            259_200.0
+        );
+        assert_eq!(
+            parse_run_at_time_delay(&Value::string("1 week")).expect("1 week should parse"),
+            604_800.0
+        );
+        assert!(matches!(
+            parse_run_at_time_delay(&Value::string("4 fortnights")),
+            Err(Flow::Signal(sig)) if sig.symbol == "error"
+        ));
     }
 
     #[test]
