@@ -321,11 +321,7 @@ fn format_list_shorthand_bytes_with_eval(
     Some(out)
 }
 
-fn append_cons_bytes_with_eval(
-    eval: &super::eval::Evaluator,
-    value: &Value,
-    out: &mut Vec<u8>,
-) {
+fn append_cons_bytes_with_eval(eval: &super::eval::Evaluator, value: &Value, out: &mut Vec<u8>) {
     let mut cursor = value.clone();
     let mut first = true;
     loop {

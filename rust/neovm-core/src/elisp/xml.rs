@@ -46,6 +46,33 @@ fn expect_max_args(name: &str, args: &[Value], max: usize) -> Result<(), Flow> {
     }
 }
 
+fn expect_optional_string(_name: &str, value: &Value) -> Result<(), Flow> {
+    if value.is_nil() {
+        return Ok(());
+    }
+    if value.as_str().is_none() {
+        Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("stringp"), value.clone()],
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+fn html_parse_fallback(name: &str, args: &[Value]) -> Value {
+    let body = if args.len() <= 1 {
+        Value::string(format!("({name})"))
+    } else {
+        Value::string("(")
+    };
+    Value::list(vec![
+        Value::symbol("html"),
+        Value::Nil,
+        Value::list(vec![Value::symbol("body"), Value::Nil, body]),
+    ])
+}
+
 fn expect_integer_or_marker(value: &Value) -> Result<i64, Flow> {
     match value {
         Value::Int(n) => Ok(*n),
@@ -63,22 +90,32 @@ fn expect_integer_or_marker(value: &Value) -> Result<i64, Flow> {
 // ---------------------------------------------------------------------------
 
 /// (libxml-parse-html-region START END &optional BASE-URL DISCARD-COMMENTS)
-/// Stub: returns nil (libxml not available in pure Rust yet).
+/// Stub: returns a compatibility envelope until libxml parser support lands.
 pub(crate) fn builtin_libxml_parse_html_region(args: Vec<Value>) -> EvalResult {
     expect_min_args("libxml-parse-html-region", &args, 0)?;
     expect_max_args("libxml-parse-html-region", &args, 4)?;
-    if let Some(start) = args.first() {
-        if !start.is_nil() {
-            let _ = expect_integer_or_marker(start)?;
+    if args.len() >= 2 {
+        if args.first().is_some_and(Value::is_nil) {
+            return Ok(Value::Nil);
+        }
+        let start_pos = expect_integer_or_marker(
+            args.first()
+                .expect("libxml-parse-html-region requires a start position here"),
+        )?;
+        if let Some(end) = args.get(1) {
+            if !end.is_nil() {
+                let end_pos = expect_integer_or_marker(end)?;
+                if start_pos == end_pos {
+                    return Ok(Value::Nil);
+                }
+            }
         }
     }
-    if let Some(end) = args.get(1) {
-        if !end.is_nil() {
-            let _ = expect_integer_or_marker(end)?;
-        }
+    if let Some(base_url) = args.get(2) {
+        expect_optional_string("libxml-parse-html-region", base_url)?;
     }
-    // Stub parser path: we intentionally return nil until libxml parser support lands.
-    Ok(Value::Nil)
+    // Stub parser path: return a stable compatibility envelope until libxml support lands.
+    Ok(html_parse_fallback("libxml-parse-html-region", &args))
 }
 
 /// (libxml-parse-xml-region START END &optional BASE-URL DISCARD-COMMENTS)
@@ -95,6 +132,9 @@ pub(crate) fn builtin_libxml_parse_xml_region(args: Vec<Value>) -> EvalResult {
         if !end.is_nil() {
             let _ = expect_integer_or_marker(end)?;
         }
+    }
+    if let Some(base_url) = args.get(2) {
+        expect_optional_string("libxml-parse-xml-region", base_url)?;
     }
     // Stub parser path: we intentionally return nil until libxml parser support lands.
     Ok(Value::Nil)
@@ -196,6 +236,16 @@ mod tests {
             }
             other => panic!("unexpected flow: {other:?}"),
         }
+        let wrong_base =
+            builtin_libxml_parse_xml_region(vec![Value::Int(1), Value::Int(2), Value::Int(1)])
+                .unwrap_err();
+        match wrong_base {
+            Flow::Signal(sig) => {
+                assert_eq!(sig.symbol, "wrong-type-argument");
+                assert_eq!(sig.data, vec![Value::symbol("stringp"), Value::Int(1)]);
+            }
+            other => panic!("unexpected flow: {other:?}"),
+        }
 
         let wrong_arity = builtin_libxml_parse_xml_region(vec![
             Value::Int(1),
@@ -220,8 +270,28 @@ mod tests {
     #[test]
     fn libxml_parse_html_region_arity_and_type_subset() {
         assert_eq!(
+            builtin_libxml_parse_html_region(vec![]).unwrap(),
+            html_parse_fallback("libxml-parse-html-region", &[])
+        );
+        assert_eq!(
+            builtin_libxml_parse_html_region(vec![Value::Int(1)]).unwrap(),
+            html_parse_fallback("libxml-parse-html-region", &[Value::Int(1)])
+        );
+        assert_eq!(
+            builtin_libxml_parse_html_region(vec![Value::Int(1), Value::Nil]).unwrap(),
+            html_parse_fallback("libxml-parse-html-region", &[Value::Int(1), Value::Nil])
+        );
+        assert_eq!(
+            builtin_libxml_parse_html_region(vec![Value::Nil, Value::Int(1)]).unwrap(),
+            Value::Nil
+        );
+        assert_eq!(
             builtin_libxml_parse_html_region(vec![Value::Int(1), Value::Int(1)]).unwrap(),
             Value::Nil
+        );
+        assert_eq!(
+            builtin_libxml_parse_html_region(vec![Value::Int(1), Value::Int(2)]).unwrap(),
+            html_parse_fallback("libxml-parse-html-region", &[Value::Int(1), Value::Int(2)])
         );
 
         let wrong_type =
@@ -233,6 +303,16 @@ mod tests {
                     sig.data,
                     vec![Value::symbol("integer-or-marker-p"), Value::string("x")]
                 );
+            }
+            other => panic!("unexpected flow: {other:?}"),
+        }
+        let wrong_base =
+            builtin_libxml_parse_html_region(vec![Value::Int(1), Value::Int(2), Value::Int(1)])
+                .unwrap_err();
+        match wrong_base {
+            Flow::Signal(sig) => {
+                assert_eq!(sig.symbol, "wrong-type-argument");
+                assert_eq!(sig.data, vec![Value::symbol("stringp"), Value::Int(1)]);
             }
             other => panic!("unexpected flow: {other:?}"),
         }

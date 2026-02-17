@@ -1486,13 +1486,14 @@ mod tests {
     #[test]
     fn read_from_minibuffer_non_character_event_stays_queued_and_signals_end_of_file() {
         let mut ev = Evaluator::new();
-        ev.obarray
-            .set_symbol_value("unread-command-events", Value::list(vec![Value::symbol("foo")]));
+        ev.obarray.set_symbol_value(
+            "unread-command-events",
+            Value::list(vec![Value::symbol("foo")]),
+        );
         let result = builtin_read_from_minibuffer(&mut ev, vec![Value::string("Prompt: ")]);
         assert!(matches!(result, Err(Flow::Signal(sig)) if sig.symbol == "end-of-file"));
         assert_eq!(
-            ev.obarray
-                .symbol_value("unread-command-events"),
+            ev.obarray.symbol_value("unread-command-events"),
             Some(&Value::list(vec![Value::symbol("foo")]))
         );
     }
@@ -1562,13 +1563,14 @@ mod tests {
     #[test]
     fn read_string_non_character_event_stays_queued_and_signals_end_of_file() {
         let mut ev = Evaluator::new();
-        ev.obarray
-            .set_symbol_value("unread-command-events", Value::list(vec![Value::symbol("foo")]));
+        ev.obarray.set_symbol_value(
+            "unread-command-events",
+            Value::list(vec![Value::symbol("foo")]),
+        );
         let result = builtin_read_string(&mut ev, vec![Value::string("Prompt: ")]);
         assert!(matches!(result, Err(Flow::Signal(sig)) if sig.symbol == "end-of-file"));
         assert_eq!(
-            ev.obarray
-                .symbol_value("unread-command-events"),
+            ev.obarray.symbol_value("unread-command-events"),
             Some(&Value::list(vec![Value::symbol("foo")]))
         );
     }
@@ -1634,13 +1636,14 @@ mod tests {
     #[test]
     fn read_number_non_character_event_stays_queued_and_signals_end_of_file() {
         let mut ev = Evaluator::new();
-        ev.obarray
-            .set_symbol_value("unread-command-events", Value::list(vec![Value::symbol("foo")]));
+        ev.obarray.set_symbol_value(
+            "unread-command-events",
+            Value::list(vec![Value::symbol("foo")]),
+        );
         let result = builtin_read_number(&mut ev, vec![Value::string("Number: ")]);
         assert!(matches!(result, Err(Flow::Signal(sig)) if sig.symbol == "end-of-file"));
         assert_eq!(
-            ev.obarray
-                .symbol_value("unread-command-events"),
+            ev.obarray.symbol_value("unread-command-events"),
             Some(&Value::list(vec![Value::symbol("foo")]))
         );
     }
@@ -1715,13 +1718,14 @@ mod tests {
     #[test]
     fn read_passwd_non_character_event_stays_queued_and_signals_end_of_file() {
         let mut ev = Evaluator::new();
-        ev.obarray
-            .set_symbol_value("unread-command-events", Value::list(vec![Value::symbol("foo")]));
+        ev.obarray.set_symbol_value(
+            "unread-command-events",
+            Value::list(vec![Value::symbol("foo")]),
+        );
         let result = builtin_read_passwd(&mut ev, vec![Value::string("Passwd: ")]);
         assert!(matches!(result, Err(Flow::Signal(sig)) if sig.symbol == "end-of-file"));
         assert_eq!(
-            ev.obarray
-                .symbol_value("unread-command-events"),
+            ev.obarray.symbol_value("unread-command-events"),
             Some(&Value::list(vec![Value::symbol("foo")]))
         );
     }
@@ -1778,14 +1782,14 @@ mod tests {
     #[test]
     fn completing_read_non_character_event_stays_queued_and_signals_end_of_file() {
         let mut ev = Evaluator::new();
-        ev.obarray
-            .set_symbol_value("unread-command-events", Value::list(vec![Value::symbol("foo")]));
-        let result =
-            builtin_completing_read(&mut ev, vec![Value::string("Choose: "), Value::Nil]);
+        ev.obarray.set_symbol_value(
+            "unread-command-events",
+            Value::list(vec![Value::symbol("foo")]),
+        );
+        let result = builtin_completing_read(&mut ev, vec![Value::string("Choose: "), Value::Nil]);
         assert!(matches!(result, Err(Flow::Signal(sig)) if sig.symbol == "end-of-file"));
         assert_eq!(
-            ev.obarray
-                .symbol_value("unread-command-events"),
+            ev.obarray.symbol_value("unread-command-events"),
             Some(&Value::list(vec![Value::symbol("foo")]))
         );
     }

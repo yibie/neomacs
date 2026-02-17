@@ -763,7 +763,9 @@ impl Evaluator {
                     _ => false,
                 };
                 return match self.apply(func.clone(), args) {
-                    Err(Flow::Signal(sig)) if sig.symbol == "invalid-function" && !function_is_callable => {
+                    Err(Flow::Signal(sig))
+                        if sig.symbol == "invalid-function" && !function_is_callable =>
+                    {
                         if matches!(func, Value::Symbol(_)) {
                             Err(Flow::Signal(sig))
                         } else {
