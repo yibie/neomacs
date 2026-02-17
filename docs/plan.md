@@ -23,7 +23,7 @@ Last updated: 2026-02-17
 17. [x] Expand `seq`/`alist` matrix for improper argument paths while preserving existing arity lock-ins.
 18. [x] Add regression case for `backtrace-frame` documentation introspection with stale function-cell handles.
 19. [x] Expand `image` stubs with validated `t`/`nil` behavior for optional args.
-20. [ ] Continue reducing image-frame designator edge drift for `image-transforms-p` and related builtins.
+20. [x] Continue reducing image-frame designator edge drift for `image-transforms-p` and related builtins.
 21. [x] Add periodic `make compat-progress` output diff check in PR review templates.
 
 ## Doing
