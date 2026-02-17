@@ -258,6 +258,44 @@
               export WEBKIT_USE_SINGLE_WEB_PROCESS=1
               export PATH="${pkgs.wpewebkit}/libexec/wpe-webkit-2.0:$PATH"
 
+              # X11/Wayland display — preserve from parent env or detect from running session.
+              # nix develop sanitizes env, so DISPLAY/XAUTHORITY may be lost.
+              # Detect them from a running desktop session via /proc/<pid>/environ.
+              _detect_display_env() {
+                local _pid
+                # NixOS wraps binaries, so process names may be e.g. ".kwin_x11-wrapp";
+                # use substring match (no -x flag) to handle this.
+                _pid=$(pgrep -u "$USER" kwin_x11 2>/dev/null | head -1)
+                [ -z "$_pid" ] && _pid=$(pgrep -u "$USER" gnome-shell 2>/dev/null | head -1)
+                [ -z "$_pid" ] && _pid=$(pgrep -u "$USER" Xorg 2>/dev/null | head -1)
+                [ -z "$_pid" ] && _pid=$(pgrep -u "$USER" sway 2>/dev/null | head -1)
+                [ -z "$_pid" ] && _pid=$(pgrep -u "$USER" Hyprland 2>/dev/null | head -1)
+                if [ -n "$_pid" ] && [ -r "/proc/$_pid/environ" ]; then
+                  if [ -z "$DISPLAY" ]; then
+                    DISPLAY=$(tr '\0' '\n' < /proc/$_pid/environ | grep '^DISPLAY=' | head -1 | cut -d= -f2-)
+                    [ -n "$DISPLAY" ] && export DISPLAY
+                  fi
+                  if [ -z "$XAUTHORITY" ] && [ -n "$DISPLAY" ]; then
+                    XAUTHORITY=$(tr '\0' '\n' < /proc/$_pid/environ | grep '^XAUTHORITY=' | head -1 | cut -d= -f2-)
+                    if [ -n "$XAUTHORITY" ] && [ -f "$XAUTHORITY" ]; then
+                      export XAUTHORITY
+                    elif [ -f "$HOME/.Xauthority" ]; then
+                      export XAUTHORITY="$HOME/.Xauthority"
+                    fi
+                  fi
+                  if [ -z "$WAYLAND_DISPLAY" ]; then
+                    WAYLAND_DISPLAY=$(tr '\0' '\n' < /proc/$_pid/environ | grep '^WAYLAND_DISPLAY=' | head -1 | cut -d= -f2-)
+                    [ -n "$WAYLAND_DISPLAY" ] && export WAYLAND_DISPLAY
+                  fi
+                fi
+              }
+              _detect_display_env
+              unset -f _detect_display_env
+
+              if [ -n "$DISPLAY" ]; then
+                echo "Display: DISPLAY=$DISPLAY XAUTHORITY=''${XAUTHORITY:-(unset)}"
+              fi
+
               # Set default log levels (can be overridden before entering nix develop)
               export RUST_LOG="''${RUST_LOG:-info}"
               export NEOMACS_LOG="''${NEOMACS_LOG:-info}"
