@@ -236,7 +236,9 @@ Insert some text into its buffer and return the frame."
   (child-frame-test--cleanup)
   ;; Style: large corner radius, heavy shadow
   (when (fboundp 'neomacs-set-child-frame-style)
-    (neomacs-set-child-frame-style 16 t 8 3 40))
+    (neomacs-set-child-frame-style
+     :corner-radius 16 :shadow t
+     :shadow-layers 8 :shadow-offset 3 :shadow-opacity 40))
   (let ((f (child-frame-test--make-child "styled" 150 100 40 10)))
     (with-selected-frame f
       (insert (propertize "Custom Styled Frame\n" 'face '(:foreground "orchid" :weight bold :height 1.2)))
@@ -284,7 +286,9 @@ Insert some text into its buffer and return the frame."
   (child-frame-test--cleanup)
   ;; Reset style to default
   (when (fboundp 'neomacs-set-child-frame-style)
-    (neomacs-set-child-frame-style 8 t 4 2 30))
+    (neomacs-set-child-frame-style
+     :corner-radius 8 :shadow t
+     :shadow-layers 4 :shadow-offset 2 :shadow-opacity 30))
   (let ((pos (window-absolute-pixel-position)))
     (when pos
       (let ((f (child-frame-test--make-child "tooltip"

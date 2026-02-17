@@ -16533,28 +16533,42 @@ PADDING is the padding around icons in pixels (default 6).  */)
 
 DEFUN ("neomacs-set-child-frame-style",
        Fneomacs_set_child_frame_style,
-       Sneomacs_set_child_frame_style, 0, 5, 0,
-       doc: /* Configure child frame visual style.
-CORNER-RADIUS is pixels for rounded corners (default 8, 0 = square).
-SHADOW-ENABLED non-nil renders a drop shadow behind child frames.
-SHADOW-LAYERS is the number of shadow layers (default 4).
-SHADOW-OFFSET is pixels per shadow layer (default 2).
-SHADOW-OPACITY is a percentage 0-100 (default 30).  */)
-  (Lisp_Object corner_radius, Lisp_Object shadow_enabled,
-   Lisp_Object shadow_layers, Lisp_Object shadow_offset,
-   Lisp_Object shadow_opacity)
+       Sneomacs_set_child_frame_style, 0, MANY, 0,
+       doc: /* Configure child frame visual style with a plist.
+Accepts keyword arguments:
+  :corner-radius PIXELS  Rounded corner radius (default 8, 0 = square).
+  :shadow BOOL           Non-nil renders a drop shadow (default t).
+  :shadow-layers N       Number of shadow layers (default 4).
+  :shadow-offset PIXELS  Pixels per shadow layer (default 2).
+  :shadow-opacity PCT    Shadow opacity 0-100 (default 30).
+
+Example:
+  (neomacs-set-child-frame-style :corner-radius 16 :shadow-opacity 50)
+
+Omitted keys keep their current values.  */)
+  (ptrdiff_t nargs, Lisp_Object *args)
 {
   struct neomacs_display_info *dpyinfo = neomacs_display_list;
   if (!dpyinfo || !dpyinfo->display_handle)
     return Qnil;
 
+  /* Build a plist from the &rest args.  */
+  Lisp_Object plist = Flist (nargs, args);
+
   float cr = 8.0f;
   int se = 1, sl = 4, so = 2, sop = 30;
-  if (FIXNUMP (corner_radius)) cr = (float) XFIXNUM (corner_radius);
-  if (!NILP (shadow_enabled)) se = !NILP (shadow_enabled);
-  if (FIXNUMP (shadow_layers)) sl = XFIXNUM (shadow_layers);
-  if (FIXNUMP (shadow_offset)) so = XFIXNUM (shadow_offset);
-  if (FIXNUMP (shadow_opacity)) sop = XFIXNUM (shadow_opacity);
+
+  Lisp_Object val;
+  val = Fplist_get (plist, QCcorner_radius, Qunbound);
+  if (FIXNUMP (val)) cr = (float) XFIXNUM (val);
+  val = Fplist_get (plist, QCshadow, Qunbound);
+  if (!EQ (val, Qunbound)) se = !NILP (val);
+  val = Fplist_get (plist, QCshadow_layers, Qunbound);
+  if (FIXNUMP (val)) sl = XFIXNUM (val);
+  val = Fplist_get (plist, QCshadow_offset, Qunbound);
+  if (FIXNUMP (val)) so = XFIXNUM (val);
+  val = Fplist_get (plist, QCshadow_opacity, Qunbound);
+  if (FIXNUMP (val)) sop = XFIXNUM (val);
 
   neomacs_display_set_child_frame_style (
     dpyinfo->display_handle, cr, se, sl,
@@ -16818,6 +16832,11 @@ syms_of_neomacsterm (void)
   DEFSYM (QCid, ":id");
   DEFSYM (QCloop_count, ":loop-count");
   DEFSYM (QCautoplay, ":autoplay");
+  DEFSYM (QCcorner_radius, ":corner-radius");
+  DEFSYM (QCshadow, ":shadow");
+  DEFSYM (QCshadow_layers, ":shadow-layers");
+  DEFSYM (QCshadow_offset, ":shadow-offset");
+  DEFSYM (QCshadow_opacity, ":shadow-opacity");
 
   /* Cursor animation style symbols */
   DEFSYM (Qexponential, "exponential");
