@@ -333,7 +333,7 @@ mod tests {
     }
 
     #[test]
-    fn hash_table_rehash_custom_values_and_validation() {
+    fn hash_table_rehash_options_are_ignored() {
         let table = builtin_make_hash_table(vec![
             Value::keyword(":rehash-size"),
             Value::Float(2.0),
@@ -345,22 +345,26 @@ mod tests {
         let size = builtin_hash_table_rehash_size(vec![table.clone()]).unwrap();
         let threshold = builtin_hash_table_rehash_threshold(vec![table]).unwrap();
 
-        assert_eq!(size, Value::Float(2.0));
-        assert_eq!(threshold, Value::Float(0.9));
+        assert_eq!(size, Value::Float(1.5));
+        assert_eq!(threshold, Value::Float(0.8125));
 
         assert!(
-            builtin_make_hash_table(vec![Value::keyword(":rehash-size"), Value::string("x")])
-                .is_err()
+            builtin_make_hash_table(vec![
+                Value::keyword(":rehash-size"),
+                Value::string("x"),
+                Value::keyword(":rehash-threshold"),
+                Value::Float(1.5),
+            ])
+            .is_ok()
         );
-        assert!(builtin_make_hash_table(vec![
-            Value::keyword(":rehash-threshold"),
-            Value::string("x")
-        ])
-        .is_err());
-        assert!(builtin_make_hash_table(vec![
-            Value::keyword(":rehash-threshold"),
-            Value::Float(1.5)
-        ])
-        .is_err());
+        assert!(
+            builtin_make_hash_table(vec![
+                Value::keyword(":rehash-threshold"),
+                Value::string("x"),
+                Value::keyword(":rehash-size"),
+                Value::Float(1.5),
+            ])
+            .is_ok()
+        );
     }
 }

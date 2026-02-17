@@ -1878,20 +1878,11 @@ pub(crate) fn builtin_make_hash_table(args: Vec<Value>) -> EvalResult {
     let mut test = HashTableTest::Eql;
     let mut size: i64 = 0;
     let mut weakness: Option<HashTableWeakness> = None;
-    let mut rehash_size: f64 = 1.5;
-    let mut rehash_threshold: f64 = 0.8125;
     let mut seen_test = false;
     let mut seen_size = false;
     let mut seen_weakness = false;
     let mut seen_rehash_size = false;
     let mut seen_rehash_threshold = false;
-
-    fn is_known_hash_table_option(name: &str) -> bool {
-        matches!(
-            name,
-            ":test" | ":size" | ":weakness" | ":rehash-size" | ":rehash-threshold"
-        )
-    }
 
     let mut i = 0;
     while i < args.len() {
@@ -1999,31 +1990,17 @@ pub(crate) fn builtin_make_hash_table(args: Vec<Value>) -> EvalResult {
                     return Err(invalid_hash_table_argument_list(args[i].clone()));
                 }
                 seen_rehash_size = true;
-                // GNU Emacs tolerates missing values for these options.
-                // If the following token is another known option keyword,
-                // treat this option as value-less and continue parsing.
                 if i + 1 >= args.len() {
-                    rehash_size = 1.5;
                     i += 1;
-                } else if matches!(&args[i + 1], Value::Keyword(next) if is_known_hash_table_option(next))
-                {
-                    rehash_size = 1.5;
+                } else if matches!(
+                    &args[i + 1],
+                    Value::Keyword(option) if matches!(
+                        option.as_str(),
+                        ":test" | ":size" | ":weakness" | ":rehash-size" | ":rehash-threshold"
+                    )
+                ) {
                     i += 1;
                 } else {
-                    match args.get(i + 1) {
-                        Some(Value::Int(value)) if *value > 0 => rehash_size = *value as f64,
-                        Some(Value::Float(value)) if *value > 0.0 => rehash_size = *value,
-                        Some(value) => {
-                            return Err(signal(
-                                "error",
-                                vec![
-                                    Value::string("Invalid hash table rehash size"),
-                                    value.clone(),
-                                ],
-                            ));
-                        }
-                        None => rehash_size = 1.5,
-                    }
                     i += 2;
                 }
                 continue;
@@ -2034,31 +2011,16 @@ pub(crate) fn builtin_make_hash_table(args: Vec<Value>) -> EvalResult {
                 }
                 seen_rehash_threshold = true;
                 if i + 1 >= args.len() {
-                    rehash_threshold = 0.8125;
                     i += 1;
-                } else if matches!(&args[i + 1], Value::Keyword(next) if is_known_hash_table_option(next))
-                {
-                    rehash_threshold = 0.8125;
+                } else if matches!(
+                    &args[i + 1],
+                    Value::Keyword(option) if matches!(
+                        option.as_str(),
+                        ":test" | ":size" | ":weakness" | ":rehash-size" | ":rehash-threshold"
+                    )
+                ) {
                     i += 1;
                 } else {
-                    match args.get(i + 1) {
-                        Some(Value::Int(value)) if *value > 0 && *value < 1 => {
-                            rehash_threshold = *value as f64
-                        }
-                        Some(Value::Float(value)) if *value > 0.0 && *value < 1.0 => {
-                            rehash_threshold = *value
-                        }
-                        Some(value) => {
-                            return Err(signal(
-                                "error",
-                                vec![
-                                    Value::string("Invalid hash table rehash threshold"),
-                                    value.clone(),
-                                ],
-                            ));
-                        }
-                        None => rehash_threshold = 0.8125,
-                    }
                     i += 2;
                 }
                 continue;
@@ -2070,8 +2032,8 @@ pub(crate) fn builtin_make_hash_table(args: Vec<Value>) -> EvalResult {
         test,
         size,
         weakness,
-        rehash_size,
-        rehash_threshold,
+        1.5,
+        0.8125,
     ))
 }
 
