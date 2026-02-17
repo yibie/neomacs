@@ -516,7 +516,8 @@ pub(crate) fn builtin_font_family_list_eval(
     Ok(Value::Nil)
 }
 
-/// `(font-xlfd-name FONT &optional FOLD-WILDCARDS)` -- stub, return "*".
+/// `(font-xlfd-name FONT &optional FOLD-WILDCARDS)` -- render font-spec fields
+/// into an XLFD string; wildcard folding is supported in compatibility mode.
 pub(crate) fn builtin_font_xlfd_name(args: Vec<Value>) -> EvalResult {
     expect_min_args("font-xlfd-name", &args, 1)?;
     expect_max_args("font-xlfd-name", &args, 3)?;
