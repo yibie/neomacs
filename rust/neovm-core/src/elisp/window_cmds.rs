@@ -609,16 +609,32 @@ pub(crate) fn builtin_get_buffer_window_list(
 }
 
 /// `(fit-window-to-buffer &optional WINDOW MAX-HEIGHT MIN-HEIGHT MAX-WIDTH PRESERVE-SIZE)`
-/// -> WINDOW.
+/// -> nil in current batch compatibility mode.
 ///
-/// Batch-compatible no-op: validates WINDOW when provided and returns it.
+/// Batch-compatible no-op: validates WINDOW and returns nil.
+/// GNU Emacs signals generic `error` for invalid/deleted designators here.
 pub(crate) fn builtin_fit_window_to_buffer(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
     expect_max_args("fit-window-to-buffer", &args, 6)?;
-    let (_fid, wid) = resolve_window_id(eval, args.first())?;
-    Ok(Value::Int(wid.0 as i64))
+    let wid = match args.first() {
+        None | Some(Value::Nil) => {
+            let (_, wid) = resolve_window_id(eval, None)?;
+            wid
+        }
+        Some(Value::Int(n)) => {
+            let wid = WindowId(*n as u64);
+            if eval.frames.find_window_frame_id(wid).is_some() {
+                wid
+            } else {
+                return Err(signal("error", vec![Value::string("Invalid window")]));
+            }
+        }
+        Some(_) => return Err(signal("error", vec![Value::string("Invalid window")])),
+    };
+    let _ = wid;
+    Ok(Value::Nil)
 }
 
 /// `(window-dedicated-p &optional WINDOW)` -> t or nil.
@@ -1758,9 +1774,23 @@ mod tests {
     }
 
     #[test]
-    fn fit_window_to_buffer_returns_window_id() {
-        let result = eval_one_with_frame("(windowp (fit-window-to-buffer))");
-        assert_eq!(result, "OK t");
+    fn fit_window_to_buffer_returns_nil_in_batch_mode() {
+        let result = eval_one_with_frame("(fit-window-to-buffer)");
+        assert_eq!(result, "OK nil");
+    }
+
+    #[test]
+    fn fit_window_to_buffer_invalid_window_designators_signal_error() {
+        let results = eval_with_frame(
+            "(condition-case err (fit-window-to-buffer 999999) (error (car err)))
+             (condition-case err (fit-window-to-buffer 'foo) (error (car err)))
+             (let ((w (split-window)))
+               (delete-window w)
+               (condition-case err (fit-window-to-buffer w) (error (car err))))",
+        );
+        assert_eq!(results[0], "OK error");
+        assert_eq!(results[1], "OK error");
+        assert_eq!(results[2], "OK error");
     }
 
     #[test]

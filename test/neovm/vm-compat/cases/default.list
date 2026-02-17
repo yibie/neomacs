@@ -413,6 +413,7 @@ cases/delete-window-current-buffer-semantics
 cases/delete-other-windows-current-buffer-semantics
 cases/delete-window-arity-semantics
 cases/split-window-arity-semantics
+cases/fit-window-to-buffer-designator-semantics
 cases/other-window-arity-semantics
 cases/window-accessor-arity-semantics
 cases/next-previous-window-arity-semantics
