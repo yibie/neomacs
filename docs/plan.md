@@ -44,6 +44,14 @@ Last updated: 2026-02-17
   - Validated with targeted `check-neovm` and full
     `make -C test/neovm/vm-compat check-all-neovm`.
 
+- Completed focused invalid-event reader dispatch lock-in slice:
+  - Added `cases/read-invalid-event-dispatch-semantics` covering
+    `read-char`, `read-char-exclusive`, `read-key`,
+    `read-key-sequence`, `read-key-sequence-vector`, and `read-event`
+    queue-tail behavior on symbol-head input.
+  - Added case to `cases/default.list` and validated with Oracle +
+    `check-neovm`.
+
 - Completed input queue-edge lock-in slice for list-event tails and queue-empty behavior:
   - Added `cases/read-event-empty-queue-semantics`.
   - Added `cases/read-event-list-tail-semantics`,
