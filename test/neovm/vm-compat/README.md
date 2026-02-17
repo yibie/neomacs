@@ -94,6 +94,13 @@ cd test/neovm/vm-compat
 make compat-stub-index
 ```
 
+You can also emit JSON when you want machine-readable snapshots for dashboards:
+
+```bash
+cd test/neovm/vm-compat
+make compat-stub-index-json
+```
+
 Run any case list file directly (avoids passing very long `CASES=...` values):
 
 ```bash
