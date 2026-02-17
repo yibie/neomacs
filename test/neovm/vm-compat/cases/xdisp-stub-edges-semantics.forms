@@ -31,6 +31,7 @@
 (fboundp 'move-to-window-line)
 (move-to-window-line 1)
 (move-to-window-line nil)
+(move-to-window-line 'x)
 (condition-case err (move-to-window-line) (error (car err)))
 
 (fboundp 'tool-bar-height)
