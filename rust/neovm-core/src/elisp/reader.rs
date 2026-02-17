@@ -1936,6 +1936,35 @@ mod tests {
     }
 
     #[test]
+    fn y_or_n_p_consumes_unread_event_yes() {
+        let mut ev = Evaluator::new();
+        ev.obarray
+            .set_symbol_value("unread-command-events", Value::list(vec![Value::Int(121)]));
+        let result = builtin_y_or_n_p(&mut ev, vec![Value::string("Continue? ")]);
+        assert_eq!(result.unwrap(), Value::True);
+        assert_eq!(ev.obarray.symbol_value("unread-command-events"), Some(&Value::Nil));
+    }
+
+    #[test]
+    fn y_or_n_p_consumes_unread_event_no() {
+        let mut ev = Evaluator::new();
+        ev.obarray
+            .set_symbol_value("unread-command-events", Value::list(vec![Value::Int(110)]));
+        let result = builtin_y_or_n_p(&mut ev, vec![Value::string("Continue? ")]);
+        assert_eq!(result.unwrap(), Value::Nil);
+        assert_eq!(ev.obarray.symbol_value("unread-command-events"), Some(&Value::Nil));
+    }
+
+    #[test]
+    fn y_or_n_p_rejects_invalid_character_event() {
+        let mut ev = Evaluator::new();
+        ev.obarray
+            .set_symbol_value("unread-command-events", Value::list(vec![Value::Int(48)]));
+        let result = builtin_y_or_n_p(&mut ev, vec![Value::string("Continue? ")]);
+        assert!(matches!(result, Err(Flow::Signal(sig)) if sig.symbol == "error"));
+    }
+
+    #[test]
     fn yes_or_no_p_signals_end_of_file() {
         let mut ev = Evaluator::new();
         let result = builtin_yes_or_no_p(&mut ev, vec![Value::string("Confirm? ")]);
@@ -1957,6 +1986,35 @@ mod tests {
             result,
             Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"
         ));
+    }
+
+    #[test]
+    fn yes_or_no_p_consumes_unread_event_yes() {
+        let mut ev = Evaluator::new();
+        ev.obarray
+            .set_symbol_value("unread-command-events", Value::list(vec![Value::Int(89)]));
+        let result = builtin_yes_or_no_p(&mut ev, vec![Value::string("Confirm? ")]);
+        assert_eq!(result.unwrap(), Value::True);
+        assert_eq!(ev.obarray.symbol_value("unread-command-events"), Some(&Value::Nil));
+    }
+
+    #[test]
+    fn yes_or_no_p_consumes_unread_event_no() {
+        let mut ev = Evaluator::new();
+        ev.obarray
+            .set_symbol_value("unread-command-events", Value::list(vec![Value::Int(110)]));
+        let result = builtin_yes_or_no_p(&mut ev, vec![Value::string("Confirm? ")]);
+        assert_eq!(result.unwrap(), Value::Nil);
+        assert_eq!(ev.obarray.symbol_value("unread-command-events"), Some(&Value::Nil));
+    }
+
+    #[test]
+    fn yes_or_no_p_rejects_invalid_character_event() {
+        let mut ev = Evaluator::new();
+        ev.obarray
+            .set_symbol_value("unread-command-events", Value::list(vec![Value::Int(48)]));
+        let result = builtin_yes_or_no_p(&mut ev, vec![Value::string("Confirm? ")]);
+        assert!(matches!(result, Err(Flow::Signal(sig)) if sig.symbol == "error"));
     }
 
     #[test]
