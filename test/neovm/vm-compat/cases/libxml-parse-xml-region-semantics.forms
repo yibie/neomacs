@@ -1,4 +1,5 @@
 (condition-case err (libxml-parse-xml-region) (error err))
+(condition-case err (libxml-parse-xml-region nil) (error err))
 (condition-case err (libxml-parse-xml-region 1) (error err))
 (condition-case err (libxml-parse-xml-region 1 1) (error err))
 (condition-case err (libxml-parse-xml-region 1 1 nil) (error err))
