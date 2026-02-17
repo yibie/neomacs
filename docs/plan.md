@@ -28,6 +28,22 @@ Last updated: 2026-02-17
 
 ## Doing
 
+- Completed command-dispatch `KEYS` argument parity slice:
+  - Updated `rust/neovm-core/src/elisp/interactive.rs` so
+    `command-execute` and `call-interactively` now reject non-vector
+    `KEYS` arguments with `(wrong-type-argument vectorp VALUE)`, matching
+    Oracle batch behavior.
+  - Added evaluator unit tests for accepted/rejected `KEYS` paths.
+  - Added `cases/command-keys-arg-semantics` and validated with Oracle +
+    `check-neovm`.
+
+- Completed command-dispatch/recent-keys batch lock-in slice:
+  - Added `cases/command-keys-recent-keys-semantics` to assert current
+    batch behavior for `KEYS` vectors against `recent-keys` and
+    `this-command-keys` inside interactive commands.
+  - Validated with targeted `check-neovm` and full
+    `make -C test/neovm/vm-compat check-all-neovm`.
+
 - Completed input queue-edge lock-in slice for list-event tails and queue-empty behavior:
   - Added `cases/read-event-empty-queue-semantics`.
   - Added `cases/read-event-list-tail-semantics`,
