@@ -8751,6 +8751,7 @@ pub(crate) fn dispatch_builtin(
         "match-data" => super::search::builtin_match_data(args),
         "set-match-data" => super::search::builtin_set_match_data(args),
         "looking-at" => super::search::builtin_looking_at(args),
+        "looking-at-p" => super::search::builtin_looking_at_p(args),
         "replace-regexp-in-string" => super::search::builtin_replace_regexp_in_string(args),
 
         // Lread (pure)
