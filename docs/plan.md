@@ -205,6 +205,10 @@ Last updated: 2026-02-17
   - Updated `windowp` to keep deleted windows as valid stale window objects while `window-live-p` reports `nil`.
   - Updated `window-buffer` to return `nil` for deleted window handles instead of signaling `wrong-type-argument`.
   - Added `cases/window-stale-object-semantics` and validated with targeted checks plus full `check-all-neovm`.
+- Completed `fit-window-to-buffer` batch parity slice:
+  - Updated `fit-window-to-buffer` to return `nil` in batch mode for valid designators.
+  - Updated invalid/stale designator handling to signal generic `error`, matching Oracle behavior.
+  - Added `cases/fit-window-to-buffer-designator-semantics` and validated with targeted checks plus full `check-all-neovm`.
 - Keep `display-tty-x-helper` edge-lock-ins aligned with oracle for `x-open-connection`/`x-close-connection` type errors and nil/`1` paths.
 
 ## Next
