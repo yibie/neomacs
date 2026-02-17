@@ -428,8 +428,25 @@ fn builtin_replace_regexp_in_string_with_case_fold(
     let s = expect_string(&args[2])?;
     let fixedcase = args.get(3).is_some_and(|v| v.is_truthy());
     let literal = args.get(4).is_some_and(|v| v.is_truthy());
-    let _subexp = args.get(5);
-    let start = normalize_string_start_arg(&s, args.get(6))?;
+
+    let (subexp, start) = if args.len() == 7 {
+        (Some(&args[5]), args.get(6))
+    } else {
+        (None, args.get(5))
+    };
+
+    let subexp = match subexp {
+        Some(Value::Nil) | None => 0,
+        Some(value) => expect_int(value)?,
+    };
+    if subexp < 0 {
+        return Err(signal(
+            "args-out-of-range",
+            vec![Value::Int(subexp), Value::Int(0), Value::Int(s.len() as i64)],
+        ));
+    }
+
+    let start = normalize_string_start_arg(&s, start)?;
 
     let translated = super::regex::translate_emacs_regex(&pattern);
     let rust_pattern = if case_fold {
@@ -440,21 +457,50 @@ fn builtin_replace_regexp_in_string_with_case_fold(
     let re = regex::Regex::new(&rust_pattern)
         .map_err(|e| signal("invalid-regexp", vec![Value::string(e.to_string())]))?;
 
-    let search_region = &s[start..];
-    let replaced = re
-        .replace_all(search_region, |caps: &regex::Captures<'_>| {
-            let base = expand_emacs_replacement(&rep, caps, literal);
-            if fixedcase {
-                base
-            } else if let Some(m) = caps.get(0) {
-                preserve_case(&base, m.as_str())
-            } else {
-                base
-            }
-        })
-        .into_owned();
+    let max_subexp = re.captures_len().saturating_sub(1);
+    if (subexp as usize) > max_subexp {
+        return Err(signal(
+            "error",
+            vec![
+                Value::string("replace-match subexpression does not exist"),
+                Value::Int(subexp),
+            ],
+        ));
+    }
 
-    Ok(Value::string(replaced))
+    let search_region = &s[start..];
+    let mut out = String::with_capacity(search_region.len());
+    let mut cursor = 0usize;
+
+    for caps in re.captures_iter(search_region) {
+        let full_match = match caps.get(0) {
+            Some(m) => m,
+            None => continue,
+        };
+
+        let (replace_start, replace_end, case_source) = if subexp == 0 {
+            let src = full_match.as_str();
+            (full_match.start(), full_match.end(), src)
+        } else if let Some(g) = caps.get(subexp as usize) {
+            let src = g.as_str();
+            (g.start(), g.end(), src)
+        } else {
+            (full_match.end(), full_match.end(), "")
+        };
+
+        out.push_str(&search_region[cursor..replace_start]);
+        let base = expand_emacs_replacement(&rep, &caps, literal);
+        let replacement = if fixedcase {
+            base
+        } else {
+            preserve_case(&base, case_source)
+        };
+        out.push_str(&replacement);
+        cursor = replace_end;
+    }
+
+    out.push_str(&search_region[cursor..]);
+    Ok(Value::string(out))
 }
 
 fn dynamic_or_global_symbol_value(eval: &super::eval::Evaluator, name: &str) -> Option<Value> {
@@ -736,6 +782,33 @@ mod tests {
             Value::Int(4), // start
         ]);
         assert_str(result.unwrap(), "X X");
+    }
+
+    #[test]
+    fn replace_regexp_with_start_no_subexp() {
+        let result = builtin_replace_regexp_in_string(vec![
+            Value::string("[0-9]+"),
+            Value::string("X"),
+            Value::string("111 222 333"),
+            Value::Nil,    // fixedcase
+            Value::Nil,    // literal
+            Value::Int(4), // start
+        ]);
+        assert_str(result.unwrap(), "X X");
+    }
+
+    #[test]
+    fn replace_regexp_subexp() {
+        let result = builtin_replace_regexp_in_string(vec![
+            Value::string("\\([a-z]+\\)-\\([0-9]+\\)"),
+            Value::string("N"),
+            Value::string("aaa-111 bbb-222"),
+            Value::Nil, // fixedcase
+            Value::Nil, // literal
+            Value::Int(1),
+            Value::Nil, // start
+        ]);
+        assert_str(result.unwrap(), "N-111 N-222");
     }
 
     #[test]
