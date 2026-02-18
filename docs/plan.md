@@ -28,6 +28,15 @@ Last updated: 2026-02-18
 
 ## Doing
 
+- Expanded `read-char` symbol tail lock-ins with middle-char payload:
+  - oracle corpus changes:
+    - `test/neovm/vm-compat/cases/read-char-symbol-tail-semantics.forms`
+    - `test/neovm/vm-compat/cases/read-char-symbol-tail-semantics.expected.tsv`
+    - added middle-char probe `(list 'foo 98 'bar)`.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/read-char-symbol-tail-semantics` (pass, 3/3)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+
 - Expanded `read-event` list tail lock-ins with alternate middle-char payload:
   - oracle corpus changes:
     - `test/neovm/vm-compat/cases/read-event-list-tail-semantics.forms`
