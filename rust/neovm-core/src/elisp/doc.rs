@@ -234,14 +234,37 @@ pub(crate) fn builtin_documentation_property(args: Vec<Value>) -> EvalResult {
 /// contains docstrings for all built-in functions and variables.
 pub(crate) fn builtin_snarf_documentation(args: Vec<Value>) -> EvalResult {
     expect_args("Snarf-documentation", &args, 1)?;
-    // Validate that the argument is a string.
-    if !args[0].is_string() {
+    let filename = match args[0].as_str() {
+        Some(name) => name,
+        None => {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("stringp"), args[0].clone()],
+            ));
+        }
+    };
+
+    // In batch compatibility mode, allow the canonical DOC token while
+    // preserving observable error classes for invalid/missing names.
+    if filename == "DOC" {
+        return Ok(Value::Nil);
+    }
+
+    if filename.is_empty() || filename.ends_with('/') {
         return Err(signal(
-            "wrong-type-argument",
-            vec![Value::symbol("stringp"), args[0].clone()],
+            "error",
+            vec![Value::string("DOC file invalid at position 0")],
         ));
     }
-    Ok(Value::Nil)
+
+    Err(signal(
+        "file-missing",
+        vec![
+            Value::string("Opening doc string file"),
+            Value::string("No such file or directory"),
+            Value::string(format!("/usr/share/emacs/etc/{filename}")),
+        ],
+    ))
 }
 
 /// `(substitute-command-keys STRING)` -- process special documentation
@@ -764,6 +787,18 @@ mod tests {
     #[test]
     fn snarf_documentation_wrong_type() {
         let result = builtin_snarf_documentation(vec![Value::Int(42)]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn snarf_documentation_empty_path_errors() {
+        let result = builtin_snarf_documentation(vec![Value::string("")]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn snarf_documentation_missing_path_errors() {
+        let result = builtin_snarf_documentation(vec![Value::string("NO_SUCH_DOC_FILE")]);
         assert!(result.is_err());
     }
 

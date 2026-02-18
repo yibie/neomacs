@@ -37,6 +37,7 @@ cases/symbol-obarray-subr-arity-semantics
 cases/functionp-callable-matrix
 cases/documentation-property-semantics
 cases/documentation-semantics
+cases/snarf-documentation-runtime-semantics
 cases/doc-helper-arity-semantics
 cases/doc-helper-subr-arity-semantics
 cases/ccl-arity-semantics
