@@ -112,22 +112,20 @@ pub(crate) fn builtin_describe_function(
         }
     };
 
-    // Look up the function cell.
-    let func_val = eval.obarray.indirect_function(&name);
+    // Reuse symbol-function resolution so builtins and wrapper-backed callables
+    // are visible here even when not explicitly interned in the function cell.
+    let func_val =
+        super::builtins::builtin_symbol_function(eval, vec![Value::symbol(name.clone())])?;
+    if func_val.is_nil() {
+        return Err(signal("void-function", vec![Value::symbol(&name)]));
+    }
 
     let description = match func_val {
-        Some(Value::Lambda(_)) => "Lisp function",
-        Some(Value::Macro(_)) => "Lisp macro",
-        Some(Value::Subr(_)) => "Built-in function",
-        Some(Value::ByteCode(_)) => "Compiled Lisp function",
-        Some(_) => "Lisp function",
-        None => {
-            if eval.obarray.fboundp(&name) {
-                "Lisp function"
-            } else {
-                return Err(signal("void-function", vec![Value::symbol(&name)]));
-            }
-        }
+        Value::Lambda(_) => "Lisp function",
+        Value::Macro(_) => "Lisp macro",
+        Value::Subr(_) => "Built-in function",
+        Value::ByteCode(_) => "Compiled Lisp function",
+        _ => "Lisp function",
     };
 
     Ok(Value::string(description))
@@ -1098,6 +1096,14 @@ mod tests {
             .set_symbol_function("plus", Value::Subr("+".to_string()));
 
         let result = builtin_describe_function(&mut evaluator, vec![Value::symbol("plus")]);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().as_str(), Some("Built-in function"));
+    }
+
+    #[test]
+    fn describe_function_resolves_builtin_name() {
+        let mut evaluator = super::super::eval::Evaluator::new();
+        let result = builtin_describe_function(&mut evaluator, vec![Value::symbol("car")]);
         assert!(result.is_ok());
         assert_eq!(result.unwrap().as_str(), Some("Built-in function"));
     }
