@@ -1382,11 +1382,13 @@ impl LayoutEngine {
                                 let gx = content_x + x_offset;
                                 let gy = row_y[row as usize];
                                 let stretch_w = target_x - x_offset;
-                                Self::add_stretch_for_face(
-                                    &self.face_data, frame_glyphs,
-                                    gx, gy, stretch_w, char_h,
-                                    face_bg, self.face_data.face_id, false,
-                                );
+                                // Use overlay face run's bg for the stretch, not the buffer
+                                // position's face_bg.  This matches official Emacs where
+                                // overlay string stretches use face_for_overlay_string (base=
+                                // DEFAULT_FACE_ID) merged with the string's text property face,
+                                // NOT the buffer's overlay face (e.g. minibuffer-prompt).
+                                let stretch_bg = overlay_run_bg_at(&before_face_runs, bi, default_bg);
+                                frame_glyphs.add_stretch(gx, gy, stretch_w, char_h, stretch_bg, 0, false);
                                 col = before_align_entries[bcurrent_align].align_to_cols.ceil() as i32;
                                 x_offset = target_x;
                             }
@@ -2937,11 +2939,10 @@ impl LayoutEngine {
                             let gx = content_x + x_offset;
                             let gy = row_y[row as usize];
                             let stretch_w = target_x - x_offset;
-                            Self::add_stretch_for_face(
-                                &self.face_data, frame_glyphs,
-                                gx, gy, stretch_w, char_h,
-                                face_bg, self.face_data.face_id, false,
-                            );
+                            // Use overlay face run's bg, not buffer position's face_bg.
+                            // See before-string comment for rationale.
+                            let stretch_bg = overlay_run_bg_at(&after_face_runs, ai, default_bg);
+                            frame_glyphs.add_stretch(gx, gy, stretch_w, char_h, stretch_bg, 0, false);
                             col = after_align_entries[acurrent_align].align_to_cols.ceil() as i32;
                             x_offset = target_x;
                         }
@@ -3155,11 +3156,8 @@ impl LayoutEngine {
                             let gx = content_x + x_offset;
                             let gy = row_y[row as usize];
                             let stretch_w = target_x - x_offset;
-                            Self::add_stretch_for_face(
-                                &self.face_data, frame_glyphs,
-                                gx, gy, stretch_w, char_h,
-                                face_bg, self.face_data.face_id, false,
-                            );
+                            let stretch_bg = overlay_run_bg_at(&eob_before_face_runs, bi, default_bg);
+                            frame_glyphs.add_stretch(gx, gy, stretch_w, char_h, stretch_bg, 0, false);
                             col = eob_before_align_entries[eob_bcurrent_align].align_to_cols.ceil() as i32;
                             x_offset = target_x;
                         }
@@ -3255,11 +3253,8 @@ impl LayoutEngine {
                             let gx = content_x + x_offset;
                             let gy = row_y[row as usize];
                             let stretch_w = target_x - x_offset;
-                            Self::add_stretch_for_face(
-                                &self.face_data, frame_glyphs,
-                                gx, gy, stretch_w, char_h,
-                                face_bg, self.face_data.face_id, false,
-                            );
+                            let stretch_bg = overlay_run_bg_at(&eob_after_face_runs, ai, default_bg);
+                            frame_glyphs.add_stretch(gx, gy, stretch_w, char_h, stretch_bg, 0, false);
                             col = eob_after_align_entries[eob_acurrent_align].align_to_cols.ceil() as i32;
                             x_offset = target_x;
                         }

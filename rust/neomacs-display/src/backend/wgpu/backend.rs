@@ -88,6 +88,8 @@ pub struct WinitBackend {
     cursor_position: (f64, f64),
     /// The wgpu instance for creating surfaces.
     instance: Option<wgpu::Instance>,
+    /// The wgpu adapter for querying surface capabilities.
+    adapter: Option<wgpu::Adapter>,
     /// The wgpu device for GPU operations.
     device: Option<Arc<wgpu::Device>>,
     /// The wgpu queue for GPU operations.
@@ -132,6 +134,7 @@ impl WinitBackend {
             callbacks: Callbacks::default(),
             cursor_position: (0.0, 0.0),
             instance: None,
+            adapter: None,
             device: None,
             queue: None,
             surface_format: wgpu::TextureFormat::Bgra8UnormSrgb,
@@ -199,6 +202,7 @@ impl WinitBackend {
         };
 
         self.instance = Some(instance);
+        self.adapter = Some(adapter);
         self.device = Some(device.clone());
         self.queue = Some(queue.clone());
         self.surface_format = format;
@@ -259,13 +263,19 @@ impl WinitBackend {
                     if let (Some(instance), Some(device)) = (&self.instance, &self.device) {
                         match instance.create_surface(window.clone()) {
                             Ok(surface) => {
+                                let caps = surface.get_capabilities(&self.adapter.as_ref().unwrap_or_else(|| unreachable!()));
+                                let alpha_mode = if caps.alpha_modes.contains(&wgpu::CompositeAlphaMode::PreMultiplied) {
+                                    wgpu::CompositeAlphaMode::PreMultiplied
+                                } else {
+                                    caps.alpha_modes[0]
+                                };
                                 let config = wgpu::SurfaceConfiguration {
                                     usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
                                     format: self.surface_format,
                                     width: req.width,
                                     height: req.height,
                                     present_mode: wgpu::PresentMode::Fifo,
-                                    alpha_mode: wgpu::CompositeAlphaMode::Opaque,
+                                    alpha_mode,
                                     view_formats: vec![],
                                     desired_maximum_frame_latency: 2,
                                 };
@@ -364,13 +374,18 @@ impl WinitBackend {
             .find(|f| f.is_srgb())
             .unwrap_or(caps.formats[0]);
 
+        let alpha_mode = if caps.alpha_modes.contains(&wgpu::CompositeAlphaMode::PreMultiplied) {
+            wgpu::CompositeAlphaMode::PreMultiplied
+        } else {
+            caps.alpha_modes[0]
+        };
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format,
             width: self.width,
             height: self.height,
             present_mode: wgpu::PresentMode::Fifo, // VSync
-            alpha_mode: caps.alpha_modes[0],
+            alpha_mode,
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
         };
@@ -386,6 +401,7 @@ impl WinitBackend {
 
         // Store the wgpu infrastructure for multi-window support
         self.instance = Some(instance);
+        self.adapter = Some(adapter);
         self.device = Some(device.clone());
         self.surface_format = format;
 
@@ -570,13 +586,20 @@ impl WinitBackend {
         let device = self.device.as_ref()?;
 
         let surface = instance.create_surface(window.clone()).ok()?;
+        let adapter = self.adapter.as_ref()?;
+        let caps = surface.get_capabilities(adapter);
+        let alpha_mode = if caps.alpha_modes.contains(&wgpu::CompositeAlphaMode::PreMultiplied) {
+            wgpu::CompositeAlphaMode::PreMultiplied
+        } else {
+            caps.alpha_modes[0]
+        };
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: self.surface_format,
             width,
             height,
             present_mode: wgpu::PresentMode::Fifo,
-            alpha_mode: wgpu::CompositeAlphaMode::Opaque,
+            alpha_mode,
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
         };

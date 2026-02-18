@@ -63,6 +63,30 @@ pub(crate) fn parse_overlay_align_entries(buf: &[u8], text_len: usize, nruns: i3
     entries
 }
 
+/// Get the background color from the overlay face run covering the given byte index.
+/// Returns the run's bg color if it has one, otherwise returns `fallback`.
+/// This is used for align-to stretches within overlay strings to avoid
+/// inheriting the buffer position's face (e.g., minibuffer-prompt).
+pub(crate) fn overlay_run_bg_at(
+    runs: &[OverlayFaceRun],
+    byte_idx: usize,
+    fallback: Color,
+) -> Color {
+    if runs.is_empty() {
+        return fallback;
+    }
+    // Find the run covering byte_idx
+    let mut cr = 0;
+    while cr + 1 < runs.len() && byte_idx >= runs[cr + 1].byte_offset as usize {
+        cr += 1;
+    }
+    if byte_idx >= runs[cr].byte_offset as usize && runs[cr].bg != 0 {
+        Color::from_pixel(runs[cr].bg)
+    } else {
+        fallback
+    }
+}
+
 /// Apply the face run covering the current byte index.
 /// Returns the updated current_run index.
 pub(crate) fn apply_overlay_face_run(
