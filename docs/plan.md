@@ -28,6 +28,13 @@ Last updated: 2026-02-18
 
 ## Doing
 
+- Extended `mod` zero-remainder sign parity with negative divisors:
+  - Updated `rust/neovm-core/src/elisp/builtins.rs` so `mod` only applies sign-of-divisor adjustment when the remainder is non-zero.
+  - This fixes Oracle drifts where zero remainders previously returned the negative divisor (`mod 0 -3`, `mod -3 -3`, `mod 0.5 -0.5`, etc.).
+  - Added evaluator unit coverage in `pure_dispatch_typed_mod_zero_remainder_with_negative_divisor_stays_zero`.
+  - Added oracle lock-in case `cases/mod-zero-remainder-negative-divisor-semantics` and wired it into `test/neovm/vm-compat/cases/default.list`.
+  - Validated via `cargo test --manifest-path rust/neovm-core/Cargo.toml pure_dispatch_typed_mod_zero_remainder_with_negative_divisor_stays_zero`, `make -C test/neovm/vm-compat check-one-neovm CASE=cases/mod-zero-remainder-negative-divisor-semantics`, and full `make -C test/neovm/vm-compat check-all-neovm`.
+
 - Extended `ldexp` argument-validation order parity:
   - Updated `rust/neovm-core/src/elisp/floatfns.rs` so `ldexp` validates exponent (`fixnump`) before significand (`numberp`), matching Oracle error precedence for mixed-invalid inputs.
   - Added unit coverage in `test_ldexp_type_check_order_matches_oracle`.
