@@ -18,7 +18,7 @@ pub fn print_value(value: &Value) -> String {
         Value::True => "t".to_string(),
         Value::Int(v) => v.to_string(),
         Value::Float(f) => format_float(*f),
-        Value::Symbol(s) => s.clone(),
+        Value::Symbol(s) => format_symbol_name(s),
         Value::Keyword(s) => s.clone(),
         Value::Str(s) => format_lisp_string(s),
         // Emacs chars are integer values, so print as codepoint.
@@ -91,7 +91,12 @@ fn append_print_value_bytes(value: &Value, out: &mut Vec<u8>) {
         Value::True => out.extend_from_slice(b"t"),
         Value::Int(v) => out.extend_from_slice(v.to_string().as_bytes()),
         Value::Float(f) => out.extend_from_slice(format_float(*f).as_bytes()),
-        Value::Symbol(s) => out.extend_from_slice(s.as_bytes()),
+        Value::Symbol(s) => {
+            if s.starts_with('.') {
+                out.push(b'\\');
+            }
+            out.extend_from_slice(s.as_bytes());
+        }
         Value::Keyword(s) => out.extend_from_slice(s.as_bytes()),
         Value::Str(s) => out.extend_from_slice(&format_lisp_string_bytes(s)),
         Value::Char(c) => out.extend_from_slice((*c as u32).to_string().as_bytes()),
@@ -156,6 +161,14 @@ fn append_print_value_bytes(value: &Value, out: &mut Vec<u8>) {
 /// Re-export for compatibility.
 pub fn print_expr(expr: &Expr) -> String {
     expr::print_expr(expr)
+}
+
+fn format_symbol_name(name: &str) -> String {
+    if name.starts_with('.') {
+        format!("\\{}", name)
+    } else {
+        name.to_string()
+    }
 }
 
 fn format_float(f: f64) -> String {
@@ -330,6 +343,7 @@ mod tests {
         assert_eq!(print_value(&Value::Float(3.14)), "3.14");
         assert_eq!(print_value(&Value::Float(1.0)), "1.0");
         assert_eq!(print_value(&Value::symbol("foo")), "foo");
+        assert_eq!(print_value(&Value::symbol(".foo")), "\\.foo");
         assert_eq!(print_value(&Value::keyword(":bar")), ":bar");
     }
 

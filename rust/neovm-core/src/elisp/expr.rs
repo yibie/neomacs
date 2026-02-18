@@ -41,7 +41,7 @@ pub fn print_expr(expr: &Expr) -> String {
     match expr {
         Expr::Int(v) => v.to_string(),
         Expr::Float(v) => format_float(*v),
-        Expr::Symbol(s) => s.clone(),
+        Expr::Symbol(s) => format_symbol_name(s),
         Expr::Keyword(s) => s.clone(),
         Expr::Str(s) => format_lisp_string(s),
         // Emacs chars are integer values, so print as codepoint.
@@ -83,6 +83,14 @@ pub fn print_expr(expr: &Expr) -> String {
             let parts: Vec<String> = items.iter().map(print_expr).collect();
             format!("[{}]", parts.join(" "))
         }
+    }
+}
+
+fn format_symbol_name(name: &str) -> String {
+    if name.starts_with('.') {
+        format!("\\{}", name)
+    } else {
+        name.to_string()
     }
 }
 
@@ -130,6 +138,7 @@ mod tests {
         assert_eq!(print_expr(&Expr::Int(42)), "42");
         assert_eq!(print_expr(&Expr::Float(3.14)), "3.14");
         assert_eq!(print_expr(&Expr::Symbol("foo".into())), "foo");
+        assert_eq!(print_expr(&Expr::Symbol(".foo".into())), "\\.foo");
         assert_eq!(print_expr(&Expr::Str("hello".into())), "\"hello\"");
     }
 
