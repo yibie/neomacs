@@ -28,6 +28,13 @@ Last updated: 2026-02-18
 
 ## Doing
 
+- Extended NaN payload reader parity for mask/boundary literals:
+  - Updated `rust/neovm-core/src/elisp/parser.rs` so leading-dot mantissas always map to Oracle special payload shape (including `.0e+NaN` / `-.0e+NaN`) and non-leading-dot mantissas use truncated absolute integer payload masked to 51 bits.
+  - This aligns large mantissa behavior with Oracle for boundary forms like `9007199254740991.0e+NaN`, `2251799813685248.0e+NaN`, and `4503599627370496.0e+NaN`.
+  - Expanded parser rendering assertions in `parse_nan_payload_literals_render_to_oracle_shapes` to lock mask and leading-dot-zero output shapes.
+  - Added oracle lock-in case `cases/reader-nan-payload-mask-semantics` and wired it into `test/neovm/vm-compat/cases/default.list`.
+  - Validated via targeted `cargo test --manifest-path rust/neovm-core/Cargo.toml` runs for parser/print NaN tests, targeted `check-one-neovm` runs (`reader-nan-payload-mask-semantics`, `reader-nan-fractional-payload-semantics`, `reader-nan-payload-literals-semantics`, `reader-special-float-literals-semantics`), and full `make -C test/neovm/vm-compat check-all-neovm`.
+
 - Extended NaN payload reader parity for fractional and leading-dot mantissas:
   - Updated `rust/neovm-core/src/elisp/parser.rs` special-float parsing so `+NaN` payload literals follow Oracle shape for fractional mantissas (`1.5e+NaN -> 1.0e+NaN`, `0.9e+NaN -> 0.0e+NaN`) and leading-dot mantissas (`.5e+NaN -> 2251799813685246.0e+NaN`), including signed variants.
   - Updated `rust/neovm-core/src/elisp/expr.rs` and `rust/neovm-core/src/elisp/print.rs` to decode NaN payloads from fraction bits directly and preserve Oracle-style `±N.0e+NaN` rendering across round-trips.
