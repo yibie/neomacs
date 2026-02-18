@@ -83,6 +83,7 @@ pub struct DmaBufImportParams {
     pub modifier: u64,
 }
 
+
 // ============================================================================
 // True Zero-Copy Implementation using wgpu_hal
 // ============================================================================
@@ -101,7 +102,7 @@ mod hal_import {
     ///
     /// For non-disjoint imports, `memories` contains a single entry.
     /// For disjoint imports, it contains one entry per plane.
-    struct ImportedDmaBufResources {
+    pub(super) struct ImportedDmaBufResources {
         device: ash::Device,
         image: vk::Image,
         memories: Vec<vk::DeviceMemory>,
@@ -115,7 +116,7 @@ mod hal_import {
                     self.device.free_memory(mem, None);
                 }
             }
-            log::debug!("Cleaned up imported DMA-BUF resources ({} memory allocations)", self.memories.len());
+            log::info!("Cleaned up imported DMA-BUF resources ({} memory allocations)", self.memories.len());
         }
     }
 
@@ -575,12 +576,8 @@ mod hal_import {
                 let vk_device = hal_device.raw_device();
                 let physical_device = hal_device.raw_physical_device();
                 let instance = hal_device.shared_instance().raw_instance();
-                let vk_queue = hal_device.raw_queue();
-                let queue_family = hal_device.queue_family_index();
-
                 import_dmabuf_vulkan(
                     device, vk_device, instance, physical_device,
-                    vk_queue, queue_family,
                     params, vk_format, wgpu_format,
                 )
             }).flatten()
@@ -593,8 +590,6 @@ mod hal_import {
         vk_device: &ash::Device,
         instance: &ash::Instance,
         physical_device: vk::PhysicalDevice,
-        vk_queue: vk::Queue,
-        queue_family: u32,
         params: &DmaBufImportParams,
         vk_format: vk::Format,
         wgpu_format: wgpu::TextureFormat,
@@ -699,24 +694,16 @@ mod hal_import {
             }
         };
 
-        // Step 7: Transition image layout from UNDEFINED to SHADER_READ_ONLY_OPTIMAL.
+        // Layout transition from UNDEFINED → SHADER_READ_ONLY_OPTIMAL is NOT
+        // done here.  wgpu's Vulkan backend tracks texture state and inserts
+        // the required pipeline barrier when the texture is first bound for
+        // sampling (or used as a copy source).
         //
-        // AMD (RADV) may require an explicit transition to avoid sampling
-        // compressed/tiled data before decompression. This transition currently
-        // uses queue_wait_idle(), so skip it on non-AMD adapters to avoid
-        // per-frame queue stalls on Intel/NVIDIA.
-        if needs_explicit_dmabuf_transition(instance, physical_device) {
-            if let Err(e) = transition_image_layout(
-                vk_device, vk_queue, queue_family, image,
-            ) {
-                log::warn!("Failed to transition DMA-BUF image layout: {:?}", e);
-                for &mem in &memories {
-                    vk_device.free_memory(mem, None);
-                }
-                vk_device.destroy_image(image, None);
-                return None;
-            }
-        }
+        // The previous approach submitted a raw vkQueueSubmit + vkQueueWaitIdle
+        // per frame, which bypassed wgpu's fence tracking.  On AMD RADV each
+        // queue submission creates DRM syncobj fds; because wgpu didn't know
+        // about these submissions, the associated sync fds were never reclaimed,
+        // causing progressive fd exhaustion and eventual crash.
 
         log::info!(
             "Vulkan DMA-BUF import succeeded: image={:?}, {} memory bindings, disjoint={}",
@@ -730,89 +717,6 @@ mod hal_import {
         Some(texture)
     }
 
-    /// Transition an imported DMA-BUF image from UNDEFINED to SHADER_READ_ONLY_OPTIMAL.
-    ///
-    /// Uses a one-shot command buffer to submit a pipeline barrier. This ensures
-    /// the driver decompresses any tiled/compressed data (e.g., AMD DCC) before
-    /// the image is sampled.
-    unsafe fn transition_image_layout(
-        vk_device: &ash::Device,
-        vk_queue: vk::Queue,
-        queue_family: u32,
-        image: vk::Image,
-    ) -> Result<(), vk::Result> {
-        let pool_info = vk::CommandPoolCreateInfo::default()
-            .flags(vk::CommandPoolCreateFlags::TRANSIENT)
-            .queue_family_index(queue_family);
-
-        let cmd_pool = vk_device.create_command_pool(&pool_info, None)?;
-
-        let alloc_info = vk::CommandBufferAllocateInfo::default()
-            .command_pool(cmd_pool)
-            .level(vk::CommandBufferLevel::PRIMARY)
-            .command_buffer_count(1);
-
-        let cmd_bufs = vk_device.allocate_command_buffers(&alloc_info)?;
-        let cmd_buf = cmd_bufs[0];
-
-        let begin_info = vk::CommandBufferBeginInfo::default()
-            .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
-        vk_device.begin_command_buffer(cmd_buf, &begin_info)?;
-
-        let barrier = vk::ImageMemoryBarrier::default()
-            .src_access_mask(vk::AccessFlags::empty())
-            .dst_access_mask(vk::AccessFlags::SHADER_READ)
-            .old_layout(vk::ImageLayout::UNDEFINED)
-            .new_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
-            .src_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
-            .dst_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
-            .image(image)
-            .subresource_range(vk::ImageSubresourceRange {
-                aspect_mask: vk::ImageAspectFlags::COLOR,
-                base_mip_level: 0,
-                level_count: 1,
-                base_array_layer: 0,
-                layer_count: 1,
-            });
-
-        vk_device.cmd_pipeline_barrier(
-            cmd_buf,
-            vk::PipelineStageFlags::TOP_OF_PIPE,
-            vk::PipelineStageFlags::FRAGMENT_SHADER,
-            vk::DependencyFlags::empty(),
-            &[],
-            &[],
-            &[barrier],
-        );
-
-        vk_device.end_command_buffer(cmd_buf)?;
-
-        let cmd_bufs_arr = [cmd_buf];
-        let submit_info = vk::SubmitInfo::default()
-            .command_buffers(&cmd_bufs_arr);
-        vk_device.queue_submit(vk_queue, &[submit_info], vk::Fence::null())?;
-        vk_device.queue_wait_idle(vk_queue)?;
-
-        vk_device.destroy_command_pool(cmd_pool, None);
-
-        log::debug!("DMA-BUF image layout transition: UNDEFINED → SHADER_READ_ONLY_OPTIMAL");
-        Ok(())
-    }
-
-    #[inline]
-    fn needs_explicit_dmabuf_transition(
-        instance: &ash::Instance,
-        physical_device: vk::PhysicalDevice,
-    ) -> bool {
-        // PCI vendor ID for AMD GPUs.
-        const AMD_VENDOR_ID: u32 = 0x1002;
-        unsafe {
-            instance
-                .get_physical_device_properties(physical_device)
-                .vendor_id
-                == AMD_VENDOR_ID
-        }
-    }
 }
 
 /// Import DMA-BUF as wgpu texture — main entry point.

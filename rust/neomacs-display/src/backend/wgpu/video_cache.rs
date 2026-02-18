@@ -378,7 +378,7 @@ impl VideoCache {
         queue: &wgpu::Queue,
         bind_group_layout: &wgpu::BindGroupLayout,
         sampler: &wgpu::Sampler,
-        frame: DecodedFrame,
+        mut frame: DecodedFrame,
     ) {
         let total = self.videos.get(&frame.video_id).map(|v| v.frame_count).unwrap_or(0) + 1;
         log::info!(
@@ -446,8 +446,8 @@ impl VideoCache {
             // Update texture data
             // Try DMA-BUF zero-copy path first, fall back to CPU copy
             #[cfg(target_os = "linux")]
-            let dmabuf_imported = if let Some(ref dmabuf) = frame.dmabuf {
-                // Try to import DMA-BUF directly into wgpu texture
+            let dmabuf_imported = if let Some(dmabuf) = frame.dmabuf.take() {
+                // Import DMA-BUF directly as the video texture (zero-copy).
                 use super::external_buffer::DmaBufBuffer;
 
                 let dmabuf_buffer = DmaBufBuffer::single_plane(
@@ -465,7 +465,18 @@ impl VideoCache {
                         frame.video_id
                     );
 
-                    // Replace texture with imported one
+                    // Drop old resources in dependency order so wgpu can
+                    // schedule deferred destruction.  Do NOT call
+                    // device.poll(Wait) here — that forces a full GPU idle
+                    // per video frame, and each sync cycle creates RADV
+                    // syncobj fds that accumulate and exhaust the fd limit.
+                    // wgpu will process the deferred destruction during the
+                    // main render loop's normal queue.submit() / poll() calls.
+                    drop(video.bind_group.take());
+                    drop(video.texture_view.take());
+                    drop(video.texture.take());
+
+                    // Install new DMA-BUF texture
                     let texture_view =
                         imported_texture.create_view(&wgpu::TextureViewDescriptor::default());
                     let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -758,11 +769,17 @@ impl VideoCache {
         // colorimetry caps (GitLab issue #80). For BT.2020 content (10-bit VP9/AV1),
         // colors may be slightly off.
         let pipeline_str = if has_vapostproc {
-            log::info!("Using VA-API hardware acceleration pipeline with zero-copy DMA-BUF");
+            log::info!("Using VA-API hardware acceleration pipeline with CPU upload");
+            // VA-API decodes on GPU, vapostproc does YUV→RGB on GPU,
+            // then the result is downloaded to system memory for CPU upload
+            // via queue.write_texture().  This avoids per-frame Vulkan HAL
+            // imports (DMA-BUF → VkImage → wgpu texture) which leak sync fds
+            // on AMD RADV (~0.3 fds per import, exhausting ulimit within
+            // seconds of 4K video playback).
             format!(
                 "filesrc location=\"{}\" ! decodebin ! \
                  queue max-size-buffers=3 ! vapostproc ! \
-                 video/x-raw(memory:VAMemory),format=RGBA ! appsink name=sink",
+                 video/x-raw,format=RGBA ! appsink name=sink",
                 path.replace("\"", "\\\"")
             )
         } else {
@@ -848,8 +865,13 @@ impl VideoCache {
                                     let width = info.width();
                                     let height = info.height();
 
+                                    // DMA-BUF extraction is disabled: the Vulkan HAL
+                                    // import path (DmaBufBuffer → VkImage → wgpu texture)
+                                    // creates per-frame sync fds on AMD RADV that
+                                    // accumulate and exhaust the process fd limit.
+                                    // CPU upload via queue.write_texture() is used instead.
                                     #[cfg(target_os = "linux")]
-                                    let dmabuf_info = Self::try_extract_dmabuf(buffer, &info);
+                                    let dmabuf_info: Option<DmaBufInfo> = None;
                                     #[cfg(not(target_os = "linux"))]
                                     let dmabuf_info: Option<()> = None;
 

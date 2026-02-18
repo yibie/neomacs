@@ -8737,18 +8737,33 @@ init_process_emacs (int sockfd)
      touch pselect(), so raise the limit to 8192 instead of FD_SETSIZE.  */
   if (getrlimit (RLIMIT_NOFILE, &nofile_limit) != 0)
     nofile_limit.rlim_cur = 0;
-  else if (FD_SETSIZE < nofile_limit.rlim_cur)
+  else
     {
       struct rlimit rlim = nofile_limit;
 #ifdef HAVE_NEOMACS
+      /* Neomacs: the render thread (wgpu, GStreamer VA-API, WebKit) opens
+	 many fds for DMA-BUF buffers, GPU device handles, and sockets.
+	 These never touch pselect(), so always raise the soft limit to
+	 at least 8192 (or the hard limit, whichever is less).  The
+	 previous condition (FD_SETSIZE < rlim_cur) failed to act when
+	 the shell default was exactly 1024, causing fd exhaustion during
+	 video playback.  */
       rlim_t target = 8192;
-      rlim.rlim_cur = nofile_limit.rlim_max < target
-	? nofile_limit.rlim_max : target;
+      if (rlim.rlim_cur < target)
+	{
+	  rlim.rlim_cur = nofile_limit.rlim_max < target
+	    ? nofile_limit.rlim_max : target;
+	  if (setrlimit (RLIMIT_NOFILE, &rlim) != 0)
+	    nofile_limit.rlim_cur = 0;
+	}
 #else
-      rlim.rlim_cur = FD_SETSIZE;
+      if (FD_SETSIZE < nofile_limit.rlim_cur)
+	{
+	  rlim.rlim_cur = FD_SETSIZE;
+	  if (setrlimit (RLIMIT_NOFILE, &rlim) != 0)
+	    nofile_limit.rlim_cur = 0;
+	}
 #endif
-      if (setrlimit (RLIMIT_NOFILE, &rlim) != 0)
-	nofile_limit.rlim_cur = 0;
     }
 #endif
 
