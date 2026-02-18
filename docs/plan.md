@@ -28,6 +28,12 @@ Last updated: 2026-02-18
 
 ## Doing
 
+- Fixed dot-leading symbol escaping parity in printed reader error payloads:
+  - Updated symbol printing in `rust/neovm-core/src/elisp/print.rs` and `rust/neovm-core/src/elisp/expr.rs` to escape leading-dot symbol names with a leading backslash (for example `.foo` -> `\\.foo`), matching Oracle print shape.
+  - This aligns `void-variable` payload rendering for dot-leading symbols, including forms like `.foo`, `.bar`, `..1`, `.+1`, and noncanonical special-float spellings such as `.0e+nan`.
+  - Added oracle lock-in case `cases/reader-dot-leading-symbol-printing-semantics` and wired it into `test/neovm/vm-compat/cases/default.list`.
+  - Validated via targeted print/parser tests, targeted `check-one-neovm` runs for the new case plus related reader special-float cases, and full `make -C test/neovm/vm-compat check-all-neovm`.
+
 - Extended reader lock-in coverage for plus-sign and trailing-dot special-float literals:
   - Added parser unit coverage in `parse_special_float_plus_and_trailing_dot_literals` for `+NaN`/`+INF` spellings like `+1.e+NaN`, `+.0e+NaN`, `+1.e+INF`, and `-.0e+INF`.
   - Added oracle lock-in case `cases/reader-special-float-plus-trailing-dot-semantics` and wired it into `test/neovm/vm-compat/cases/default.list`.
