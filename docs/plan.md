@@ -28,6 +28,21 @@ Last updated: 2026-02-18
 
 ## Doing
 
+- Aligned keyboard coding-system canonicalization for non-unix alias designators (batch round 20):
+  - runtime changes:
+    - `rust/neovm-core/src/elisp/coding.rs`
+    - updated `normalize_keyboard_coding_system` so `-dos`/`-mac` designators normalize through base canonicalization, while explicit `-unix` spellings remain preserved.
+    - added unit lock-ins:
+      - `set_keyboard_coding_system_canonicalizes_non_unix_alias_suffixes`
+      - `set_keyboard_coding_system_preserves_explicit_unix_spelling`
+  - oracle corpus changes:
+    - `test/neovm/vm-compat/cases/coding-system-io-runtime-semantics.{forms,expected.tsv}`
+    - added keyboard setter probes for `latin-1`/`iso-8859-1`/`ascii`/`us-ascii` with `-dos`/`-mac` designators.
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml set_keyboard_coding_system_` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/coding-system-io-runtime-semantics` (pass, 63/63)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+
 - Fixed `coding-system-priority-list` over-arity drift and locked runtime behavior (batch round 19):
   - runtime changes:
     - `rust/neovm-core/src/elisp/coding.rs`

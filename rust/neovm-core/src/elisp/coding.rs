@@ -69,11 +69,15 @@ fn is_known_or_derived_coding_system(mgr: &CodingSystemManager, name: &str) -> b
 }
 
 fn normalize_keyboard_coding_system(name: &str) -> String {
-    let base = strip_eol_suffix(name);
-    if base != name {
-        return match base {
-            "binary" | "no-conversion" => base.to_string(),
-            _ => format!("{base}-unix"),
+    if let Some(eol) = EolType::from_suffix(name) {
+        let base = strip_eol_suffix(name);
+        return match eol {
+            EolType::Unix => match base {
+                "binary" | "no-conversion" => base.to_string(),
+                _ => format!("{base}-unix"),
+            },
+            EolType::Dos | EolType::Mac => normalize_keyboard_coding_system(base),
+            EolType::Undecided => unreachable!("suffix-based eol cannot be undecided"),
         };
     }
     match name {
@@ -1452,6 +1456,53 @@ mod tests {
         assert!(matches!(set, Value::Symbol(s) if s == "iso-latin-1-unix"));
         let get = builtin_keyboard_coding_system(&m, vec![]).unwrap();
         assert!(matches!(get, Value::Symbol(s) if s == "iso-latin-1-unix"));
+    }
+
+    #[test]
+    fn set_keyboard_coding_system_canonicalizes_non_unix_alias_suffixes() {
+        let mut m = mgr();
+
+        let latin_dos =
+            builtin_set_keyboard_coding_system(&mut m, vec![Value::symbol("latin-1-dos")])
+                .unwrap();
+        assert_eq!(latin_dos, Value::symbol("iso-latin-1-unix"));
+
+        let latin_mac =
+            builtin_set_keyboard_coding_system(&mut m, vec![Value::symbol("latin-1-mac")])
+                .unwrap();
+        assert_eq!(latin_mac, Value::symbol("iso-latin-1-unix"));
+
+        let iso_dos =
+            builtin_set_keyboard_coding_system(&mut m, vec![Value::symbol("iso-8859-1-dos")])
+                .unwrap();
+        assert_eq!(iso_dos, Value::symbol("iso-latin-1-unix"));
+
+        let ascii_dos =
+            builtin_set_keyboard_coding_system(&mut m, vec![Value::symbol("ascii-dos")]).unwrap();
+        assert_eq!(ascii_dos, Value::symbol("us-ascii-unix"));
+
+        let ascii_mac =
+            builtin_set_keyboard_coding_system(&mut m, vec![Value::symbol("ascii-mac")]).unwrap();
+        assert_eq!(ascii_mac, Value::symbol("us-ascii-unix"));
+    }
+
+    #[test]
+    fn set_keyboard_coding_system_preserves_explicit_unix_spelling() {
+        let mut m = mgr();
+
+        let latin_unix =
+            builtin_set_keyboard_coding_system(&mut m, vec![Value::symbol("latin-1-unix")])
+                .unwrap();
+        assert_eq!(latin_unix, Value::symbol("latin-1-unix"));
+
+        let iso_unix =
+            builtin_set_keyboard_coding_system(&mut m, vec![Value::symbol("iso-8859-1-unix")])
+                .unwrap();
+        assert_eq!(iso_unix, Value::symbol("iso-8859-1-unix"));
+
+        let ascii_unix =
+            builtin_set_keyboard_coding_system(&mut m, vec![Value::symbol("ascii-unix")]).unwrap();
+        assert_eq!(ascii_unix, Value::symbol("ascii-unix"));
     }
 
     #[test]
