@@ -353,8 +353,24 @@ pub(crate) fn builtin_bookmark_jump(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    expect_args("bookmark-jump", &args, 1)?;
-    let name = expect_string(&args[0])?;
+    if args.is_empty() || args.len() > 2 {
+        return Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol("bookmark-jump"), Value::Int(args.len() as i64)],
+        ));
+    }
+
+    let name = match &args[0] {
+        Value::Nil => {
+            return Err(signal(
+                "error",
+                vec![Value::string("No bookmark specified")],
+            ))
+        }
+        Value::Str(name) => (**name).clone(),
+        _ => return Ok(Value::Nil),
+    };
+
     match eval.bookmarks.get(&name) {
         Some(bm) => {
             let filename_val = match &bm.filename {
@@ -375,7 +391,7 @@ pub(crate) fn builtin_bookmark_jump(
         }
         None => Err(signal(
             "error",
-            vec![Value::string(format!("No bookmark named \"{}\"", name))],
+            vec![Value::string(format!("Invalid bookmark {name}"))],
         )),
     }
 }
@@ -866,6 +882,30 @@ mod tests {
         // bookmark-jump on nonexistent -> error
         let result = builtin_bookmark_jump(&mut eval, vec![Value::string("nope")]);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_builtin_bookmark_jump_permissive_designators() {
+        use super::super::eval::Evaluator;
+
+        let mut eval = Evaluator::new();
+
+        // nil designator is a dedicated error in GNU Emacs.
+        let nil_result = builtin_bookmark_jump(&mut eval, vec![Value::Nil]);
+        assert!(nil_result.is_err());
+
+        // Non-string designators are tolerated and return nil.
+        let int_result = builtin_bookmark_jump(&mut eval, vec![Value::Int(1)]);
+        assert!(int_result.unwrap().is_nil());
+
+        let list_result =
+            builtin_bookmark_jump(&mut eval, vec![Value::list(vec![Value::symbol("foo")])]);
+        assert!(list_result.unwrap().is_nil());
+
+        // Optional second argument is accepted.
+        let missing_with_flag =
+            builtin_bookmark_jump(&mut eval, vec![Value::string("missing"), Value::True]);
+        assert!(missing_with_flag.is_err());
     }
 
     #[test]
