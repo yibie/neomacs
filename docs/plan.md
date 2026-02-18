@@ -28,6 +28,14 @@ Last updated: 2026-02-18
 
 ## Doing
 
+- Expanded coding-system DOS/Mac designator lock-ins (batch round 14):
+  - oracle corpus changes:
+    - `test/neovm/vm-compat/cases/coding-system-designator-semantics.{forms,expected.tsv}`
+    - added `utf-8-dos`/`utf-8-mac`/`undecided-dos` checks plus keyboard/terminal setter behavior for DOS designators and unsupported `no-conversion-dos`/`binary-dos`.
+  - verified:
+    - `make -C test/neovm/vm-compat check-neovm-list LIST=<batch-list>` (pass; 37/37)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+
 - Expanded coding-system runtime/designator error lock-ins (batch round 13):
   - oracle corpus changes:
     - `test/neovm/vm-compat/cases/coding-system-runtime-semantics.{forms,expected.tsv}`

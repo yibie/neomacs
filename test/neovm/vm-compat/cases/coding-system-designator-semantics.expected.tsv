@@ -22,3 +22,16 @@
 22	(terminal-coding-system)	OK prefer-utf-8
 23	(condition-case err (set-terminal-coding-system 'utf-8-auto-unix) (error err))	OK nil
 24	(terminal-coding-system)	OK utf-8-auto-unix
+25	(condition-case err (check-coding-system 'utf-8-dos) (error err))	OK utf-8-dos
+26	(condition-case err (check-coding-system 'utf-8-mac) (error err))	OK utf-8-mac
+27	(condition-case err (check-coding-system 'undecided-dos) (error err))	OK undecided-dos
+28	(condition-case err (set-keyboard-coding-system 'utf-8-dos) (error err))	OK utf-8-unix
+29	(condition-case err (set-keyboard-coding-system 'utf-8-mac) (error err))	OK utf-8-unix
+30	(condition-case err (set-keyboard-coding-system 'no-conversion-dos) (error err))	OK (coding-system-error no-conversion-dos)
+31	(condition-case err (set-keyboard-coding-system 'binary-dos) (error err))	OK (coding-system-error binary-dos)
+32	(keyboard-coding-system)	OK utf-8-unix
+33	(condition-case err (set-terminal-coding-system 'utf-8-mac) (error err))	OK nil
+34	(condition-case err (set-terminal-coding-system 'latin-1-dos) (error err))	OK nil
+35	(condition-case err (set-terminal-coding-system 'no-conversion-dos) (error err))	OK (coding-system-error no-conversion-dos)
+36	(condition-case err (set-terminal-coding-system 'binary-dos) (error err))	OK (coding-system-error binary-dos)
+37	(terminal-coding-system)	OK latin-1-dos
