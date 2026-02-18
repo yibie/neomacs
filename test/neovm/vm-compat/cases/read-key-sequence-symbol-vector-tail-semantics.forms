@@ -12,3 +12,8 @@
   (progn
     (read-key-sequence "")
     unread-command-events))
+
+(let ((unread-command-events (list 'foo 98 [bar])))
+  (progn
+    (read-key-sequence "")
+    unread-command-events))
