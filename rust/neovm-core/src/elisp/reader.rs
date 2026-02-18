@@ -2961,6 +2961,30 @@ mod tests {
     }
 
     #[test]
+    fn read_from_string_hash_s_without_list_payload_matches_oracle() {
+        let mut ev = Evaluator::new();
+        let result = builtin_read_from_string(&mut ev, vec![Value::string("#s")]);
+        match result {
+            Err(Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "invalid-read-syntax");
+                assert_eq!(sig.data, vec![Value::string("#s")]);
+            }
+            other => panic!("expected invalid-read-syntax, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn read_from_string_hash_skip_without_length_signals_eof() {
+        let mut ev = Evaluator::new();
+
+        let result = builtin_read_from_string(&mut ev, vec![Value::string("#@")]);
+        assert!(matches!(result, Err(Flow::Signal(sig)) if sig.symbol == "end-of-file"));
+
+        let result = builtin_read_from_string(&mut ev, vec![Value::string("#@x")]);
+        assert!(matches!(result, Err(Flow::Signal(sig)) if sig.symbol == "end-of-file"));
+    }
+
+    #[test]
     fn read_from_string_hash_dollar_uses_load_file_name() {
         let mut ev = Evaluator::new();
         ev.set_variable("load-file-name", Value::string("/tmp/reader-probe.elc"));

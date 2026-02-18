@@ -16,6 +16,9 @@
 16	(condition-case err (read-from-string "#x") (error err))	OK (invalid-read-syntax "integer, radix 16")
 17	(condition-case err (read-from-string "#0") (error err))	OK (invalid-read-syntax "#0")
 18	(condition-case err (read-from-string "#a") (error err))	OK (invalid-read-syntax "#a")
-19	(read-from-string "####")	OK (## . 2)
-20	(read-from-string "#####")	OK (## . 2)
-21	(read-from-string "## ##")	OK (## . 2)
+19	(condition-case err (read-from-string "#s") (error err))	OK (invalid-read-syntax "#s")
+20	(condition-case err (read-from-string "#@") (error (car err)))	OK end-of-file
+21	(condition-case err (read-from-string "#@x") (error (car err)))	OK end-of-file
+22	(read-from-string "####")	OK (## . 2)
+23	(read-from-string "#####")	OK (## . 2)
+24	(read-from-string "## ##")	OK (## . 2)

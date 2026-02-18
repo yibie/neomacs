@@ -28,6 +28,22 @@ Last updated: 2026-02-18
 
 ## Doing
 
+- Aligned `#s`/`#@` hash-reader edge behavior in `read-from-string` with Oracle:
+  - runtime changes:
+    - updated `rust/neovm-core/src/elisp/parser.rs` so bare `#s` now reports `invalid-read-syntax` payload `"#s"` (instead of `"expected '(' after #s"`).
+    - updated hash-skip dispatch so missing length after `#@` (`"#@"`, `"#@x"`) now follows EOF shape (`end-of-input` parser error mapped to `end-of-file` in `read-from-string`).
+    - added parser and reader unit tests for `#s` payload and `#@`/`#@x` EOF behavior.
+  - expanded oracle corpus:
+    - `test/neovm/vm-compat/cases/read-from-string-edges.forms`
+    - `test/neovm/vm-compat/cases/read-from-string-edges.expected.tsv`
+    - added probes for `"#s"`, `"#@"`, and `"#@x"` (`condition-case` with `car` for EOF symbol lock-in).
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml parse_hash_` (pass)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml read_from_string_hash_` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/read-from-string-edges` (pass, 24/24)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/reader-hash` (pass, 8/8)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+
 - Aligned hash-dispatch `invalid-read-syntax` payloads in `read-from-string` with Oracle:
   - runtime changes:
     - updated `rust/neovm-core/src/elisp/parser.rs` hash dispatch error shapes:

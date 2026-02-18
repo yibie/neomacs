@@ -442,7 +442,7 @@ impl<'a> Parser<'a> {
                 if self.current() == Some('(') {
                     self.parse_hash_table_literal()
                 } else {
-                    Err(self.error("expected '(' after #s"))
+                    Err(self.error("#s"))
                 }
             }
             _ => {
@@ -453,6 +453,9 @@ impl<'a> Parser<'a> {
 
     fn parse_hash_skip_bytes(&mut self) -> Result<Expr, ParseError> {
         self.expect('@')?;
+        if !matches!(self.current(), Some(c) if c.is_ascii_digit()) {
+            return Err(self.error("end of input"));
+        }
         let len = self.parse_decimal_usize()?;
         self.skip_exact_bytes(len)?;
         self.parse_expr()
@@ -1078,6 +1081,21 @@ mod tests {
     fn parse_hash_skip_bytes_reads_next_form() {
         let forms = parse_forms("#@4data42").unwrap();
         assert_eq!(forms, vec![Expr::Int(42)]);
+    }
+
+    #[test]
+    fn parse_hash_s_without_list_reports_hash_s_payload() {
+        let err = parse_forms("#s").expect_err("should fail");
+        assert_eq!(err.message, "#s");
+    }
+
+    #[test]
+    fn parse_hash_skip_without_length_reports_end_of_input() {
+        let err = parse_forms("#@").expect_err("should fail");
+        assert!(err.message.contains("end of input"));
+
+        let err = parse_forms("#@x").expect_err("should fail");
+        assert!(err.message.contains("end of input"));
     }
 
     #[test]
