@@ -28,3 +28,5 @@
 28	(let ((s "x")) (string-match "x" s) (replace-match "éz" nil nil s))	OK "éz"
 29	(let ((s "x")) (string-match "x" s) (replace-match "\\&é" nil nil s))	OK "xé"
 30	(let ((s "x")) (string-match "\\(x\\)" s) (replace-match "\\1é" nil nil s))	OK "xé"
+31	(let ((s "abc123")) (string-match "\\([a-z]+\\)\\([0-9]+\\)" s) (condition-case err (replace-match "Z" nil nil s 9) (error err)))	OK (args-out-of-range 9 0 6)
+32	(with-temp-buffer (insert "abc123") (goto-char (point-min)) (re-search-forward "\\([a-z]+\\)\\([0-9]+\\)") (condition-case err (replace-match "Z" nil nil nil 9) (error err)))	OK (args-out-of-range 9 0 6)
