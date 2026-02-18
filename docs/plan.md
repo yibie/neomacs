@@ -28,6 +28,12 @@ Last updated: 2026-02-18
 
 ## Doing
 
+- Extended bitwise type-contract parity for `log*` family:
+  - Updated `rust/neovm-core/src/elisp/builtins.rs` so `logand`, `logior`, and `logxor` now validate operands with `integer-or-marker-p` (instead of `integerp`), matching Oracle error payloads for float operands.
+  - Added evaluator unit coverage in `pure_dispatch_typed_log_bitops_reject_with_integer_or_marker_p`.
+  - Added oracle lock-in case `cases/log-bitwise-type-semantics` and wired it into `test/neovm/vm-compat/cases/default.list`.
+  - Validated via `cargo test --manifest-path rust/neovm-core/Cargo.toml pure_dispatch_typed_log_bitops_reject_with_integer_or_marker_p`, `make -C test/neovm/vm-compat check-one-neovm CASE=cases/log-bitwise-type-semantics`, and full `make -C test/neovm/vm-compat check-all-neovm`.
+
 - Extended arithmetic parity around `%`/`mod` and extreme shift counts:
   - Updated `rust/neovm-core/src/elisp/builtins.rs` to split `%` and `mod` semantics so `%` now mirrors Emacs remainder sign behavior (sign of dividend) while `mod` keeps sign-of-divisor behavior.
   - Aligned `%` and `mod` numeric contracts to reject non-integer operands with `integer-or-marker-p`, matching Oracle error payloads.
