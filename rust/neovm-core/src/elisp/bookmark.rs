@@ -633,6 +633,13 @@ fn default_bookmark_file() -> String {
     ".config/emacs/bookmarks".to_string()
 }
 
+fn active_bookmark_default_file(eval: &super::eval::Evaluator) -> String {
+    if let Some(Value::Str(path)) = eval.obarray.symbol_value("bookmark-default-file") {
+        return (**path).clone();
+    }
+    default_bookmark_file()
+}
+
 fn bookmark_save_stamp(path: &str) -> Value {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -679,8 +686,9 @@ pub(crate) fn builtin_bookmark_save(
     let has_file = !file_arg.is_nil();
     let path = match &file_arg {
         Value::Str(path) => (**path).clone(),
-        _ => default_bookmark_file(),
+        _ => active_bookmark_default_file(eval),
     };
+    let path_existed_before_save = Path::new(&path).exists();
 
     let data = eval.bookmarks.save_to_string();
     if let Some(parent) = Path::new(&path).parent() {
@@ -689,7 +697,15 @@ pub(crate) fn builtin_bookmark_save(
     let _ = fs::write(&path, data);
     eval.bookmarks.mark_saved();
 
+    if has_file && !batch.is_nil() {
+        eval.obarray
+            .set_symbol_value("bookmark-default-file", Value::string(path.clone()));
+    }
+
     if has_file && batch.is_nil() {
+        return Ok(Value::Nil);
+    }
+    if !has_file && batch.is_nil() && !path_existed_before_save {
         return Ok(Value::Nil);
     }
     Ok(bookmark_save_stamp(&path))
