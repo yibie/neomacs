@@ -3,3 +3,5 @@
 (progn (setq vm-desc-probe 1) (string-match-p "value is" (describe-variable 'vm-desc-probe)))
 (condition-case err (describe-variable 1) (error (car err)))
 (condition-case err (describe-variable) (error (car err)))
+(stringp (describe-variable 'load-path nil nil))
+(condition-case err (describe-variable 'load-path nil nil nil) (error (car err)))
