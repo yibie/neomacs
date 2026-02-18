@@ -171,15 +171,6 @@ fn has_float(args: &[Value]) -> bool {
     args.iter().any(|v| matches!(v, Value::Float(_)))
 }
 
-/// Return a numeric result: int if all were ints, float otherwise.
-fn numeric_result(f: f64, was_float: bool) -> Value {
-    if was_float {
-        Value::Float(f)
-    } else {
-        Value::Int(f as i64)
-    }
-}
-
 fn normalize_string_start_arg(string: &str, start: Option<&Value>) -> Result<usize, Flow> {
     let Some(start_val) = start else {
         return Ok(0);
@@ -410,28 +401,38 @@ pub(crate) fn builtin_sub1(args: Vec<Value>) -> EvalResult {
 
 pub(crate) fn builtin_max(args: Vec<Value>) -> EvalResult {
     expect_min_args("max", &args, 1)?;
-    let float = has_float(&args);
-    let mut best = expect_number_or_marker_f64(&args[0])?;
+    let mut best_num = expect_number_or_marker_f64(&args[0])?;
+    let mut best_value = args[0].clone();
     for a in &args[1..] {
         let n = expect_number_or_marker_f64(a)?;
-        if n > best {
-            best = n;
+        if n > best_num {
+            best_num = n;
+            best_value = a.clone();
         }
     }
-    Ok(numeric_result(best, float))
+    match best_value {
+        Value::Int(_) | Value::Float(_) => Ok(best_value),
+        Value::Char(c) => Ok(Value::Int(c as i64)),
+        _ => unreachable!("max winner must be numeric"),
+    }
 }
 
 pub(crate) fn builtin_min(args: Vec<Value>) -> EvalResult {
     expect_min_args("min", &args, 1)?;
-    let float = has_float(&args);
-    let mut best = expect_number_or_marker_f64(&args[0])?;
+    let mut best_num = expect_number_or_marker_f64(&args[0])?;
+    let mut best_value = args[0].clone();
     for a in &args[1..] {
         let n = expect_number_or_marker_f64(a)?;
-        if n < best {
-            best = n;
+        if n < best_num {
+            best_num = n;
+            best_value = a.clone();
         }
     }
-    Ok(numeric_result(best, float))
+    match best_value {
+        Value::Int(_) | Value::Float(_) => Ok(best_value),
+        Value::Char(c) => Ok(Value::Int(c as i64)),
+        _ => unreachable!("min winner must be numeric"),
+    }
 }
 
 pub(crate) fn builtin_abs(args: Vec<Value>) -> EvalResult {
@@ -10036,6 +10037,24 @@ mod tests {
             }
             other => panic!("expected float, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn pure_dispatch_typed_max_min_preserve_selected_operand_type() {
+        let max_int = dispatch_builtin_pure("max", vec![Value::Float(-2.5), Value::Int(1)])
+            .expect("builtin max should resolve")
+            .expect("builtin max should evaluate");
+        assert_eq!(max_int, Value::Int(1));
+
+        let min_int = dispatch_builtin_pure("min", vec![Value::Int(1), Value::Float(1.0)])
+            .expect("builtin min should resolve")
+            .expect("builtin min should evaluate");
+        assert_eq!(min_int, Value::Int(1));
+
+        let max_float = dispatch_builtin_pure("max", vec![Value::Float(1.0), Value::Int(1)])
+            .expect("builtin max should resolve")
+            .expect("builtin max should evaluate");
+        assert_eq!(max_float, Value::Float(1.0));
     }
 
     #[test]
