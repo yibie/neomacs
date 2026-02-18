@@ -5,7 +5,7 @@
 //! - `describe-function` — return description string for a function
 //! - `describe-variable` — return description string for a variable
 //! - `documentation-property` — retrieve documentation property
-//! - `Snarf-documentation` — internal DOC file loader (stub)
+//! - `Snarf-documentation` — internal DOC file loader compatibility shim
 //! - `substitute-command-keys` — process special sequences in docstrings
 //! - `help-function-arglist` — return argument list of a function
 
@@ -209,7 +209,8 @@ pub(crate) fn builtin_describe_variable(
 /// Evaluator-aware implementation:
 /// - validates SYMBOL as a symbol designator (`symbolp`)
 /// - returns nil when PROP is not a symbol (matching Emacs `get`-like behavior)
-/// - returns string-valued properties only; non-string properties map to nil
+/// - unresolved integer doc offsets return nil
+/// - non-integer values are evaluated as Lisp and returned
 /// - accepts RAW but currently ignores it
 pub(crate) fn builtin_documentation_property_eval(
     eval: &mut super::eval::Evaluator,
@@ -259,9 +260,9 @@ pub(crate) fn builtin_documentation_property(args: Vec<Value>) -> EvalResult {
 /// `(Snarf-documentation FILENAME)` -- load documentation strings from
 /// the internal DOC file.
 ///
-/// Stub implementation: always returns nil.  In real Emacs this is called
-/// during startup to load the pre-built documentation file (DOC) that
-/// contains docstrings for all built-in functions and variables.
+/// Compatibility implementation: accepts the canonical `"DOC"` token and
+/// preserves observed GNU Emacs error classes for invalid and missing paths.
+/// It does not load or parse an on-disk DOC table yet.
 fn snarf_doc_path_invalid(filename: &str) -> bool {
     if filename.is_empty() {
         return true;
@@ -1112,7 +1113,7 @@ mod tests {
     }
 
     // =======================================================================
-    // Snarf-documentation (stub)
+    // Snarf-documentation runtime/error semantics
     // =======================================================================
 
     #[test]
