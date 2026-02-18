@@ -28,6 +28,15 @@ Last updated: 2026-02-18
 
 ## Doing
 
+- Extended `floatfns` argument-contract and signed-zero parity:
+  - Updated `rust/neovm-core/src/elisp/floatfns.rs` contracts to match Oracle:
+    - `copysign`, `fceiling`, `ffloor`, `fround`, `ftruncate` now require `floatp`.
+    - `frexp` and `logb` now signal `numberp` for non-numeric inputs.
+    - `ldexp` now enforces `fixnump` for exponent argument errors.
+  - Preserved signed zero for `frexp -0.0` (returns `(-0.0 . 0)`).
+  - Added oracle lock-in case `cases/floatfns-argument-contract-semantics` and wired it into `test/neovm/vm-compat/cases/default.list`.
+  - Validated via `cargo test --manifest-path rust/neovm-core/Cargo.toml floatfns::tests::`, `make -C test/neovm/vm-compat check-one-neovm CASE=cases/floatfns-argument-contract-semantics`, and full `make -C test/neovm/vm-compat check-all-neovm`.
+
 - Extended `fround` float tie parity for signed-zero edge behavior:
   - Updated `rust/neovm-core/src/elisp/floatfns.rs` so `fround` uses IEEE ties-to-even directly (`round_ties_even`), preserving negative zero for `-0.5` (`-0.0`) to match Oracle.
   - Added unit coverage in `test_fround` for the negative-zero tie case.
