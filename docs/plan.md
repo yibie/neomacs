@@ -28,6 +28,12 @@ Last updated: 2026-02-18
 
 ## Doing
 
+- Extended reader lock-in coverage for plus-sign and trailing-dot special-float literals:
+  - Added parser unit coverage in `parse_special_float_plus_and_trailing_dot_literals` for `+NaN`/`+INF` spellings like `+1.e+NaN`, `+.0e+NaN`, `+1.e+INF`, and `-.0e+INF`.
+  - Added oracle lock-in case `cases/reader-special-float-plus-trailing-dot-semantics` and wired it into `test/neovm/vm-compat/cases/default.list`.
+  - Case coverage includes plus-signed mantissas, trailing-dot mantissas, and uppercase-exponent variants for special float suffixes.
+  - Validated via targeted parser tests, targeted `check-one-neovm` runs for special-float/NaN reader cases, and full `make -C test/neovm/vm-compat check-all-neovm`.
+
 - Extended NaN payload reader parity for high-precision integer mantissas:
   - Updated `rust/neovm-core/src/elisp/parser.rs` payload extraction for `+NaN` literals to derive masked payload bits from the mantissa integer-part text directly (modulo `2^51`) instead of relying on `f64` truncation.
   - This fixes precision-loss drift for values above IEEE exact-integer range, including `9007199254740993.0e+NaN` (`1.0e+NaN`) and `-9007199254740993.0e+NaN` (`-1.0e+NaN`).
