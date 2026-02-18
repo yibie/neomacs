@@ -10502,6 +10502,20 @@ Last updated: 2026-02-18
     - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/snarf-documentation-runtime-semantics` (pass, 17/17)
     - `make -C test/neovm/vm-compat check-all-neovm` (pass)
     - direct oracle probes (single-form files via `run-oracle.sh`) confirmed class parity for the new rows before updating expected TSV.
+- Refined `documentation-property` evaluator semantics to match GNU Emacs evaluation paths:
+  - runtime changes:
+    - keeps integer doc offsets returning `nil` when unresolved
+    - evaluates non-integer, non-string property values as Lisp expressions
+    - preserves signal propagation from evaluated values (for example `invalid-function` and `void-variable`)
+    - keeps existing symbol-target type checks and non-symbol property handling
+  - expanded oracle corpus:
+    - `test/neovm/vm-compat/cases/documentation-property-semantics.forms`
+    - `test/neovm/vm-compat/cases/documentation-property-semantics.expected.tsv`
+    - added list/symbol/vector/float evaluation rows and error-propagation rows
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml documentation_property_eval` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/documentation-property-semantics` (pass, 15/15)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
 - Aligned `describe-variable` runtime semantics with GNU Emacs and added explicit runtime corpus:
   - runtime changes:
     - non-symbol input now signals `user-error` class
