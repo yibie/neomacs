@@ -57,19 +57,21 @@ pub(crate) fn builtin_documentation(
     // For symbols, Emacs consults the `function-documentation` property first.
     // This can produce docs even when the function cell is non-callable.
     if let Some(name) = args[0].as_symbol_name() {
-        if let Some(prop) = eval.obarray.get_property(name, "function-documentation") {
+        let name = name.to_string();
+        if let Some(prop) = eval
+            .obarray
+            .get_property(&name, "function-documentation")
+        {
             return Ok(prop.as_str().map_or(Value::Nil, Value::string));
         }
 
-        let func_val = eval
-            .obarray
-            .indirect_function(name)
-            .or_else(|| eval.obarray.symbol_function(name).cloned());
-
-        let Some(func_val) = func_val else {
-            return Err(signal("void-function", vec![Value::symbol(name)]));
-        };
-
+        let mut func_val =
+            super::builtins::builtin_symbol_function(eval, vec![Value::symbol(name.clone())])?;
+        if let Some(alias_name) = func_val.as_symbol_name() {
+            if let Some(indirect) = eval.obarray.indirect_function(alias_name) {
+                func_val = indirect;
+            }
+        }
         if func_val.is_nil() {
             return Err(signal("void-function", vec![Value::symbol(name)]));
         }
@@ -86,7 +88,11 @@ fn function_doc_or_error(func_val: Value) -> EvalResult {
             Some(doc) => Ok(Value::string(doc.clone())),
             None => Ok(Value::Nil),
         },
-        Value::Subr(_) | Value::ByteCode(_) => Ok(Value::Nil),
+        Value::Subr(_) => Ok(Value::string("Built-in function.")),
+        Value::ByteCode(bytecode) => Ok(bytecode
+            .docstring
+            .as_ref()
+            .map_or(Value::Nil, |doc| Value::string(doc.clone()))),
         other => Err(signal("invalid-function", vec![other])),
     }
 }
@@ -1017,7 +1023,7 @@ mod tests {
 
         let result = builtin_documentation(&mut evaluator, vec![Value::symbol("plus")]);
         assert!(result.is_ok());
-        assert!(result.unwrap().is_nil());
+        assert!(result.unwrap().is_string());
     }
 
     #[test]
