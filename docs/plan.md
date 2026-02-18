@@ -28,6 +28,12 @@ Last updated: 2026-02-18
 
 ## Doing
 
+- Extended `help-function-arglist` preserve-names parity for variadic arithmetic builtins:
+  - Updated `rust/neovm-core/src/elisp/doc.rs` so `min` now mirrors Oracle preserve-name shape `(number-or-marker &rest numbers-or-markers)` (matching previously aligned `max` behavior class).
+  - Expanded evaluator unit coverage in `help_function_arglist_eval_preserve_names_core_subrs` for `min`.
+  - Extended oracle lock-in case `cases/help-function-arglist-preserve-runtime-semantics`.
+  - Validated via `cargo test --manifest-path rust/neovm-core/Cargo.toml help_function_arglist`, `make -C test/neovm/vm-compat check-one-neovm CASE=cases/help-function-arglist-preserve-runtime-semantics`, and full `make -C test/neovm/vm-compat check-all-neovm`.
+
 - Extended `help-function-arglist` preserve-names parity for variadic core math/message builtins:
   - Updated `rust/neovm-core/src/elisp/doc.rs` preserve-name mappings so `max` reports `(number-or-marker &rest numbers-or-markers)` and `message` reports `(format-string &rest args)`.
   - Expanded evaluator unit coverage in `help_function_arglist_eval_preserve_names_core_subrs` for `max` and `message`.
