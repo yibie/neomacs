@@ -336,9 +336,9 @@ fn describe_variable_value_or_void(eval: &super::eval::Evaluator, name: &str) ->
             .cloned()
             .unwrap_or(Value::symbol("void"));
         let rendered = super::print::print_value(&value);
-        Value::string(format!("{name}'s value is {rendered}"))
+        Value::string(format!("{name}\u{2019}s value is {rendered}\n"))
     } else {
-        Value::string(format!("{name} is void as a variable."))
+        Value::string(format!("{name} is void as a variable.\n"))
     }
 }
 
@@ -2461,6 +2461,17 @@ mod tests {
     }
 
     #[test]
+    fn describe_variable_bound_no_doc_matches_text_shape() {
+        let mut evaluator = super::super::eval::Evaluator::new();
+        evaluator.obarray.set_symbol_value("x", Value::Int(10));
+
+        let result = builtin_describe_variable(&mut evaluator, vec![Value::symbol("x")]).unwrap();
+        let text = result.as_str().expect("describe-variable must return a string");
+        assert!(text.ends_with('\n'));
+        assert!(text.contains("x\u{2019}s value is"));
+    }
+
+    #[test]
     fn describe_variable_unbound() {
         let mut evaluator = super::super::eval::Evaluator::new();
         let result = builtin_describe_variable(&mut evaluator, vec![Value::symbol("nonexistent")]);
@@ -2470,6 +2481,19 @@ mod tests {
                 .unwrap()
                 .as_str()
                 .is_some_and(|s| s.contains("void as a variable"))
+        );
+    }
+
+    #[test]
+    fn describe_variable_unbound_has_trailing_newline() {
+        let mut evaluator = super::super::eval::Evaluator::new();
+        let result = builtin_describe_variable(&mut evaluator, vec![Value::symbol("nonexistent")]);
+        assert!(result.is_ok());
+        assert!(
+            result
+                .unwrap()
+                .as_str()
+                .is_some_and(|s| s.ends_with('\n'))
         );
     }
 
