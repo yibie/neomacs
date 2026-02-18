@@ -501,16 +501,84 @@ fn help_arglist_from_subr_name(name: &str, preserve_names: bool) -> Option<Value
         });
     }
 
+    if name == "cdr" {
+        return Some(if preserve_names {
+            help_arglist(&["list"], &[], None)
+        } else {
+            help_arglist(&["arg1"], &[], None)
+        });
+    }
+
+    if name == "cons" {
+        return Some(if preserve_names {
+            help_arglist(&["car", "cdr"], &[], None)
+        } else {
+            help_arglist(&["arg1", "arg2"], &[], None)
+        });
+    }
+
+    if name == "list" {
+        return Some(if preserve_names {
+            help_arglist(&[], &[], Some("objects"))
+        } else {
+            help_arglist(&[], &[], Some("rest"))
+        });
+    }
+
     if name == "if" {
         return Some(help_arglist(&["arg1", "arg2"], &[], Some("rest")));
     }
 
     if name == "documentation" {
-        return Some(help_arglist(&["arg1"], &["arg2"], None));
+        return Some(if preserve_names {
+            help_arglist(&["function"], &["raw"], None)
+        } else {
+            help_arglist(&["arg1"], &["arg2"], None)
+        });
     }
 
     if name == "eq" {
-        return Some(help_arglist(&["arg1", "arg2"], &[], None));
+        return Some(if preserve_names {
+            help_arglist(&["obj1", "obj2"], &[], None)
+        } else {
+            help_arglist(&["arg1", "arg2"], &[], None)
+        });
+    }
+
+    if name == "symbol-function" || name == "fboundp" {
+        return Some(if preserve_names {
+            help_arglist(&["symbol"], &[], None)
+        } else {
+            help_arglist(&["arg1"], &[], None)
+        });
+    }
+
+    if name == "substitute-command-keys" {
+        return Some(if preserve_names {
+            help_arglist(&["string"], &["no-face", "include-menus"], None)
+        } else {
+            help_arglist(&["arg1"], &["arg2", "arg3"], None)
+        });
+    }
+
+    if name == "where-is-internal" {
+        return Some(if preserve_names {
+            help_arglist(
+                &["definition"],
+                &["keymap", "firstonly", "noindirect", "no-remap"],
+                None,
+            )
+        } else {
+            help_arglist(&["arg1"], &["arg2", "arg3", "arg4", "arg5"], None)
+        });
+    }
+
+    if name == "read" {
+        return Some(if preserve_names {
+            help_arglist(&[], &["stream"], None)
+        } else {
+            help_arglist(&[], &["arg1"], None)
+        });
     }
 
     if name == "-" {
@@ -1136,6 +1204,59 @@ mod tests {
         assert_eq!(
             arglist_names(&read),
             vec!["&optional".to_string(), "arg1".to_string()]
+        );
+    }
+
+    #[test]
+    fn help_function_arglist_eval_preserve_names_core_subrs() {
+        let mut evaluator = super::super::eval::Evaluator::new();
+
+        let cdr = builtin_help_function_arglist_eval(
+            &mut evaluator,
+            vec![Value::symbol("cdr"), Value::True],
+        )
+        .unwrap();
+        assert_eq!(arglist_names(&cdr), vec!["list".to_string()]);
+
+        let cons = builtin_help_function_arglist_eval(
+            &mut evaluator,
+            vec![Value::symbol("cons"), Value::True],
+        )
+        .unwrap();
+        assert_eq!(arglist_names(&cons), vec!["car".to_string(), "cdr".to_string()]);
+
+        let list = builtin_help_function_arglist_eval(
+            &mut evaluator,
+            vec![Value::symbol("list"), Value::True],
+        )
+        .unwrap();
+        assert_eq!(
+            arglist_names(&list),
+            vec!["&rest".to_string(), "objects".to_string()]
+        );
+
+        let read = builtin_help_function_arglist_eval(
+            &mut evaluator,
+            vec![Value::symbol("read"), Value::True],
+        )
+        .unwrap();
+        assert_eq!(
+            arglist_names(&read),
+            vec!["&optional".to_string(), "stream".to_string()]
+        );
+
+        let documentation = builtin_help_function_arglist_eval(
+            &mut evaluator,
+            vec![Value::symbol("documentation"), Value::True],
+        )
+        .unwrap();
+        assert_eq!(
+            arglist_names(&documentation),
+            vec![
+                "function".to_string(),
+                "&optional".to_string(),
+                "raw".to_string()
+            ]
         );
     }
 
