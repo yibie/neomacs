@@ -28,6 +28,14 @@ Last updated: 2026-02-18
 
 ## Doing
 
+- Expanded batch input optional-arg boundary lock-ins (batch round 17):
+  - oracle corpus changes:
+    - `test/neovm/vm-compat/cases/read-batch-input-semantics.{forms,expected.tsv}`
+    - added max-accepted optional-arg probes and over-arity/type boundaries for `read-file-name`, `read-directory-name`, `read-buffer`, `read-command`, and `read-variable`.
+  - verified:
+    - `make -C test/neovm/vm-compat check-neovm-list LIST=<batch-list>` (pass; 45/45)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+
 - Expanded batch reader unread-queue payload lock-ins (batch round 16):
   - oracle corpus changes:
     - `test/neovm/vm-compat/cases/read-batch-error-payloads.{forms,expected.tsv}`
