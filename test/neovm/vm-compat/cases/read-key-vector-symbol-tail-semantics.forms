@@ -13,6 +13,11 @@
     (read-key "")
     unread-command-events))
 
+(let ((unread-command-events (list 97 98 99 100 [foo])))
+  (progn
+    (read-key "")
+    unread-command-events))
+
 (let ((unread-command-events '(97 . [foo])))
   (progn
     (read-key "")
