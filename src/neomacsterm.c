@@ -15963,24 +15963,35 @@ neomacs_display_wakeup_handler (int fd, void *data)
         case NEOMACS_EVENT_MOUSE_PRESS:
         case NEOMACS_EVENT_MOUSE_RELEASE:
           {
-            /* Check if click is on a webkit view (floating or inline) */
+            /* Check if click is on a webkit view (floating or inline).
+               The render thread already searched both parent and child frame
+               glyph buffers and dispatched the click directly to WebKit.
+               ev->webkitId is set when it found a hit.  */
             struct neomacs_display_info *dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
             if (ev->kind == NEOMACS_EVENT_MOUSE_PRESS
                 && dpyinfo && dpyinfo->display_handle)
               {
-                uint32_t webkit_id = 0;
-                int rel_x = 0, rel_y = 0;
-                if (neomacs_display_webkit_at_position (dpyinfo->display_handle,
-                                                         ev->x, ev->y,
-                                                         &webkit_id, &rel_x, &rel_y))
+                if (ev->webkitId != 0)
                   {
-                    neomacs_display_webkit_click (dpyinfo->display_handle,
-                                                  webkit_id, rel_x, rel_y, ev->button);
-                    /* Store the clicked webkit view ID so Elisp can
-                       auto-enter input mode for keyboard forwarding.  */
-                    Vneomacs_webkit_clicked_view_id = make_fixnum (webkit_id);
-                    /* Fall through to also generate Emacs mouse event,
-                       so Elisp can detect the click position.  */
+                    /* Render thread already sent the click to WebKit.
+                       Just record the view ID for Elisp.  */
+                    Vneomacs_webkit_clicked_view_id = make_fixnum (ev->webkitId);
+                  }
+                else
+                  {
+                    /* Fallback: search parent frame glyphs from C side.
+                       (Safety net — render thread should have caught it.)  */
+                    uint32_t webkit_id = 0;
+                    int rel_x = 0, rel_y = 0;
+                    if (neomacs_display_webkit_at_position (dpyinfo->display_handle,
+                                                             ev->x, ev->y,
+                                                             &webkit_id, &rel_x, &rel_y))
+                      {
+                        neomacs_display_webkit_click (dpyinfo->display_handle,
+                                                      webkit_id, rel_x, rel_y,
+                                                      ev->button);
+                        Vneomacs_webkit_clicked_view_id = make_fixnum (webkit_id);
+                      }
                   }
               }
 
@@ -16090,36 +16101,40 @@ neomacs_display_wakeup_handler (int fd, void *data)
 
         case NEOMACS_EVENT_SCROLL:
           {
-            /* Check if scrolling over a webkit view */
+            /* Check if scrolling over a webkit view.
+               Render thread sets ev->webkitId when it finds a hit in
+               parent OR child frame glyph buffers.  */
             struct neomacs_display_info *dpyinfo
               = FRAME_NEOMACS_DISPLAY_INFO (f);
+            if (ev->webkitId != 0)
+              {
+                /* Render thread already sent scroll to WebKit.  */
+                break;
+              }
             if (dpyinfo && dpyinfo->display_handle)
               {
-                uint32_t webkit_id = 0;
+                /* Fallback: search parent frame glyphs from C side.  */
+                uint32_t wk_id = 0;
                 int rel_x = 0, rel_y = 0;
                 if (neomacs_display_webkit_at_position (
                       dpyinfo->display_handle,
                       ev->x, ev->y,
-                      &webkit_id, &rel_x, &rel_y))
+                      &wk_id, &rel_x, &rel_y))
                   {
                     int sdx, sdy;
                     if (ev->pixelPrecise)
                       {
-                        /* Pixel deltas from touchpad — already
-                           in logical pixels, pass directly. */
                         sdx = (int) ev->scrollDeltaX;
                         sdy = (int) ev->scrollDeltaY;
                       }
                     else
                       {
-                        /* Line deltas from mouse wheel —
-                           convert to ~pixels for WPE. */
                         sdx = (int)(ev->scrollDeltaX * 53);
                         sdy = (int)(ev->scrollDeltaY * 53);
                       }
                     neomacs_display_webkit_send_scroll (
                       dpyinfo->display_handle,
-                      webkit_id, rel_x, rel_y, sdx, sdy);
+                      wk_id, rel_x, rel_y, sdx, sdy);
                     break;
                   }
               }

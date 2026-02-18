@@ -67,6 +67,19 @@ pub struct MonitorInfo {
 /// The Condvar is notified once monitors have been populated.
 pub type SharedMonitorInfo = Arc<(Mutex<Vec<MonitorInfo>>, std::sync::Condvar)>;
 
+/// Search a glyph buffer for a WebKit view at the given local coordinates.
+/// Returns (webkit_id, relative_x, relative_y) if found.
+fn webkit_glyph_hit_test(glyphs: &[FrameGlyph], x: f32, y: f32) -> Option<(u32, i32, i32)> {
+    for glyph in glyphs.iter().rev() {
+        if let FrameGlyph::WebKit { webkit_id, x: wx, y: wy, width, height } = glyph {
+            if x >= *wx && x < *wx + *width && y >= *wy && y < *wy + *height {
+                return Some((*webkit_id, (x - *wx) as i32, (y - *wy) as i32));
+            }
+        }
+    }
+    None
+}
+
 /// Render thread state
 pub struct RenderThread {
     handle: Option<JoinHandle<()>>,
@@ -3018,6 +3031,42 @@ impl ApplicationHandler for RenderApp {
                         } else {
                             (self.mouse_pos.0, self.mouse_pos.1, 0)
                         };
+                    // WebKit glyph hit-test (search correct glyph buffer)
+                    let mut wk_id = 0u32;
+                    if state == ElementState::Pressed {
+                        let glyphs: Option<&[FrameGlyph]> = if target_fid != 0 {
+                            self.child_frames.frames.get(&target_fid).map(|e| e.frame.glyphs.as_slice())
+                        } else {
+                            self.current_frame.as_ref().map(|f| f.glyphs.as_slice())
+                        };
+                        if let Some(glyphs) = glyphs {
+                            if let Some((id, rx, ry)) = webkit_glyph_hit_test(glyphs, ev_x, ev_y) {
+                                wk_id = id;
+                                // Send click directly to WebKit with relative coords
+                                #[cfg(feature = "wpe-webkit")]
+                                if let Some(view) = self.webkit_views.get(&id) {
+                                    view.click(rx, ry, btn);
+                                }
+                            }
+                        }
+                        // Also check floating webkits (parent-frame absolute coords)
+                        #[cfg(feature = "wpe-webkit")]
+                        if wk_id == 0 && target_fid == 0 {
+                            let mx = self.mouse_pos.0;
+                            let my = self.mouse_pos.1;
+                            for wk in self.floating_webkits.iter().rev() {
+                                if mx >= wk.x && mx < wk.x + wk.width && my >= wk.y && my < wk.y + wk.height {
+                                    wk_id = wk.webkit_id;
+                                    let rx = (mx - wk.x) as i32;
+                                    let ry = (my - wk.y) as i32;
+                                    if let Some(view) = self.webkit_views.get(&wk_id) {
+                                        view.click(rx, ry, btn);
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                    }
                     self.comms.send_input(InputEvent::MouseButton {
                         button: btn,
                         x: ev_x,
@@ -3025,6 +3074,7 @@ impl ApplicationHandler for RenderApp {
                         pressed: state == ElementState::Pressed,
                         modifiers: self.modifiers,
                         target_frame_id: target_fid,
+                        webkit_id: wk_id,
                     });
                     // Click halo effect on press
                     if state == ElementState::Pressed && self.effects.click_halo.enabled {
@@ -3186,6 +3236,52 @@ impl ApplicationHandler for RenderApp {
                     } else {
                         (self.mouse_pos.0, self.mouse_pos.1, 0)
                     };
+                // WebKit glyph hit-test for scroll
+                let mut wk_id = 0u32;
+                {
+                    let glyphs: Option<&[FrameGlyph]> = if target_fid != 0 {
+                        self.child_frames.frames.get(&target_fid).map(|e| e.frame.glyphs.as_slice())
+                    } else {
+                        self.current_frame.as_ref().map(|f| f.glyphs.as_slice())
+                    };
+                    if let Some(glyphs) = glyphs {
+                        if let Some((id, rx, ry)) = webkit_glyph_hit_test(glyphs, ev_x, ev_y) {
+                            wk_id = id;
+                            // Send scroll directly to WebKit with relative coords
+                            #[cfg(feature = "wpe-webkit")]
+                            if let Some(view) = self.webkit_views.get(&id) {
+                                let (sdx, sdy) = if pixel_precise {
+                                    (dx as i32, dy as i32)
+                                } else {
+                                    ((dx * 53.0) as i32, (dy * 53.0) as i32)
+                                };
+                                view.scroll(rx, ry, sdx, sdy);
+                            }
+                        }
+                    }
+                    // Also check floating webkits (parent-frame absolute coords)
+                    #[cfg(feature = "wpe-webkit")]
+                    if wk_id == 0 && target_fid == 0 {
+                        let mx = self.mouse_pos.0;
+                        let my = self.mouse_pos.1;
+                        for wk in self.floating_webkits.iter().rev() {
+                            if mx >= wk.x && mx < wk.x + wk.width && my >= wk.y && my < wk.y + wk.height {
+                                wk_id = wk.webkit_id;
+                                let rx = (mx - wk.x) as i32;
+                                let ry = (my - wk.y) as i32;
+                                let (sdx, sdy) = if pixel_precise {
+                                    (dx as i32, dy as i32)
+                                } else {
+                                    ((dx * 53.0) as i32, (dy * 53.0) as i32)
+                                };
+                                if let Some(view) = self.webkit_views.get(&wk_id) {
+                                    view.scroll(rx, ry, sdx, sdy);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
                 self.comms.send_input(InputEvent::MouseScroll {
                     delta_x: dx,
                     delta_y: dy,
@@ -3194,6 +3290,7 @@ impl ApplicationHandler for RenderApp {
                     modifiers: self.modifiers,
                     pixel_precise,
                     target_frame_id: target_fid,
+                    webkit_id: wk_id,
                 });
             }
 

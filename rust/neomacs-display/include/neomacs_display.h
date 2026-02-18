@@ -301,6 +301,10 @@ typedef struct NeomacsInputEvent {
    * Target frame pointer for child frame mouse event routing (0 = parent frame)
    */
   uint64_t targetFrameId;
+  /**
+   * WebKit view ID hit by render-thread glyph search (0 = none)
+   */
+  uint32_t webkitId;
 } NeomacsInputEvent;
 
 /**
