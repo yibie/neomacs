@@ -36,3 +36,12 @@
 36	(keyboard-coding-system)	OK ascii-unix
 37	(condition-case err (set-keyboard-coding-system 'no-conversion-unix) (error err))	OK (coding-system-error no-conversion-unix)
 38	(keyboard-coding-system)	OK ascii-unix
+39	(condition-case err (set-keyboard-coding-system 'utf-8 nil) (error err))	OK utf-8-unix
+40	(keyboard-coding-system)	OK utf-8-unix
+41	(condition-case err (set-terminal-coding-system 'utf-8 nil) (error err))	OK nil
+42	(terminal-coding-system)	OK utf-8
+43	(condition-case err (set-terminal-coding-system 'utf-8 nil nil) (error err))	OK nil
+44	(terminal-coding-system)	OK utf-8
+45	(condition-case err (set-keyboard-coding-system 'utf-8 nil nil) (error err))	OK (wrong-number-of-arguments set-keyboard-coding-system 3)
+46	(condition-case err (set-terminal-coding-system 'utf-8 nil nil nil) (error err))	OK (wrong-number-of-arguments set-terminal-coding-system 4)
+47	(condition-case err (set-terminal-coding-system 'utf-8 nil nil nil nil) (error err))	OK (wrong-number-of-arguments set-terminal-coding-system 5)

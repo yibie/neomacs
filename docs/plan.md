@@ -28,6 +28,15 @@ Last updated: 2026-02-18
 
 ## Doing
 
+- Expanded coding-system runtime optional-arg/arity lock-ins (batch round 18):
+  - oracle corpus changes:
+    - `test/neovm/vm-compat/cases/coding-system-runtime-semantics.{forms,expected.tsv}`
+    - `test/neovm/vm-compat/cases/coding-system-io-runtime-semantics.{forms,expected.tsv}`
+    - added `check-coding-system`/`define-coding-system-alias` arity-error probes plus optional-arg behavior and over-arity boundaries for keyboard/terminal coding setters.
+  - verified:
+    - `make -C test/neovm/vm-compat check-neovm-list LIST=<batch-list>` (pass; 23/23, 47/47)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+
 - Expanded batch input optional-arg boundary lock-ins (batch round 17):
   - oracle corpus changes:
     - `test/neovm/vm-compat/cases/read-batch-input-semantics.{forms,expected.tsv}`

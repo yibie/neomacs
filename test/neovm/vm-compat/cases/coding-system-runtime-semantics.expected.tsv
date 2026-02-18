@@ -16,3 +16,8 @@
 16	(condition-case err (set-coding-system-priority 'utf-8 nil) (error err))	OK (wrong-type-argument coding-system-p nil)
 17	(condition-case err (set-coding-system-priority 'utf-8 'raw-text 'no-such-coding) (error err))	OK (coding-system-error no-such-coding)
 18	(condition-case err (set-coding-system-priority 'utf-8 'raw-text "latin-1") (error err))	OK (wrong-type-argument symbolp "latin-1")
+19	(condition-case err (check-coding-system) (error err))	OK (wrong-number-of-arguments check-coding-system 0)
+20	(condition-case err (check-coding-system 'utf-8 nil) (error err))	OK (wrong-number-of-arguments check-coding-system 2)
+21	(condition-case err (define-coding-system-alias 'vm-cs6) (error err))	OK (wrong-number-of-arguments define-coding-system-alias 1)
+22	(condition-case err (define-coding-system-alias 'vm-cs6 'utf-8 nil) (error err))	OK (wrong-number-of-arguments define-coding-system-alias 3)
+23	(condition-case err (set-coding-system-priority 'utf-8 nil nil) (error err))	OK (wrong-type-argument coding-system-p nil)
