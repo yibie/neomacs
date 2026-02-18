@@ -159,7 +159,24 @@ pub fn print_expr(expr: &Expr) -> String {
 }
 
 fn format_float(f: f64) -> String {
+    const NAN_QUIET_BIT: u64 = 1u64 << 51;
+    const NAN_PAYLOAD_TAG_MASK: u64 = 0b111u64 << 48;
+    const NAN_PAYLOAD_TAG_BITS: u64 = 0b101u64 << 48;
+    const NAN_PAYLOAD_VALUE_MASK: u64 = (1u64 << 48) - 1;
+
     if f.is_nan() {
+        let bits = f.to_bits();
+        let frac = bits & ((1u64 << 52) - 1);
+        if (frac & NAN_QUIET_BIT) != 0 && (frac & NAN_PAYLOAD_TAG_MASK) == NAN_PAYLOAD_TAG_BITS {
+            let payload = frac & NAN_PAYLOAD_VALUE_MASK;
+            if payload != 0 {
+                return if f.is_sign_negative() {
+                    format!("-{}.0e+NaN", payload)
+                } else {
+                    format!("{}.0e+NaN", payload)
+                };
+            }
+        }
         return if f.is_sign_negative() {
             "-0.0e+NaN".to_string()
         } else {
@@ -325,6 +342,16 @@ mod tests {
         assert_eq!(print_value(&Value::Float(f64::NAN)), "0.0e+NaN");
         let neg_nan = f64::from_bits(f64::NAN.to_bits() | (1_u64 << 63));
         assert_eq!(print_value(&Value::Float(neg_nan)), "-0.0e+NaN");
+    }
+
+    #[test]
+    fn print_float_nan_payload_tag_round_trip_shape() {
+        let tagged = f64::from_bits((0x7ffu64 << 52) | (1u64 << 51) | (0b101u64 << 48) | 1u64);
+        assert_eq!(print_value(&Value::Float(tagged)), "1.0e+NaN");
+
+        let neg_tagged =
+            f64::from_bits((1u64 << 63) | (0x7ffu64 << 52) | (1u64 << 51) | (0b101u64 << 48) | 2u64);
+        assert_eq!(print_value(&Value::Float(neg_tagged)), "-2.0e+NaN");
     }
 
     #[test]
