@@ -30,67 +30,67 @@
 ;; ── Define a face for each style ────────────────────────────────────
 
 (defface fancy-box-solid
-  '((t :foreground "white"
+  '((t :foreground "white" :background "#1A2244"
        :box (:line-width 3 :color "dodger blue" :corner-radius 10
              :border-style solid :border-speed 100)))
   "Style: Solid rounded box.")
 
 (defface fancy-box-rainbow
-  '((t :foreground "white"
+  '((t :foreground "white" :background "#222222"
        :box (:line-width 3 :color "white" :corner-radius 12
              :border-style rainbow :border-speed 100)))
   "Style: Rainbow.")
 
 (defface fancy-box-animated-rainbow
-  '((t :foreground "white"
+  '((t :foreground "white" :background "#222222"
        :box (:line-width 3 :color "white" :corner-radius 12
              :border-style animated-rainbow :border-speed 100)))
   "Style: Animated Rainbow.")
 
 (defface fancy-box-gradient
-  '((t :foreground "white"
+  '((t :foreground "white" :background "#331A33"
        :box (:line-width 3 :color "deep pink" :corner-radius 10
              :border-style gradient :border-speed 100 :color2 "cyan")))
   "Style: Gradient (pink → cyan).")
 
 (defface fancy-box-glow
-  '((t :foreground "white"
+  '((t :foreground "white" :background "#0D330D"
        :box (:line-width 2 :color "lime green" :corner-radius 10
              :border-style glow :border-speed 100)))
   "Style: Pulsing Glow.")
 
 (defface fancy-box-neon
-  '((t :foreground "white"
+  '((t :foreground "white" :background "#220D33"
        :box (:line-width 3 :color "magenta" :corner-radius 10
              :border-style neon :border-speed 100 :color2 "cyan")))
   "Style: Neon Double-Stroke.")
 
 (defface fancy-box-dashed
-  '((t :foreground "white"
+  '((t :foreground "white" :background "#332D0D"
        :box (:line-width 3 :color "gold" :corner-radius 10
              :border-style dashed :border-speed 100)))
   "Style: Dashed.")
 
 (defface fancy-box-comet
-  '((t :foreground "white"
+  '((t :foreground "white" :background "#331A0D"
        :box (:line-width 3 :color "orange red" :corner-radius 12
              :border-style comet :border-speed 100)))
   "Style: Comet Trail.")
 
 (defface fancy-box-iridescent
-  '((t :foreground "white"
+  '((t :foreground "white" :background "#1A2233"
        :box (:line-width 3 :color "steel blue" :corner-radius 10
              :border-style iridescent :border-speed 100)))
   "Style: Iridescent.")
 
 (defface fancy-box-fire
-  '((t :foreground "white"
+  '((t :foreground "white" :background "#330D0D"
        :box (:line-width 3 :color "dark red" :corner-radius 10
              :border-style fire :border-speed 100)))
   "Style: Fire / Plasma.")
 
 (defface fancy-box-heartbeat
-  '((t :foreground "white"
+  '((t :foreground "white" :background "#330D0D"
        :box (:line-width 2 :color "red" :corner-radius 10
              :border-style heartbeat :border-speed 100 :color2 "green")))
   "Style: Heartbeat (red → green on beat).")
@@ -157,22 +157,22 @@
                             'face '(:height 1.2 :weight bold)))
         (insert "  ")
         (insert (propertize " 0.5x speed "
-                            'face '(:foreground "white"
+                            'face '(:foreground "white" :background "#222222"
                                     :box (:line-width 3 :color "white" :corner-radius 10
                                           :border-style animated-rainbow :border-speed 50))))
         (insert "   ")
         (insert (propertize " 1.0x speed "
-                            'face '(:foreground "white"
+                            'face '(:foreground "white" :background "#222222"
                                     :box (:line-width 3 :color "white" :corner-radius 10
                                           :border-style animated-rainbow :border-speed 100))))
         (insert "   ")
         (insert (propertize " 2.0x speed "
-                            'face '(:foreground "white"
+                            'face '(:foreground "white" :background "#222222"
                                     :box (:line-width 3 :color "white" :corner-radius 10
                                           :border-style animated-rainbow :border-speed 200))))
         (insert "   ")
         (insert (propertize " 4.0x speed "
-                            'face '(:foreground "white"
+                            'face '(:foreground "white" :background "#222222"
                                     :box (:line-width 3 :color "white" :corner-radius 10
                                           :border-style animated-rainbow :border-speed 400))))
         (insert "\n\n\n")
@@ -182,17 +182,17 @@
                             'face '(:height 1.2 :weight bold)))
         (insert "  ")
         (insert (propertize " 1px "
-                            'face '(:foreground "white"
+                            'face '(:foreground "white" :background "#330D0D"
                                     :box (:line-width 1 :color "red" :corner-radius 8
                                           :border-style heartbeat :border-speed 100 :color2 "green"))))
         (insert "   ")
         (insert (propertize " 2px "
-                            'face '(:foreground "white"
+                            'face '(:foreground "white" :background "#330D0D"
                                     :box (:line-width 2 :color "red" :corner-radius 10
                                           :border-style heartbeat :border-speed 100 :color2 "green"))))
         (insert "   ")
         (insert (propertize " 4px "
-                            'face '(:foreground "white"
+                            'face '(:foreground "white" :background "#330D0D"
                                     :box (:line-width 4 :color "red" :corner-radius 12
                                           :border-style heartbeat :border-speed 100 :color2 "green"))))
         (insert "\n\n\n")
@@ -202,22 +202,22 @@
                             'face '(:height 1.2 :weight bold)))
         (insert "  ")
         (insert (propertize " Sunset "
-                            'face '(:foreground "white"
+                            'face '(:foreground "white" :background "#331A0D"
                                     :box (:line-width 3 :color "red" :corner-radius 10
                                           :border-style gradient :border-speed 100 :color2 "gold"))))
         (insert "   ")
         (insert (propertize " Ocean "
-                            'face '(:foreground "white"
+                            'face '(:foreground "white" :background "#0D1A33"
                                     :box (:line-width 3 :color "navy" :corner-radius 10
                                           :border-style gradient :border-speed 100 :color2 "aquamarine"))))
         (insert "   ")
         (insert (propertize " Forest "
-                            'face '(:foreground "white"
+                            'face '(:foreground "white" :background "#0D330D"
                                     :box (:line-width 3 :color "dark green" :corner-radius 10
                                           :border-style gradient :border-speed 100 :color2 "lime green"))))
         (insert "   ")
         (insert (propertize " Galaxy "
-                            'face '(:foreground "white"
+                            'face '(:foreground "white" :background "#220D22"
                                     :box (:line-width 3 :color "purple" :corner-radius 10
                                           :border-style gradient :border-speed 100 :color2 "hot pink"))))
         (insert "\n"))
