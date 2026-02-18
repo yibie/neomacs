@@ -28,6 +28,12 @@ Last updated: 2026-02-18
 
 ## Doing
 
+- Extended `max`/`min` selected-operand type parity:
+  - Updated `rust/neovm-core/src/elisp/builtins.rs` so `max` and `min` return the selected winning operand value/type (with first-argument tie behavior), matching Oracle mixed int/float outcomes.
+  - Added evaluator unit coverage in `pure_dispatch_typed_max_min_preserve_selected_operand_type`.
+  - Added oracle lock-in case `cases/max-min-type-preservation-semantics` and wired it into `test/neovm/vm-compat/cases/default.list`.
+  - Validated via `cargo test --manifest-path rust/neovm-core/Cargo.toml pure_dispatch_typed_max_min_preserve_selected_operand_type`, `make -C test/neovm/vm-compat check-one-neovm CASE=cases/max-min-type-preservation-semantics`, and full `make -C test/neovm/vm-compat check-all-neovm`.
+
 - Extended `mod` zero-remainder sign parity with negative divisors:
   - Updated `rust/neovm-core/src/elisp/builtins.rs` so `mod` only applies sign-of-divisor adjustment when the remainder is non-zero.
   - This fixes Oracle drifts where zero remainders previously returned the negative divisor (`mod 0 -3`, `mod -3 -3`, `mod 0.5 -0.5`, etc.).
