@@ -248,6 +248,13 @@ fn print_list_shorthand(value: &Value) -> Option<String> {
         _ => return None,
     };
 
+    if head == "make-hash-table-from-literal" {
+        if let Some(payload) = quote_payload(&items[1]) {
+            return Some(format!("#s{}", print_value(&payload)));
+        }
+        return None;
+    }
+
     let prefix = match head {
         "quote" => "'",
         "function" => "#'",
@@ -271,6 +278,14 @@ fn print_list_shorthand_bytes(value: &Value) -> Option<Vec<u8>> {
         _ => return None,
     };
 
+    if head == "make-hash-table-from-literal" {
+        let payload = quote_payload(&items[1])?;
+        let mut out = Vec::new();
+        out.extend_from_slice(b"#s");
+        append_print_value_bytes(&payload, &mut out);
+        return Some(out);
+    }
+
     let prefix: &[u8] = match head {
         "quote" => b"'",
         "function" => b"#'",
@@ -284,6 +299,17 @@ fn print_list_shorthand_bytes(value: &Value) -> Option<Vec<u8>> {
     out.extend_from_slice(prefix);
     append_print_value_bytes(&items[1], &mut out);
     Some(out)
+}
+
+fn quote_payload(value: &Value) -> Option<Value> {
+    let items = list_to_vec(value)?;
+    if items.len() != 2 {
+        return None;
+    }
+    match &items[0] {
+        Value::Symbol(name) if name == "quote" => Some(items[1].clone()),
+        _ => None,
+    }
 }
 
 fn print_cons(value: &Value, out: &mut String) {
@@ -415,6 +441,19 @@ mod tests {
     fn print_list() {
         let lst = Value::list(vec![Value::Int(1), Value::Int(2), Value::Int(3)]);
         assert_eq!(print_value(&lst), "(1 2 3)");
+    }
+
+    #[test]
+    fn print_hash_s_literal_shorthand() {
+        let literal = Value::list(vec![
+            Value::symbol("make-hash-table-from-literal"),
+            Value::list(vec![
+                Value::symbol("quote"),
+                Value::list(vec![Value::symbol("x")]),
+            ]),
+        ]);
+        assert_eq!(print_value(&literal), "#s(x)");
+        assert_eq!(print_value_bytes(&literal), b"#s(x)");
     }
 
     #[test]

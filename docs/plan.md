@@ -28,6 +28,22 @@ Last updated: 2026-02-18
 
 ## Doing
 
+- Aligned `read-from-string` complete `#s(...)` rendering with Oracle:
+  - runtime changes:
+    - updated shorthand printing in both `rust/neovm-core/src/elisp/print.rs` and evaluator-aware `rust/neovm-core/src/elisp/error.rs` so internal `(make-hash-table-from-literal '(...))` shape renders as `#s(...)`.
+    - added focused unit tests:
+      - `print_hash_s_literal_shorthand`
+      - `eval_context_printer_renders_hash_s_literal_shorthand`
+  - expanded oracle corpus:
+    - `test/neovm/vm-compat/cases/read-from-string-edges.forms`
+    - `test/neovm/vm-compat/cases/read-from-string-edges.expected.tsv`
+    - added complete `#s` probes for `(read-from-string "#s(x)")` and `(read-from-string "#s(hash-table)")`.
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml print_hash_s_literal_shorthand` (pass)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml eval_context_printer_renders_hash_s_literal_shorthand` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/read-from-string-edges` (pass, 35/35)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+
 - Expanded `#s` incomplete-form EOF lock-ins for `read-from-string`:
   - oracle corpus changes:
     - `test/neovm/vm-compat/cases/read-from-string-edges.forms`

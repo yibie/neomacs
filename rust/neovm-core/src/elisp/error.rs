@@ -196,6 +196,11 @@ fn format_list_shorthand_with_eval(eval: &super::eval::Evaluator, value: &Value)
         _ => return None,
     };
 
+    if head == "make-hash-table-from-literal" {
+        let payload = quote_payload(&items[1])?;
+        return Some(format!("#s{}", format_value_with_eval(eval, &payload)));
+    }
+
     let (prefix, quoted) = match head {
         "quote" => Some(("'", &items[1])),
         "function" => Some(("#'", &items[1])),
@@ -306,6 +311,14 @@ fn format_list_shorthand_bytes_with_eval(
         _ => return None,
     };
 
+    if head == "make-hash-table-from-literal" {
+        let payload = quote_payload(&items[1])?;
+        let mut out = Vec::new();
+        out.extend_from_slice(b"#s");
+        out.extend(print_value_bytes_with_eval(eval, &payload));
+        return Some(out);
+    }
+
     let (prefix, quoted) = match head {
         "quote" => Some((b"'" as &[u8], &items[1])),
         "function" => Some((b"#'" as &[u8], &items[1])),
@@ -319,6 +332,17 @@ fn format_list_shorthand_bytes_with_eval(
     out.extend_from_slice(prefix);
     out.extend(print_value_bytes_with_eval(eval, quoted));
     Some(out)
+}
+
+fn quote_payload(value: &Value) -> Option<Value> {
+    let items = super::value::list_to_vec(value)?;
+    if items.len() != 2 {
+        return None;
+    }
+    match &items[0] {
+        Value::Symbol(name) if name == "quote" => Some(items[1].clone()),
+        _ => None,
+    }
 }
 
 fn append_cons_bytes_with_eval(eval: &super::eval::Evaluator, value: &Value, out: &mut Vec<u8>) {
@@ -470,5 +494,22 @@ mod tests {
         );
 
         Ok(())
+    }
+
+    #[test]
+    fn eval_context_printer_renders_hash_s_literal_shorthand() {
+        let eval = Evaluator::new();
+        let literal = Value::list(vec![
+            Value::symbol("make-hash-table-from-literal"),
+            Value::list(vec![
+                Value::symbol("quote"),
+                Value::list(vec![Value::symbol("x")]),
+            ]),
+        ]);
+        assert_eq!(print_value_with_eval(&eval, &literal), "#s(x)");
+        assert_eq!(
+            String::from_utf8(print_value_bytes_with_eval(&eval, &literal)).unwrap(),
+            "#s(x)"
+        );
     }
 }
