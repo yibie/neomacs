@@ -10753,6 +10753,20 @@ Last updated: 2026-02-18
     - `make -C test/neovm/vm-compat record FORMS=cases/documentation-property-semantics.forms EXPECTED=cases/documentation-property-semantics.expected.tsv` (pass)
     - `make -C test/neovm/vm-compat check-one-neovm CASE=documentation-property-semantics` (pass, 17/17)
     - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+- Expanded startup-variable `documentation-property` parity for integer doc-offset metadata:
+  - runtime changes:
+    - evaluator startup now seeds integer `variable-documentation` offsets for the core startup variable set (`load-path`, `load-history`, `features`, `debug-on-error`, `default-directory`, `load-file-name`, `noninteractive`, `inhibit-quit`, `print-length`, `print-level`, `standard-output`, `buffer-read-only`, `kill-ring`, `kill-ring-yank-pointer`, `last-command`, `lexical-binding`, `load-prefer-newer`)
+    - `documentation-property` now maps seeded startup integer offsets to C-source marker text across that full set
+    - non-seeded symbol integer offsets continue to follow unresolved behavior (`nil`)
+  - expanded oracle corpus:
+    - `test/neovm/vm-compat/cases/documentation-property-semantics.forms`
+    - `test/neovm/vm-compat/cases/documentation-property-semantics.expected.tsv`
+    - added a startup-variable aggregate probe asserting non-`nil` string docs across the seeded startup set
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml documentation_property_eval` (pass)
+    - `make -C test/neovm/vm-compat record FORMS=cases/documentation-property-semantics.forms EXPECTED=cases/documentation-property-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=documentation-property-semantics` (pass, 18/18)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
 
 ## Doing
 
