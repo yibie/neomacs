@@ -160,7 +160,11 @@ pub fn print_expr(expr: &Expr) -> String {
 
 fn format_float(f: f64) -> String {
     if f.is_nan() {
-        return "0.0e+NaN".to_string();
+        return if f.is_sign_negative() {
+            "-0.0e+NaN".to_string()
+        } else {
+            "0.0e+NaN".to_string()
+        };
     }
     if f.is_infinite() {
         return if f > 0.0 {
@@ -314,6 +318,13 @@ mod tests {
         assert_eq!(print_value(&Value::Float(1.0)), "1.0");
         assert_eq!(print_value(&Value::symbol("foo")), "foo");
         assert_eq!(print_value(&Value::keyword(":bar")), ":bar");
+    }
+
+    #[test]
+    fn print_float_nan_preserves_sign() {
+        assert_eq!(print_value(&Value::Float(f64::NAN)), "0.0e+NaN");
+        let neg_nan = f64::from_bits(f64::NAN.to_bits() | (1_u64 << 63));
+        assert_eq!(print_value(&Value::Float(neg_nan)), "-0.0e+NaN");
     }
 
     #[test]
