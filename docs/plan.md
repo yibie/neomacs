@@ -28,6 +28,13 @@ Last updated: 2026-02-18
 
 ## Doing
 
+- Extended NaN payload reader parity for fractional and leading-dot mantissas:
+  - Updated `rust/neovm-core/src/elisp/parser.rs` special-float parsing so `+NaN` payload literals follow Oracle shape for fractional mantissas (`1.5e+NaN -> 1.0e+NaN`, `0.9e+NaN -> 0.0e+NaN`) and leading-dot mantissas (`.5e+NaN -> 2251799813685246.0e+NaN`), including signed variants.
+  - Updated `rust/neovm-core/src/elisp/expr.rs` and `rust/neovm-core/src/elisp/print.rs` to decode NaN payloads from fraction bits directly and preserve Oracle-style `±N.0e+NaN` rendering across round-trips.
+  - Expanded parser coverage in `parse_emacs_special_float_literals`, added rendering assertions in `parse_nan_payload_literals_render_to_oracle_shapes`, and tightened invalid-spelling symbol behavior in `parse_invalid_nan_inf_spellings_as_symbols`.
+  - Added oracle lock-in case `cases/reader-nan-fractional-payload-semantics` and wired it into `test/neovm/vm-compat/cases/default.list`.
+  - Validated via `cargo test --manifest-path rust/neovm-core/Cargo.toml parse_emacs_special_float_literals`, `cargo test --manifest-path rust/neovm-core/Cargo.toml parse_nan_payload_literals_render_to_oracle_shapes`, `cargo test --manifest-path rust/neovm-core/Cargo.toml parse_invalid_nan_inf_spellings_as_symbols`, `cargo test --manifest-path rust/neovm-core/Cargo.toml print_special_float_spellings_match_oracle_shape`, `cargo test --manifest-path rust/neovm-core/Cargo.toml print_float_nan_payload_tag_round_trip_shape`, `make -C test/neovm/vm-compat check-one-neovm CASE=cases/reader-nan-fractional-payload-semantics`, and full `make -C test/neovm/vm-compat check-all-neovm`.
+
 - Extended NaN payload reader parity for integer mantissas:
   - Updated `rust/neovm-core/src/elisp/parser.rs` so special float literals like `1.0e+NaN`, `-1.0e+NaN`, and `2.0e+NaN` parse as floats (while fractional payload forms like `.5e+NaN` remain symbols for now).
   - Updated `rust/neovm-core/src/elisp/expr.rs` and `rust/neovm-core/src/elisp/print.rs` to preserve tagged integer NaN payload spellings (`±N.0e+NaN`) through compat-runner round-trips and result printing.
