@@ -10668,6 +10668,20 @@ Last updated: 2026-02-18
     - `make -C test/neovm/vm-compat record FORMS=cases/describe-function-runtime-semantics.forms EXPECTED=cases/describe-function-runtime-semantics.expected.tsv` (pass)
     - `make -C test/neovm/vm-compat check-one-neovm CASE=describe-function-runtime-semantics` (pass, 11/11)
     - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+- Refined `describe-function` unresolved-alias wording to match GNU Emacs class text:
+  - runtime changes:
+    - unresolved aliases now include `"which is not ..."` clause in the returned description text
+    - resolved aliases retain the existing `"NAME is an alias for \`TARGET\`."` shape
+    - non-alias classification paths are unchanged
+  - expanded oracle corpus:
+    - `test/neovm/vm-compat/cases/describe-function-runtime-semantics.forms`
+    - `test/neovm/vm-compat/cases/describe-function-runtime-semantics.expected.tsv`
+    - added explicit unresolved-alias probe asserting `"which is not"` text class
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml describe_function` (pass)
+    - `make -C test/neovm/vm-compat record FORMS=cases/describe-function-runtime-semantics.forms EXPECTED=cases/describe-function-runtime-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=describe-function-runtime-semantics` (pass, 12/12)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
 
 ## Doing
 
