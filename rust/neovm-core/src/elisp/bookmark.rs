@@ -14,6 +14,9 @@
 //! - `bookmark-load` -- deserialize bookmarks from a string
 
 use std::collections::HashMap;
+use std::fs;
+use std::path::Path;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use super::error::{signal, EvalResult, Flow};
 use super::value::Value;
@@ -623,31 +626,114 @@ pub(crate) fn builtin_bookmark_set_annotation(
     }
 }
 
-/// (bookmark-save) -> string
-///
-/// Serialize all bookmarks and return the string.  In a real Emacs this
-/// would write to `bookmark-default-file`; here we just return the data.
+fn default_bookmark_file() -> String {
+    if let Ok(home) = std::env::var("HOME") {
+        return format!("{home}/.config/emacs/bookmarks");
+    }
+    ".config/emacs/bookmarks".to_string()
+}
+
+fn bookmark_save_stamp(path: &str) -> Value {
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
+    Value::list(vec![
+        Value::string(path.to_string()),
+        Value::Int(now.as_secs() as i64),
+        Value::Int(0),
+        Value::Int((now.subsec_nanos() / 1_000) as i64),
+        Value::Int(0),
+    ])
+}
+
+/// (bookmark-save &optional PARG FILE BATCH) -> nil or save-stamp list
 pub(crate) fn builtin_bookmark_save(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    expect_args("bookmark-save", &args, 0)?;
+    if args.len() > 3 {
+        return Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol("bookmark-save"), Value::Int(args.len() as i64)],
+        ));
+    }
+
+    let parg = args.first().cloned().unwrap_or(Value::Nil);
+    let file_arg = args.get(1).cloned().unwrap_or(Value::Nil);
+    let batch = args.get(2).cloned().unwrap_or(Value::Nil);
+
+    if !file_arg.is_nil() && !file_arg.is_string() {
+        return Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("stringp"), file_arg],
+        ));
+    }
+
+    if file_arg.is_nil() && !parg.is_nil() {
+        return Err(signal(
+            "end-of-file",
+            vec![Value::string("Error reading from stdin")],
+        ));
+    }
+
+    let has_file = !file_arg.is_nil();
+    let path = match &file_arg {
+        Value::Str(path) => (**path).clone(),
+        _ => default_bookmark_file(),
+    };
+
     let data = eval.bookmarks.save_to_string();
+    if let Some(parent) = Path::new(&path).parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    let _ = fs::write(&path, data);
     eval.bookmarks.mark_saved();
-    Ok(Value::string(data))
+
+    if has_file && batch.is_nil() {
+        return Ok(Value::Nil);
+    }
+    Ok(bookmark_save_stamp(&path))
 }
 
-/// (bookmark-load DATA) -> nil
-///
-/// Deserialize bookmarks from a string.
+/// (bookmark-load FILE &optional OVERWRITE NO-MSG BATCH) -> message string or nil
 pub(crate) fn builtin_bookmark_load(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    expect_args("bookmark-load", &args, 1)?;
-    let data = expect_string(&args[0])?;
+    if args.is_empty() || args.len() > 4 {
+        return Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol("bookmark-load"), Value::Int(args.len() as i64)],
+        ));
+    }
+
+    let file = match &args[0] {
+        Value::Str(path) => (**path).clone(),
+        other => {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("stringp"), other.clone()],
+            ))
+        }
+    };
+
+    let data = match fs::read_to_string(&file) {
+        Ok(data) => data,
+        Err(_) => {
+            return Err(signal(
+                "user-error",
+                vec![Value::string(format!("Cannot read bookmark file {file}"))],
+            ))
+        }
+    };
+
     eval.bookmarks.load_from_string(&data);
-    Ok(Value::Nil)
+
+    let no_msg = args.get(2).is_some_and(|v| !v.is_nil());
+    if no_msg {
+        return Ok(Value::Nil);
+    }
+    Ok(Value::string(format!("Loading bookmarks from {file}...done")))
 }
 
 // ===========================================================================
@@ -1152,22 +1238,30 @@ mod tests {
         use super::super::eval::Evaluator;
 
         let mut eval = Evaluator::new();
+        let save_file = "/tmp/neovm-bookmark-save-load.data";
 
         set_current_buffer_file(&mut eval, "/file1.el");
         builtin_bookmark_set(&mut eval, vec![Value::string("bm1")]).unwrap();
         set_current_buffer_file(&mut eval, "/file2.el");
         builtin_bookmark_set(&mut eval, vec![Value::string("bm2")]).unwrap();
 
-        // Save
-        let result = builtin_bookmark_save(&mut eval, vec![]);
+        // Save to an explicit file path.
+        let result = builtin_bookmark_save(
+            &mut eval,
+            vec![Value::Nil, Value::string(save_file.to_string())],
+        );
         assert!(result.is_ok());
-        let saved_data = result.unwrap();
-        assert!(saved_data.is_string());
+        assert!(result.unwrap().is_nil());
 
         // Clear and load
         eval.bookmarks = BookmarkManager::new();
-        let result = builtin_bookmark_load(&mut eval, vec![saved_data]);
+        let result = builtin_bookmark_load(&mut eval, vec![Value::string(save_file.to_string())]);
         assert!(result.is_ok());
+        let load_message = result.unwrap();
+        assert_eq!(
+            load_message.as_str(),
+            Some("Loading bookmarks from /tmp/neovm-bookmark-save-load.data...done")
+        );
 
         // Verify restored bookmark payloads.
         let bm1 = eval.bookmarks.get("bm1").expect("bm1 restored");
@@ -1175,6 +1269,18 @@ mod tests {
 
         let bm2 = eval.bookmarks.get("bm2").expect("bm2 restored");
         assert_eq!(bm2.filename.as_deref(), Some("/file2.el"));
+
+        // NO-MSG suppresses the loading message.
+        let result = builtin_bookmark_load(
+            &mut eval,
+            vec![
+                Value::string(save_file.to_string()),
+                Value::Nil,
+                Value::True,
+            ],
+        );
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_nil());
     }
 
     #[test]
@@ -1192,15 +1298,15 @@ mod tests {
         );
         assert!(result.is_err());
 
-        // bookmark-jump needs exactly 1
+        // bookmark-jump requires at least one argument.
         let result = builtin_bookmark_jump(&mut eval, vec![]);
         assert!(result.is_err());
 
-        // bookmark-delete needs exactly 1
+        // bookmark-delete requires at least one argument.
         let result = builtin_bookmark_delete(&mut eval, vec![]);
         assert!(result.is_err());
 
-        // bookmark-rename needs exactly 2
+        // bookmark-rename with one arg errors in batch mode.
         let result = builtin_bookmark_rename(&mut eval, vec![Value::string("x")]);
         assert!(result.is_err());
     }
