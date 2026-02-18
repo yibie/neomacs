@@ -28,6 +28,12 @@ Last updated: 2026-02-18
 
 ## Doing
 
+- Completed `help-function-arglist` preserve-names runtime parity slice:
+  - Expanded evaluator-backed name-preserving mappings in `rust/neovm-core/src/elisp/doc.rs` for core callables (`cdr`, `cons`, `list`, `eq`, `symbol-function`, `fboundp`, `substitute-command-keys`, `where-is-internal`, `read`, `documentation`) while keeping special-form `if` shape unchanged.
+  - Added evaluator unit coverage: `help_function_arglist_eval_preserve_names_core_subrs`.
+  - Added oracle lock-in case `cases/help-function-arglist-preserve-runtime-semantics` and wired it into `test/neovm/vm-compat/cases/default.list`.
+  - Validated via `cargo test --manifest-path rust/neovm-core/Cargo.toml help_function_arglist`, `make -C test/neovm/vm-compat check-one-neovm CASE=cases/help-function-arglist-preserve-runtime-semantics`, and full `make -C test/neovm/vm-compat check-all-neovm`.
+
 - Completed `help-function-arglist` subr-arity fallback parity slice:
   - Extended evaluator-backed `help-function-arglist` resolution to derive generic arglist shapes from subr arity for resolved callables that lack dedicated name mappings.
   - Kept explicit Oracle-shaped overrides for edge names such as `eq`, while preserving autoload placeholder behavior and unknown-symbol fallback to `t`.
