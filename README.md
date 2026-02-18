@@ -340,8 +340,19 @@ and why Elisp is slow, see [docs/elisp-core-analysis.md](docs/elisp-core-analysi
 
 - **Emacs source** (this is a fork)
 - **Rust** (stable, 1.92+)
-- **GStreamer** (for video playback)
+- **GStreamer** (optional, for video playback — the `video` feature)
+- **WPE WebKit** (optional, for inline browser — the `wpe-webkit` feature, Linux only)
 - **VA-API** (optional, for hardware video decode on Linux)
+
+The Rust display engine has optional features that can be selectively enabled:
+
+| Feature | Default | Description |
+|---------|---------|-------------|
+| `video` | yes | GStreamer video playback |
+| `wpe-webkit` | yes | WPE WebKit browser embedding (Linux only) |
+| `neo-term` | yes | GPU terminal emulator |
+
+To build without a feature, use `--no-default-features` and list only the features you want.
 
 ### Linux (Arch Linux)
 
@@ -372,8 +383,45 @@ make -j$(nproc)
 ```
 
 > **Note:** WPE WebKit (`wpewebkit`) is required for browser embedding. It is available in
-> Arch Linux repos and via NixOS. On distros without WPE WebKit packages, the build will
-> skip webkit support and build the Rust crate with `--no-default-features --features "winit-backend,video"`.
+> Arch Linux repos and via NixOS. On distros without WPE WebKit packages, build the Rust
+> crate without it:
+> ```bash
+> cargo build --release --manifest-path rust/neomacs-display/Cargo.toml \
+>   --no-default-features --features "video,neo-term"
+> ```
+
+### macOS (Experimental)
+
+macOS support is experimental — see [issue #22](https://github.com/eval-exec/neomacs/issues/22) for status.
+
+WPE WebKit is Linux-only, so you must disable it. GStreamer is optional.
+
+```bash
+# Install dependencies (Homebrew)
+brew install autoconf automake texinfo pkg-config \
+  glib cairo \
+  gstreamer gst-plugins-base gst-plugins-good \
+  jpeg-turbo libtiff giflib libpng librsvg webp \
+  gnutls libxml2 sqlite jansson tree-sitter gmp
+
+# Install Rust (if not already installed)
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+# Build the Rust display engine (without Linux-only features)
+cargo build --release --manifest-path rust/neomacs-display/Cargo.toml \
+  --no-default-features --features "video,neo-term"
+
+# Build Emacs
+./autogen.sh
+./configure --with-neomacs --with-neovm-core-backend=emacs-c
+make -j$(sysctl -n hw.ncpu)
+```
+
+> **Note:** If GStreamer is not installed, also drop the `video` feature:
+> ```bash
+> cargo build --release --manifest-path rust/neomacs-display/Cargo.toml \
+>   --no-default-features --features "neo-term"
+> ```
 
 ### Docker (Build Test)
 
@@ -428,12 +476,6 @@ nix build \
 > (e.g., `trusted-users = root @wheel your-username`), or configure the cache system-wide
 > as shown above.
 
-**Legacy** (non-flake users):
-
-```bash
-nix-shell
-```
-
 #### Manual build (inside dev shell)
 
 ```bash
@@ -455,30 +497,30 @@ Use `--with-neovm-core-backend=` to select which core backend gets compiled:
 ## Platform Support
 
 - **Linux** – primary supported platform. The steps above document a validated Arch Linux workflow, but other distributions should follow similar dependency installation with their package manager.
-- **macOS** – experimental. There is ongoing work tracked in [issue #22](https://github.com/eval-exec/neomacs/issues/22); check before attempting a build.
+- **macOS** – experimental. Build with `--no-default-features` to disable Linux-only features (WPE WebKit). See [macOS build instructions](#macos-experimental) above and [issue #22](https://github.com/eval-exec/neomacs/issues/22) for status.
 - **Windows** – not currently supported. Running Neomacs inside WSL2, a Linux VM, or a container is recommended.
 
 
-## Roadmap: Rust Display Engine Rewrite
+## Roadmap
 
-We are rewriting the Emacs display engine entirely in Rust. The current system extracts glyphs from Emacs's C glyph matrices and sends them to the GPU — the next step is replacing the C layout engine (`xdisp.c`, `dispnew.c`, ~40k LOC) with a Rust layout engine that reads buffer data directly and produces GPU-ready glyph batches. One layout engine, two renderers: **wgpu (GPU)** and **TUI (terminal)**.
+The Rust display engine rewrite is **complete** — the Rust layout engine is now the only rendering path, bypassing `xdisp.c` entirely. See [docs/rust-display-engine.md](docs/rust-display-engine.md) for the design document.
 
-See [docs/rust-display-engine.md](docs/rust-display-engine.md) for the full design document.
+**Completed:**
+- GPU text rendering, face resolution, syntax highlighting
+- Display properties, overlays, invisible text, line numbers
+- Mode-line, header-line, tab-line
+- Variable-width fonts, BiDi text layout
+- Word-wrap, truncation, fringes, margins
+- Images, video, WebKit embedding
 
-| Phase | Scope | Difficulty | Enables |
-|-------|-------|------------|---------|
-| -1: Direct glyph hook | ~2000 | Medium | Proves architecture, low risk |
-| 0: Snapshot infra | ~1000 C, ~500 Rust | Medium-Hard | Foundation |
-| 1: Monospace ASCII layout | ~2500 Rust | Medium | Basic editing |
-| 1.5: TUI renderer | ~1200 Rust | Medium | Terminal Emacs |
-| 2: Face resolution | ~1500 Rust | Medium-Hard | Syntax highlighting |
-| 3: Display properties | ~5000 Rust | Very hard | Packages (company, which-key, org) |
-| 4: Mode-line & header-line | ~1000 Rust | Medium | Status display |
-| 5: Variable-width & compositions | ~1200 Rust | Medium | Proportional fonts, ligatures |
-| 6: Bidi | ~3000 Rust | Very hard | International text |
-| 7: Images & media | ~400 Rust | Easy | Already working |
+**In progress:**
+- Rewriting the entire Emacs C core in Rust (Elisp runtime, evaluator, bytecode VM, GC, buffer/window/frame subsystems)
+- macOS and cross-platform support
+- TUI (terminal) renderer
 
-**Total: ~17-18k LOC Rust replacing ~40k LOC C** — fewer lines because we skip terminal/X11/GTK backend code, skip incremental matrix diffing (GPU redraws everything), and leverage modern Rust crates (cosmic-text, unicode-bidi) for the hard Unicode/shaping problems.
+**Planned:**
+- True multi-threaded Elisp
+- JIT compilation and inline caching for 10x Elisp performance
 
 ---
 
