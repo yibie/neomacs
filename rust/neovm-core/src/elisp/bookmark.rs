@@ -298,32 +298,39 @@ fn expect_int(value: &Value) -> Result<i64, Flow> {
 // Builtins (evaluator-dependent)
 // ===========================================================================
 
-/// (bookmark-set NAME &optional FILENAME ANNOTATION) -> nil
+/// (bookmark-set NAME &optional NO-OVERWRITE) -> nil
 ///
-/// Create a bookmark at the current buffer position.  FILENAME overrides
-/// the buffer's file; ANNOTATION is an optional note.
+/// In batch/non-file buffers GNU Emacs signals:
+///   (error "Buffer not visiting a file or directory")
+/// This implementation mirrors that behavior.
 pub(crate) fn builtin_bookmark_set(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("bookmark-set", &args, 1)?;
+    if args.len() > 2 {
+        return Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol("bookmark-set"), Value::Int(args.len() as i64)],
+        ));
+    }
     let name = expect_string(&args[0])?;
-    let filename = if args.len() > 1 && !args[1].is_nil() {
-        Some(expect_string(&args[1])?)
-    } else {
-        None
-    };
-    let annotation = if args.len() > 2 && !args[2].is_nil() {
-        Some(expect_string(&args[2])?)
-    } else {
-        None
+    let _no_overwrite = args.get(1);
+
+    let (position, filename) = match eval.buffers.current_buffer() {
+        Some(buffer) => (buffer.point(), buffer.file_name.clone()),
+        None => (1, None),
     };
 
-    let position = eval
-        .buffers
-        .current_buffer()
-        .map(|b| b.point())
-        .unwrap_or(1);
+    let filename = match filename {
+        Some(path) => Some(path),
+        None => {
+            return Err(signal(
+                "error",
+                vec![Value::string("Buffer not visiting a file or directory")],
+            ))
+        }
+    };
 
     let bm = Bookmark {
         name: name.clone(),
@@ -331,7 +338,7 @@ pub(crate) fn builtin_bookmark_set(
         position,
         front_context: None,
         rear_context: None,
-        annotation,
+        annotation: None,
         handler: None,
     };
     eval.bookmarks.set(&name, bm);
@@ -832,21 +839,21 @@ mod tests {
     // Builtin-level tests
     // -----------------------------------------------------------------------
 
+    fn set_current_buffer_file(eval: &mut super::super::eval::Evaluator, path: &str) {
+        if let Some(buffer) = eval.buffers.current_buffer_mut() {
+            buffer.file_name = Some(path.to_string());
+        }
+    }
+
     #[test]
     fn test_builtin_bookmark_set_and_jump() {
         use super::super::eval::Evaluator;
 
         let mut eval = Evaluator::new();
+        set_current_buffer_file(&mut eval, "/tmp/test.el");
 
         // bookmark-set
-        let result = builtin_bookmark_set(
-            &mut eval,
-            vec![
-                Value::string("my-bookmark"),
-                Value::string("/tmp/test.el"),
-                Value::string("A note"),
-            ],
-        );
+        let result = builtin_bookmark_set(&mut eval, vec![Value::string("my-bookmark")]);
         assert!(result.is_ok());
         assert!(result.unwrap().is_nil());
 
@@ -866,6 +873,7 @@ mod tests {
         use super::super::eval::Evaluator;
 
         let mut eval = Evaluator::new();
+        set_current_buffer_file(&mut eval, "/tmp/delete.el");
 
         // Set a bookmark
         builtin_bookmark_set(&mut eval, vec![Value::string("del-me")]).unwrap();
@@ -897,6 +905,7 @@ mod tests {
         use super::super::eval::Evaluator;
 
         let mut eval = Evaluator::new();
+        set_current_buffer_file(&mut eval, "/tmp/rename.el");
 
         builtin_bookmark_set(&mut eval, vec![Value::string("old-name")]).unwrap();
 
@@ -917,6 +926,7 @@ mod tests {
         use super::super::eval::Evaluator;
 
         let mut eval = Evaluator::new();
+        set_current_buffer_file(&mut eval, "/tmp/all-names.el");
         builtin_bookmark_set(&mut eval, vec![Value::string("z-bookmark")]).unwrap();
         builtin_bookmark_set(&mut eval, vec![Value::string("a-bookmark")]).unwrap();
 
@@ -932,11 +942,8 @@ mod tests {
         use super::super::eval::Evaluator;
 
         let mut eval = Evaluator::new();
-        builtin_bookmark_set(
-            &mut eval,
-            vec![Value::string("with-file"), Value::string("/tmp/file.el")],
-        )
-        .unwrap();
+        set_current_buffer_file(&mut eval, "/tmp/file.el");
+        builtin_bookmark_set(&mut eval, vec![Value::string("with-file")]).unwrap();
 
         let found =
             builtin_bookmark_get_filename(&mut eval, vec![Value::string("with-file")]).unwrap();
@@ -952,6 +959,7 @@ mod tests {
         use super::super::eval::Evaluator;
 
         let mut eval = Evaluator::new();
+        set_current_buffer_file(&mut eval, "/tmp/position.el");
         builtin_bookmark_set(&mut eval, vec![Value::string("at-point")]).unwrap();
 
         let found =
@@ -968,13 +976,11 @@ mod tests {
         use super::super::eval::Evaluator;
 
         let mut eval = Evaluator::new();
-        builtin_bookmark_set(
+        set_current_buffer_file(&mut eval, "/tmp/annotation.el");
+        builtin_bookmark_set(&mut eval, vec![Value::string("with-note")]).unwrap();
+        builtin_bookmark_set_annotation(
             &mut eval,
-            vec![
-                Value::string("with-note"),
-                Value::string("/tmp/file.el"),
-                Value::string("note"),
-            ],
+            vec![Value::string("with-note"), Value::string("note")],
         )
         .unwrap();
 
@@ -992,6 +998,7 @@ mod tests {
         use super::super::eval::Evaluator;
 
         let mut eval = Evaluator::new();
+        set_current_buffer_file(&mut eval, "/tmp/set-annotation.el");
         builtin_bookmark_set(&mut eval, vec![Value::string("entry")]).unwrap();
 
         let set_result = builtin_bookmark_set_annotation(
@@ -1018,16 +1025,10 @@ mod tests {
 
         let mut eval = Evaluator::new();
 
-        builtin_bookmark_set(
-            &mut eval,
-            vec![Value::string("bm1"), Value::string("/file1.el")],
-        )
-        .unwrap();
-        builtin_bookmark_set(
-            &mut eval,
-            vec![Value::string("bm2"), Value::string("/file2.el")],
-        )
-        .unwrap();
+        set_current_buffer_file(&mut eval, "/file1.el");
+        builtin_bookmark_set(&mut eval, vec![Value::string("bm1")]).unwrap();
+        set_current_buffer_file(&mut eval, "/file2.el");
+        builtin_bookmark_set(&mut eval, vec![Value::string("bm2")]).unwrap();
 
         // Save
         let result = builtin_bookmark_save(&mut eval, vec![]);
@@ -1054,8 +1055,13 @@ mod tests {
 
         let mut eval = Evaluator::new();
 
-        // bookmark-set needs at least 1 arg
+        // bookmark-set needs between 1 and 2 args.
         let result = builtin_bookmark_set(&mut eval, vec![]);
+        assert!(result.is_err());
+        let result = builtin_bookmark_set(
+            &mut eval,
+            vec![Value::string("name"), Value::Nil, Value::Nil],
+        );
         assert!(result.is_err());
 
         // bookmark-jump needs exactly 1
