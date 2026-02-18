@@ -1516,7 +1516,7 @@ pub(crate) fn builtin_string_to_number(args: Vec<Value>) -> EvalResult {
         10
     };
 
-    if base < 2 || base > 36 {
+    if base < 2 || base > 16 {
         return Err(signal("args-out-of-range", vec![Value::Int(base)]));
     }
 
