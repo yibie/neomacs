@@ -28,6 +28,21 @@ Last updated: 2026-02-18
 
 ## Doing
 
+- Expanded non-character-tail lock-ins for mirrored dotted unread queues:
+  - oracle corpus changes:
+    - `test/neovm/vm-compat/cases/read-event-non-character-tail-semantics.forms`
+    - `test/neovm/vm-compat/cases/read-event-non-character-tail-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/read-key-non-character-tail-semantics.forms`
+    - `test/neovm/vm-compat/cases/read-key-non-character-tail-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/read-key-sequence-non-character-tail-semantics.forms`
+    - `test/neovm/vm-compat/cases/read-key-sequence-non-character-tail-semantics.expected.tsv`
+    - added mirrored dotted-tail probe `(97 . 1.0)` for `read-event`, `read-key`, and `read-key-sequence`.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/read-event-non-character-tail-semantics` (pass, 3/3)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/read-key-non-character-tail-semantics` (pass, 3/3)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/read-key-sequence-non-character-tail-semantics` (pass, 3/3)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+
 - Expanded `read-event` symbol-tail lock-ins for dotted unread queues:
   - oracle corpus changes:
     - `test/neovm/vm-compat/cases/read-event-symbol-tail-semantics.forms`
