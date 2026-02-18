@@ -52,6 +52,8 @@ Throw it all away and start fresh.
 
 ## Showcase
 
+[![Neomacs Showcase](https://img.youtube.com/vi/WZRWWuuNZX0/maxresdefault.jpg)](https://youtu.be/WZRWWuuNZX0?si=yHUy1lUDTznUbTMx)
+
 ### Animations (Cursor, Buffer Switch, Scroll)
 
 https://github.com/user-attachments/assets/85b7ee7b-3f4a-4cd2-a84f-86a91d052f11
