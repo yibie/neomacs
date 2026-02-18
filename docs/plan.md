@@ -10516,6 +10516,20 @@ Last updated: 2026-02-18
     - `cargo test --manifest-path rust/neovm-core/Cargo.toml documentation_property_eval` (pass)
     - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/documentation-property-semantics` (pass, 15/15)
     - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+- Refined `documentation` plist-lookup semantics to evaluate non-integer `function-documentation` values:
+  - runtime changes:
+    - keeps integer doc offsets returning `nil` when unresolved
+    - evaluates non-integer plist values (lists, symbols, vectors, floats) before returning docs
+    - propagates evaluator signals from doc expressions (`invalid-function`, `void-variable`, etc.)
+  - expanded oracle corpus:
+    - `test/neovm/vm-compat/cases/documentation-runtime-builtin-semantics.forms`
+    - `test/neovm/vm-compat/cases/documentation-runtime-builtin-semantics.expected.tsv`
+    - added property-driven rows for list/symbol/vector/float evaluation and error propagation
+  - verified:
+    - `make -C test/neovm/vm-compat record FORMS=cases/documentation-runtime-builtin-semantics.forms EXPECTED=cases/documentation-runtime-builtin-semantics.expected.tsv` (pass)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml documentation_` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/documentation-runtime-builtin-semantics` (pass, 19/19)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
 - Aligned `describe-variable` runtime semantics with GNU Emacs and added explicit runtime corpus:
   - runtime changes:
     - non-symbol input now signals `user-error` class
