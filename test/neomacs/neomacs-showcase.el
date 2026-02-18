@@ -73,13 +73,14 @@ Each line is prefixed with a relative timestamp from showcase start."
 
 (defvar showcase--sections
   '(("Opening Title"             4  showcase--section-title)
-    ("Smooth Cursor Animation"   5  showcase--section-cursor-anim)
-    ("Scroll Effects"            6  showcase--section-scroll)
-    ("Cursor Effects Parade"     8  showcase--section-cursor-effects)
-    ("Atmospheric Effects"       7  showcase--section-atmosphere)
-    ("Code Intelligence"         7  showcase--section-code-intel)
+    ("Smooth Cursor Animation"   7  showcase--section-cursor-anim)
+    ("Scroll Effects"            8  showcase--section-scroll)
+    ("Cursor Effects Parade"    11  showcase--section-cursor-effects)
+    ("Atmospheric Effects"       9  showcase--section-atmosphere)
+    ("Code Intelligence"         9  showcase--section-code-intel)
     ("Rounded Box Faces"         7  showcase--section-box-faces)
-    ("Window Transitions"        7  showcase--section-window-trans)
+    ("Fancy Box Styles"         12  showcase--section-fancy-box)
+    ("Window Transitions"        9  showcase--section-window-trans)
     ("Inline Media"             13  showcase--section-media)
     ("Child Frames"             16  showcase--section-child-frames)
     ("Retro / Visual Madness"    8  showcase--section-retro)
@@ -919,6 +920,167 @@ The future of text editing is here.  It's called Neomacs.
               (with-current-buffer buf
                 (beginning-of-line)
                 (redisplay t)))))))))
+
+(defun showcase--section-fancy-box ()
+  "Demonstrate all 11 fancy animated :box border styles."
+  (showcase--log ">>> SECTION: Fancy Box Styles START")
+  (showcase--reset-all-effects)
+  (let ((buf (showcase--get-buffer "*Showcase-FancyBox*")))
+    (switch-to-buffer buf)
+    (let ((inhibit-read-only t))
+      (erase-buffer)
+      (insert "\n")
+      (let ((start (point)))
+        (insert "  Fancy Animated Box Borders\n")
+        (put-text-property start (point) 'face
+                           '(:height 2.0 :foreground "#FF66CC" :weight bold)))
+      (insert "\n")
+
+      ;; Row 1: solid, rainbow, animated-rainbow
+      (insert "  ")
+      (let ((start (point)))
+        (insert " Solid ")
+        (put-text-property start (point) 'face
+                           '(:box (:line-width 3 :color "dodger blue" :corner-radius 10
+                                   :border-style solid)
+                             :foreground "#FFFFFF" :background "#1A2244" :height 1.3)))
+      (insert "   ")
+      (let ((start (point)))
+        (insert " Rainbow ")
+        (put-text-property start (point) 'face
+                           '(:box (:line-width 3 :color "white" :corner-radius 12
+                                   :border-style rainbow)
+                             :foreground "#FFFFFF" :background "#222222" :height 1.3)))
+      (insert "   ")
+      (let ((start (point)))
+        (insert " Animated Rainbow ")
+        (put-text-property start (point) 'face
+                           '(:box (:line-width 3 :color "white" :corner-radius 12
+                                   :border-style animated-rainbow :border-speed 100)
+                             :foreground "#FFFFFF" :background "#222222" :height 1.3)))
+      (insert "\n\n")
+
+      ;; Row 2: gradient, glow, neon
+      (insert "  ")
+      (let ((start (point)))
+        (insert " Gradient ")
+        (put-text-property start (point) 'face
+                           '(:box (:line-width 3 :color "deep pink" :corner-radius 10
+                                   :border-style gradient :color2 "cyan")
+                             :foreground "#FFFFFF" :background "#331A33" :height 1.3)))
+      (insert "   ")
+      (let ((start (point)))
+        (insert " Pulsing Glow ")
+        (put-text-property start (point) 'face
+                           '(:box (:line-width 2 :color "lime green" :corner-radius 10
+                                   :border-style glow)
+                             :foreground "#FFFFFF" :background "#0D330D" :height 1.3)))
+      (insert "   ")
+      (let ((start (point)))
+        (insert " Neon Double-Stroke ")
+        (put-text-property start (point) 'face
+                           '(:box (:line-width 3 :color "magenta" :corner-radius 10
+                                   :border-style neon :color2 "cyan")
+                             :foreground "#FFFFFF" :background "#220D33" :height 1.3)))
+      (insert "\n\n")
+
+      ;; Row 3: dashed, comet, iridescent
+      (insert "  ")
+      (let ((start (point)))
+        (insert " Dashed ")
+        (put-text-property start (point) 'face
+                           '(:box (:line-width 3 :color "gold" :corner-radius 10
+                                   :border-style dashed)
+                             :foreground "#FFFFFF" :background "#332D0D" :height 1.3)))
+      (insert "   ")
+      (let ((start (point)))
+        (insert " Comet Trail ")
+        (put-text-property start (point) 'face
+                           '(:box (:line-width 3 :color "orange red" :corner-radius 12
+                                   :border-style comet)
+                             :foreground "#FFFFFF" :background "#331A0D" :height 1.3)))
+      (insert "   ")
+      (let ((start (point)))
+        (insert " Iridescent ")
+        (put-text-property start (point) 'face
+                           '(:box (:line-width 3 :color "steel blue" :corner-radius 10
+                                   :border-style iridescent)
+                             :foreground "#FFFFFF" :background "#1A2233" :height 1.3)))
+      (insert "\n\n")
+
+      ;; Row 4: fire, heartbeat
+      (insert "  ")
+      (let ((start (point)))
+        (insert " Fire / Plasma ")
+        (put-text-property start (point) 'face
+                           '(:box (:line-width 3 :color "dark red" :corner-radius 10
+                                   :border-style fire)
+                             :foreground "#FFFFFF" :background "#330D0D" :height 1.3)))
+      (insert "   ")
+      (let ((start (point)))
+        (insert " Heartbeat ")
+        (put-text-property start (point) 'face
+                           '(:box (:line-width 2 :color "red" :corner-radius 10
+                                   :border-style heartbeat)
+                             :foreground "#FFFFFF" :background "#330D0D" :height 1.3)))
+      (insert "\n\n")
+
+      ;; Row 5: Speed variations with animated-rainbow
+      (let ((start (point)))
+        (insert "  Speed Variations:\n")
+        (put-text-property start (point) 'face
+                           '(:height 1.2 :foreground "#AAAAAA")))
+      (insert "  ")
+      (dolist (spec '((50 "0.5x") (100 "1.0x") (200 "2.0x") (400 "4.0x")))
+        (let ((start (point)))
+          (insert (format " %s " (cadr spec)))
+          (put-text-property start (point) 'face
+                             `(:box (:line-width 3 :color "white" :corner-radius 10
+                                     :border-style animated-rainbow :border-speed ,(car spec))
+                               :foreground "#FFFFFF" :background "#222222" :height 1.3)))
+        (insert "  "))
+      (insert "\n\n")
+
+      ;; Row 6: Gradient combos
+      (let ((start (point)))
+        (insert "  Gradient Combos:\n")
+        (put-text-property start (point) 'face
+                           '(:height 1.2 :foreground "#AAAAAA")))
+      (insert "  ")
+      (dolist (spec '(("Sunset"  "red"        "gold"        "#331A0D")
+                      ("Ocean"   "navy"       "aquamarine"  "#0D1A33")
+                      ("Forest"  "dark green" "lime green"  "#0D330D")
+                      ("Galaxy"  "purple"     "hot pink"    "#220D22")))
+        (let ((start (point)))
+          (insert (format " %s " (car spec)))
+          (put-text-property start (point) 'face
+                             `(:box (:line-width 3 :color ,(nth 1 spec) :corner-radius 10
+                                     :border-style gradient :color2 ,(nth 2 spec))
+                               :foreground "#FFFFFF" :background ,(nth 3 spec) :height 1.3)))
+        (insert "  "))
+      (insert "\n\n")
+
+      ;; Row 7: Large showcase boxes
+      (insert "  ")
+      (let ((start (point)))
+        (insert "  NEOMACS  ")
+        (put-text-property start (point) 'face
+                           '(:box (:line-width 3 :color "white" :corner-radius 20
+                                   :border-style animated-rainbow :border-speed 150)
+                             :foreground "#FFFFFF" :background "#111111"
+                             :height 2.5 :weight bold)))
+      (insert "   ")
+      (let ((start (point)))
+        (insert "  GPU-Powered Borders  ")
+        (put-text-property start (point) 'face
+                           '(:box (:line-width 3 :color "magenta" :corner-radius 16
+                                   :border-style neon :color2 "cyan")
+                             :foreground "#00FFCC" :background "#0D1122"
+                             :height 2.0 :weight bold)))
+      (insert "\n"))
+
+    (goto-char (point-min))
+    (setq buffer-read-only t)))
 
 (defun showcase--section-window-trans ()
   "Demonstrate buffer crossfade, window split animations, text-scale."
