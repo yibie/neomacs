@@ -483,6 +483,10 @@ pub(crate) fn builtin_help_function_arglist(args: Vec<Value>) -> EvalResult {
     expect_min_max_args("help-function-arglist", &args, 1, 2)?;
     let preserve_names = args.get(1).is_some_and(Value::is_truthy);
 
+    if let Some(result) = help_arglist_from_quoted_designator(&args[0]) {
+        return result;
+    }
+
     if let Some(arglist) = help_arglist_from_value(&args[0], preserve_names) {
         return Ok(arglist);
     }
@@ -500,6 +504,9 @@ pub(crate) fn builtin_help_function_arglist_eval(
     if let Some(name) = args[0].as_symbol_name() {
         let resolved =
             super::builtins::builtin_indirect_function(eval, vec![Value::symbol(name)])?;
+        if let Some(result) = help_arglist_from_quoted_designator(&resolved) {
+            return result;
+        }
         if let Some(arglist) = help_arglist_from_value(&resolved, preserve_names) {
             return Ok(arglist);
         }
@@ -515,11 +522,42 @@ pub(crate) fn builtin_help_function_arglist_eval(
         }
     }
 
+    if let Some(result) = help_arglist_from_quoted_designator(&args[0]) {
+        return result;
+    }
+
     if let Some(arglist) = help_arglist_from_value(&args[0], preserve_names) {
         return Ok(arglist);
     }
 
     Ok(Value::True)
+}
+
+fn help_arglist_from_quoted_designator(function: &Value) -> Option<EvalResult> {
+    let Value::Cons(cell) = function else {
+        return None;
+    };
+
+    let pair = cell.lock().ok()?;
+    let Some(head) = pair.car.as_symbol_name() else {
+        return None;
+    };
+
+    match head {
+        "macro" => Some(Ok(Value::True)),
+        "lambda" => match pair.cdr.clone() {
+            Value::Nil => Some(Ok(Value::Nil)),
+            Value::Cons(arg_cell) => {
+                let args = arg_cell.lock().ok()?;
+                Some(Ok(args.car.clone()))
+            }
+            other => Some(Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("listp"), other],
+            ))),
+        },
+        _ => None,
+    }
 }
 
 fn help_arglist(required: &[&str], optional: &[&str], rest: Option<&str>) -> Value {
@@ -549,52 +587,6 @@ fn help_arglist_from_lambda_params(params: &LambdaParams) -> Value {
     let optional: Vec<&str> = params.optional.iter().map(String::as_str).collect();
     let rest = params.rest.as_deref();
     help_arglist(&required, &optional, rest)
-}
-
-fn help_arglist_from_quoted_lambda(function: &Value) -> Option<Value> {
-    let items = list_to_vec(function)?;
-    let head = items.first()?.as_symbol_name()?;
-    if head != "lambda" && head != "macro" {
-        return None;
-    }
-    let params = items.get(1)?;
-    let param_items = list_to_vec(params)?;
-    let mut required = Vec::new();
-    let mut optional = Vec::new();
-    let mut rest = None;
-    enum Mode {
-        Required,
-        Optional,
-        Rest,
-    }
-    let mut mode = Mode::Required;
-    for item in &param_items {
-        match item.as_symbol_name() {
-            Some("&optional") => {
-                mode = Mode::Optional;
-                continue;
-            }
-            Some("&rest") => {
-                mode = Mode::Rest;
-                continue;
-            }
-            Some(name) => match mode {
-                Mode::Required => required.push(name.to_string()),
-                Mode::Optional => optional.push(name.to_string()),
-                Mode::Rest => {
-                    rest = Some(name.to_string());
-                    break;
-                }
-            },
-            None => return None,
-        }
-    }
-    let params = LambdaParams {
-        required,
-        optional,
-        rest,
-    };
-    Some(help_arglist_from_lambda_params(&params))
 }
 
 fn help_arglist_from_subr_name(name: &str, preserve_names: bool) -> Option<Value> {
@@ -1044,7 +1036,6 @@ fn help_arglist_from_value(function: &Value, preserve_names: bool) -> Option<Val
             Some(help_arglist_from_lambda_params(&lambda.params))
         }
         Value::ByteCode(bytecode) => Some(help_arglist_from_lambda_params(&bytecode.params)),
-        Value::Cons(_) => help_arglist_from_quoted_lambda(function),
         _ => None,
     }
 }
@@ -1412,6 +1403,38 @@ mod tests {
             arglist_names(&result),
             vec!["x".to_string(), "y".to_string()]
         );
+    }
+
+    #[test]
+    fn help_function_arglist_quoted_lambda_symbol_params() {
+        let quoted = Value::list(vec![
+            Value::symbol("lambda"),
+            Value::symbol("x"),
+            Value::symbol("x"),
+        ]);
+        let result = builtin_help_function_arglist(vec![quoted]).unwrap();
+        assert_eq!(result.as_symbol_name(), Some("x"));
+    }
+
+    #[test]
+    fn help_function_arglist_quoted_macro_returns_t() {
+        let quoted = Value::list(vec![
+            Value::symbol("macro"),
+            Value::list(vec![Value::symbol("x")]),
+            Value::symbol("x"),
+        ]);
+        let result = builtin_help_function_arglist(vec![quoted]).unwrap();
+        assert!(result.is_truthy());
+    }
+
+    #[test]
+    fn help_function_arglist_quoted_lambda_improper_tail_errors() {
+        let quoted = Value::cons(Value::symbol("lambda"), Value::Int(1));
+        let result = builtin_help_function_arglist(vec![quoted]);
+        match result {
+            Err(Flow::Signal(sig)) => assert_eq!(sig.symbol, "wrong-type-argument"),
+            other => panic!("expected wrong-type-argument signal, got {other:?}"),
+        }
     }
 
     #[test]
