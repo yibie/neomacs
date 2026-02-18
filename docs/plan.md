@@ -10640,6 +10640,20 @@ Last updated: 2026-02-18
     - `make -C test/neovm/vm-compat record FORMS=cases/describe-function-runtime-semantics.forms EXPECTED=cases/describe-function-runtime-semantics.expected.tsv` (pass)
     - `make -C test/neovm/vm-compat check-one-neovm CASE=describe-function-runtime-semantics` (pass, 8/8)
     - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+- Aligned `describe-function` autoload and alias classification paths with GNU Emacs:
+  - runtime changes:
+    - autoload forms now classify by autoload type (`macro` autoloads => `"Lisp macro"`, others => `"Lisp function"`)
+    - symbol aliases are now resolved through `indirect-function` before classification
+    - existing keyboard-macro, special-form, and builtin classification behavior is preserved
+  - expanded oracle corpus:
+    - `test/neovm/vm-compat/cases/describe-function-runtime-semantics.forms`
+    - `test/neovm/vm-compat/cases/describe-function-runtime-semantics.expected.tsv`
+    - added explicit autoload function/macro probes asserting type-class text
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml describe_function` (pass)
+    - `make -C test/neovm/vm-compat record FORMS=cases/describe-function-runtime-semantics.forms EXPECTED=cases/describe-function-runtime-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=describe-function-runtime-semantics` (pass, 10/10)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
 
 ## Doing
 
