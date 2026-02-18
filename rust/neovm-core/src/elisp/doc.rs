@@ -545,6 +545,22 @@ fn help_arglist_from_subr_name(name: &str, preserve_names: bool) -> Option<Value
         });
     }
 
+    if name == "max" {
+        return Some(if preserve_names {
+            help_arglist(&["number-or-marker"], &[], Some("numbers-or-markers"))
+        } else {
+            help_arglist(&["arg1"], &[], Some("rest"))
+        });
+    }
+
+    if name == "message" {
+        return Some(if preserve_names {
+            help_arglist(&["format-string"], &[], Some("args"))
+        } else {
+            help_arglist(&["arg1"], &[], Some("rest"))
+        });
+    }
+
     if name == "symbol-function" || name == "fboundp" {
         return Some(if preserve_names {
             help_arglist(&["symbol"], &[], None)
@@ -1233,6 +1249,34 @@ mod tests {
         assert_eq!(
             arglist_names(&list),
             vec!["&rest".to_string(), "objects".to_string()]
+        );
+
+        let max = builtin_help_function_arglist_eval(
+            &mut evaluator,
+            vec![Value::symbol("max"), Value::True],
+        )
+        .unwrap();
+        assert_eq!(
+            arglist_names(&max),
+            vec![
+                "number-or-marker".to_string(),
+                "&rest".to_string(),
+                "numbers-or-markers".to_string()
+            ]
+        );
+
+        let message = builtin_help_function_arglist_eval(
+            &mut evaluator,
+            vec![Value::symbol("message"), Value::True],
+        )
+        .unwrap();
+        assert_eq!(
+            arglist_names(&message),
+            vec![
+                "format-string".to_string(),
+                "&rest".to_string(),
+                "args".to_string()
+            ]
         );
 
         let read = builtin_help_function_arglist_eval(

@@ -1,6 +1,8 @@
 (help-function-arglist 'cdr t)
 (help-function-arglist 'cons t)
 (help-function-arglist 'list t)
+(help-function-arglist 'max t)
+(help-function-arglist 'message t)
 (help-function-arglist 'eq t)
 (help-function-arglist 'symbol-function t)
 (help-function-arglist 'substitute-command-keys t)
