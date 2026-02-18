@@ -28,6 +28,15 @@ Last updated: 2026-02-18
 
 ## Doing
 
+- Expanded `read-event` vector tail lock-ins with deeper payload depth:
+  - oracle corpus changes:
+    - `test/neovm/vm-compat/cases/read-event-vector-tail-semantics.forms`
+    - `test/neovm/vm-compat/cases/read-event-vector-tail-semantics.expected.tsv`
+    - added deeper-tail probe `(list 97 98 99 100 101 [mouse-1])`.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/read-event-vector-tail-semantics` (pass, 6/6)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+
 - Expanded `read-key-sequence-vector` list tail lock-ins with deeper payload depth:
   - oracle corpus changes:
     - `test/neovm/vm-compat/cases/read-key-sequence-vector-list-tail-semantics.forms`
