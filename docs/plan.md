@@ -28,6 +28,13 @@ Last updated: 2026-02-18
 
 ## Doing
 
+- Extended reader parity for Emacs special float literal spellings:
+  - Updated `rust/neovm-core/src/elisp/parser.rs` to parse canonical Emacs special float literals (`0.0e+NaN`, `-0.0e+NaN`, `±1.0e+INF`, plus equivalent `E` forms) and keep lower-case `inf`/`nan` symbol behavior.
+  - Updated `rust/neovm-core/src/elisp/expr.rs` float rendering so compat-runner round-trips preserve Emacs spellings (`0.0e+NaN` / `1.0e+INF`) instead of Rust `NaN`/`inf` tokens.
+  - Added parser unit coverage in `parse_emacs_special_float_literals`, `parse_noncanonical_nan_payload_literals_as_symbols`, and `print_special_float_spellings_match_oracle_shape`.
+  - Added oracle lock-in case `cases/reader-special-float-literals-semantics` and wired it into `test/neovm/vm-compat/cases/default.list`.
+  - Validated via targeted `cargo test --manifest-path rust/neovm-core/Cargo.toml` runs for the new parser/expr tests, `make -C test/neovm/vm-compat check-one-neovm CASE=cases/reader-special-float-literals-semantics`, and full `make -C test/neovm/vm-compat check-all-neovm`.
+
 - Extended `max`/`min` selected-operand type parity:
   - Updated `rust/neovm-core/src/elisp/builtins.rs` so `max` and `min` return the selected winning operand value/type (with first-argument tie behavior), matching Oracle mixed int/float outcomes.
   - Added evaluator unit coverage in `pure_dispatch_typed_max_min_preserve_selected_operand_type`.
