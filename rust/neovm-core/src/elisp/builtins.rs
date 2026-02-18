@@ -347,7 +347,11 @@ pub(crate) fn builtin_mod(args: Vec<Value>) -> EvalResult {
             }
             // Emacs mod: result has sign of divisor.
             let r = a % b;
-            let r = if (r < 0) != (b < 0) { r + b } else { r };
+            let r = if r != 0 && (r < 0) != (b < 0) {
+                r + b
+            } else {
+                r
+            };
             Ok(Value::Int(r))
         }
         (a, b) => {
@@ -360,7 +364,11 @@ pub(crate) fn builtin_mod(args: Vec<Value>) -> EvalResult {
                 NumberOrMarker::Float(f) => f,
             };
             let r = a % b;
-            let mut r = if (r < 0.0) != (b < 0.0) { r + b } else { r };
+            let mut r = if r != 0.0 && (r < 0.0) != (b < 0.0) {
+                r + b
+            } else {
+                r
+            };
             if r.is_nan() {
                 // Emacs prints negative-NaN for floating mod-by-zero payloads.
                 r = f64::from_bits(f64::NAN.to_bits() | (1_u64 << 63));
@@ -9997,6 +10005,37 @@ mod tests {
             .expect("builtin mod should evaluate");
         assert_eq!(percent, Value::Int(-1));
         assert_eq!(mod_name, Value::Int(1));
+    }
+
+    #[test]
+    fn pure_dispatch_typed_mod_zero_remainder_with_negative_divisor_stays_zero() {
+        let int_mod = dispatch_builtin_pure("mod", vec![Value::Int(0), Value::Int(-3)])
+            .expect("builtin mod should resolve")
+            .expect("builtin mod should evaluate");
+        assert_eq!(int_mod, Value::Int(0));
+
+        let float_mod = dispatch_builtin_pure("mod", vec![Value::Float(0.5), Value::Float(-0.5)])
+            .expect("builtin mod should resolve")
+            .expect("builtin mod should evaluate");
+        match float_mod {
+            Value::Float(f) => {
+                assert_eq!(f, 0.0);
+                assert!(!f.is_sign_negative(), "expected +0.0");
+            }
+            other => panic!("expected float, got {other:?}"),
+        }
+
+        let neg_zero_mod =
+            dispatch_builtin_pure("mod", vec![Value::Float(-0.5), Value::Float(-0.5)])
+                .expect("builtin mod should resolve")
+                .expect("builtin mod should evaluate");
+        match neg_zero_mod {
+            Value::Float(f) => {
+                assert_eq!(f, 0.0);
+                assert!(f.is_sign_negative(), "expected -0.0");
+            }
+            other => panic!("expected float, got {other:?}"),
+        }
     }
 
     #[test]
