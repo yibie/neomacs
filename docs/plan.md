@@ -10488,6 +10488,20 @@ Last updated: 2026-02-18
       - `(condition-case err (Snarf-documentation "NO_SUCH_DOC_DIR/") (error (car err)))` => `file-missing`
   - note:
     - full `make ... record FORMS=cases/snarf-documentation-runtime-semantics.forms` remains unreliable in this environment because GNU Emacs aborts when evaluating the existing empty-path probe; expected TSV was updated from baseline plus direct one-form oracle outputs for new rows.
+- Refined `Snarf-documentation` path classification again to match additional GNU Emacs path classes:
+  - runtime changes:
+    - `DOC` remains success (`nil`), but any `DOC/...` path now consistently signals `file-error`
+    - dot-only path forms now consistently signal `error` (`"."`, `".."`, `"/"`, and equivalent slash/dot segment forms)
+    - non-DOC named missing paths continue to signal `file-missing`
+  - expanded oracle corpus:
+    - `test/neovm/vm-compat/cases/snarf-documentation-runtime-semantics.forms`
+    - `test/neovm/vm-compat/cases/snarf-documentation-runtime-semantics.expected.tsv`
+    - added explicit probes for `.`, `..`, `/`, `DOC//`, and `DOC/a`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml snarf_documentation` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/snarf-documentation-runtime-semantics` (pass, 17/17)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+    - direct oracle probes (single-form files via `run-oracle.sh`) confirmed class parity for the new rows before updating expected TSV.
 - Aligned `describe-variable` runtime semantics with GNU Emacs and added explicit runtime corpus:
   - runtime changes:
     - non-symbol input now signals `user-error` class
