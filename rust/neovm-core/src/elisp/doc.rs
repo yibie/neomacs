@@ -398,6 +398,11 @@ pub(crate) fn builtin_help_function_arglist_eval(
         if let Some(arglist) = help_arglist_from_value(&resolved, preserve_names) {
             return Ok(arglist);
         }
+        if let Value::Subr(subr_name) = &resolved {
+            if let Some(arglist) = help_arglist_from_subr_arity(subr_name) {
+                return Ok(arglist);
+            }
+        }
         if super::autoload::is_autoload_value(&resolved) {
             return Ok(Value::string(
                 "[Arg list not available until function definition is loaded.]",
@@ -502,6 +507,10 @@ fn help_arglist_from_subr_name(name: &str, preserve_names: bool) -> Option<Value
 
     if name == "documentation" {
         return Some(help_arglist(&["arg1"], &["arg2"], None));
+    }
+
+    if name == "eq" {
+        return Some(help_arglist(&["arg1", "arg2"], &[], None));
     }
 
     if name == "-" {
@@ -687,6 +696,36 @@ fn help_arglist_from_subr_name(name: &str, preserve_names: bool) -> Option<Value
     };
 
     Some(help_arglist(&required, &optional, None))
+}
+
+fn help_arglist_from_subr_arity(name: &str) -> Option<Value> {
+    let arity = super::subr_info::builtin_subr_arity(vec![Value::Subr(name.to_string())]).ok()?;
+    let Value::Cons(cell) = arity else {
+        return None;
+    };
+    let pair = cell.lock().ok()?;
+    let min = pair.car.as_int()?;
+    if min < 0 {
+        return None;
+    }
+    let min = min as usize;
+
+    let required: Vec<String> = (1..=min).map(|idx| format!("arg{idx}")).collect();
+
+    if pair.cdr.as_symbol_name() == Some("unevalled") || pair.cdr.as_symbol_name() == Some("many") {
+        let required_refs: Vec<&str> = required.iter().map(String::as_str).collect();
+        return Some(help_arglist(&required_refs, &[], Some("rest")));
+    }
+
+    let max = pair.cdr.as_int()?;
+    if max < min as i64 {
+        return None;
+    }
+    let max = max as usize;
+    let optional: Vec<String> = ((min + 1)..=max).map(|idx| format!("arg{idx}")).collect();
+    let required_refs: Vec<&str> = required.iter().map(String::as_str).collect();
+    let optional_refs: Vec<&str> = optional.iter().map(String::as_str).collect();
+    Some(help_arglist(&required_refs, &optional_refs, None))
 }
 
 fn help_arglist_from_value(function: &Value, preserve_names: bool) -> Option<Value> {
@@ -1074,6 +1113,29 @@ mod tests {
         assert_eq!(
             result.as_str(),
             Some("[Arg list not available until function definition is loaded.]")
+        );
+    }
+
+    #[test]
+    fn help_function_arglist_eval_subr_arity_fallback_shapes() {
+        let mut evaluator = super::super::eval::Evaluator::new();
+
+        let cdr =
+            builtin_help_function_arglist_eval(&mut evaluator, vec![Value::symbol("cdr")]).unwrap();
+        assert_eq!(arglist_names(&cdr), vec!["arg1".to_string()]);
+
+        let list =
+            builtin_help_function_arglist_eval(&mut evaluator, vec![Value::symbol("list")]).unwrap();
+        assert_eq!(
+            arglist_names(&list),
+            vec!["&rest".to_string(), "rest".to_string()]
+        );
+
+        let read =
+            builtin_help_function_arglist_eval(&mut evaluator, vec![Value::symbol("read")]).unwrap();
+        assert_eq!(
+            arglist_names(&read),
+            vec!["&optional".to_string(), "arg1".to_string()]
         );
     }
 

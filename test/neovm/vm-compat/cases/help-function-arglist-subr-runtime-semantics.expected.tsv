@@ -1,0 +1,12 @@
+1	(help-function-arglist 'cdr)	OK (arg1)
+2	(help-function-arglist 'cons)	OK (arg1 arg2)
+3	(help-function-arglist 'list)	OK (&rest rest)
+4	(help-function-arglist 'eq)	OK (arg1 arg2)
+5	(help-function-arglist 'max)	OK (arg1 &rest rest)
+6	(help-function-arglist 'message)	OK (arg1 &rest rest)
+7	(help-function-arglist 'symbol-function)	OK (arg1)
+8	(help-function-arglist 'substitute-command-keys)	OK (arg1 &optional arg2 arg3)
+9	(help-function-arglist 'where-is-internal)	OK (arg1 &optional arg2 arg3 arg4 arg5)
+10	(help-function-arglist 'read)	OK (&optional arg1)
+11	(help-function-arglist 'fboundp)	OK (arg1)
+12	(help-function-arglist 'unknown-sentinel)	OK t
