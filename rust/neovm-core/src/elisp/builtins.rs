@@ -2271,7 +2271,7 @@ pub(crate) fn builtin_round(args: Vec<Value>) -> EvalResult {
     expect_args("round", &args, 1)?;
     match &args[0] {
         Value::Int(n) => Ok(Value::Int(*n)),
-        Value::Float(f) => Ok(Value::Int(f.round() as i64)),
+        Value::Float(f) => Ok(Value::Int(f.round_ties_even() as i64)),
         other => Err(signal(
             "wrong-type-argument",
             vec![Value::symbol("numberp"), other.clone()],
@@ -10969,6 +10969,29 @@ mod tests {
             }
             other => panic!("unexpected flow: {other:?}"),
         }
+    }
+
+    #[test]
+    fn pure_dispatch_typed_round_half_ties_to_even() {
+        let positive_half = dispatch_builtin_pure("round", vec![Value::Float(2.5)])
+            .expect("builtin round should resolve")
+            .expect("builtin round should evaluate");
+        assert_eq!(positive_half, Value::Int(2));
+
+        let negative_half = dispatch_builtin_pure("round", vec![Value::Float(-2.5)])
+            .expect("builtin round should resolve")
+            .expect("builtin round should evaluate");
+        assert_eq!(negative_half, Value::Int(-2));
+
+        let zero_half = dispatch_builtin_pure("round", vec![Value::Float(0.5)])
+            .expect("builtin round should resolve")
+            .expect("builtin round should evaluate");
+        assert_eq!(zero_half, Value::Int(0));
+
+        let negative_zero_half = dispatch_builtin_pure("round", vec![Value::Float(-0.5)])
+            .expect("builtin round should resolve")
+            .expect("builtin round should evaluate");
+        assert_eq!(negative_zero_half, Value::Int(0));
     }
 
     #[test]
