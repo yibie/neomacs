@@ -10613,6 +10613,19 @@ Last updated: 2026-02-18
     - `cargo test --manifest-path rust/neovm-core/Cargo.toml doc::tests::describe_function -- --nocapture` (pass)
     - `make -C test/neovm/vm-compat check-one-neovm CASE=describe-function-runtime-semantics` (pass, 5/5)
     - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+- Aligned `describe-function` special-form classification semantics with GNU Emacs:
+  - runtime changes:
+    - `describe-function` now returns `"Special-form"` for special forms (for example `if`)
+    - subr values that are not special forms continue to return `"Built-in function"`
+    - existing function-resolution and error-class behavior is preserved
+  - expanded oracle corpus:
+    - `test/neovm/vm-compat/cases/describe-function-runtime-semantics.forms`
+    - `test/neovm/vm-compat/cases/describe-function-runtime-semantics.expected.tsv`
+    - added explicit `if` probe that asserts special-form text in the returned description
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml describe_function` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=describe-function-runtime-semantics` (pass, 6/6)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
 
 ## Doing
 
