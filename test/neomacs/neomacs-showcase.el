@@ -982,7 +982,7 @@ The future of text editing is here.  It's called Neomacs.
                 :foreground "#FFFFFF" :background "#330D0D" :height 1.5))
              (" Heartbeat "
               (:box (:line-width 2 :color "red" :corner-radius 10
-                     :border-style heartbeat)
+                     :border-style heartbeat :color2 "green")
                 :foreground "#FFFFFF" :background "#330D0D" :height 1.5))))
           (delay 0.0))
       (dolist (spec styles)

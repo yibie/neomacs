@@ -177,8 +177,8 @@
 (defface neomacs-rbox-style-heartbeat
   '((t :foreground "white" :background "gray20"
        :box (:line-width 2 :color "red" :corner-radius 10
-             :border-style heartbeat :border-speed 100)))
-  "Fancy: heartbeat.")
+             :border-style heartbeat :border-speed 100 :color2 "green")))
+  "Fancy: heartbeat (red → green on beat).")
 
 ;; --- Comparison: sharp vs rounded side by side ---
 (defface neomacs-rbox-compare-sharp

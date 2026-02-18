@@ -14,7 +14,7 @@
 //   7 = Comet Trail (traveling bright spot)
 //   8 = Iridescent (position + time chromatic shift)
 //   9 = Fire / Plasma (procedural noise)
-//  10 = Heartbeat (pulsing border width)
+//  10 = Heartbeat (pulsing border width, two-color blend)
 
 // ─── Constants ───────────────────────────────────────────────────────
 
@@ -291,11 +291,13 @@ fn style_fire(
     return vec4<f32>(rgb, color.a * border_alpha);
 }
 
-/// Style 10: Heartbeat — pulsing border width.
+/// Style 10: Heartbeat — pulsing border width with two-color blend.
+/// Uses :color (resting) and :color2 (beat flash).
 fn style_heartbeat(
     pos: vec2<f32>, center: vec2<f32>, half_size: vec2<f32>,
     border_width: f32, radius: f32,
-    outer_alpha: f32, speed: f32, color: vec4<f32>,
+    outer_alpha: f32, speed: f32,
+    color: vec4<f32>, color2: vec4<f32>,
 ) -> vec4<f32> {
     // Double-beat pattern: two quick pulses then a pause (like a real heartbeat)
     let t = fract(uniforms.time * speed * 0.5);
@@ -303,12 +305,16 @@ fn style_heartbeat(
     let beat2 = exp(-pow(t * 4.0 - 1.2, 2.0) * 30.0);
     let pulse = 1.0 + 0.6 * (beat1 + beat2 * 0.7);
 
+    // Color blend: resting color → beat color during pulses
+    let beat_intensity = beat1 + beat2 * 0.7;
+    let rgb = mix(color.rgb, color2.rgb, clamp(beat_intensity, 0.0, 1.0));
+
     let effective_bw = border_width * pulse;
     let inner_r = max(radius - effective_bw, 0.0);
     let d_inner = sd_rounded_box(pos - center, half_size - vec2<f32>(effective_bw), inner_r);
     let inner_alpha = 1.0 - smoothstep(-0.5, 0.5, d_inner);
     let border_alpha = outer_alpha - inner_alpha;
-    return vec4<f32>(color.rgb, color.a * border_alpha);
+    return vec4<f32>(rgb, color.a * border_alpha);
 }
 
 // ─── Fragment Shader ─────────────────────────────────────────────────
@@ -369,7 +375,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             return style_fire(pos, speed, border_alpha, in.color);
         }
         case 10u: {
-            return style_heartbeat(pos, center, half_size, border_width, radius, outer_alpha, speed, in.color);
+            return style_heartbeat(pos, center, half_size, border_width, radius, outer_alpha, speed, in.color, in.color2);
         }
         default: {
             // Style 0: Solid

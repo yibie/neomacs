@@ -25,7 +25,7 @@
 ;;   comet              Comet trail
 ;;   iridescent         Shimmering metallic
 ;;   fire               Fire / plasma
-;;   heartbeat          Cardiac-rhythm pulsing
+;;   heartbeat          Cardiac-rhythm pulsing (two-color: :color → :color2)
 
 ;; ── Define a face for each style ────────────────────────────────────
 
@@ -92,8 +92,8 @@
 (defface fancy-box-heartbeat
   '((t :foreground "white"
        :box (:line-width 2 :color "red" :corner-radius 10
-             :border-style heartbeat :border-speed 100)))
-  "Style: Heartbeat.")
+             :border-style heartbeat :border-speed 100 :color2 "green")))
+  "Style: Heartbeat (red → green on beat).")
 
 ;; ── Create showcase buffer ──────────────────────────────────────────
 
@@ -184,17 +184,17 @@
         (insert (propertize " 1px "
                             'face '(:foreground "white"
                                     :box (:line-width 1 :color "red" :corner-radius 8
-                                          :border-style heartbeat :border-speed 100))))
+                                          :border-style heartbeat :border-speed 100 :color2 "green"))))
         (insert "   ")
         (insert (propertize " 2px "
                             'face '(:foreground "white"
                                     :box (:line-width 2 :color "red" :corner-radius 10
-                                          :border-style heartbeat :border-speed 100))))
+                                          :border-style heartbeat :border-speed 100 :color2 "green"))))
         (insert "   ")
         (insert (propertize " 4px "
                             'face '(:foreground "white"
                                     :box (:line-width 4 :color "red" :corner-radius 12
-                                          :border-style heartbeat :border-speed 100))))
+                                          :border-style heartbeat :border-speed 100 :color2 "green"))))
         (insert "\n\n\n")
 
         ;; Color combinations
