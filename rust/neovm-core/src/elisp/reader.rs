@@ -490,6 +490,10 @@ fn skip_one_sexp(input: &str, mut pos: usize) -> usize {
                     // #$ pseudo object
                     pos + 1
                 }
+                b'#' => {
+                    // ## empty-symbol reader spelling
+                    pos + 1
+                }
                 b's' => {
                     // #s(hash-table ...)
                     pos += 1;
@@ -2943,6 +2947,34 @@ mod tests {
             Value::Cons(cell) => {
                 let pair = cell.lock().unwrap();
                 assert_eq!(pair.car.as_str(), Some("/tmp/reader-skip.elc"));
+            }
+            _ => panic!("Expected cons"),
+        }
+    }
+
+    #[test]
+    fn read_from_string_hash_hash_reads_empty_symbol() {
+        let mut ev = Evaluator::new();
+        let result = builtin_read_from_string(&mut ev, vec![Value::string("##")]).unwrap();
+        match &result {
+            Value::Cons(cell) => {
+                let pair = cell.lock().unwrap();
+                assert_eq!(pair.car.as_symbol_name(), Some(""));
+                assert_eq!(pair.cdr, Value::Int(2));
+            }
+            _ => panic!("Expected cons"),
+        }
+    }
+
+    #[test]
+    fn read_from_string_escaped_hash_hash_reads_literal_symbol() {
+        let mut ev = Evaluator::new();
+        let result = builtin_read_from_string(&mut ev, vec![Value::string("\\#\\#")]).unwrap();
+        match &result {
+            Value::Cons(cell) => {
+                let pair = cell.lock().unwrap();
+                assert_eq!(pair.car.as_symbol_name(), Some("##"));
+                assert_eq!(pair.cdr, Value::Int(4));
             }
             _ => panic!("Expected cons"),
         }

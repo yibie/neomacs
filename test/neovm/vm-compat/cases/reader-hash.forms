@@ -5,3 +5,5 @@
 (read-from-string "#$")
 (setq load-file-name "/tmp/neovm-reader-hash-2.elc")
 (read-from-string "#$")
+(read-from-string "##")
+(read-from-string "\\#\\#")

@@ -11043,6 +11043,24 @@ Last updated: 2026-02-18
     - `make -C test/neovm/vm-compat record FORMS=cases/symbol-print-escape-semantics.forms EXPECTED=cases/symbol-print-escape-semantics.expected.tsv` (pass)
     - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/symbol-print-escape-semantics` (pass, 22/22)
     - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+- Fixed `read-from-string` hash-span handling for empty-symbol `##` reader syntax:
+  - runtime changes:
+    - `read-from-string` consumed-span scanner now treats `##` as a complete hash syntax token (matching parser behavior and GNU Emacs end-position semantics)
+    - avoids false `invalid-read-syntax ("unexpected end after '#'")` on `(read-from-string "##")`
+  - expanded runtime/unit lock-ins:
+    - `rust/neovm-core/src/elisp/reader.rs`
+    - added `read_from_string_hash_hash_reads_empty_symbol`
+    - added `read_from_string_escaped_hash_hash_reads_literal_symbol`
+  - expanded oracle corpus:
+    - `test/neovm/vm-compat/cases/reader-hash.forms`
+    - `test/neovm/vm-compat/cases/reader-hash.expected.tsv`
+    - added `read-from-string` probes for `"##"` and `"\\#\\#"`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml read_from_string_hash_hash_reads_empty_symbol` (pass)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml read_from_string_escaped_hash_hash_reads_literal_symbol` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/reader-hash` (pass, 8/8)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/symbol-print-escape-semantics` (pass, 22/22)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
 
 ## Doing
 
