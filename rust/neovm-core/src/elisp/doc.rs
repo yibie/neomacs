@@ -290,25 +290,48 @@ pub(crate) fn builtin_describe_variable(
     };
 
     // Check for :variable-documentation property.
-    if let Some(doc_val) = eval.obarray.get_property(&name, "variable-documentation") {
-        if let Some(doc_str) = doc_val.as_str() {
-            return Ok(Value::string(doc_str.to_string()));
+    if let Some(doc_val) = eval
+        .obarray
+        .get_property(&name, "variable-documentation")
+        .cloned()
+    {
+        match doc_val {
+            Value::Str(_) => return Ok(doc_val),
+            Value::Int(_) => {
+                return Ok(Value::string(format!(
+                    "{name} is a variable defined in `C source code`."
+                )));
+            }
+            Value::Symbol(sym) => {
+                if !eval.obarray.boundp(&sym) {
+                    return Err(signal("void-variable", vec![Value::symbol(sym)]));
+                }
+                return Ok(describe_variable_value_or_void(eval, &name));
+            }
+            Value::True => {
+                return Err(signal(
+                    "wrong-type-argument",
+                    vec![Value::symbol("char-or-string-p"), Value::True],
+                ));
+            }
+            _ => return Ok(describe_variable_value_or_void(eval, &name)),
         }
-        // If the property exists but isn't a string, return it as-is.
-        return Ok(doc_val.clone());
     }
 
-    // No documentation property. Check if the variable is at least bound.
-    if eval.obarray.boundp(&name) {
+    Ok(describe_variable_value_or_void(eval, &name))
+}
+
+fn describe_variable_value_or_void(eval: &super::eval::Evaluator, name: &str) -> Value {
+    if eval.obarray.boundp(name) {
         let value = eval
             .obarray
-            .symbol_value(&name)
+            .symbol_value(name)
             .cloned()
             .unwrap_or(Value::symbol("void"));
         let rendered = super::print::print_value(&value);
-        Ok(Value::string(format!("{name}'s value is {rendered}")))
+        Value::string(format!("{name}'s value is {rendered}"))
     } else {
-        Ok(Value::string(format!("{name} is void as a variable.")))
+        Value::string(format!("{name} is void as a variable."))
     }
 }
 
@@ -2296,6 +2319,82 @@ mod tests {
         let result = builtin_describe_variable(&mut evaluator, vec![Value::symbol("my-var")]);
         assert!(result.is_ok());
         assert_eq!(result.unwrap().as_str(), Some("The answer."));
+    }
+
+    #[test]
+    fn describe_variable_list_doc_property_falls_back_to_value_text() {
+        let mut evaluator = super::super::eval::Evaluator::new();
+        evaluator.obarray.set_symbol_value("my-var", Value::Int(42));
+        evaluator.obarray.put_property(
+            "my-var",
+            "variable-documentation",
+            Value::list(vec![Value::symbol("identity"), Value::string("doc")]),
+        );
+
+        let result = builtin_describe_variable(&mut evaluator, vec![Value::symbol("my-var")]);
+        assert!(result.is_ok());
+        assert!(
+            result
+                .unwrap()
+                .as_str()
+                .is_some_and(|s| s.contains("value is"))
+        );
+    }
+
+    #[test]
+    fn describe_variable_integer_doc_property_returns_string() {
+        let mut evaluator = super::super::eval::Evaluator::new();
+        evaluator.obarray.set_symbol_value("my-var", Value::Int(42));
+        evaluator
+            .obarray
+            .put_property("my-var", "variable-documentation", Value::Int(9));
+
+        let result = builtin_describe_variable(&mut evaluator, vec![Value::symbol("my-var")]);
+        assert!(result.is_ok());
+        assert!(
+            result
+                .unwrap()
+                .as_str()
+                .is_some_and(|s| s.contains("defined in"))
+        );
+    }
+
+    #[test]
+    fn describe_variable_symbol_doc_property_unbound_errors_void_variable() {
+        let mut evaluator = super::super::eval::Evaluator::new();
+        evaluator.obarray.set_symbol_value("my-var", Value::Int(42));
+        evaluator.obarray.put_property(
+            "my-var",
+            "variable-documentation",
+            Value::symbol("vm-desc-unbound"),
+        );
+
+        let result = builtin_describe_variable(&mut evaluator, vec![Value::symbol("my-var")]);
+        match result {
+            Err(Flow::Signal(sig)) => assert_eq!(sig.symbol, "void-variable"),
+            other => panic!("expected void-variable signal, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn describe_variable_true_doc_property_errors_wrong_type_argument() {
+        let mut evaluator = super::super::eval::Evaluator::new();
+        evaluator.obarray.set_symbol_value("my-var", Value::Int(42));
+        evaluator
+            .obarray
+            .put_property("my-var", "variable-documentation", Value::True);
+
+        let result = builtin_describe_variable(&mut evaluator, vec![Value::symbol("my-var")]);
+        match result {
+            Err(Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "wrong-type-argument");
+                assert_eq!(
+                    sig.data.first().and_then(Value::as_symbol_name),
+                    Some("char-or-string-p")
+                );
+            }
+            other => panic!("expected wrong-type-argument signal, got {other:?}"),
+        }
     }
 
     #[test]
