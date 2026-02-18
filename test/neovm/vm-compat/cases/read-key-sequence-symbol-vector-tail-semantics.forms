@@ -7,3 +7,8 @@
   (progn
     (read-key-sequence "")
     unread-command-events))
+
+(let ((unread-command-events (list 'foo 97 [bar])))
+  (progn
+    (read-key-sequence "")
+    unread-command-events))

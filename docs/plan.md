@@ -28,6 +28,18 @@ Last updated: 2026-02-18
 
 ## Doing
 
+- Expanded `read-key-sequence*` symbol-vector tail lock-ins with middle-char payloads:
+  - oracle corpus changes:
+    - `test/neovm/vm-compat/cases/read-key-sequence-symbol-vector-tail-semantics.forms`
+    - `test/neovm/vm-compat/cases/read-key-sequence-symbol-vector-tail-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/read-key-sequence-vector-symbol-vector-tail-semantics.forms`
+    - `test/neovm/vm-compat/cases/read-key-sequence-vector-symbol-vector-tail-semantics.expected.tsv`
+    - added `(list 'foo 97 [bar])` probe for both `read-key-sequence` and `read-key-sequence-vector`.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/read-key-sequence-symbol-vector-tail-semantics` (pass, 3/3)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/read-key-sequence-vector-symbol-vector-tail-semantics` (pass, 3/3)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+
 - Expanded `read-key-sequence-vector` char-head dotted-tail lock-ins:
   - oracle corpus changes:
     - `test/neovm/vm-compat/cases/read-key-sequence-vector-vector-tail-semantics.forms`
