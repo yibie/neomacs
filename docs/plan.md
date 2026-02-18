@@ -10767,6 +10767,20 @@ Last updated: 2026-02-18
     - `make -C test/neovm/vm-compat record FORMS=cases/documentation-property-semantics.forms EXPECTED=cases/documentation-property-semantics.expected.tsv` (pass)
     - `make -C test/neovm/vm-compat check-one-neovm CASE=documentation-property-semantics` (pass, 18/18)
     - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+- Aligned `string-match`/`string-match-p` multibyte index semantics with GNU Emacs:
+  - runtime changes:
+    - `START` normalization now interprets offsets in character positions (including negative offsets) for both evaluator and pure builtin paths
+    - `string-match` and `string-match-p` now return character indices instead of UTF-8 byte offsets
+    - character-length range checks now gate `START` bounds (`args-out-of-range` decisions)
+  - expanded oracle corpus:
+    - `test/neovm/vm-compat/cases/string-match-case-fold-semantics.forms`
+    - `test/neovm/vm-compat/cases/string-match-case-fold-semantics.expected.tsv`
+    - added multibyte probes for `"aéx"` default, explicit start, negative start, and end-of-string start cases
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml string_match` (pass)
+    - `make -C test/neovm/vm-compat record FORMS=cases/string-match-case-fold-semantics.forms EXPECTED=cases/string-match-case-fold-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=string-match-case-fold-semantics` (pass, 14/14)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
 
 ## Doing
 
