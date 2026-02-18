@@ -15,3 +15,9 @@
 
 (let ((unread-command-events [97]))
   (list (read-char-exclusive nil nil 0) unread-command-events))
+
+(let ((unread-command-events 'foo))
+  (list (read-char nil nil 0) unread-command-events))
+
+(let ((unread-command-events [97]))
+  (list (read-char nil nil 0) unread-command-events))
