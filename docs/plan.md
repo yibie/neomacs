@@ -28,6 +28,15 @@ Last updated: 2026-02-18
 
 ## Doing
 
+- Expanded `read-key-sequence` list tail lock-ins with middle-char payload:
+  - oracle corpus changes:
+    - `test/neovm/vm-compat/cases/read-key-sequence-list-tail-semantics.forms`
+    - `test/neovm/vm-compat/cases/read-key-sequence-list-tail-semantics.expected.tsv`
+    - added middle-char probe `(list '(mouse-1) 98 'foo)`.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/read-key-sequence-list-tail-semantics` (pass, 5/5)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+
 - Expanded `read-event` vector-vector tail lock-ins with alternate middle-char payload:
   - oracle corpus changes:
     - `test/neovm/vm-compat/cases/read-event-vector-vector-tail-semantics.forms`
