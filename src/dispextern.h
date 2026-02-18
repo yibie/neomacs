@@ -158,9 +158,11 @@ typedef XImagePtr XImagePtr_or_DC;
 
 #include "neomacsgui.h"
 /* Following typedef needed to accommodate the MSDOS port, believe it or not.  */
+#if !defined(HAVE_NS) && !defined(HAVE_PGTK)
 typedef struct neomacs_display_info Display_Info;
 typedef Emacs_Pixmap XImagePtr;
 typedef XImagePtr XImagePtr_or_DC;
+#endif /* !HAVE_NS && !HAVE_PGTK */
 /* Emacs_Pix_Container and Emacs_Pix_Context are already defined by USE_CAIRO above */
 
 #ifdef HAVE_HAIKU

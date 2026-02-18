@@ -19,7 +19,8 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #ifndef __NEOMACSGUI_H__
 #define __NEOMACSGUI_H__
 
-/* Emulate XCharStruct.  */
+/* Emulate XCharStruct - only if not already provided by nsgui.h or pgtkgui.h.  */
+#if !defined(HAVE_NS) && !defined(HAVE_PGTK)
 typedef struct _XCharStruct
 {
   int rbearing;
@@ -41,6 +42,7 @@ typedef unichar XChar2b;
 
 #define XCHAR2B_BYTE2(chp) \
   (*(chp) & 0x00ff)
+#endif /* !HAVE_NS && !HAVE_PGTK */
 
 
 /* Cursor is an opaque pointer in Neomacs (we use GdkCursor internally) */
@@ -108,6 +110,8 @@ typedef struct
 #define PWinGravity	(1L << 9)	/* program specified window gravity */
 
 
+/* NativeRectangle and conversion macros - only if not already defined by nsgui.h.  */
+#ifndef HAVE_NS
 #define NativeRectangle XRectangle
 
 #define CONVERT_TO_EMACS_RECT(xr, nr)		\
@@ -127,6 +131,7 @@ typedef struct
    (nr).y      = (py),					\
    (nr).width  = (pwidth),				\
    (nr).height = (pheight))
+#endif /* !HAVE_NS */
 
 /* RGB pixel color type */
 typedef unsigned long RGB_PIXEL_COLOR;

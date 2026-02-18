@@ -2804,6 +2804,11 @@ CPPFLAGS="$CPPFLAGS -x objective-c"
 CFLAGS="$CFLAGS -x objective-c"
 GNU_OBJC_CFLAGS=""
 LIBS_GNUSTEP=
+dnl When building with neomacs display engine, skip NS (Cocoa/GNUstep) detection
+dnl entirely.  Neomacs uses its own Rust display engine (winit + wgpu/Metal).
+if test "${with_neomacs}" = "yes"; then
+  with_ns=no
+fi
 if test "${with_ns}" != no; then
   # macfont.o requires macuvs.h which is absent after 'make extraclean',
   # so avoid NS_IMPL_COCOA if macuvs.h is absent.
@@ -4009,21 +4014,50 @@ if test "$window_system" = "neomacs"; then
   else
     AC_MSG_ERROR([cairo required for Neomacs but not found.])
   fi
-  dnl EGL is required for DMA-BUF zero-copy in webkit/video
-  PKG_CHECK_MODULES([EGL], [egl], [], [AC_MSG_ERROR([EGL required for Neomacs zero-copy rendering])])
+  dnl EGL is required for DMA-BUF zero-copy on Linux; macOS uses Metal instead.
+  EGL_CFLAGS=""
+  EGL_LIBS=""
+  case $opsys in
+    darwin)
+      dnl EGL not available on macOS; Metal is used for rendering.
+      ;;
+    *)
+      PKG_CHECK_MODULES([EGL], [egl], [], [AC_MSG_ERROR([EGL required for Neomacs zero-copy rendering])])
+      ;;
+  esac
   dnl WPE WebKit for browser embedding (optional)
   HAVE_NEOMACS_WEBKIT=no
   PKG_CHECK_MODULES([WPEWEBKIT], [wpe-webkit-2.0], [HAVE_NEOMACS_WEBKIT=yes], [AC_MSG_WARN([WPE WebKit not found, webkit support disabled])])
   PKG_CHECK_MODULES([WPEBACKEND], [wpebackend-fdo-1.0], [], [AC_MSG_WARN([wpebackend-fdo not found])])
   dnl Wayland-server is needed for wl_shm_buffer functions (SHM fallback mode)
   PKG_CHECK_MODULES([WAYLAND_SERVER], [wayland-server], [], [AC_MSG_WARN([wayland-server not found])])
-  dnl xkbcommon for key name resolution
-  PKG_CHECK_MODULES([XKBCOMMON], [xkbcommon], [], [AC_MSG_ERROR([xkbcommon required for Neomacs])])
+  dnl xkbcommon for key name resolution (Linux; macOS uses native key APIs)
+  XKBCOMMON_CFLAGS=""
+  XKBCOMMON_LIBS=""
+  case $opsys in
+    darwin)
+      dnl xkbcommon not needed on macOS.
+      ;;
+    *)
+      PKG_CHECK_MODULES([XKBCOMMON], [xkbcommon], [], [AC_MSG_ERROR([xkbcommon required for Neomacs])])
+      ;;
+  esac
   NEOMACS_CFLAGS="$GSTREAMER_CFLAGS $CAIRO_CFLAGS $GLIB_CFLAGS $EGL_CFLAGS $XKBCOMMON_CFLAGS"
-  NEOMACS_LIBS="$NEOMACS_LIBS $GSTREAMER_LIBS $CAIRO_LIBS $GLIB_LIBS $EGL_LIBS $XKBCOMMON_LIBS -lpthread -lm -ldl"
+  case $opsys in
+    darwin)
+      dnl macOS: -ldl is part of libSystem; add macOS frameworks for neomacs
+      NEOMACS_LIBS="$NEOMACS_LIBS $GSTREAMER_LIBS $CAIRO_LIBS $GLIB_LIBS -lpthread -lm -framework AppKit -framework Metal -framework QuartzCore -framework CoreGraphics -framework Foundation"
+      ;;
+    *)
+      NEOMACS_LIBS="$NEOMACS_LIBS $GSTREAMER_LIBS $CAIRO_LIBS $GLIB_LIBS $EGL_LIBS $XKBCOMMON_LIBS -lpthread -lm -ldl"
+      ;;
+  esac
   if test "$HAVE_NEOMACS_WEBKIT" = yes; then
     NEOMACS_CFLAGS="$NEOMACS_CFLAGS $WPEWEBKIT_CFLAGS $WPEBACKEND_CFLAGS $WAYLAND_SERVER_CFLAGS"
     NEOMACS_LIBS="$NEOMACS_LIBS $WPEWEBKIT_LIBS $WPEBACKEND_LIBS $WAYLAND_SERVER_LIBS"
+    HAVE_WPE_WEBKIT=1
+  else
+    HAVE_WPE_WEBKIT=0
   fi
 fi
 AC_SUBST([NEOMACS_OBJ])
@@ -4031,6 +4065,7 @@ AC_SUBST([NEOMACS_LIBS])
 AC_SUBST([NEOMACS_CFLAGS])
 AC_SUBST([NEOMACS_PREBUILT])
 AC_SUBST([NEOMACS_RUST_DYLIB_EXT])
+AC_SUBST([HAVE_WPE_WEBKIT])
 
 AC_CHECK_FUNCS([malloc_trim])
 

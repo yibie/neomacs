@@ -396,6 +396,11 @@ extern int neomacs_display_init_threaded_mode (int width, int height, const char
 extern int neomacs_display_is_threaded (void);
 extern void neomacs_display_shutdown_threaded_mode (void);
 
+/* macOS main-thread trampoline (Rust FFI) */
+#ifdef __APPLE__
+extern int neomacs_macos_main_thread_entry (int argc, char **argv);
+#endif
+
 /* Note: x_create_gc and x_free_gc are defined as static functions in xfaces.c */
 
 #endif /* _NEOMACSTERM_H_ */

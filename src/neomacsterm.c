@@ -25,7 +25,9 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include <string.h>
 #include <stdint.h>
 #include <signal.h>
+#ifndef __APPLE__
 #include <xkbcommon/xkbcommon.h>
+#endif
 
 #include "lisp.h"
 #include "blockinput.h"
@@ -15788,9 +15790,15 @@ char *
 get_keysym_name (int keysym)
 {
   static char name_buf[64];
+#ifdef __APPLE__
+  /* macOS: no xkbcommon; use snprintf fallback.  */
+  snprintf (name_buf, sizeof name_buf, "key-%d", keysym);
+  return name_buf;
+#else
   if (xkb_keysym_get_name (keysym, name_buf, sizeof name_buf) > 0)
     return name_buf;
   return NULL;
+#endif
 }
 
 /* Set mouse pixel position on frame F.  */

@@ -5,10 +5,115 @@
 
 use super::*;
 
+#[cfg(target_os = "macos")]
+use std::thread;
+
 /// Access THREADED_STATE without creating a reference to the static.
 /// Returns Option<&ThreadedState> using raw pointer indirection (Rust 2024 safe).
 unsafe fn threaded_state() -> Option<&'static ThreadedState> {
     (*std::ptr::addr_of!(THREADED_STATE)).as_ref()
+}
+
+// ============================================================================
+// macOS Main-Thread Trampoline
+//
+// On macOS, winit 0.30 requires EventLoop to be created and run on the
+// main (first) thread.  The strategy:  C main() calls into Rust
+// immediately; Rust spawns Emacs on a child thread and runs the render
+// loop on the main thread.  neomacs_display_init_threaded (called from
+// the Emacs child thread) stores the render setup instead of spawning a
+// thread, and signals the main thread to start the loop.
+// ============================================================================
+
+#[cfg(target_os = "macos")]
+struct MacOSPendingRender {
+    comms: RenderComms,
+    width: u32,
+    height: u32,
+    title: String,
+    image_dimensions: SharedImageDimensions,
+    shared_monitors: SharedMonitorInfo,
+    #[cfg(feature = "neo-term")]
+    shared_terminals: crate::terminal::SharedTerminals,
+}
+
+#[cfg(target_os = "macos")]
+static MACOS_PENDING_RENDER: Mutex<Option<MacOSPendingRender>> = Mutex::new(None);
+
+#[cfg(target_os = "macos")]
+static MACOS_RENDER_READY: Mutex<bool> = Mutex::new(false);
+
+#[cfg(target_os = "macos")]
+static MACOS_RENDER_CVAR: std::sync::Condvar = std::sync::Condvar::new();
+
+/// macOS main-thread entry point.
+///
+/// Called from C's `main()` on the real main thread before Emacs
+/// initialization.  Spawns Emacs on a child thread, waits for
+/// `neomacs_display_init_threaded()` to prepare the render setup, then
+/// runs the winit EventLoop on this (main) thread.
+///
+/// Returns the Emacs process exit code.
+#[cfg(target_os = "macos")]
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_macos_main_thread_entry(
+    argc: c_int,
+    argv: *mut *mut c_char,
+) -> c_int {
+    let _ = env_logger::try_init();
+    log::info!("neomacs: macOS main-thread trampoline active");
+
+    // Raw pointers are not Send; cast through usize.
+    let argv_addr = argv as usize;
+    let emacs_handle = thread::spawn(move || {
+        extern "C" {
+            fn neomacs_emacs_main(argc: c_int, argv: *mut *mut c_char) -> c_int;
+        }
+        neomacs_emacs_main(argc, argv_addr as *mut *mut c_char)
+    });
+
+    // Wait for neomacs_display_init_threaded (called from the Emacs
+    // child thread) to store the render setup, OR for the Emacs thread
+    // to exit (e.g. startup error, batch mode that slipped through).
+    loop {
+        let guard = MACOS_RENDER_READY.lock().unwrap();
+        let (guard, _timeout) = MACOS_RENDER_CVAR
+            .wait_timeout(guard, std::time::Duration::from_millis(200))
+            .unwrap();
+        if *guard {
+            break;
+        }
+        drop(guard);
+        if emacs_handle.is_finished() {
+            log::info!("Emacs thread exited before render setup");
+            return emacs_handle.join().unwrap_or(1);
+        }
+    }
+
+    let setup = MACOS_PENDING_RENDER
+        .lock()
+        .unwrap()
+        .take()
+        .expect("Render setup must be available after signal");
+
+    log::info!("Running render loop on main thread");
+
+    crate::render_thread::run_render_loop(
+        setup.comms,
+        setup.width,
+        setup.height,
+        setup.title,
+        setup.image_dimensions,
+        setup.shared_monitors,
+        #[cfg(feature = "neo-term")]
+        setup.shared_terminals,
+    );
+
+    log::info!("Render loop exited, waiting for Emacs thread");
+    match emacs_handle.join() {
+        Ok(code) => code,
+        Err(_) => 1,
+    }
 }
 
 // ============================================================================
@@ -57,18 +162,6 @@ pub unsafe extern "C" fn neomacs_display_init_threaded(
     let shared_terminals: crate::terminal::SharedTerminals =
         Arc::new(Mutex::new(HashMap::new()));
 
-    // Spawn render thread with shared maps
-    let render_thread = RenderThread::spawn(
-        render_comms,
-        width,
-        height,
-        title,
-        Arc::clone(&image_dimensions),
-        Arc::clone(&shared_monitors),
-        #[cfg(feature = "neo-term")]
-        Arc::clone(&shared_terminals),
-    );
-
     // Create a NeomacsDisplay handle for C code to use with frame operations
     // This is a lightweight handle that doesn't own the backend (render thread does)
     let display = Box::new(NeomacsDisplay {
@@ -95,9 +188,46 @@ pub unsafe extern "C" fn neomacs_display_init_threaded(
     });
     let display_ptr = Box::into_raw(display);
 
+    // ----- Platform-specific render thread handling -----
+
+    // On macOS, store the render setup for the main thread to pick up
+    // (the main thread runs the EventLoop; see neomacs_macos_main_thread_entry).
+    #[cfg(target_os = "macos")]
+    let render_thread_opt: Option<RenderThread> = {
+        *MACOS_PENDING_RENDER.lock().unwrap() = Some(MacOSPendingRender {
+            comms: render_comms,
+            width,
+            height,
+            title,
+            image_dimensions: Arc::clone(&image_dimensions),
+            shared_monitors: Arc::clone(&shared_monitors),
+            #[cfg(feature = "neo-term")]
+            shared_terminals: Arc::clone(&shared_terminals),
+        });
+        *MACOS_RENDER_READY.lock().unwrap() = true;
+        MACOS_RENDER_CVAR.notify_one();
+        None
+    };
+
+    // On non-macOS, spawn the render thread as usual.
+    #[cfg(not(target_os = "macos"))]
+    let render_thread_opt: Option<RenderThread> = {
+        let rt = RenderThread::spawn(
+            render_comms,
+            width,
+            height,
+            title,
+            Arc::clone(&image_dimensions),
+            Arc::clone(&shared_monitors),
+            #[cfg(feature = "neo-term")]
+            Arc::clone(&shared_terminals),
+        );
+        Some(rt)
+    };
+
     *std::ptr::addr_of_mut!(THREADED_STATE) = Some(ThreadedState {
         emacs_comms,
-        render_thread: Some(render_thread),
+        render_thread: render_thread_opt,
         display_handle: display_ptr,
         image_dimensions,
         shared_monitors,

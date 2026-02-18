@@ -6387,7 +6387,7 @@ buffer_posn_from_coords (struct window *w, int *x, int *y, struct display_pos *p
 	 webkit views embedded in buffer text.
 	 Format: (webkit :id N :width W :height H) */
       *object = CALLN (Flist, Qwebkit,
-		       QCid, make_fixnum (it.webkit_id),
+		       intern_c_string (":id"), make_fixnum (it.webkit_id),
 		       QCwidth, make_fixnum (it.video_width),
 		       QCheight, make_fixnum (it.video_height));
     }

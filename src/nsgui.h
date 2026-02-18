@@ -52,11 +52,13 @@ typedef struct _XCharStruct
   int descent;
 } XCharStruct;
 
+#ifndef USE_CAIRO
 #ifdef __OBJC__
 typedef id Emacs_Pixmap;
 #else
 typedef void *Emacs_Pixmap;
 #endif
+#endif /* !USE_CAIRO */
 
 #ifdef __OBJC__
 typedef NSCursor *Emacs_Cursor;

@@ -211,7 +211,7 @@ pub(crate) static TERMINAL_ID_COUNTER: std::sync::atomic::AtomicU32 = std::sync:
 // Threaded State
 // ============================================================================
 
-use crate::thread_comm::{EmacsComms, EffectUpdater, InputEvent, MenuBarItem, PopupMenuItem, RenderCommand, ThreadComms, ToolBarItem};
+use crate::thread_comm::{EmacsComms, EffectUpdater, InputEvent, MenuBarItem, PopupMenuItem, RenderCommand, RenderComms, ThreadComms, ToolBarItem};
 use crate::render_thread::{RenderThread, SharedImageDimensions, SharedMonitorInfo};
 
 /// Global state for threaded mode

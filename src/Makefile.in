@@ -345,10 +345,9 @@ else
 NEOMACS_RUST_PROFILE = release
 NEOMACS_CARGO_FLAGS = --release
 endif
-NEOMACS_CARGO_BACKEND_FLAGS = --features $(NEOVM_CORE_BACKEND_CARGO_FEATURE)
-# WPE WebKit is now a default feature - always enable the cargo feature
-# Note: wpe-webkit is included in the default features in Cargo.toml
-HAVE_WPE_WEBKIT = 1
+NEOMACS_CARGO_BACKEND_FLAGS = --no-default-features --features "video,neo-term,$(NEOVM_CORE_BACKEND_CARGO_FEATURE)"
+# WPE WebKit is Linux-only; disabled on macOS
+HAVE_WPE_WEBKIT = @HAVE_WPE_WEBKIT@
 NEOMACS_RUST_TARGET = $(NEOMACS_RUST_DIR)/target/$(NEOMACS_RUST_PROFILE)/$(NEOMACS_RUST_LIB)
 
 ## emacs.res if HAVE_W32
