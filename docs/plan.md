@@ -28,6 +28,15 @@ Last updated: 2026-02-18
 
 ## Doing
 
+- Expanded `read-event` list tail lock-ins with deeper payload depth (round 2):
+  - oracle corpus changes:
+    - `test/neovm/vm-compat/cases/read-event-list-tail-semantics.forms`
+    - `test/neovm/vm-compat/cases/read-event-list-tail-semantics.expected.tsv`
+    - added deeper-tail probe `(list '(mouse-1) 98 'foo 'bar 'baz 'qux 'quux)`.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/read-event-list-tail-semantics` (pass, 10/10)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+
 - Expanded `read-event` non-character tail lock-ins with deeper payload depth (round 3):
   - oracle corpus changes:
     - `test/neovm/vm-compat/cases/read-event-non-character-tail-semantics.forms`
