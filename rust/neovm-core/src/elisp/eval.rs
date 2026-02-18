@@ -180,7 +180,7 @@ impl Evaluator {
         );
         obarray.set_symbol_function(
             "kmacro-name-last-macro",
-            Value::Subr("name-last-kbd-macro".to_string()),
+            Value::Subr("kmacro-name-last-macro".to_string()),
         );
         obarray.set_symbol_function(
             "name-last-kbd-macro",
@@ -770,7 +770,7 @@ impl Evaluator {
                 };
                 let alias_target = match &func {
                     Value::Symbol(target) => Some(target.clone()),
-                    Value::Subr(bound_name) if bound_name != name => Some(bound_name.clone()),
+                    Value::Subr(bound_name) => Some(bound_name.clone()),
                     _ => None,
                 };
                 let result = match self.apply(func.clone(), args) {
@@ -2126,9 +2126,13 @@ impl Evaluator {
                     other => other,
                 };
                 if let Some(target) = alias_target {
-                    result.map_err(|flow| {
-                        rewrite_wrong_arity_alias_function_object(flow, name, &target)
-                    })
+                    if rewrite_builtin_wrong_arity {
+                        result
+                    } else {
+                        result.map_err(|flow| {
+                            rewrite_wrong_arity_alias_function_object(flow, name, &target)
+                        })
+                    }
                 } else {
                     result
                 }

@@ -349,11 +349,12 @@ pub(crate) fn builtin_execute_kbd_macro(
 ///
 /// Bind the last keyboard macro to SYMBOL as its function definition.
 /// Signals an error if no macro has been recorded.
-pub(crate) fn builtin_name_last_kbd_macro(
+fn name_last_kbd_macro_impl(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
+    call_name: &str,
 ) -> EvalResult {
-    expect_args("name-last-kbd-macro", &args, 1)?;
+    expect_args(call_name, &args, 1)?;
 
     let name = match &args[0] {
         Value::Symbol(s) => s.clone(),
@@ -378,6 +379,27 @@ pub(crate) fn builtin_name_last_kbd_macro(
 
     eval.obarray.set_symbol_function(&name, macro_val);
     Ok(Value::Nil)
+}
+
+/// (name-last-kbd-macro SYMBOL) -> nil
+///
+/// Bind the last keyboard macro to SYMBOL as its function definition.
+/// Signals an error if no macro has been recorded.
+pub(crate) fn builtin_name_last_kbd_macro(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    name_last_kbd_macro_impl(eval, args, "name-last-kbd-macro")
+}
+
+/// (kmacro-name-last-macro SYMBOL) -> nil
+///
+/// Alias entry point used in startup wrappers for arity payload parity.
+pub(crate) fn builtin_kmacro_name_last_macro(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    name_last_kbd_macro_impl(eval, args, "kmacro-name-last-macro")
 }
 
 /// (insert-kbd-macro MACRONAME &optional KEYS) -> nil

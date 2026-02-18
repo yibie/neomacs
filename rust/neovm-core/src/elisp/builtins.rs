@@ -7392,6 +7392,9 @@ pub(crate) fn dispatch_builtin(
         "name-last-kbd-macro" => {
             return Some(super::kmacro::builtin_name_last_kbd_macro(eval, args))
         }
+        "kmacro-name-last-macro" => {
+            return Some(super::kmacro::builtin_kmacro_name_last_macro(eval, args))
+        }
         "insert-kbd-macro" => return Some(super::kmacro::builtin_insert_kbd_macro(eval, args)),
         "kbd-macro-query" => return Some(super::kmacro::builtin_kbd_macro_query(eval, args)),
         "store-kbd-macro-event" => {

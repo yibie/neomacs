@@ -397,6 +397,7 @@ fn builtin_command_name(name: &str) -> bool {
             | "modify-syntax-entry"
             | "move-to-column"
             | "move-to-window-line"
+            | "kmacro-name-last-macro"
             | "name-last-kbd-macro"
             | "narrow-to-region"
             | "newline-and-indent"
