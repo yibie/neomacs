@@ -212,6 +212,11 @@ pub(crate) fn builtin_documentation_property_eval(
 
     match eval.obarray.get_property(sym, prop) {
         Some(value) if value.is_string() => Ok(value.clone()),
+        Some(value) if matches!(value, Value::Int(_)) => Ok(Value::Nil),
+        Some(value) => {
+            let expr = super::eval::value_to_expr_pub(value);
+            eval.eval(&expr)
+        }
         _ => Ok(Value::Nil),
     }
 }
@@ -1939,7 +1944,7 @@ mod tests {
     }
 
     #[test]
-    fn documentation_property_eval_non_string_property_returns_nil() {
+    fn documentation_property_eval_integer_property_returns_nil() {
         let mut evaluator = super::super::eval::Evaluator::new();
         evaluator
             .obarray
@@ -1954,6 +1959,108 @@ mod tests {
         )
         .unwrap();
         assert!(result.is_nil());
+    }
+
+    #[test]
+    fn documentation_property_eval_list_property_is_evaluated() {
+        let mut evaluator = super::super::eval::Evaluator::new();
+        evaluator.obarray.put_property(
+            "doc-sym",
+            "variable-documentation",
+            Value::list(vec![Value::symbol("identity"), Value::string("doc")]),
+        );
+
+        let result = builtin_documentation_property_eval(
+            &mut evaluator,
+            vec![
+                Value::symbol("doc-sym"),
+                Value::symbol("variable-documentation"),
+            ],
+        )
+        .unwrap();
+        assert_eq!(result.as_str(), Some("doc"));
+    }
+
+    #[test]
+    fn documentation_property_eval_symbol_property_is_evaluated() {
+        let mut evaluator = super::super::eval::Evaluator::new();
+        evaluator
+            .obarray
+            .put_property("doc-sym", "variable-documentation", Value::symbol("t"));
+
+        let result = builtin_documentation_property_eval(
+            &mut evaluator,
+            vec![
+                Value::symbol("doc-sym"),
+                Value::symbol("variable-documentation"),
+            ],
+        )
+        .unwrap();
+        assert!(result.is_truthy());
+    }
+
+    #[test]
+    fn documentation_property_eval_vector_property_is_evaluated() {
+        let mut evaluator = super::super::eval::Evaluator::new();
+        evaluator.obarray.put_property(
+            "doc-sym",
+            "variable-documentation",
+            Value::vector(vec![Value::Int(1), Value::Int(2)]),
+        );
+
+        let result = builtin_documentation_property_eval(
+            &mut evaluator,
+            vec![
+                Value::symbol("doc-sym"),
+                Value::symbol("variable-documentation"),
+            ],
+        )
+        .unwrap();
+        assert!(result.is_vector());
+    }
+
+    #[test]
+    fn documentation_property_eval_unbound_symbol_property_errors() {
+        let mut evaluator = super::super::eval::Evaluator::new();
+        evaluator.obarray.put_property(
+            "doc-sym",
+            "variable-documentation",
+            Value::symbol("doc-sym-unbound"),
+        );
+
+        let result = builtin_documentation_property_eval(
+            &mut evaluator,
+            vec![
+                Value::symbol("doc-sym"),
+                Value::symbol("variable-documentation"),
+            ],
+        );
+        match result {
+            Err(Flow::Signal(sig)) => assert_eq!(sig.symbol, "void-variable"),
+            other => panic!("expected void-variable signal, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn documentation_property_eval_invalid_form_property_errors() {
+        let mut evaluator = super::super::eval::Evaluator::new();
+        evaluator.obarray.put_property(
+            "doc-sym",
+            "variable-documentation",
+            Value::list(vec![Value::Int(1), Value::Int(2)]),
+        );
+
+        let result = builtin_documentation_property_eval(
+            &mut evaluator,
+            vec![
+                Value::symbol("doc-sym"),
+                Value::symbol("variable-documentation"),
+            ],
+        );
+        match result {
+            Err(Flow::Signal(sig)) => assert_eq!(sig.symbol, "invalid-function"),
+            other => panic!("expected invalid-function signal, got {other:?}"),
+        }
     }
 
     #[test]
