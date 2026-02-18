@@ -28,6 +28,21 @@ Last updated: 2026-02-18
 
 ## Doing
 
+- Expanded `read-key*` symbol/vector-tail lock-ins for dotted unread queues:
+  - oracle corpus changes:
+    - `test/neovm/vm-compat/cases/read-key-symbol-vector-tail-semantics.forms`
+    - `test/neovm/vm-compat/cases/read-key-symbol-vector-tail-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/read-key-vector-vector-tail-non-char-semantics.forms`
+    - `test/neovm/vm-compat/cases/read-key-vector-vector-tail-non-char-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/read-key-sequence-vector-vector-tail-non-char-semantics.forms`
+    - `test/neovm/vm-compat/cases/read-key-sequence-vector-vector-tail-non-char-semantics.expected.tsv`
+    - added dotted-tail probes for `(foo . [bar])` and `([foo] . 97)` in both `read-key` and `read-key-sequence-vector`.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/read-key-symbol-vector-tail-semantics` (pass, 3/3)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/read-key-vector-vector-tail-non-char-semantics` (pass, 2/2)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/read-key-sequence-vector-vector-tail-non-char-semantics` (pass, 2/2)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+
 - Expanded `read-event` vector/symbol tail lock-ins for dotted unread queues:
   - oracle corpus changes:
     - `test/neovm/vm-compat/cases/read-event-vector-symbol-tail-semantics.forms`
