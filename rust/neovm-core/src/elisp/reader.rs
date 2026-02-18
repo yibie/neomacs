@@ -178,6 +178,12 @@ pub(crate) fn builtin_read_from_string(
     }
 
     let substring = &full_string[start..end];
+    if starts_with_hash_skip_dispatch(substring) {
+        return Err(signal(
+            "end-of-file",
+            vec![Value::string("End of file during parsing")],
+        ));
+    }
     let end_pos = compute_read_end_position(substring);
     if end_pos == 0 {
         return Err(signal(
@@ -281,6 +287,12 @@ fn consumed_represents_hash_dollar(input: &str) -> bool {
         }
         return bytes[pos] == b'#' && bytes[pos + 1] == b'$';
     }
+}
+
+fn starts_with_hash_skip_dispatch(input: &str) -> bool {
+    let bytes = input.as_bytes();
+    let pos = skip_ws_comments(input, 0);
+    pos + 1 < bytes.len() && bytes[pos] == b'#' && bytes[pos + 1] == b'@'
 }
 
 /// Estimate the end position of the first parsed form in the input string.
@@ -2985,6 +2997,17 @@ mod tests {
     }
 
     #[test]
+    fn read_from_string_hash_skip_with_payload_signals_eof() {
+        let mut ev = Evaluator::new();
+
+        let result = builtin_read_from_string(&mut ev, vec![Value::string("#@0x")]);
+        assert!(matches!(result, Err(Flow::Signal(sig)) if sig.symbol == "end-of-file"));
+
+        let result = builtin_read_from_string(&mut ev, vec![Value::string("#@4data42")]);
+        assert!(matches!(result, Err(Flow::Signal(sig)) if sig.symbol == "end-of-file"));
+    }
+
+    #[test]
     fn read_from_string_hash_dollar_uses_load_file_name() {
         let mut ev = Evaluator::new();
         ev.set_variable("load-file-name", Value::string("/tmp/reader-probe.elc"));
@@ -3012,17 +3035,11 @@ mod tests {
     }
 
     #[test]
-    fn read_from_string_hash_skip_then_hash_dollar() {
+    fn read_from_string_hash_skip_then_hash_dollar_signals_eof() {
         let mut ev = Evaluator::new();
         ev.set_variable("load-file-name", Value::string("/tmp/reader-skip.elc"));
-        let result = builtin_read_from_string(&mut ev, vec![Value::string("#@4data#$")]).unwrap();
-        match &result {
-            Value::Cons(cell) => {
-                let pair = cell.lock().unwrap();
-                assert_eq!(pair.car.as_str(), Some("/tmp/reader-skip.elc"));
-            }
-            _ => panic!("Expected cons"),
-        }
+        let result = builtin_read_from_string(&mut ev, vec![Value::string("#@4data#$")]);
+        assert!(matches!(result, Err(Flow::Signal(sig)) if sig.symbol == "end-of-file"));
     }
 
     #[test]
@@ -3054,19 +3071,10 @@ mod tests {
     }
 
     #[test]
-    fn read_from_string_hash_skip_bytes() {
+    fn read_from_string_hash_skip_bytes_signals_eof() {
         let mut ev = Evaluator::new();
-        let input = "#@4data42 rest";
-        let expected_end = input.find(" rest").unwrap() as i64;
-        let result = builtin_read_from_string(&mut ev, vec![Value::string(input)]).unwrap();
-        match &result {
-            Value::Cons(cell) => {
-                let pair = cell.lock().unwrap();
-                assert!(matches!(&pair.car, Value::Int(42)));
-                assert_eq!(pair.cdr, Value::Int(expected_end));
-            }
-            _ => panic!("Expected cons"),
-        }
+        let result = builtin_read_from_string(&mut ev, vec![Value::string("#@4data42 rest")]);
+        assert!(matches!(result, Err(Flow::Signal(sig)) if sig.symbol == "end-of-file"));
     }
 
     #[test]

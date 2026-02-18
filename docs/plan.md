@@ -28,6 +28,24 @@ Last updated: 2026-02-18
 
 ## Doing
 
+- Aligned `read-from-string` handling of `#@...` skip-byte reader syntax with Oracle EOF behavior:
+  - runtime changes:
+    - updated `rust/neovm-core/src/elisp/reader.rs` so `read-from-string` now signals `end-of-file` when the next token starts with `#@` (including payload forms like `#@0x`, `#@4data42`, `#@4data#$`), instead of parsing skip-byte content in this entrypoint.
+    - kept parser-level `#@N<bytes>` support intact for non-`read-from-string` reader paths.
+    - updated reader unit coverage:
+      - `read_from_string_hash_skip_with_payload_signals_eof`
+      - `read_from_string_hash_skip_then_hash_dollar_signals_eof`
+      - `read_from_string_hash_skip_bytes_signals_eof`
+  - expanded oracle corpus:
+    - `test/neovm/vm-compat/cases/read-from-string-edges.forms`
+    - `test/neovm/vm-compat/cases/read-from-string-edges.expected.tsv`
+    - added `#@` payload probes (`#@0x`, `#@4data42`, `#@4data#$`, `#@4data#x`, `#@4data#s`) asserting EOF symbol shape.
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml read_from_string_hash_` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/read-from-string-edges` (pass, 31/31)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/reader-hash` (pass, 8/8)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+
 - Expanded `read-from-string` hash-edge EOF lock-ins for incomplete bracket dispatch:
   - oracle corpus changes:
     - `test/neovm/vm-compat/cases/read-from-string-edges.forms`
