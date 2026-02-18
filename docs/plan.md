@@ -28,6 +28,12 @@ Last updated: 2026-02-18
 
 ## Doing
 
+- Completed `help-function-arglist` subr-arity fallback parity slice:
+  - Extended evaluator-backed `help-function-arglist` resolution to derive generic arglist shapes from subr arity for resolved callables that lack dedicated name mappings.
+  - Kept explicit Oracle-shaped overrides for edge names such as `eq`, while preserving autoload placeholder behavior and unknown-symbol fallback to `t`.
+  - Added oracle lock-in case `cases/help-function-arglist-subr-runtime-semantics` and wired it into `test/neovm/vm-compat/cases/default.list`.
+  - Validated via `cargo test --manifest-path rust/neovm-core/Cargo.toml help_function_arglist`, targeted `check-one-neovm`, and full `make -C test/neovm/vm-compat check-all-neovm`.
+
 - Completed `help-function-arglist` runtime builtin/special-form parity slice:
   - Updated dispatch to use evaluator-backed resolution for `help-function-arglist`, enabling runtime alias and wrapper-aware behavior.
   - Expanded `rust/neovm-core/src/elisp/doc.rs` arglist mapping for key core callables (`car`, `if`, `documentation`) and autoload-placeholder response paths (`describe-function`, `describe-variable`).
