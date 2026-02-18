@@ -28,6 +28,21 @@ Last updated: 2026-02-18
 
 ## Doing
 
+- Aligned startup binding and queue-edge behavior for `unread-command-events` with Oracle:
+  - runtime changes:
+    - updated `rust/neovm-core/src/elisp/eval.rs` to seed `unread-command-events` to `nil` at evaluator startup.
+    - marked `unread-command-events` with startup `variable-documentation` metadata and as a special variable to match dynamic binding behavior.
+    - added evaluator unit coverage in `unread_command_events_is_bound_to_nil_at_startup`.
+  - expanded oracle corpus:
+    - `test/neovm/vm-compat/cases/read-invalid-event-dispatch-semantics.forms`
+    - `test/neovm/vm-compat/cases/read-invalid-event-dispatch-semantics.expected.tsv`
+    - added startup lock-ins for `(boundp 'unread-command-events)` and `(symbol-value 'unread-command-events)` defaulting to `nil`.
+    - added stale-tail probes for dotted unread queues and an error-path lock-in showing `(condition-case ...)` fallback sees `nil` after dynamic unwind.
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml unread_command_events_is_bound_to_nil_at_startup` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/read-invalid-event-dispatch-semantics` (pass, 11/11)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+
 - Aligned `read-from-string` complete `#s(...)` rendering with Oracle:
   - runtime changes:
     - updated shorthand printing in both `rust/neovm-core/src/elisp/print.rs` and evaluator-aware `rust/neovm-core/src/elisp/error.rs` so internal `(make-hash-table-from-literal '(...))` shape renders as `#s(...)`.

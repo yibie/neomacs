@@ -163,6 +163,7 @@ impl Evaluator {
         obarray.set_symbol_value("kill-ring", Value::Nil);
         obarray.set_symbol_value("kill-ring-yank-pointer", Value::Nil);
         obarray.set_symbol_value("last-command", Value::Nil);
+        obarray.set_symbol_value("unread-command-events", Value::Nil);
         // GNU Emacs seeds core startup vars with integer
         // `variable-documentation` offsets in the DOC table.
         for name in [
@@ -181,6 +182,7 @@ impl Evaluator {
             "kill-ring",
             "kill-ring-yank-pointer",
             "last-command",
+            "unread-command-events",
             "lexical-binding",
             "load-prefer-newer",
         ] {
@@ -449,6 +451,7 @@ impl Evaluator {
             "print-level",
             "standard-output",
             "buffer-read-only",
+            "unread-command-events",
         ] {
             obarray.make_special(name);
         }
@@ -3692,6 +3695,20 @@ mod tests {
         assert_eq!(results[0], "OK t");
         assert_eq!(results[1], "OK t");
         assert_eq!(results[2], "OK t");
+    }
+
+    #[test]
+    fn unread_command_events_is_bound_to_nil_at_startup() {
+        let results = eval_all(
+            "unread-command-events
+             (boundp 'unread-command-events)
+             (let ((unread-command-events '(97))) unread-command-events)
+             unread-command-events",
+        );
+        assert_eq!(results[0], "OK nil");
+        assert_eq!(results[1], "OK t");
+        assert_eq!(results[2], "OK (97)");
+        assert_eq!(results[3], "OK nil");
     }
 
     #[test]
