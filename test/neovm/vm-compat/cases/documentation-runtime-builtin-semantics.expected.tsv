@@ -4,8 +4,16 @@
 4	(condition-case err (documentation 'vm-doc-missing) (error (car err)))	OK void-function
 5	(progn (fset 'vm-doc-lambda2 (lambda (x) "ldoc" x)) (documentation 'vm-doc-lambda2))	OK "ldoc"
 6	(progn (put 'vm-doc-prop-only2 'function-documentation "pdoc") (documentation 'vm-doc-prop-only2))	OK "pdoc"
-7	(progn (fset 'vm-doc-alias-target (lambda nil "aliasdoc" nil)) (defalias 'vm-doc-alias 'vm-doc-alias-target) (stringp (documentation 'vm-doc-alias)))	OK t
-8	(progn (fset 'vm-doc-alias-builtin 'car) (stringp (documentation 'vm-doc-alias-builtin)))	OK t
-9	(condition-case err (documentation 1) (error (car err)))	OK invalid-function
-10	(stringp (documentation 'car t))	OK t
-11	(condition-case err (documentation 'car nil nil) (error (car err)))	OK wrong-number-of-arguments
+7	(progn (put 'vm-doc-prop-only2 'function-documentation '(identity "pdoc2")) (documentation 'vm-doc-prop-only2))	OK "pdoc2"
+8	(progn (put 'vm-doc-prop-only2 'function-documentation 't) (documentation 'vm-doc-prop-only2))	OK t
+9	(progn (put 'vm-doc-prop-only2 'function-documentation [1 2]) (documentation 'vm-doc-prop-only2))	OK [1 2]
+10	(progn (put 'vm-doc-prop-only2 'function-documentation 1.5) (documentation 'vm-doc-prop-only2))	OK 1.5
+11	(progn (put 'vm-doc-prop-only2 'function-documentation 9) (documentation 'vm-doc-prop-only2))	OK nil
+12	(progn (put 'vm-doc-prop-only2 'function-documentation '(1 2)) (condition-case err (documentation 'vm-doc-prop-only2) (error err)))	OK (invalid-function 1)
+13	(progn (put 'vm-doc-prop-only2 'function-documentation 'vm-doc-prop-unbound) (condition-case err (documentation 'vm-doc-prop-only2) (error err)))	OK (void-variable vm-doc-prop-unbound)
+14	(progn (put 'vm-doc-prop-only2 'function-documentation '(progn "pdoc3")) (documentation 'vm-doc-prop-only2 t))	OK "pdoc3"
+15	(progn (fset 'vm-doc-alias-target (lambda nil "aliasdoc" nil)) (defalias 'vm-doc-alias 'vm-doc-alias-target) (stringp (documentation 'vm-doc-alias)))	OK t
+16	(progn (fset 'vm-doc-alias-builtin 'car) (stringp (documentation 'vm-doc-alias-builtin)))	OK t
+17	(condition-case err (documentation 1) (error (car err)))	OK invalid-function
+18	(stringp (documentation 'car t))	OK t
+19	(condition-case err (documentation 'car nil nil) (error (car err)))	OK wrong-number-of-arguments

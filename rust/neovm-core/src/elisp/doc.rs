@@ -61,8 +61,9 @@ pub(crate) fn builtin_documentation(
         if let Some(prop) = eval
             .obarray
             .get_property(&name, "function-documentation")
+            .cloned()
         {
-            return Ok(prop.as_str().map_or(Value::Nil, Value::string));
+            return eval_documentation_property_value(eval, prop);
         }
 
         let mut func_val =
@@ -97,6 +98,23 @@ fn function_doc_or_error(func_val: Value) -> EvalResult {
             .map_or(Value::Nil, |doc| Value::string(doc.clone()))),
         other => Err(signal("invalid-function", vec![other])),
     }
+}
+
+fn eval_documentation_property_value(
+    eval: &mut super::eval::Evaluator,
+    value: Value,
+) -> EvalResult {
+    if let Some(text) = value.as_str() {
+        return Ok(Value::string(text));
+    }
+
+    // Integer doc offsets require DOC-file lookup; return nil when unresolved.
+    if matches!(value, Value::Int(_)) {
+        return Ok(Value::Nil);
+    }
+
+    let expr = super::eval::value_to_expr_pub(&value);
+    eval.eval(&expr)
 }
 
 /// `(describe-function FUNCTION)` -- return a short description string.
@@ -210,13 +228,8 @@ pub(crate) fn builtin_documentation_property_eval(
         return Ok(Value::Nil);
     };
 
-    match eval.obarray.get_property(sym, prop) {
-        Some(value) if value.is_string() => Ok(value.clone()),
-        Some(value) if matches!(value, Value::Int(_)) => Ok(Value::Nil),
-        Some(value) => {
-            let expr = super::eval::value_to_expr_pub(value);
-            eval.eval(&expr)
-        }
+    match eval.obarray.get_property(sym, prop).cloned() {
+        Some(value) => eval_documentation_property_value(eval, value),
         _ => Ok(Value::Nil),
     }
 }
@@ -1779,7 +1792,7 @@ mod tests {
     }
 
     #[test]
-    fn documentation_non_string_function_documentation_property_returns_nil() {
+    fn documentation_integer_function_documentation_property_returns_nil() {
         let mut evaluator = super::super::eval::Evaluator::new();
         evaluator
             .obarray
@@ -1790,6 +1803,90 @@ mod tests {
 
         let result = builtin_documentation(&mut evaluator, vec![Value::symbol("doc-prop")]);
         assert!(result.unwrap().is_nil());
+    }
+
+    #[test]
+    fn documentation_list_function_documentation_property_is_evaluated() {
+        let mut evaluator = super::super::eval::Evaluator::new();
+        evaluator
+            .obarray
+            .set_symbol_function("doc-prop", Value::Int(7));
+        evaluator.obarray.put_property(
+            "doc-prop",
+            "function-documentation",
+            Value::list(vec![Value::symbol("identity"), Value::string("doc")]),
+        );
+
+        let result = builtin_documentation(&mut evaluator, vec![Value::symbol("doc-prop")]);
+        assert_eq!(result.unwrap().as_str(), Some("doc"));
+    }
+
+    #[test]
+    fn documentation_symbol_function_documentation_property_is_evaluated() {
+        let mut evaluator = super::super::eval::Evaluator::new();
+        evaluator
+            .obarray
+            .set_symbol_function("doc-prop", Value::Int(7));
+        evaluator
+            .obarray
+            .put_property("doc-prop", "function-documentation", Value::symbol("t"));
+
+        let result = builtin_documentation(&mut evaluator, vec![Value::symbol("doc-prop")]);
+        assert!(result.unwrap().is_truthy());
+    }
+
+    #[test]
+    fn documentation_vector_function_documentation_property_is_evaluated() {
+        let mut evaluator = super::super::eval::Evaluator::new();
+        evaluator
+            .obarray
+            .set_symbol_function("doc-prop", Value::Int(7));
+        evaluator.obarray.put_property(
+            "doc-prop",
+            "function-documentation",
+            Value::vector(vec![Value::Int(1), Value::Int(2)]),
+        );
+
+        let result = builtin_documentation(&mut evaluator, vec![Value::symbol("doc-prop")]);
+        assert!(result.unwrap().is_vector());
+    }
+
+    #[test]
+    fn documentation_unbound_symbol_function_documentation_property_errors() {
+        let mut evaluator = super::super::eval::Evaluator::new();
+        evaluator
+            .obarray
+            .set_symbol_function("doc-prop", Value::Int(7));
+        evaluator.obarray.put_property(
+            "doc-prop",
+            "function-documentation",
+            Value::symbol("doc-prop-unbound"),
+        );
+
+        let result = builtin_documentation(&mut evaluator, vec![Value::symbol("doc-prop")]);
+        match result {
+            Err(Flow::Signal(sig)) => assert_eq!(sig.symbol, "void-variable"),
+            other => panic!("expected void-variable signal, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn documentation_invalid_form_function_documentation_property_errors() {
+        let mut evaluator = super::super::eval::Evaluator::new();
+        evaluator
+            .obarray
+            .set_symbol_function("doc-prop", Value::Int(7));
+        evaluator.obarray.put_property(
+            "doc-prop",
+            "function-documentation",
+            Value::list(vec![Value::Int(1), Value::Int(2)]),
+        );
+
+        let result = builtin_documentation(&mut evaluator, vec![Value::symbol("doc-prop")]);
+        match result {
+            Err(Flow::Signal(sig)) => assert_eq!(sig.symbol, "invalid-function"),
+            other => panic!("expected invalid-function signal, got {other:?}"),
+        }
     }
 
     #[test]
