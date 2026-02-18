@@ -203,18 +203,15 @@ pub(crate) fn builtin_describe_function(
 
     // Reuse symbol-function resolution so builtins and wrapper-backed callables
     // are visible here even when not explicitly interned in the function cell.
-    let mut func_val =
-        super::builtins::builtin_symbol_function(eval, vec![Value::symbol(name.clone())])?;
-    if let Some(alias_name) = func_val.as_symbol_name() {
-        let indirect =
-            super::builtins::builtin_indirect_function(eval, vec![Value::symbol(alias_name)])?;
-        if !indirect.is_nil() {
-            func_val = indirect;
-        }
-    }
-
+    let func_val = super::builtins::builtin_symbol_function(eval, vec![Value::symbol(name.clone())])?;
     if func_val.is_nil() {
         return Err(signal("void-function", vec![Value::symbol(&name)]));
+    }
+
+    if let Some(alias_name) = func_val.as_symbol_name() {
+        if alias_name != name {
+            return Ok(Value::string(format!("{name} is an alias for `{alias_name}`.")));
+        }
     }
 
     let description = describe_function_kind(&func_val);
@@ -2210,7 +2207,7 @@ mod tests {
     }
 
     #[test]
-    fn describe_function_alias_resolves_builtin_kind() {
+    fn describe_function_alias_reports_alias_text() {
         let mut evaluator = super::super::eval::Evaluator::new();
         evaluator
             .obarray
@@ -2219,7 +2216,23 @@ mod tests {
         let result =
             builtin_describe_function(&mut evaluator, vec![Value::symbol("vm-alias-car")]);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap().as_str(), Some("Built-in function"));
+        assert_eq!(result.unwrap().as_str(), Some("vm-alias-car is an alias for `car`."));
+    }
+
+    #[test]
+    fn describe_function_alias_to_missing_reports_alias_text() {
+        let mut evaluator = super::super::eval::Evaluator::new();
+        evaluator
+            .obarray
+            .set_symbol_function("vm-alias-missing", Value::symbol("vm-no-such-fn"));
+
+        let result =
+            builtin_describe_function(&mut evaluator, vec![Value::symbol("vm-alias-missing")]);
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap().as_str(),
+            Some("vm-alias-missing is an alias for `vm-no-such-fn`.")
+        );
     }
 
     #[test]
