@@ -381,7 +381,7 @@ impl VideoCache {
         mut frame: DecodedFrame,
     ) {
         let total = self.videos.get(&frame.video_id).map(|v| v.frame_count).unwrap_or(0) + 1;
-        log::info!(
+        log::trace!(
             "VideoCache::process_pending received frame #{} for video {}, pts={}ms, size={}x{}",
             total,
             frame.video_id,
