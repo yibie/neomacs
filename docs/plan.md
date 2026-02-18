@@ -28,6 +28,15 @@ Last updated: 2026-02-18
 
 ## Doing
 
+- Expanded `read-char` non-character-vector tail lock-ins with middle-char payload:
+  - oracle corpus changes:
+    - `test/neovm/vm-compat/cases/read-char-non-character-vector-tail-semantics.forms`
+    - `test/neovm/vm-compat/cases/read-char-non-character-vector-tail-semantics.expected.tsv`
+    - added middle-char probe `(list [1 2] 98 97)`.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/read-char-non-character-vector-tail-semantics` (pass, 3/3)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+
 - Expanded `read-char` non-character tail lock-ins with middle-char payload:
   - oracle corpus changes:
     - `test/neovm/vm-compat/cases/read-char-non-character-tail-semantics.forms`
