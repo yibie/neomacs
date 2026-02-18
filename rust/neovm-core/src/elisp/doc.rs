@@ -545,7 +545,7 @@ fn help_arglist_from_subr_name(name: &str, preserve_names: bool) -> Option<Value
         });
     }
 
-    if name == "max" {
+    if name == "min" || name == "max" {
         return Some(if preserve_names {
             help_arglist(&["number-or-marker"], &[], Some("numbers-or-markers"))
         } else {
@@ -1249,6 +1249,20 @@ mod tests {
         assert_eq!(
             arglist_names(&list),
             vec!["&rest".to_string(), "objects".to_string()]
+        );
+
+        let min = builtin_help_function_arglist_eval(
+            &mut evaluator,
+            vec![Value::symbol("min"), Value::True],
+        )
+        .unwrap();
+        assert_eq!(
+            arglist_names(&min),
+            vec![
+                "number-or-marker".to_string(),
+                "&rest".to_string(),
+                "numbers-or-markers".to_string()
+            ]
         );
 
         let max = builtin_help_function_arglist_eval(

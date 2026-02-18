@@ -1,6 +1,7 @@
 (help-function-arglist 'cdr t)
 (help-function-arglist 'cons t)
 (help-function-arglist 'list t)
+(help-function-arglist 'min t)
 (help-function-arglist 'max t)
 (help-function-arglist 'message t)
 (help-function-arglist 'eq t)
