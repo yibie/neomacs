@@ -28,6 +28,13 @@ Last updated: 2026-02-18
 
 ## Doing
 
+- Extended `expt` / `isnan` type-contract parity:
+  - Updated `rust/neovm-core/src/elisp/builtins.rs` so `expt` now validates non-float operand paths with `number-or-marker-p` contract semantics, matching Oracle `wrong-type-argument` payloads.
+  - Updated `isnan` to reject non-float arguments with `(wrong-type-argument floatp VALUE)` instead of returning `nil`.
+  - Added evaluator unit coverage in `pure_dispatch_typed_expt_and_isnan_type_errors_match_oracle`.
+  - Added oracle lock-in case `cases/expt-isnan-type-semantics` and wired it into `test/neovm/vm-compat/cases/default.list`.
+  - Validated via `cargo test --manifest-path rust/neovm-core/Cargo.toml pure_dispatch_typed_expt_and_isnan_type_errors_match_oracle`, `make -C test/neovm/vm-compat check-one-neovm CASE=cases/expt-isnan-type-semantics`, and full `make -C test/neovm/vm-compat check-all-neovm`.
+
 - Extended float division-by-zero parity for `/`:
   - Updated `rust/neovm-core/src/elisp/builtins.rs` float division path so zero divisors follow Oracle IEEE behavior (`INF` / `NaN`) instead of signaling `arith-error`, while integer division by zero remains `arith-error`.
   - Added `cases/division-float-zero-semantics` and wired it into `test/neovm/vm-compat/cases/default.list`.
