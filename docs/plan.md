@@ -28,6 +28,15 @@ Last updated: 2026-02-18
 
 ## Doing
 
+- Expanded `read-event` symbol tail lock-ins with deeper payload depth (round 3):
+  - oracle corpus changes:
+    - `test/neovm/vm-compat/cases/read-event-symbol-tail-semantics.forms`
+    - `test/neovm/vm-compat/cases/read-event-symbol-tail-semantics.expected.tsv`
+    - added deeper-tail probe `(list 97 98 'foo 'bar 'baz 'qux 'quux 'quuz)`.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/read-event-symbol-tail-semantics` (pass, 9/9)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+
 - Expanded `read-event` symbol-vector tail lock-ins with deeper payload depth (round 3):
   - oracle corpus changes:
     - `test/neovm/vm-compat/cases/read-event-symbol-vector-tail-semantics.forms`
