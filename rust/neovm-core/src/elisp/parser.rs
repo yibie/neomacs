@@ -817,6 +817,23 @@ mod tests {
     }
 
     #[test]
+    fn parse_special_float_plus_and_trailing_dot_literals() {
+        let forms = parse_forms("+1.e+NaN -1.e+NaN +.0e+NaN +1.e+INF -.0e+INF +1E+NaN").unwrap();
+        let rendered: Vec<String> = forms.iter().map(crate::elisp::expr::print_expr).collect();
+        assert_eq!(
+            rendered,
+            vec![
+                "1.0e+NaN",
+                "-1.0e+NaN",
+                "2251799813685246.0e+NaN",
+                "1.0e+INF",
+                "-1.0e+INF",
+                "1.0e+NaN",
+            ]
+        );
+    }
+
+    #[test]
     fn parse_invalid_nan_inf_spellings_as_symbols() {
         let forms = parse_forms("0.0e+inf 0.0e+nan 1.0eNaN 1.0eINF").unwrap();
         assert_eq!(
