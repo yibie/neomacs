@@ -244,6 +244,19 @@ pub(crate) fn builtin_documentation_property(args: Vec<Value>) -> EvalResult {
 /// Stub implementation: always returns nil.  In real Emacs this is called
 /// during startup to load the pre-built documentation file (DOC) that
 /// contains docstrings for all built-in functions and variables.
+fn snarf_doc_path_invalid(filename: &str) -> bool {
+    if filename.is_empty() {
+        return true;
+    }
+
+    let mut segments = filename.split('/').filter(|segment| !segment.is_empty()).peekable();
+    if segments.peek().is_none() {
+        return true;
+    }
+
+    segments.all(|segment| segment == "." || segment == "..")
+}
+
 pub(crate) fn builtin_snarf_documentation(args: Vec<Value>) -> EvalResult {
     expect_args("Snarf-documentation", &args, 1)?;
     let filename = match args[0].as_str() {
@@ -262,14 +275,7 @@ pub(crate) fn builtin_snarf_documentation(args: Vec<Value>) -> EvalResult {
         return Ok(Value::Nil);
     }
 
-    if filename.is_empty() || filename == "./" || filename == "../" {
-        return Err(signal(
-            "error",
-            vec![Value::string("DOC file invalid at position 0")],
-        ));
-    }
-
-    if filename == "DOC/" {
+    if filename.starts_with("DOC/") {
         return Err(signal(
             "file-error",
             vec![
@@ -279,14 +285,10 @@ pub(crate) fn builtin_snarf_documentation(args: Vec<Value>) -> EvalResult {
         ));
     }
 
-    if filename.ends_with('/') {
+    if snarf_doc_path_invalid(filename) {
         return Err(signal(
-            "file-missing",
-            vec![
-                Value::string("Opening doc string file"),
-                Value::string("No such file or directory"),
-                Value::string(format!("/usr/share/emacs/etc/{filename}")),
-            ],
+            "error",
+            vec![Value::string("DOC file invalid at position 0")],
         ));
     }
 
@@ -1127,8 +1129,35 @@ mod tests {
     }
 
     #[test]
+    fn snarf_documentation_single_dot_path_errors() {
+        let result = builtin_snarf_documentation(vec![Value::string(".")]);
+        match result {
+            Err(Flow::Signal(sig)) => assert_eq!(sig.symbol, "error"),
+            other => panic!("expected error signal, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn snarf_documentation_root_path_errors() {
+        let result = builtin_snarf_documentation(vec![Value::string("/")]);
+        match result {
+            Err(Flow::Signal(sig)) => assert_eq!(sig.symbol, "error"),
+            other => panic!("expected error signal, got {other:?}"),
+        }
+    }
+
+    #[test]
     fn snarf_documentation_doc_dir_path_file_error() {
         let result = builtin_snarf_documentation(vec![Value::string("DOC/")]);
+        match result {
+            Err(Flow::Signal(sig)) => assert_eq!(sig.symbol, "file-error"),
+            other => panic!("expected file-error signal, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn snarf_documentation_doc_subpath_file_error() {
+        let result = builtin_snarf_documentation(vec![Value::string("DOC/a")]);
         match result {
             Err(Flow::Signal(sig)) => assert_eq!(sig.symbol, "file-error"),
             other => panic!("expected file-error signal, got {other:?}"),
