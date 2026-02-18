@@ -72,7 +72,7 @@ fn invalid_get_device_terminal_error(value: &Value) -> Flow {
     signal(
         "error",
         vec![Value::string(format!(
-            "Invalid argument {} in 'get-device-terminal'",
+            "Invalid argument {} in ‘get-device-terminal’",
             super::print::print_value(value)
         ))],
     )
@@ -104,7 +104,7 @@ fn invalid_get_device_terminal_error_eval(eval: &super::eval::Evaluator, value: 
     signal(
         "error",
         vec![Value::string(format!(
-            "Invalid argument {} in 'get-device-terminal'",
+            "Invalid argument {} in ‘get-device-terminal’",
             format_get_device_terminal_arg_eval(eval, value)
         ))],
     )
@@ -2050,7 +2050,7 @@ mod tests {
                 assert_eq!(sig.symbol, "error");
                 assert_eq!(
                     sig.data,
-                    vec![Value::string("Invalid argument 1 in 'get-device-terminal'")]
+                    vec![Value::string("Invalid argument 1 in ‘get-device-terminal’")]
                 );
             }
             other => panic!("expected error signal, got {other:?}"),
@@ -2234,7 +2234,7 @@ mod tests {
                 assert_eq!(sig.symbol, "error");
                 assert_eq!(
                     sig.data,
-                    vec![Value::string("Invalid argument 1 in 'get-device-terminal'")]
+                    vec![Value::string("Invalid argument 1 in ‘get-device-terminal’")]
                 );
             }
             other => panic!("expected error signal, got {other:?}"),
