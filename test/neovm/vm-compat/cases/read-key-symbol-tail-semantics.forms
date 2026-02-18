@@ -8,6 +8,11 @@
     (read-key "")
     unread-command-events))
 
+(let ((unread-command-events (list 'foo 98 'bar)))
+  (progn
+    (read-key "")
+    unread-command-events))
+
 (let ((unread-command-events '(97 . foo)))
   (progn
     (read-key "")
