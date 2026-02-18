@@ -10854,6 +10854,18 @@ Last updated: 2026-02-18
     - `make -C test/neovm/vm-compat record FORMS=cases/replace-match.forms EXPECTED=cases/replace-match.expected.tsv` (pass)
     - `make -C test/neovm/vm-compat check-one-neovm CASE=replace-match` (pass, 32/32)
     - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+- Aligned `string-to-number` radix upper-bound semantics with GNU Emacs:
+  - runtime changes:
+    - `string-to-number` now accepts explicit bases only in `2..16` (instead of `2..36`)
+    - explicit base values above `16` now signal `args-out-of-range` instead of returning parsed integers
+  - expanded oracle corpus:
+    - `test/neovm/vm-compat/cases/string-to-number-semantics.forms`
+    - `test/neovm/vm-compat/cases/string-to-number-semantics.expected.tsv`
+    - added boundary probes for base `16` success plus base `17` and `36` `args-out-of-range` errors
+  - verified:
+    - `make -C test/neovm/vm-compat record FORMS=cases/string-to-number-semantics.forms EXPECTED=cases/string-to-number-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=string-to-number-semantics` (pass, 11/11)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
 
 ## Doing
 
