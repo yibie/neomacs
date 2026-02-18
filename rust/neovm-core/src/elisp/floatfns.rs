@@ -158,31 +158,6 @@ pub(crate) fn builtin_logb(args: Vec<Value>) -> EvalResult {
     Ok(Value::Int(result))
 }
 
-/// Banker's rounding: round half to even.
-fn bankers_round(x: f64) -> f64 {
-    let rounded = x.round();
-    // Check if we are exactly at the halfway point
-    let frac = x - x.floor();
-    if frac == 0.5 {
-        // Round to even
-        let floor_val = x.floor();
-        if floor_val as i64 % 2 == 0 {
-            floor_val
-        } else {
-            floor_val + 1.0
-        }
-    } else if frac == -0.5 {
-        let ceil_val = x.ceil();
-        if ceil_val as i64 % 2 == 0 {
-            ceil_val
-        } else {
-            ceil_val - 1.0
-        }
-    } else {
-        rounded
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Rounding to float
 // ---------------------------------------------------------------------------
@@ -205,7 +180,7 @@ pub(crate) fn builtin_ffloor(args: Vec<Value>) -> EvalResult {
 pub(crate) fn builtin_fround(args: Vec<Value>) -> EvalResult {
     expect_args("fround", &args, 1)?;
     let x = extract_float("fround", &args[0])?;
-    Ok(Value::Float(bankers_round(x)))
+    Ok(Value::Float(x.round_ties_even()))
 }
 
 /// (ftruncate X) -- round X toward zero, as a float
@@ -357,6 +332,15 @@ mod tests {
 
         let result = builtin_fround(vec![Value::Float(1.5)]).unwrap();
         assert_float_eq(&result, 2.0, 1e-10);
+
+        let result = builtin_fround(vec![Value::Float(-0.5)]).unwrap();
+        match result {
+            Value::Float(f) => {
+                assert_eq!(f, 0.0);
+                assert!(f.is_sign_negative(), "expected negative zero");
+            }
+            other => panic!("expected Float, got {:?}", other),
+        }
     }
 
     #[test]
