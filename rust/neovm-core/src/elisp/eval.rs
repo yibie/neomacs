@@ -768,7 +768,11 @@ impl Evaluator {
                     Value::Subr(bound_name) => !super::subr_info::is_special_form(bound_name),
                     _ => false,
                 };
-                return match self.apply(func.clone(), args) {
+                let alias_target = match &func {
+                    Value::Symbol(target) => Some(target.clone()),
+                    _ => None,
+                };
+                let result = match self.apply(func.clone(), args) {
                     Err(Flow::Signal(sig))
                         if sig.symbol == "invalid-function" && !function_is_callable =>
                     {
@@ -779,6 +783,13 @@ impl Evaluator {
                         }
                     }
                     other => other,
+                };
+                return if let Some(target) = alias_target {
+                    result.map_err(|flow| {
+                        rewrite_wrong_arity_alias_function_object(flow, name, &target)
+                    })
+                } else {
+                    result
                 };
             }
 
@@ -2102,11 +2113,22 @@ impl Evaluator {
                         rewrite_builtin_wrong_arity,
                     );
                 }
-                match self.apply(func, args) {
+                let alias_target = match &func {
+                    Value::Symbol(target) => Some(target.clone()),
+                    _ => None,
+                };
+                let result = match self.apply(func, args) {
                     Err(Flow::Signal(sig)) if sig.symbol == "invalid-function" => {
                         Err(signal("invalid-function", vec![Value::symbol(name)]))
                     }
                     other => other,
+                };
+                if let Some(target) = alias_target {
+                    result.map_err(|flow| {
+                        rewrite_wrong_arity_alias_function_object(flow, name, &target)
+                    })
+                } else {
+                    result
                 }
             }
             NamedCallTarget::EvaluatorCallable => self.apply_evaluator_callable(name, args),
@@ -2346,6 +2368,25 @@ fn rewrite_wrong_arity_function_object(flow: Flow, name: &str) -> Flow {
                 && sig.data[0].as_symbol_name() == Some(name)
             {
                 sig.data[0] = Value::Subr(name.to_string());
+            }
+            Flow::Signal(sig)
+        }
+        other => other,
+    }
+}
+
+fn rewrite_wrong_arity_alias_function_object(flow: Flow, alias: &str, target: &str) -> Flow {
+    match flow {
+        Flow::Signal(mut sig) => {
+            let target_is_payload = sig.data.first().is_some_and(|value| match value {
+                Value::Subr(name) => name == target,
+                _ => value.as_symbol_name() == Some(target),
+            });
+            if sig.symbol == "wrong-number-of-arguments"
+                && !sig.data.is_empty()
+                && target_is_payload
+            {
+                sig.data[0] = Value::symbol(alias);
             }
             Flow::Signal(sig)
         }

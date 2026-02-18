@@ -443,10 +443,15 @@ pub(crate) fn builtin_display_graphic_p(args: Vec<Value>) -> EvalResult {
 /// (display-color-p &optional DISPLAY) -> nil in batch-style vm context.
 pub(crate) fn builtin_display_color_p(args: Vec<Value>) -> EvalResult {
     expect_max_args("display-color-p", &args, 1)?;
-    if let Some(display) = args.first() {
-        expect_display_designator(display)?;
+    match args.first() {
+        None | Some(Value::Nil) => Ok(Value::Nil),
+        Some(display) if is_terminal_handle(display) => Ok(Value::Nil),
+        Some(Value::Str(display)) => Err(signal(
+            "error",
+            vec![Value::string(format!("Display {display} does not exist"))],
+        )),
+        Some(other) => Err(invalid_get_device_terminal_error(other)),
     }
-    Ok(Value::Nil)
 }
 
 /// (display-pixel-width &optional DISPLAY) -> 80 (terminal columns in batch).
@@ -560,8 +565,17 @@ pub(crate) fn builtin_display_color_p_eval(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    expect_optional_display_designator_eval(eval, "display-color-p", &args)?;
-    Ok(Value::Nil)
+    expect_max_args("display-color-p", &args, 1)?;
+    match args.first() {
+        None | Some(Value::Nil) => Ok(Value::Nil),
+        Some(display) if is_terminal_handle(display) => Ok(Value::Nil),
+        Some(display) if live_frame_designator_p(eval, display) => Ok(Value::Nil),
+        Some(Value::Str(display)) => Err(signal(
+            "error",
+            vec![Value::string(format!("Display {display} does not exist"))],
+        )),
+        Some(other) => Err(invalid_get_device_terminal_error_eval(eval, other)),
+    }
 }
 
 /// Evaluator-aware variant of `display-pixel-width`.
