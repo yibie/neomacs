@@ -28,6 +28,15 @@ Last updated: 2026-02-18
 
 ## Doing
 
+- Expanded coding-system API arity lock-ins (batch round 15):
+  - oracle corpus changes:
+    - `test/neovm/vm-compat/cases/coding-system-subr-arity-semantics.{forms,expected.tsv}`
+    - `test/neovm/vm-compat/cases/coding-system-io-arity-semantics.{forms,expected.tsv}`
+    - added `subr-arity` coverage for coding reader/setter builtins and extra over-arity boundaries for keyboard/terminal coding setters/getters.
+  - verified:
+    - `make -C test/neovm/vm-compat check-neovm-list LIST=<batch-list>` (pass; 20/20, 22/22)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+
 - Expanded coding-system DOS/Mac designator lock-ins (batch round 14):
   - oracle corpus changes:
     - `test/neovm/vm-compat/cases/coding-system-designator-semantics.{forms,expected.tsv}`

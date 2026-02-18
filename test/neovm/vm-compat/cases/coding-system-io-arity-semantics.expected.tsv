@@ -15,3 +15,8 @@
 15	(condition-case err (set-terminal-coding-system nil nil) (error (car err)))	OK nil
 16	(condition-case err (set-terminal-coding-system nil nil nil) (error (car err)))	OK nil
 17	(condition-case err (set-terminal-coding-system nil nil nil nil) (error (car err)))	OK wrong-number-of-arguments
+18	(condition-case err (keyboard-coding-system nil nil nil) (error (car err)))	OK wrong-number-of-arguments
+19	(condition-case err (terminal-coding-system nil nil nil) (error (car err)))	OK wrong-number-of-arguments
+20	(condition-case err (set-keyboard-coding-system nil nil nil nil) (error (car err)))	OK wrong-number-of-arguments
+21	(condition-case err (set-terminal-coding-system nil nil nil nil nil) (error (car err)))	OK wrong-number-of-arguments
+22	(condition-case err (set-terminal-coding-system nil nil nil nil nil nil) (error (car err)))	OK wrong-number-of-arguments
