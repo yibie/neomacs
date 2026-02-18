@@ -10626,6 +10626,20 @@ Last updated: 2026-02-18
     - `cargo test --manifest-path rust/neovm-core/Cargo.toml describe_function` (pass)
     - `make -C test/neovm/vm-compat check-one-neovm CASE=describe-function-runtime-semantics` (pass, 6/6)
     - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+- Aligned `describe-function` macro and keyboard-macro classification semantics with GNU Emacs:
+  - runtime changes:
+    - string/vector function cells are now classified as `"Keyboard macro"`
+    - cons macro-marker objects `(macro . <payload>)` are now classified as `"Lisp macro"`
+    - existing subr, special-form, lambda, and error-class behavior is preserved
+  - expanded oracle corpus:
+    - `test/neovm/vm-compat/cases/describe-function-runtime-semantics.forms`
+    - `test/neovm/vm-compat/cases/describe-function-runtime-semantics.expected.tsv`
+    - added explicit probes asserting `"keyboard macro"` and `"lisp macro"` text classes
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml describe_function` (pass)
+    - `make -C test/neovm/vm-compat record FORMS=cases/describe-function-runtime-semantics.forms EXPECTED=cases/describe-function-runtime-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=describe-function-runtime-semantics` (pass, 8/8)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
 
 ## Doing
 
