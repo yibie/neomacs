@@ -28,6 +28,15 @@ Last updated: 2026-02-18
 
 ## Doing
 
+- Expanded `read-char-exclusive` queue-state lock-ins for non-cons unread queue values:
+  - oracle corpus changes:
+    - `test/neovm/vm-compat/cases/read-char-queue-state-semantics.forms`
+    - `test/neovm/vm-compat/cases/read-char-queue-state-semantics.expected.tsv`
+    - added non-cons queue probes for symbol and vector values (`'foo`, `[97]`) to lock behavior where `read-char-exclusive` returns `nil` and leaves the queue value unchanged in batch mode.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/read-char-queue-state-semantics` (pass, 5/5)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+
 - Expanded `read-event` empty-queue lock-ins for non-cons unread queue values:
   - oracle corpus changes:
     - `test/neovm/vm-compat/cases/read-event-empty-queue-semantics.forms`
