@@ -28,6 +28,15 @@ Last updated: 2026-02-18
 
 ## Doing
 
+- Expanded `read-from-string` hash-edge EOF lock-ins for incomplete bracket dispatch:
+  - oracle corpus changes:
+    - `test/neovm/vm-compat/cases/read-from-string-edges.forms`
+    - `test/neovm/vm-compat/cases/read-from-string-edges.expected.tsv`
+    - added `condition-case` probes for incomplete `"#("` and `"#["`, asserting `end-of-file` via `(car err)` to avoid path-specific payload drift.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/read-from-string-edges` (pass, 26/26)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+
 - Aligned `#s`/`#@` hash-reader edge behavior in `read-from-string` with Oracle:
   - runtime changes:
     - updated `rust/neovm-core/src/elisp/parser.rs` so bare `#s` now reports `invalid-read-syntax` payload `"#s"` (instead of `"expected '(' after #s"`).
