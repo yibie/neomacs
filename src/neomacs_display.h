@@ -2675,4 +2675,29 @@ void neomacs_display_menu_bar_end(struct NeomacsDisplay *handle,
                                    uint32_t fg_color,
                                    uint32_t bg_color);
 
+/* ============================================================================
+ * macOS pump_events integration
+ * ============================================================================ */
+
+#ifdef __APPLE__
+
+/**
+ * Pump winit events from Emacs's read_socket hook (macOS only).
+ *
+ * On macOS the winit EventLoop must live on the main thread but Emacs also
+ * needs the main thread for its command loop.  This function integrates the
+ * two by calling winit's pump_app_events() with a non-blocking timeout.
+ * It must be called regularly from neomacs_read_socket so the window
+ * repaints and receives input events.
+ *
+ * @param timeout_ms  Maximum milliseconds to wait for events; 0 = non-blocking.
+ */
+void neomacs_display_pump_macos_events(unsigned int timeout_ms);
+
+/* ABI stubs - kept for link compatibility, no longer functional. */
+void neomacs_display_run_on_main_thread(void);
+void neomacs_display_set_macos_event_loop_callback(void (*callback)(void));
+
+#endif /* __APPLE__ */
+
 #endif  /* NEOMACS_DISPLAY_H */

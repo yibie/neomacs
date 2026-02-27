@@ -59,6 +59,25 @@ pub(crate) static DROPPED_FILES: std::sync::Mutex<Vec<Vec<String>>> = std::sync:
 /// Each entry is (terminal_id, new_title).
 pub(crate) static TERMINAL_TITLES: std::sync::Mutex<Vec<(u32, String)>> = std::sync::Mutex::new(Vec::new());
 
+// ============================================================================
+// macOS pump_events integration
+// ============================================================================
+// On macOS, winit's EventLoop must be on the main thread.  Instead of
+// blocking in run_app(), we store the EventLoop and RenderApp in
+// thread-local storage and call pump_app_events() periodically from
+// Emacs's read_socket hook (neomacs_read_socket) on the main thread.
+#[cfg(target_os = "macos")]
+pub mod macos_pump {
+    use std::cell::RefCell;
+    use winit::event_loop::EventLoop;
+    use crate::render_thread::RenderApp;
+
+    thread_local! {
+        pub static EVENT_LOOP: RefCell<Option<EventLoop<()>>> = RefCell::new(None);
+        pub static RENDER_APP: RefCell<Option<RenderApp>> = RefCell::new(None);
+    }
+}
+
 use crate::backend::tty::TtyBackend;
 use crate::core::types::{Color, Rect};
 use crate::core::scene::{Scene, WindowScene, CursorState, SceneCursorStyle};
@@ -127,6 +146,21 @@ impl NeomacsDisplay {
 pub unsafe extern "C" fn neomacs_display_shutdown(handle: *mut NeomacsDisplay) {
     if handle.is_null() {
         return;
+    }
+
+    // On macOS, explicitly drop RenderApp and EventLoop from thread-local
+    // storage before the process exits.  This prevents a panic in winit's
+    // window_will_close callback, which accesses TLS and fires when the
+    // Window is dropped.  By dropping here (while TLS is still valid) we
+    // ensure the window is closed cleanly before TLS destructors run.
+    #[cfg(target_os = "macos")]
+    {
+        macos_pump::RENDER_APP.with(|cell: &std::cell::RefCell<Option<crate::render_thread::RenderApp>>| {
+            let _ = cell.borrow_mut().take();
+        });
+        macos_pump::EVENT_LOOP.with(|cell| {
+            let _ = cell.borrow_mut().take();
+        });
     }
 
     let mut display = Box::from_raw(handle);

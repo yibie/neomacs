@@ -25,9 +25,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include <string.h>
 #include <stdint.h>
 #include <signal.h>
-#ifndef __APPLE__
-#include <xkbcommon/xkbcommon.h>
-#endif
+#include <time.h>
 
 #include "lisp.h"
 #include "blockinput.h"
@@ -73,6 +71,11 @@ static void neomacs_hide_hourglass (struct frame *f);
 static void neomacs_compute_glyph_string_overhangs (struct glyph_string *s);
 static void neomacs_clear_under_internal_border (struct frame *f);
 static void neomacs_display_wakeup_handler (int fd, void *data);
+
+/* Threaded mode state */
+static int threaded_mode_active = 0;
+static int wakeup_fd = -1;
+
 
 /* Rust layout engine FFI entry point (defined in layout/engine.rs via ffi.rs) */
 extern void neomacs_rust_layout_frame (void *display_handle, void *frame_ptr,
@@ -350,7 +353,8 @@ neomacs_open_display (const char *display_name)
      to match official Emacs behavior — the frame creation will set
      the actual size from frame parameters.  */
   int init_w = 960, init_h = 640;
-  int wakeup_fd = neomacs_display_init_threaded (init_w, init_h, "Emacs");
+  int local_wakeup_fd = neomacs_display_init_threaded (init_w, init_h, "Emacs");
+  wakeup_fd = local_wakeup_fd; /* Store in global for macOS callback */
   dpyinfo->init_window_width = init_w;
   dpyinfo->init_window_height = init_h;
 
@@ -359,6 +363,8 @@ neomacs_open_display (const char *display_name)
       xfree (dpyinfo);
       error ("Failed to initialize Neomacs threaded display engine");
     }
+
+  threaded_mode_active = 1;
 
   /* Query actual monitor dimensions from winit */
   neomacs_query_monitors (dpyinfo);
@@ -8789,6 +8795,27 @@ neomacs_read_socket (struct terminal *terminal, struct input_event *hold_quit)
 {
   int count;
 
+  /* On macOS, pump winit events before reading input.  The EventLoop and
+     RenderApp live on the main thread and are driven by periodic calls to
+     neomacs_display_pump_macos_events() from this hook.
+     Rate-limit to ~120Hz: skip the pump if called less than 8ms after the
+     last pump to avoid busy-spinning when Emacs polls rapidly.
+     Use non-blocking (0ms) to avoid stalling Emacs input handling.  */
+#ifdef __APPLE__
+  {
+    static struct timespec last_pump = {0, 0};
+    struct timespec now;
+    clock_gettime (CLOCK_MONOTONIC, &now);
+    long elapsed_ns = (now.tv_sec - last_pump.tv_sec) * 1000000000L
+                      + (now.tv_nsec - last_pump.tv_nsec);
+    if (elapsed_ns >= 8000000L) /* 8ms */
+      {
+        neomacs_display_pump_macos_events (0);
+        last_pump = now;
+      }
+  }
+#endif
+
   /* Drain events from the render thread — this is the primary event pump.
      In GUI backends like X11/GTK, read_socket directly reads from the
      display connection.  We do the same by draining our render thread.
@@ -15861,11 +15888,6 @@ DEFUN ("menu-or-popup-active-p", Fmenu_or_popup_active_p,
  * Threaded Mode Support
  * ============================================================================ */
 
-/* Threaded mode state */
-static int threaded_mode_active = 0;
-static int wakeup_fd = -1;
-
-
 /* Resolve a safe target frame for an input event from the render thread.  */
 static struct frame *
 neomacs_event_target_frame (uint32_t window_id)
@@ -16528,6 +16550,7 @@ neomacs_display_wakeup_handler (int fd, void *data)
      also calls neomacs_evq_flush, making this a harmless no-op.  */
   neomacs_evq_flush (NULL);
 }
+
 
 /* Initialize display in threaded mode */
 int

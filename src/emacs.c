@@ -3022,6 +3022,7 @@ killed.  */
 {
   int exit_code;
 
+#if 0  /* Debug code disabled */
   fprintf (stderr, "DEBUG: kill-emacs called! arg=%p, restart=%p\n", 
            (void*)arg, (void*)restart);
   /* Print specpdl backtrace to see Lisp call stack */
@@ -3038,7 +3039,7 @@ killed.  */
             fprintf (stderr, "    [%d] %s\n", count, 
                      STRINGP (SYMBOL_NAME (pdl->bt.function))
                      ? (char *)SDATA (SYMBOL_NAME (pdl->bt.function))
-                     : "?");
+                     : "???");
             count++;
             break;
           default:
@@ -3047,6 +3048,7 @@ killed.  */
       }
     fprintf (stderr, "  End backtrace.\n");
   }
+#endif
 
 #ifndef WINDOWSNT
   /* Do some checking before shutting down Emacs, because errors

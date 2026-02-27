@@ -133,6 +133,36 @@ pub unsafe extern "C" fn neomacs_display_init_threaded(
     let _ = env_logger::try_init();
     log::info!("neomacs_display_init_threaded: {}x{}", width, height);
 
+    // On macOS, register an atexit handler to explicitly drop RenderApp and
+    // EventLoop from thread-local storage before TLS destructors run.
+    // Without this, the implicit TLS destruction during process exit triggers
+    // winit's window_will_close callback, which tries to access TLS again and
+    // panics with "cannot access TLS value during or after destruction".
+    //
+    // We use std::mem::forget to skip Drop entirely for both values so that
+    // no winit callbacks (window_will_close) are triggered and no further TLS
+    // accesses occur during process teardown.  The OS reclaims all resources.
+    #[cfg(target_os = "macos")]
+    {
+        extern "C" fn macos_tls_cleanup() {
+            use crate::ffi::macos_pump;
+            // Take RenderApp out of TLS and forget it (skip Drop to avoid
+            // triggering window_will_close which would access TLS again).
+            if let Ok(mut guard) = macos_pump::RENDER_APP.try_with(|cell: &std::cell::RefCell<Option<crate::render_thread::RenderApp>>| {
+                cell.borrow_mut().take()
+            }) {
+                if let Some(app) = guard {
+                    std::mem::forget(app);
+                }
+            }
+            // Same for EventLoop.
+            if let Ok(Some(el)) = macos_pump::EVENT_LOOP.try_with(|cell| cell.borrow_mut().take()) {
+                std::mem::forget(el);
+            }
+        }
+        libc::atexit(macos_tls_cleanup);
+    }
+
     let title = if title.is_null() {
         "Emacs".to_string()
     } else {
@@ -675,6 +705,23 @@ pub unsafe extern "C" fn neomacs_display_send_command(
 /// Shutdown threaded display
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_shutdown_threaded() {
+    // On macOS, explicitly drop RenderApp and EventLoop from TLS before
+    // THREADED_STATE is taken.  This ensures the winit Window is closed while
+    // TLS is still accessible, preventing a panic in window_will_close when
+    // the thread-local destructors run after TLS is marked as destroyed.
+    #[cfg(target_os = "macos")]
+    {
+        use crate::ffi::macos_pump;
+        // Take RenderApp out of TLS and drop it (closes the window cleanly).
+        macos_pump::RENDER_APP.with(|cell: &std::cell::RefCell<Option<crate::render_thread::RenderApp>>| {
+            let _ = cell.borrow_mut().take();
+        });
+        // Take EventLoop out of TLS and drop it.
+        macos_pump::EVENT_LOOP.with(|cell| {
+            let _ = cell.borrow_mut().take();
+        });
+    }
+
     if let Some(mut state) = (*std::ptr::addr_of_mut!(THREADED_STATE)).take() {
         // Send shutdown command
         let _ = state.emacs_comms.cmd_tx.try_send(RenderCommand::Shutdown);
@@ -710,4 +757,63 @@ pub unsafe extern "C" fn neomacs_display_get_threaded_handle() -> *mut NeomacsDi
         Some(state) => state.display_handle,
         None => std::ptr::null_mut(),
     }
+}
+
+// ============================================================================
+// macOS pump_events integration
+// ============================================================================
+
+/// Pump macOS winit events from Emacs's read_socket hook.
+///
+/// On macOS the EventLoop must live on the main thread but cannot block it
+/// (Emacs needs the main thread for its command loop).  Instead, the
+/// EventLoop and RenderApp are stored in thread-local storage and this
+/// function is called from `neomacs_read_socket` on every input poll to
+/// drive winit events non-blockingly.
+///
+/// `timeout_ms` controls how long to wait for new events.  Pass 0 for a
+/// non-blocking poll.
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_pump_macos_events(timeout_ms: u32) {
+    #[cfg(target_os = "macos")]
+    {
+        use winit::platform::pump_events::EventLoopExtPumpEvents;
+        use crate::ffi::macos_pump;
+
+        let timeout = if timeout_ms == 0 {
+            Some(std::time::Duration::ZERO)
+        } else {
+            Some(std::time::Duration::from_millis(timeout_ms as u64))
+        };
+
+        macos_pump::EVENT_LOOP.with(|el_cell| {
+            if let Ok(mut el) = el_cell.try_borrow_mut() {
+                if let Some(el_ref) = el.as_mut() {
+                    macos_pump::RENDER_APP.with(|app_cell: &std::cell::RefCell<Option<crate::render_thread::RenderApp>>| {
+                        if let Ok(mut app) = app_cell.try_borrow_mut() {
+                            if let Some(app_ref) = app.as_mut() {
+                                el_ref.pump_app_events(timeout, app_ref);
+                            }
+                        }
+                    });
+                }
+            }
+        });
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = timeout_ms;
+    }
+}
+
+/// No-op stub kept for ABI compatibility.
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_run_on_main_thread() {}
+
+/// No-op stub kept for ABI compatibility.
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_macos_event_loop_callback(
+    callback: Option<extern "C" fn()>,
+) {
+    let _ = callback;
 }

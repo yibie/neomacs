@@ -416,11 +416,10 @@ DUMPING=@DUMPING@
 CHECK_STRUCTS = @CHECK_STRUCTS@
 HAVE_PDUMPER = @HAVE_PDUMPER@
 
-HAVE_BE_APP = @HAVE_BE_APP@
-
-## ARM Macs require that all code have a valid signature.  Since pdump
-## invalidates the signature, we must re-sign to fix it.
-DO_CODESIGN=$(patsubst aarch64-apple-darwin%,yes,@configuration@)
+## macOS requires a valid code signature.  Since linking and pdump both
+## invalidate the signature, we must re-sign after each step.
+## Use uname -s to detect macOS regardless of architecture (arm64 or x86_64).
+DO_CODESIGN := $(if $(filter Darwin,$(shell uname -s)),yes,)
 
 -include ${top_builddir}/src/verbose.mk
 
@@ -660,6 +659,9 @@ ifeq ($(SYSTEM_TYPE),cygwin)
 	find ${top_builddir} -name '*.eln' | rebase -v -O -T -
 endif
 	rm -f $@ && cp -f temacs$(EXEEXT) $@
+ifeq ($(DO_CODESIGN),yes)
+	codesign -s - -f $@
+endif
 
 ## On Haiku, also produce a binary named Emacs with the appropriate
 ## icon set.
@@ -678,6 +680,9 @@ $(pdmp): emacs$(EXEEXT) $(lispsource)/loaddefs.el $(lispsource)/loaddefs.elc
 	LC_ALL=C $(RUN_TEMACS) -batch $(BUILD_DETAILS) -l loadup --temacs=pdump \
 		--bin-dest '$(BIN_DESTDIR)' --eln-dest '$(ELN_DESTDIR)'
 	cp -f $@ $(bootstrap_pdmp)
+ifeq ($(DO_CODESIGN),yes)
+	codesign -s - -f emacs$(EXEEXT)
+endif
 endif
 
 ## $(SOME_MACHINE_OBJECTS) comes before $(obj) because some files may

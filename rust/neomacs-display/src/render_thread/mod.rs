@@ -87,6 +87,9 @@ pub struct RenderThread {
 
 impl RenderThread {
     /// Spawn the render thread
+    ///
+    /// On macOS, the event loop must run on the main thread, so this
+    /// returns a handle that will be resolved when the loop exits.
     pub fn spawn(
         comms: RenderComms,
         width: u32,
@@ -97,25 +100,64 @@ impl RenderThread {
         #[cfg(feature = "neo-term")]
         shared_terminals: crate::terminal::SharedTerminals,
     ) -> Self {
-        let handle = thread::spawn(move || {
-            run_render_loop(
+        // On macOS, EventLoop must be created on the main thread.
+        // We're called from neomacs_open_display which is called from Lisp
+        // on the main thread, so this is safe.
+        // Store EventLoop and RenderApp in thread-local storage; Emacs's
+        // read_socket will call pump_app_events() periodically to drive winit.
+        #[cfg(target_os = "macos")]
+        {
+            let event_loop = EventLoop::new().expect("Failed to create event loop");
+            // Use Wait (not Poll) so pump_app_events can respect WaitUntil
+            // timeouts set in about_to_wait, allowing Metal VSync to control
+            // frame pacing instead of busy-spinning.
+            event_loop.set_control_flow(ControlFlow::Wait);
+
+            let app = RenderApp::new(
                 comms, width, height, title, image_dimensions,
                 shared_monitors,
                 #[cfg(feature = "neo-term")]
                 shared_terminals,
             );
-        });
 
-        Self {
-            handle: Some(handle),
+            crate::ffi::macos_pump::EVENT_LOOP.with(|el| {
+                *el.borrow_mut() = Some(event_loop);
+            });
+            crate::ffi::macos_pump::RENDER_APP.with(|a: &std::cell::RefCell<Option<RenderApp>>| {
+                *a.borrow_mut() = Some(app);
+            });
+
+            tracing::info!("macOS: EventLoop and RenderApp ready for pump_app_events");
+            Self { handle: None }
+        }
+
+        #[cfg(not(target_os = "macos"))]
+        {
+            let handle = thread::spawn(move || {
+                run_render_loop(
+                    comms, width, height, title, image_dimensions,
+                    shared_monitors,
+                    #[cfg(feature = "neo-term")]
+                    shared_terminals,
+                );
+            });
+
+            Self {
+                handle: Some(handle),
+            }
         }
     }
 
-    /// Wait for render thread to finish
+    /// Wait for render thread to finish.
     pub fn join(mut self) {
-        if let Some(handle) = self.handle.take() {
-            let _ = handle.join();
+        #[cfg(not(target_os = "macos"))]
+        {
+            if let Some(handle) = self.handle.take() {
+                let _ = handle.join();
+            }
         }
+        // On macOS the event loop is pumped from Emacs's read_socket; no
+        // background thread to join.
     }
 }
 
@@ -221,7 +263,7 @@ impl Default for WindowChrome {
     }
 }
 
-struct RenderApp {
+pub struct RenderApp {
     comms: RenderComms,
     window: Option<Arc<Window>>,
     current_frame: Option<FrameGlyphBuffer>,
@@ -3492,28 +3534,97 @@ impl ApplicationHandler for RenderApp {
             }
         }
 
+        // On macOS, the event loop is driven by pump_app_events() called from
+        // neomacs_read_socket.  Emacs only calls read_socket when it has work
+        // to do or when wakeup_fd is readable.  During animations (crossfade,
+        // scroll, cursor) we need continuous redraws, so we write to the wakeup
+        // pipe to keep Emacs calling pump.  Without this, animations stall while
+        // Emacs waits for the next keypress.
+        #[cfg(target_os = "macos")]
+        {
+            let needs_pump = self.frame_dirty
+                || has_active_content
+                || self.transitions.has_active()
+                || self.cursor.animating
+                || self.cursor.size_animating
+                || self.idle_dim_active;
+            if needs_pump {
+                self.comms.wakeup.wake();
+            }
+        }
+
         // Use WaitUntil with smart timeouts instead of Poll to save CPU.
         // Window events (key, mouse, resize) still wake immediately.
+        // On macOS with pump_app_events, WaitUntil controls how long each
+        // pump call blocks, which lets Metal's CADisplayLink pace frames.
         let now = std::time::Instant::now();
         let next_wake = if self.frame_dirty || has_active_content
             || self.cursor.animating || self.cursor.size_animating
             || self.idle_dim_active || self.transitions.has_active()
         {
-            // Active rendering: cap at ~240fps to avoid spinning
-            now + std::time::Duration::from_millis(4)
+            // Active rendering: target ~120fps (8ms) — Metal VSync will
+            // further constrain present() to actual display refresh rate.
+            now + std::time::Duration::from_millis(8)
         } else if self.cursor.blink_enabled {
             // Idle with cursor blink: wake at next toggle time
             self.cursor.last_blink_toggle + self.cursor.blink_interval
         } else {
-            // Fully idle: poll for new Emacs frames at 60fps
+            // Fully idle: wake at 60fps to poll for new Emacs frames
             now + std::time::Duration::from_millis(16)
         };
         event_loop.set_control_flow(ControlFlow::WaitUntil(next_wake));
     }
 }
 
+/// Explicit cleanup on drop.
+///
+/// On macOS, winit's `window_will_close` Objective-C delegate callback
+/// accesses a thread-local `Handler` value.  If `RenderApp` is dropped
+/// during thread-local storage destruction (e.g. at process exit), that
+/// TLS has already been torn down and the access panics.
+///
+/// By implementing `Drop` and explicitly dropping `self.window` first —
+/// while this Drop call is triggered from user code rather than the TLS
+/// destructor — we ensure the window is closed while all TLS values are
+/// still valid.  The subsequent TLS destructor for RENDER_APP then finds
+/// `self.window = None` and no further Window drop occurs.
+impl Drop for RenderApp {
+    fn drop(&mut self) {
+        // Drop GPU resources that hold references to the surface/device
+        // before closing the window, mirroring the exiting() cleanup.
+        drop(self.renderer.take());
+        drop(self.glyph_atlas.take());
+        drop(self.surface.take());
+        drop(self.device.take());
+        drop(self.queue.take());
+        self.multi_windows.destroy_all();
+        if let Some(adapter) = self.adapter.take() {
+            std::mem::forget(adapter);
+        }
+
+        // On macOS, winit's Window::drop triggers an Objective-C
+        // window_will_close delegate callback that accesses thread-local
+        // storage.  When RenderApp is dropped from the TLS destructor
+        // (during process exit), that TLS is already being torn down,
+        // causing a panic.
+        //
+        // We intentionally leak the Window Arc here so Window::drop does
+        // not run from within a TLS destructor.  The OS reclaims the
+        // Objective-C window on process exit anyway.
+        //
+        // When RenderApp is dropped explicitly (via neomacs_display_shutdown
+        // or the atexit handler, while TLS is still valid), the window is
+        // closed naturally by the winit event loop having already processed
+        // the Shutdown command, so the Arc count should be 1 here and the
+        // leak is a single allocation.
+        if let Some(window_arc) = self.window.take() {
+            std::mem::forget(window_arc);
+        }
+    }
+}
+
 /// Run the render loop (called on render thread)
-pub(crate) fn run_render_loop(
+pub fn run_render_loop(
     comms: RenderComms,
     width: u32,
     height: u32,
